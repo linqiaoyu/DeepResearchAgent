@@ -4,6 +4,7 @@ import re
 import time
 from collections import Counter
 
+from deepresearch_agent.citations import build_footnote_maps
 from deepresearch_agent.schemas import EvaluationResult, Evidence, ResearchState
 
 CITATION_RE = re.compile(r"\[\^(\d+)\]")
@@ -54,7 +55,7 @@ class Evaluator:
         claim_lines: list[str],
         evidence_store: list[Evidence],
     ) -> tuple[int, int, int]:
-        footnotes = self._footnote_map(evidence_store)
+        footnote_to_evidence = build_footnote_maps(evidence_store).footnote_to_evidence
         citation_total = 0
         supported_citations = 0
         citation_errors = 0
@@ -67,24 +68,13 @@ class Evaluator:
             claim_text = self._claim_text(line)
             for citation_number in citation_numbers:
                 citation_total += 1
-                evidence = footnotes.get(citation_number)
+                evidence = footnote_to_evidence.get(citation_number)
                 if evidence and self._is_supported(claim_text, evidence):
                     supported_citations += 1
                 else:
                     citation_errors += 1
 
         return citation_total, supported_citations, citation_errors
-
-    def _footnote_map(self, evidence_store: list[Evidence]) -> dict[int, Evidence]:
-        footnotes: dict[int, Evidence] = {}
-        seen: dict[tuple[str, str], int] = {}
-        for item in evidence_store:
-            key = (item.source_url, item.claim)
-            if key not in seen:
-                footnote_number = len(seen) + 1
-                seen[key] = footnote_number
-                footnotes[footnote_number] = item
-        return footnotes
 
     def _claim_text(self, line: str) -> str:
         text = line.removeprefix("- ").strip()

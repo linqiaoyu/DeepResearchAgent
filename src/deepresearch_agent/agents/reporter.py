@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
+from deepresearch_agent.citations import build_footnote_maps
 from deepresearch_agent.schemas import Evidence, ResearchState
 
 
@@ -10,15 +11,8 @@ class ReporterAgent:
         if not state.plan:
             raise ValueError("Cannot report before planning.")
         evidence = state.evidence_store
-        unique_refs: list[Evidence] = []
-        key_to_ref: dict[tuple[str, str], int] = {}
-        ref_map: dict[str, int] = {}
-        for item in evidence:
-            key = (item.source_url, item.claim)
-            if key not in key_to_ref:
-                key_to_ref[key] = len(unique_refs) + 1
-                unique_refs.append(item)
-            ref_map[item.id] = key_to_ref[key]
+        footnotes = build_footnote_maps(evidence)
+        ref_map = footnotes.evidence_id_to_footnote
         lines: list[str] = [
             f"# {state.topic}",
             "",
@@ -61,9 +55,9 @@ class ReporterAgent:
             lines.append("- 本轮报告未单独引入低置信度预测性结论。")
 
         lines.extend(["", "## 参考来源"])
-        for item in unique_refs:
+        for item in footnotes.unique_refs:
             lines.append(
-                f"[^{key_to_ref[(item.source_url, item.claim)]}]: {item.source_title}. {item.source_url} "
+                f"[^{ref_map[item.id]}]: {item.source_title}. {item.source_url} "
                 f"({item.source_pub_date.isoformat()})"
             )
         return "\n".join(lines)

@@ -9,4 +9,4 @@ artifacts/
 *.sqlite
 *.sqlite3
 .DS_Store
-
+.agent_handoff/
