@@ -5,11 +5,13 @@ The harness treats evaluation as a first-class subsystem, not a screenshot.
 ## Metrics
 
 - `task_success_rate`: report generated with at least one evidence record
-- `citation_accuracy`: citation markers in the report map to existing evidence rows
+- `citation_accuracy`: citation markers in bullet claims map to Evidence rows and the cited claim has deterministic text overlap with `Evidence.claim` or `Evidence.extract_text`
 - `critic_catch_rate`: Critic found seeded or naturally occurring quality issues
 - `answer_relevance`: topic terms appear in the final report
 - `faithfulness`: bullet claims in the report carry citations
 - `cost_usd`, `latency_seconds`, `token_used`: operational metrics for Pareto analysis
+
+Unsupported or invalid bullet citations are counted as `citation_error` bad cases.
 
 ## Golden Questions
 
@@ -37,6 +39,5 @@ The default Critic and seed data support these categories:
 ## Acceptance Criteria
 
 - Evaluation can be run repeatedly from the command line.
-- The output includes quality, citation, cost, latency, and token fields.
+- The output includes quality, citation, cost, latency, token, Critic catch rate, and aggregated bad-case fields.
 - Critic issues are visible in the Streamlit dashboard and final report.
-

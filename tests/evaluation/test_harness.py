@@ -19,9 +19,12 @@ class HarnessTests(unittest.TestCase):
 
         self.assertEqual(summary["cases"], 2)
         self.assertIn("avg_citation_accuracy", summary)
+        self.assertIn("avg_critic_catch_rate", summary)
         self.assertIn("avg_cost_usd", summary)
+        self.assertIn("avg_token_used", summary)
+        self.assertIn("bad_case_categories", summary)
+        self.assertIsInstance(summary["bad_case_categories"], dict)
 
 
 if __name__ == "__main__":
     unittest.main()
-

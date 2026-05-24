@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 from deepresearch_agent.schemas import EvaluationResult, Evidence, ResearchState, utc_now
@@ -17,8 +19,17 @@ class SQLiteStore:
         conn.row_factory = sqlite3.Row
         return conn
 
+    @contextmanager
+    def _connection(self) -> Iterator[sqlite3.Connection]:
+        conn = self._connect()
+        try:
+            with conn:
+                yield conn
+        finally:
+            conn.close()
+
     def _setup(self) -> None:
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS checkpoints (
@@ -50,7 +61,7 @@ class SQLiteStore:
 
     def save_checkpoint(self, state: ResearchState) -> None:
         state.updated_at = utc_now()
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.execute(
                 """
                 INSERT INTO checkpoints (research_id, state_json, updated_at)
@@ -63,7 +74,7 @@ class SQLiteStore:
             )
 
     def load_checkpoint(self, research_id: str) -> ResearchState | None:
-        with self._connect() as conn:
+        with self._connection() as conn:
             row = conn.execute(
                 "SELECT state_json FROM checkpoints WHERE research_id = ?",
                 (research_id,),
@@ -73,7 +84,7 @@ class SQLiteStore:
         return ResearchState.model_validate_json(row["state_json"])
 
     def add_evidence_many(self, items: list[Evidence]) -> None:
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.executemany(
                 """
                 INSERT OR REPLACE INTO evidence (
@@ -100,7 +111,7 @@ class SQLiteStore:
             )
 
     def list_evidence(self, research_id: str) -> list[Evidence]:
-        with self._connect() as conn:
+        with self._connection() as conn:
             rows = conn.execute(
                 "SELECT * FROM evidence WHERE research_id = ? ORDER BY rowid",
                 (research_id,),
@@ -122,7 +133,7 @@ class SQLiteStore:
         ]
 
     def save_evaluation(self, result: EvaluationResult) -> None:
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.execute(
                 """
                 INSERT INTO evaluations (research_id, result_json, created_at)
@@ -135,9 +146,8 @@ class SQLiteStore:
             )
 
     def latest_metrics(self) -> list[EvaluationResult]:
-        with self._connect() as conn:
+        with self._connection() as conn:
             rows = conn.execute(
                 "SELECT result_json FROM evaluations ORDER BY created_at DESC LIMIT 20"
             ).fetchall()
         return [EvaluationResult.model_validate_json(row["result_json"]) for row in rows]
-
