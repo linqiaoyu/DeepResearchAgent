@@ -1,0 +1,5 @@
+{"category":"retrieval_miss","description":"Planner selected a query that missed the official governance source."}
+{"category":"citation_error","description":"Reporter cited a source that supported the topic but not the exact numeric claim."}
+{"category":"numeric_conflict","description":"Two sources reported different advisor productivity improvements without explanation."}
+{"category":"outdated_source","description":"A time-sensitive market estimate used a 2024 survey."}
+

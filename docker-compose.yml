@@ -1,0 +1,42 @@
+services:
+  api:
+    build: .
+    command: uvicorn deepresearch_agent.api.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env.example
+    environment:
+      DEEPRESEARCH_STORAGE_PATH: /app/data/runtime/research.db
+    volumes:
+      - ./data/runtime:/app/data/runtime
+
+  ui:
+    build: .
+    command: streamlit run ui/app.py --server.address 0.0.0.0 --server.port 8501
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env.example
+    environment:
+      DEEPRESEARCH_STORAGE_PATH: /app/data/runtime/research.db
+    volumes:
+      - ./data/runtime:/app/data/runtime
+    depends_on:
+      - api
+
+  postgres:
+    image: postgres:15
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_USER: deepresearch
+      POSTGRES_PASSWORD: deepresearch
+      POSTGRES_DB: deepresearch
+    ports:
+      - "5432:5432"
+    volumes:
+      - deepresearch_pg:/var/lib/postgresql/data
+
+volumes:
+  deepresearch_pg:
+

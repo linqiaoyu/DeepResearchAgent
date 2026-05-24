@@ -1,0 +1,38 @@
+[project]
+name = "deepresearch-agent"
+version = "0.1.0"
+description = "A multi-agent deep research framework with evidence tracking, critic feedback, checkpointing, and evaluation harness."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "pydantic>=2.0",
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.27",
+  "streamlit>=1.35",
+  "langgraph>=0.2.50",
+  "litellm>=1.40",
+  "httpx>=0.27",
+  "pytest>=8.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "ruff>=0.5",
+]
+
+[project.scripts]
+deepresearch-demo = "deepresearch_agent.cli:run_demo"
+deepresearch-eval = "deepresearch_agent.cli:run_eval"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+

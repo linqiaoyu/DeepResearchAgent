@@ -1,0 +1,75 @@
+[
+  {
+    "id": "src-wealth-pain-2026",
+    "title": "Wealth Management AI Pain Points 2026",
+    "url": "https://example.com/reports/wealth-ai-pain-2026",
+    "source_type": "industry_report",
+    "published_at": "2026-04-10",
+    "credibility": 0.84,
+    "content": "Wealth managers report fragmented client data, slow product comparison, and weak personalization as the top pain points. Advisor productivity improved 18% in pilots that used AI agents for research summaries and client meeting preparation. Assets under management growth remained 7% in the surveyed digital wealth cohort. The report recommends traceable citations for every investment-related recommendation."
+  },
+  {
+    "id": "src-digital-finance-guideline",
+    "title": "Digital Finance AI Implementation Guideline",
+    "url": "https://example.gov/digital-finance-ai-guideline",
+    "source_type": "official",
+    "published_at": "2025-12-15",
+    "credibility": 0.95,
+    "content": "Financial institutions should build centralized AI governance for model demand, testing, deployment, evaluation, and exit. AI systems in wealth management must keep auditable evidence, human review paths, and clear risk warnings. Regulatory constraints mean an AI agent cannot provide unqualified investment advice without suitability checks and compliance review."
+  },
+  {
+    "id": "src-company-case-2026",
+    "title": "Company Case Notes on AI Wealth Assistants",
+    "url": "https://example.com/company/ai-wealth-assistant-case",
+    "source_type": "company_report",
+    "published_at": "2026-02-02",
+    "credibility": 0.78,
+    "content": "A bank pilot used planner-researcher-writer agents to summarize fund factsheets, compare products, and prepare relationship manager scripts. Advisor productivity improved 31% after the assistant was embedded in daily workflows. The project team emphasized source traceability, latency budgets, and manual approval for high-risk suggestions."
+  },
+  {
+    "id": "src-revolut-update",
+    "title": "Revolut AI Advisor Product Update",
+    "url": "https://example.com/news/revolut-ai-advisor-update",
+    "source_type": "news",
+    "published_at": "2026-01-20",
+    "credibility": 0.72,
+    "content": "Consumer fintech products are experimenting with AI guidance for budgeting, portfolio explanation, and financial education. The stronger use cases are education and explanation rather than direct trade recommendations. Product teams expect adoption to grow when citations, opt-outs, and audit logs become visible to users."
+  },
+  {
+    "id": "src-eval-engineering-note",
+    "title": "RAG Citation Evaluation Engineering Note",
+    "url": "https://example.com/engineering/rag-citation-eval",
+    "source_type": "engineering_blog",
+    "published_at": "2026-03-01",
+    "credibility": 0.82,
+    "content": "A production evaluation harness should track citation accuracy, faithfulness, answer relevance, context recall, cost, latency, and token use. One benchmark reached 94% citation accuracy at $0.62 per long research task. Teams used LLM-as-Judge plus deterministic citation verification to classify bad cases into retrieval miss, hallucination, citation error, and reasoning gap."
+  },
+  {
+    "id": "src-old-automation-survey",
+    "title": "Old Wealth Automation Survey",
+    "url": "https://example.com/reports/old-wealth-automation-survey",
+    "source_type": "industry_report",
+    "published_at": "2024-01-10",
+    "credibility": 0.66,
+    "content": "The 2024 survey estimated advisor productivity improved 12% when teams used automation for report drafting. It expected the market could double by 2027 if compliance and client trust barriers were solved. These figures are useful historical context but should not be treated as current evidence."
+  },
+  {
+    "id": "src-model-risk-governance",
+    "title": "Model Risk Governance Memo for Financial AI",
+    "url": "https://example.gov/model-risk-governance-ai",
+    "source_type": "regulation",
+    "published_at": "2026-03-15",
+    "credibility": 0.93,
+    "content": "Model risk governance requires documented data lineage, evaluation records, monitoring, fallback plans, and human accountability. However, AI agents may amplify unsuitable recommendations if retrieval results are stale or user risk profiles are incomplete. Audit logs and citation verification are mandatory controls for high-impact financial use cases."
+  },
+  {
+    "id": "src-agent-framework-comparison",
+    "title": "Multi-Agent Framework Comparison for Deep Research",
+    "url": "https://example.com/papers/agent-framework-comparison",
+    "source_type": "paper",
+    "published_at": "2026-02-18",
+    "credibility": 0.8,
+    "content": "Planner-researcher-critic-reporter architectures help long-horizon research tasks by separating decomposition, evidence gathering, quality control, and synthesis. Checkpointing reduces recovery cost when tasks exceed 30 steps. The paper recommends max critic iterations, retry queues, and explicit evidence stores instead of relying on vector memory alone."
+  }
+]
+

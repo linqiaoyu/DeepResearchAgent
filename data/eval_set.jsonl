@@ -1,0 +1,51 @@
+{"id":"eval-001","topic":"AI Agent 在财富管理行业的落地机会研究","depth_level":2,"expected_terms":["wealth","citation","risk"]}
+{"id":"eval-002","topic":"金融投研 Agent 的证据追踪与引用验证","depth_level":2,"expected_terms":["evidence","citation","critic"]}
+{"id":"eval-003","topic":"AI Agent 在银行客户经理工作台的应用","depth_level":2,"expected_terms":["advisor","governance","latency"]}
+{"id":"eval-004","topic":"大模型 Agent 在合规科技中的落地路径","depth_level":2,"expected_terms":["compliance","audit","risk"]}
+{"id":"eval-005","topic":"财富管理 AI Copilot 的评测指标体系","depth_level":2,"expected_terms":["accuracy","faithfulness","cost"]}
+{"id":"eval-006","topic":"金融 AI Agent 的长任务 checkpoint 设计","depth_level":2,"expected_terms":["checkpoint","recovery","critic"]}
+{"id":"eval-007","topic":"投研深度研究 Agent 的多智能体协作模式","depth_level":2,"expected_terms":["planner","researcher","critic"]}
+{"id":"eval-008","topic":"Data Agent 在金融经营分析中的机会","depth_level":2,"expected_terms":["data","evaluation","evidence"]}
+{"id":"eval-009","topic":"AI Agent 在基金产品对比中的风险边界","depth_level":2,"expected_terms":["risk","citation","advisor"]}
+{"id":"eval-010","topic":"可审计金融大模型应用的工程架构","depth_level":2,"expected_terms":["audit","evidence","governance"]}
+{"id":"eval-011","topic":"互联网金融平台的 AgentOps 能力建设","depth_level":2,"expected_terms":["latency","cost","monitoring"]}
+{"id":"eval-012","topic":"AI Agent 在智能风控解释中的应用","depth_level":2,"expected_terms":["risk","evidence","governance"]}
+{"id":"eval-013","topic":"金融客服 Agent 的质量评测与 Bad Case 分类","depth_level":2,"expected_terms":["bad case","judge","faithfulness"]}
+{"id":"eval-014","topic":"AI 投顾系统为什么需要人工确认机制","depth_level":2,"expected_terms":["human","risk","compliance"]}
+{"id":"eval-015","topic":"多源检索下的金融事实冲突检测","depth_level":2,"expected_terms":["numeric","conflict","critic"]}
+{"id":"eval-016","topic":"AI Agent 在券商研究所的提效场景","depth_level":2,"expected_terms":["productivity","research","citation"]}
+{"id":"eval-017","topic":"金融大模型应用中的引用准确率评估","depth_level":2,"expected_terms":["citation accuracy","verification","evidence"]}
+{"id":"eval-018","topic":"银行内部知识库 RAG 与 Agent 结合方案","depth_level":2,"expected_terms":["rag","governance","latency"]}
+{"id":"eval-019","topic":"AI Agent 在资产配置解释中的应用边界","depth_level":2,"expected_terms":["suitability","risk","citation"]}
+{"id":"eval-020","topic":"财富管理 Agent 的成本延迟质量 Pareto 分析","depth_level":2,"expected_terms":["cost","latency","quality"]}
+{"id":"eval-021","topic":"大模型应用工程师如何展示 Evaluation Harness","depth_level":2,"expected_terms":["evaluation","dashboard","regression"]}
+{"id":"eval-022","topic":"金融 Agent 的自动化回归测试集设计","depth_level":2,"expected_terms":["golden","metric","diff"]}
+{"id":"eval-023","topic":"投研报告生成 Agent 的 Reporter 设计","depth_level":2,"expected_terms":["report","reference","claim"]}
+{"id":"eval-024","topic":"AI Agent 在产品经理竞品研究中的复用","depth_level":2,"expected_terms":["research","framework","evidence"]}
+{"id":"eval-025","topic":"合规约束下的金融 Agent 上云部署方案","depth_level":2,"expected_terms":["deployment","audit","risk"]}
+{"id":"eval-026","topic":"金融科技公司为何需要 Agent 观测体系","depth_level":2,"expected_terms":["trace","latency","cost"]}
+{"id":"eval-027","topic":"多 Agent 深度研究系统的失败重试策略","depth_level":2,"expected_terms":["retry","critic","checkpoint"]}
+{"id":"eval-028","topic":"AI Agent 与传统后端工程的能力差异","depth_level":2,"expected_terms":["backend","evaluation","deployment"]}
+{"id":"eval-029","topic":"金融研究 Agent 的 Evidence Store 数据模型","depth_level":2,"expected_terms":["claim","source","database"]}
+{"id":"eval-030","topic":"财富管理 AI Agent 的公司案例对比","depth_level":2,"expected_terms":["players","advisor","governance"]}
+{"id":"eval-031","topic":"Agent 评测中的 LLM-as-Judge 使用边界","depth_level":2,"expected_terms":["judge","deterministic","citation"]}
+{"id":"eval-032","topic":"金融 AI 报告生成中的未验证假设管理","depth_level":2,"expected_terms":["projection","assumption","risk"]}
+{"id":"eval-033","topic":"深度研究 Agent 的子问题拆解策略","depth_level":2,"expected_terms":["planner","subquestion","source"]}
+{"id":"eval-034","topic":"AI Agent 在财富管理客户教育中的价值","depth_level":2,"expected_terms":["education","wealth","citation"]}
+{"id":"eval-035","topic":"金融 Agent 项目的 README 和 Demo 包装","depth_level":2,"expected_terms":["demo","quick start","metrics"]}
+{"id":"eval-036","topic":"金融大模型 Agent 的监管风险与技术控制","depth_level":2,"expected_terms":["regulatory","control","audit"]}
+{"id":"eval-037","topic":"Agent 系统如何避免 Critic 死循环","depth_level":2,"expected_terms":["hard limit","retry","critic"]}
+{"id":"eval-038","topic":"DeepResearchAgent 与通用搜索产品的差异","depth_level":2,"expected_terms":["evidence","critic","checkpoint"]}
+{"id":"eval-039","topic":"金融 AI Agent 的来源时效性校验","depth_level":2,"expected_terms":["outdated","source","verification"]}
+{"id":"eval-040","topic":"多智能体研究框架在咨询行业的迁移","depth_level":2,"expected_terms":["domain","research","framework"]}
+{"id":"eval-041","topic":"AI Agent 在基金销售合规审查中的应用","depth_level":2,"expected_terms":["compliance","human","audit"]}
+{"id":"eval-042","topic":"智能投研 Agent 的可观测性设计","depth_level":2,"expected_terms":["trace","metrics","latency"]}
+{"id":"eval-043","topic":"金融研究 Agent 的引用插入算法","depth_level":2,"expected_terms":["citation","claim","evidence"]}
+{"id":"eval-044","topic":"AI Agent 在财富管理中的 ROI 证明方式","depth_level":2,"expected_terms":["productivity","cost","quality"]}
+{"id":"eval-045","topic":"金融 Agent 如何处理来源冲突","depth_level":2,"expected_terms":["conflict","critic","retry"]}
+{"id":"eval-046","topic":"DeepResearchAgent 的面试展示路径","depth_level":2,"expected_terms":["demo","evaluation","evidence"]}
+{"id":"eval-047","topic":"金融 Agent 项目的 Docker Compose 交付","depth_level":2,"expected_terms":["docker","api","ui"]}
+{"id":"eval-048","topic":"Agent 项目从本地到公开 URL 的发布计划","depth_level":2,"expected_terms":["deployment","url","demo"]}
+{"id":"eval-049","topic":"AI Agent 研究报告的风险提示模板","depth_level":2,"expected_terms":["risk","limitation","assumption"]}
+{"id":"eval-050","topic":"金融 AI Agent 应届项目的差异化卖点","depth_level":2,"expected_terms":["evaluation","evidence","critic"]}
+

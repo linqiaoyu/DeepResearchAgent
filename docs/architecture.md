@@ -1,0 +1,41 @@
+# Architecture
+
+DeepResearchAgent is organized as a long-horizon research workflow with explicit quality gates.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Planner
+    participant Researcher
+    participant Extractor
+    participant Store as Evidence Store
+    participant Critic
+    participant Reporter
+    participant Evaluator
+
+    User->>Planner: topic + depth
+    Planner->>Researcher: 3-5 sub-questions
+    Researcher->>Extractor: sources per sub-question
+    Extractor->>Store: source-backed claims
+    Store->>Critic: evidence set
+    Critic-->>Researcher: retry tasks for high-severity issues
+    Critic->>Reporter: pass or hard-limit with issues
+    Reporter->>Evaluator: markdown report with citations
+    Evaluator->>User: metrics + report
+```
+
+## Core Contracts
+
+- `ResearchPlan`: topic, depth, sub-questions, estimated sources, success criteria
+- `Evidence`: claim, claim type, source URL/title/date, extract text, confidence
+- `CriticReport`: pass/fail, quality score, issues, retry tasks, iteration
+- `EvaluationResult`: task success, citation accuracy, critic catch rate, relevance, faithfulness, latency, cost, tokens
+
+## State And Recovery
+
+`SQLiteStore` persists checkpoints after every phase. A paused run stores the next phase, evidence collected so far, retry queue, Critic iteration, report draft, metrics, token count, and cost estimate. The engine can resume from `research_id` without discarding Evidence Store entries.
+
+## Why Evidence Store Is First-Class
+
+The project does not rely on vector memory as the source of truth. Each final claim must be backed by a structured `Evidence` row with an extract from the source. This makes citation verification, numeric conflict detection, and interview explanations concrete.
+
