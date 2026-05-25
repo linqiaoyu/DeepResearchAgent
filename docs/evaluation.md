@@ -27,6 +27,32 @@ PYTHONPATH=src python scripts/run_eval.py --limit 5
 
 The command writes `artifacts/evaluation/latest_metrics.json`.
 
+## Latest Local Validation Snapshot
+
+Post-regression Gate 4 validation passed on `2026-05-25` at commit `4b67275` (`Assert evaluator critic catch rate`).
+
+- Tests: `17 tests passed`
+- Demo: `phase=done status=done`
+- Demo artifact: `artifacts/post_regression_demo/report.md` (`54` lines)
+- Citation check: report contained footnote citation markers such as `[^1]` and footnote definitions such as `[^1]:`
+
+Deterministic evaluation sweep: `PYTHONPATH=src python scripts/run_eval.py --limit 5`
+
+| Metric | Value |
+| --- | ---: |
+| `cases` | `5` |
+| `avg_task_success_rate` | `1.0` |
+| `avg_citation_accuracy` | `1.0` |
+| `avg_critic_catch_rate` | `0.8` |
+| `avg_answer_relevance` | `1.0` |
+| `avg_faithfulness` | `0.923` |
+| `avg_latency_seconds` | `0.007` |
+| `avg_cost_usd` | `0.023` |
+| `avg_token_used` | `9644.8` |
+| `bad_case_categories.numeric_conflict` | `6` |
+
+This is a deterministic local fixture run for Gate 4 review, not a production LLM/search benchmark. It does not imply Tavily, LiteLLM, Postgres, or LangGraph production integrations are complete.
+
 ## Bad Case Categories
 
 The default Critic and seed data support these categories:
