@@ -70,6 +70,12 @@ Or use Docker:
 docker compose up --build
 ```
 
+Current UI/API packaging note: the Streamlit UI runs the local deterministic engine
+directly, while FastAPI exposes the same research contract for API demos. Under
+Docker Compose, both services use the same local storage path for the MVP. A
+future production hardening step can wire the UI to the API via `API_BASE_URL`
+or a similar setting.
+
 ## API Contract
 
 - `POST /research`: create a research run from `{ "topic": "...", "depth_level": 2 }`
