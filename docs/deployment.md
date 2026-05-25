@@ -1,5 +1,8 @@
 # Deployment
 
+Status: Public deployment is not yet completed. The steps below describe the
+expected release path and verification checks after a public host is provisioned.
+
 ## Local
 
 ```bash
@@ -28,7 +31,14 @@ Expected services:
 - Point `deepresearch.yulinqiao.com` to the host.
 - Record a 1-2 minute demo showing Planner, Evidence Store, Critic retry, report, metrics, and checkpoint resume.
 
+## Expected Verification Endpoints
+
+After deployment, verify these public endpoints before marking the release live:
+
+- API health: `/health`
+- API metrics: `/metrics`
+- UI: Streamlit app root
+
 ## Postgres Path
 
 The MVP uses SQLite so it can run in a bare local environment. The production schema is in `docs/postgres_schema.sql`; swap `SQLiteStore` for a Postgres adapter when `psycopg` or SQLAlchemy is available.
-
