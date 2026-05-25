@@ -17,6 +17,20 @@ from deepresearch_agent.schemas import ResearchRequest
 from deepresearch_agent.workflow import DeepResearchEngine
 
 
+def research_state_path_id(path: str) -> str | None:
+    path_parts = path.strip("/").split("/")
+    if len(path_parts) == 2 and path_parts[0] == "research" and path_parts[1]:
+        return path_parts[1]
+    return None
+
+
+def research_state_response(engine: DeepResearchEngine, research_id: str) -> tuple[object, HTTPStatus]:
+    state = engine.store.load_checkpoint(research_id)
+    if not state:
+        return {"error": "research_id not found"}, HTTPStatus.NOT_FOUND
+    return state.model_dump(mode="json"), HTTPStatus.OK
+
+
 class DeepResearchHandler(BaseHTTPRequestHandler):
     engine = DeepResearchEngine()
 
@@ -38,6 +52,11 @@ class DeepResearchHandler(BaseHTTPRequestHandler):
                 self._send_json({"error": "research_id not found"}, status=HTTPStatus.NOT_FOUND)
                 return
             self._send_json({"research_id": research_id, "report": state.final_report or ""})
+            return
+        research_id = research_state_path_id(parsed.path)
+        if research_id:
+            payload, status = research_state_response(self.engine, research_id)
+            self._send_json(payload, status=status)
             return
         if parsed.path == "/run":
             topic = parse_qs(parsed.query).get("topic", ["AI Agent 在财富管理行业的落地机会研究"])[0]
@@ -110,6 +129,7 @@ class DeepResearchHandler(BaseHTTPRequestHandler):
     </form>
     <pre>POST /research
 GET /metrics
+GET /research/{id}
 GET /research/{id}/report</pre>
   </main>
 </body>
@@ -155,4 +175,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
