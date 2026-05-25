@@ -14,9 +14,12 @@ The engine uses `DEEPRESEARCH_MAX_CRITIC_ITER`, retry queues, and forced pass wi
 
 ## How is citation accuracy calculated?
 
-The current deterministic metric checks whether every `[^n]` marker maps to an Evidence Store entry. A production version should add claim-source semantic verification with an LLM judge and spot human labels.
+The current deterministic metric checks that each bullet citation marker maps to an Evidence Store entry, then verifies that the cited bullet claim has deterministic text overlap with `Evidence.claim` or `Evidence.extract_text`. Invalid or unsupported citations are counted under `bad_case_categories["citation_error"]`. A production version should add semantic claim-source verification with an LLM judge and spot human labels.
+
+## Is critic_catch_rate a real recall metric?
+
+No. In the MVP, `critic_catch_rate` is a deterministic heuristic/proxy for whether the Critic surfaced quality issues. Production recall should be computed from seeded issue sets or manually labeled bad cases.
 
 ## What would you improve next?
 
 Replace fixture search with Tavily/Serper, add real web fetch, add Postgres, wire LangGraph checkpointers, and run CI metric diffs over the 50-case golden set.
-

@@ -6,12 +6,14 @@ The harness treats evaluation as a first-class subsystem, not a screenshot.
 
 - `task_success_rate`: report generated with at least one evidence record
 - `citation_accuracy`: citation markers in bullet claims map to Evidence rows and the cited claim has deterministic text overlap with `Evidence.claim` or `Evidence.extract_text`
-- `critic_catch_rate`: Critic found seeded or naturally occurring quality issues
+- `critic_catch_rate`: MVP heuristic/proxy for whether the Critic exposed quality issues. Current deterministic logic scores visible issue coverage, using `min(1.0, len(issues) / 3)` when issues are present and `1.0` when no issues are found. It is not true seeded issue recall or human-labeled Critic recall.
 - `answer_relevance`: topic terms appear in the final report
 - `faithfulness`: bullet claims in the report carry citations
 - `cost_usd`, `latency_seconds`, `token_used`: operational metrics for Pareto analysis
 
 Unsupported or invalid bullet citations are counted as `citation_error` bad cases.
+
+Production version: compute true critic recall from seeded issues or manually labeled bad cases.
 
 ## Golden Questions
 
