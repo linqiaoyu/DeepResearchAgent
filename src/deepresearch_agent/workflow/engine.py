@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 
 from deepresearch_agent.agents import CriticAgent, Evaluator, ExtractorAgent, PlannerAgent, ReporterAgent, ResearcherAgent
-from deepresearch_agent.schemas import ResearchState, Source, TodoItem
+from deepresearch_agent.schemas import ResearchState, Source, SubQuestion, TodoItem
 from deepresearch_agent.settings import Settings, load_settings
 from deepresearch_agent.storage import SQLiteStore
 from deepresearch_agent.tools import FixtureSearchTool
@@ -148,19 +148,32 @@ class DeepResearchEngine:
             return
         source_by_url: dict[str, Source] = {source.url: source for source in state.sources}
         evidence_by_id = {item.id: item for item in state.evidence_store}
-        fallback_subq = state.plan.sub_questions[-1]
         for task in state.retry_queue:
+            target_subq = self._retry_target_subquestion(state, task.sub_question_id)
             sources, record = self.researcher.retry(task.query, task.source_type)
             state.search_records.append(record)
             for source in sources:
                 source_by_url[source.url] = source
-            extracted = self.extractor.extract(state.research_id, fallback_subq, sources)
+            extracted = self.extractor.extract(state.research_id, target_subq, sources)
             for item in extracted:
                 evidence_by_id[item.id] = item
             task.completed = True
         state.sources = list(source_by_url.values())
         state.evidence_store = list(evidence_by_id.values())
         self.store.add_evidence_many(state.evidence_store)
+
+    def _retry_target_subquestion(
+        self,
+        state: ResearchState,
+        sub_question_id: str | None,
+    ) -> SubQuestion:
+        if not state.plan or not state.plan.sub_questions:
+            raise ValueError("Retry extraction requires a plan with sub-questions.")
+        if sub_question_id:
+            for sub_question in state.plan.sub_questions:
+                if sub_question.id == sub_question_id:
+                    return sub_question
+        return state.plan.sub_questions[-1]
 
     def _sources_for_subquestion(self, state: ResearchState, sub_question_id: str) -> list[Source]:
         if not state.plan:

@@ -4,7 +4,7 @@ import unittest
 from datetime import date
 
 from deepresearch_agent.agents import CriticAgent, PlannerAgent
-from deepresearch_agent.schemas import Evidence, ResearchState
+from deepresearch_agent.schemas import Evidence, ResearchState, RetryTask
 
 
 class CriticTests(unittest.TestCase):
@@ -48,8 +48,15 @@ class CriticTests(unittest.TestCase):
         self.assertIn("numeric_conflict", issue_types)
         self.assertIn("outdated_source", issue_types)
         self.assertTrue(report.retry_tasks)
+        self.assertTrue(all(task.sub_question_id for task in report.retry_tasks))
+        self.assertIn("market_pain", {task.sub_question_id for task in report.retry_tasks})
+        self.assertIn("current_adoption", {task.sub_question_id for task in report.retry_tasks})
+
+    def test_retry_task_sub_question_id_is_optional_for_old_checkpoints(self) -> None:
+        task = RetryTask(reason="legacy retry", query="legacy query")
+
+        self.assertIsNone(task.sub_question_id)
 
 
 if __name__ == "__main__":
     unittest.main()
-

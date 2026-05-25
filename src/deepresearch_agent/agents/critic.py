@@ -20,7 +20,7 @@ class CriticAgent:
         issues.extend(self._missing_citation_issues(state))
         issues.extend(self._numeric_conflicts(evidence))
         issues.extend(self._outdated_sources(evidence))
-        issues.extend(self._missing_counterargument(evidence))
+        issues.extend(self._missing_counterargument(state))
         issues.extend(self._unverified_projections(evidence))
 
         retry_tasks = [issue.suggested_retry_task for issue in issues if issue.suggested_retry_task]
@@ -46,6 +46,7 @@ class CriticAgent:
                     reason=f"No evidence collected for {sub_question.id}",
                     query=f"{sub_question.question} official source",
                     source_type="official",
+                    sub_question_id=sub_question.id,
                     severity="high",
                 )
                 issues.append(
@@ -76,6 +77,7 @@ class CriticAgent:
                     reason=f"Conflicting numeric claims for {left_key}",
                     query=f"{left_key} official latest benchmark",
                     source_type="official",
+                    sub_question_id=left.sub_question_id,
                     severity="high",
                 )
                 issues.append(
@@ -100,6 +102,7 @@ class CriticAgent:
                     reason="Time-sensitive claim uses an old source",
                     query=f"{item.claim[:80]} latest 2026",
                     source_type="official",
+                    sub_question_id=item.sub_question_id,
                     severity="medium",
                 )
                 issues.append(
@@ -113,7 +116,8 @@ class CriticAgent:
                 )
         return issues[:5]
 
-    def _missing_counterargument(self, evidence: list[Evidence]) -> list[Issue]:
+    def _missing_counterargument(self, state: ResearchState) -> list[Issue]:
+        evidence = state.evidence_store
         joined = " ".join(item.claim.lower() for item in evidence)
         has_counter = any(term in joined for term in ["risk", "constraint", "however", "compliance", "监管", "limitation"])
         if has_counter:
@@ -122,6 +126,7 @@ class CriticAgent:
             reason="No counterargument or risk evidence found",
             query="AI agent financial advice risk compliance counterargument",
             source_type="official",
+            sub_question_id=self._counterargument_sub_question_id(state),
             severity="high",
         )
         return [
@@ -147,6 +152,15 @@ class CriticAgent:
                     )
                 )
         return issues
+
+    def _counterargument_sub_question_id(self, state: ResearchState) -> str | None:
+        if not state.plan or not state.plan.sub_questions:
+            return None
+        for sub_question in state.plan.sub_questions:
+            lowered = sub_question.id.lower()
+            if "risk" in lowered or "governance" in lowered:
+                return sub_question.id
+        return state.plan.sub_questions[-1].id
 
     def _numeric_topic_key(self, claim: str) -> str | None:
         lowered = claim.lower()

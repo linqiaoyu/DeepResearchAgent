@@ -75,6 +75,7 @@ class RetryTask(StrictModel):
     reason: str
     query: str
     source_type: str = "official"
+    sub_question_id: str | None = None
     severity: Literal["low", "medium", "high"] = "medium"
     completed: bool = False
 
@@ -169,4 +170,3 @@ class ResearchResponse(StrictModel):
     current_phase: str
     report_url: str | None = None
     metrics: EvaluationResult | None = None
-
