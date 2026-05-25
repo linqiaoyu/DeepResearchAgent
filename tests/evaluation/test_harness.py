@@ -17,13 +17,26 @@ class HarnessTests(unittest.TestCase):
             engine = DeepResearchEngine(settings=settings, store=SQLiteStore(settings.storage_path))
             summary = EvaluationHarness(engine=engine).run(limit=2)
 
+        expected_keys = {
+            "cases",
+            "avg_task_success_rate",
+            "avg_citation_accuracy",
+            "avg_critic_catch_rate",
+            "avg_answer_relevance",
+            "avg_faithfulness",
+            "avg_latency_seconds",
+            "avg_cost_usd",
+            "avg_token_used",
+            "bad_case_categories",
+        }
+        numeric_aggregate_keys = expected_keys - {"bad_case_categories"}
+
+        self.assertTrue(expected_keys.issubset(summary.keys()))
         self.assertEqual(summary["cases"], 2)
-        self.assertIn("avg_citation_accuracy", summary)
-        self.assertIn("avg_critic_catch_rate", summary)
-        self.assertIn("avg_cost_usd", summary)
-        self.assertIn("avg_token_used", summary)
-        self.assertIn("bad_case_categories", summary)
         self.assertIsInstance(summary["bad_case_categories"], dict)
+        for key in numeric_aggregate_keys:
+            with self.subTest(key=key):
+                self.assertIsInstance(summary[key], (int, float))
 
 
 if __name__ == "__main__":
