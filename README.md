@@ -46,11 +46,21 @@ Open the no-dependency fallback UI/API:
 PYTHONPATH=src python scripts/dev_server.py --port 8765
 ```
 
-With dependencies installed, start API and UI:
+With dependencies installed, start the API and UI in separate terminals. If needed, install the package once first:
 
 ```bash
 pip install -e .
+```
+
+Terminal 1: FastAPI
+
+```bash
 uvicorn deepresearch_agent.api.main:app --host 0.0.0.0 --port 8000
+```
+
+Terminal 2: Streamlit UI
+
+```bash
 streamlit run ui/app.py
 ```
 
@@ -64,7 +74,7 @@ docker compose up --build
 
 - `POST /research`: create a research run from `{ "topic": "...", "depth_level": 2 }`
 - `GET /research/{id}`: inspect checkpointed state
-- `GET /research/{id}/report`: fetch the markdown report
+- `GET /research/{id}/report`: fetch JSON containing the markdown report
 - `GET /metrics`: fetch recent evaluation results
 
 ## What Is Implemented
