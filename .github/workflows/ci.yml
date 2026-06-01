@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  deterministic-mvp:
+    name: Deterministic MVP
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      PYTHONPATH: src
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Run unittest suite
+        run: python -m unittest discover -s tests
+
+      - name: Run deterministic demo smoke
+        run: python scripts/run_demo.py --output artifacts/ci_demo/report.md
+
+      - name: Run deterministic eval smoke
+        run: python scripts/run_eval.py --limit 5 --output artifacts/ci_eval/latest_metrics.json
+
+      - name: Ensure tracked files are unchanged
+        run: git diff --exit-code

@@ -22,46 +22,47 @@ flowchart TD
 
 ## Quick Start
 
+Use Python 3.11 or 3.12 for the local runtime. The examples below use a repo-local virtual environment so they do not depend on a system `python` executable:
+
+```bash
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -e ".[dev]"
+```
+
 Run the deterministic demo:
 
 ```bash
-PYTHONPATH=src python scripts/run_demo.py
+PYTHONPATH=src .venv/bin/python scripts/run_demo.py
 ```
 
 Run a small evaluation sweep:
 
 ```bash
-PYTHONPATH=src python scripts/run_eval.py --limit 5
+PYTHONPATH=src .venv/bin/python scripts/run_eval.py --limit 5
 ```
 
 Run tests with the built-in `unittest` suite:
 
 ```bash
-PYTHONPATH=src python -m unittest discover -s tests
+PYTHONPATH=src .venv/bin/python -m unittest discover -s tests
 ```
 
 Open the no-dependency fallback UI/API:
 
 ```bash
-PYTHONPATH=src python scripts/dev_server.py --port 8765
+PYTHONPATH=src .venv/bin/python scripts/dev_server.py --port 8765
 ```
 
-With dependencies installed, start the API and UI in separate terminals. If needed, install the package once first:
+Start the API and UI in separate terminals:
 
 ```bash
-pip install -e .
+.venv/bin/uvicorn deepresearch_agent.api.main:app --host 0.0.0.0 --port 8000
 ```
 
-Terminal 1: FastAPI
+Streamlit UI:
 
 ```bash
-uvicorn deepresearch_agent.api.main:app --host 0.0.0.0 --port 8000
-```
-
-Terminal 2: Streamlit UI
-
-```bash
-streamlit run ui/app.py
+.venv/bin/streamlit run ui/app.py
 ```
 
 Or use Docker:

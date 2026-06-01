@@ -1,6 +1,6 @@
 # AGENTS.md
 
-This repository is designed for a two-agent collaboration model. Treat this file as the operating contract for Codex-style work on DeepResearchAgent.
+This repository is designed for a single Codex working loop. Treat this file as the operating contract for Codex-style work on DeepResearchAgent.
 
 ## Project Mission
 
@@ -14,27 +14,26 @@ DeepResearchAgent is a multi-agent deep research framework focused on:
 
 The project is resume/demo oriented, but implementation choices should still be explainable as production-minded engineering decisions.
 
-## Agent Roles
+## Single-Agent Working Loop
 
-### Architect Agent
+One Codex agent owns each iteration end to end. Do not use `.agent_handoff`-style handoffs, do not split work into Architect and Executor roles, and do not expand a task into unrelated modules.
 
-The Architect Agent plans, reviews, and audits. It should:
+Every iteration should:
 
-- Convert product/career goals into explicit implementation tasks and acceptance criteria.
-- Keep scope aligned with the PDF-derived plan: Evidence Store, Critic, Evaluation Harness, checkpointing, API/UI, docs, and deployment.
-- Review Executor Agent outputs for correctness, maintainability, demo readiness, and interview defensibility.
-- Prefer comments, review notes, checklists, and follow-up tasks over direct code edits.
-- Avoid mutating implementation files unless the user explicitly asks the Architect Agent to implement or repair something.
+1. Read the current repo state.
+2. Choose one smallest verifiable task.
+3. Implement only that task.
+4. Run the relevant tests or smoke commands.
+5. Self-review the change:
+   - Did this make the project more production-minded?
+   - Is there toy/demo-only risk?
+   - Did it preserve deterministic MVP behavior?
+   - Did it avoid scope creep?
+   - How would this design be explained in an interview?
+6. Report what changed, what was tested, whether it passed, residual risk, and the next smallest task.
+7. Commit or push only after the task is stable and the user asks for it.
 
-### Executor Agent
-
-The Executor Agent implements. It should:
-
-- Follow the Architect Agent's task spec and avoid adding unrelated modules.
-- Keep changes small enough to review.
-- Run the relevant tests before handing work back.
-- Update docs when public behavior, commands, APIs, or evaluation outputs change.
-- Preserve the local deterministic MVP unless replacing a component with a fully tested real integration.
+The product itself remains a multi-agent research workflow. Planner, Researcher, Extractor, Critic, Reporter, and Evaluator are domain components, not separate Codex development roles.
 
 ## Review Gates
 
@@ -51,32 +50,39 @@ Use these gates before considering a milestone complete:
 Run tests:
 
 ```bash
-PYTHONPATH=src python -m unittest discover -s tests
+PYTHONPATH=src .venv/bin/python -m unittest discover -s tests
 ```
 
 Run deterministic demo:
 
 ```bash
-PYTHONPATH=src python scripts/run_demo.py
+PYTHONPATH=src .venv/bin/python scripts/run_demo.py
 ```
 
 Run evaluation sweep:
 
 ```bash
-PYTHONPATH=src python scripts/run_eval.py --limit 5
+PYTHONPATH=src .venv/bin/python scripts/run_eval.py --limit 5
 ```
 
 Run no-dependency fallback UI/API:
 
 ```bash
-PYTHONPATH=src python scripts/dev_server.py --port 8765
+PYTHONPATH=src .venv/bin/python scripts/dev_server.py --port 8765
+```
+
+Create or refresh the local runtime with Python 3.11 or 3.12:
+
+```bash
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -e ".[dev]"
 ```
 
 With dependencies installed:
 
 ```bash
-uvicorn deepresearch_agent.api.main:app --host 0.0.0.0 --port 8000
-streamlit run ui/app.py
+.venv/bin/uvicorn deepresearch_agent.api.main:app --host 0.0.0.0 --port 8000
+.venv/bin/streamlit run ui/app.py
 ```
 
 ## Engineering Rules
@@ -98,4 +104,3 @@ Do not add new product areas until the core PDF-derived system is solid. Prefer 
 - Checkpoint recovery.
 - Evaluation Harness.
 - Demo packaging and deployment path.
-

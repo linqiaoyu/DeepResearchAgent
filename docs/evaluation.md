@@ -22,7 +22,7 @@ Production version: compute true critic recall from seeded issues or manually la
 Run:
 
 ```bash
-PYTHONPATH=src python scripts/run_eval.py --limit 5
+PYTHONPATH=src .venv/bin/python scripts/run_eval.py --limit 5
 ```
 
 The command writes `artifacts/evaluation/latest_metrics.json`.
@@ -36,7 +36,7 @@ Post-regression Gate 4 validation passed on `2026-05-25` at commit `4b67275` (`A
 - Demo artifact: `artifacts/post_regression_demo/report.md` (`54` lines)
 - Citation check: report contained footnote citation markers such as `[^1]` and footnote definitions such as `[^1]:`
 
-Deterministic evaluation sweep: `PYTHONPATH=src python scripts/run_eval.py --limit 5`
+Deterministic evaluation sweep: `PYTHONPATH=src .venv/bin/python scripts/run_eval.py --limit 5`
 
 | Metric | Value |
 | --- | ---: |

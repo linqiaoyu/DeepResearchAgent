@@ -5,10 +5,17 @@ expected release path and verification checks after a public host is provisioned
 
 ## Local
 
+Use Python 3.11 or 3.12 and create a repo-local virtual environment:
+
 ```bash
-PYTHONPATH=src python scripts/run_demo.py
-PYTHONPATH=src python -m unittest discover -s tests
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -e ".[dev]"
+PYTHONPATH=src .venv/bin/python -m unittest discover -s tests
+PYTHONPATH=src .venv/bin/python scripts/run_demo.py
+PYTHONPATH=src .venv/bin/python scripts/run_eval.py --limit 5
 ```
+
+The deterministic MVP does not require external LLM or search API keys.
 
 ## Docker Compose
 
