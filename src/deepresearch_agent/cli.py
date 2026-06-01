@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import json
-from pathlib import Path
 
 from deepresearch_agent.evaluation import EvaluationHarness
 from deepresearch_agent.settings import project_root
@@ -46,4 +45,3 @@ def run_eval() -> None:
 
 if __name__ == "__main__":
     run_demo()
-

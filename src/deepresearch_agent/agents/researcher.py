@@ -3,11 +3,11 @@ from __future__ import annotations
 import time
 
 from deepresearch_agent.schemas import SearchRecord, Source, SubQuestion
-from deepresearch_agent.tools import FixtureSearchTool
+from deepresearch_agent.tools import FixtureSearchTool, SearchProvider
 
 
 class ResearcherAgent:
-    def __init__(self, search_tool: FixtureSearchTool | None = None) -> None:
+    def __init__(self, search_tool: SearchProvider | None = None) -> None:
         self.search_tool = search_tool or FixtureSearchTool()
 
     def research(self, sub_question: SubQuestion, top_k_per_query: int = 1) -> tuple[list[Source], list[SearchRecord]]:

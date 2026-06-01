@@ -6,7 +6,7 @@ from deepresearch_agent.agents import CriticAgent, Evaluator, ExtractorAgent, Pl
 from deepresearch_agent.schemas import ResearchState, Source, SubQuestion, TodoItem
 from deepresearch_agent.settings import Settings, load_settings
 from deepresearch_agent.storage import SQLiteStore
-from deepresearch_agent.tools import FixtureSearchTool
+from deepresearch_agent.tools import FixtureSearchTool, SearchProvider
 
 
 class DeepResearchEngine:
@@ -14,7 +14,7 @@ class DeepResearchEngine:
         self,
         settings: Settings | None = None,
         store: SQLiteStore | None = None,
-        search_tool: FixtureSearchTool | None = None,
+        search_tool: SearchProvider | None = None,
     ) -> None:
         self.settings = settings or load_settings()
         self.store = store or SQLiteStore(self.settings.storage_path)
