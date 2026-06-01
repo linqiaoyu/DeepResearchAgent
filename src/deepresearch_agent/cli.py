@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from pathlib import Path
 
 from deepresearch_agent.evaluation import (
     EvaluationHarness,
@@ -9,7 +10,8 @@ from deepresearch_agent.evaluation import (
     format_metric_comparison,
     load_metric_summary,
 )
-from deepresearch_agent.settings import project_root
+from deepresearch_agent.settings import Settings, project_root
+from deepresearch_agent.storage import SQLiteStore
 from deepresearch_agent.workflow import DeepResearchEngine
 
 
@@ -62,6 +64,51 @@ def run_eval() -> None:
         print(format_metric_comparison(comparison))
         if comparison["status"] == "fail":
             raise SystemExit(1)
+
+
+def run_checkpoint_demo() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--topic", default=DEFAULT_TOPIC)
+    parser.add_argument("--depth", type=int, default=2)
+    parser.add_argument("--stop-after-phase", default="extracting")
+    parser.add_argument("--storage", default="artifacts/checkpoint_demo/research.db")
+    parser.add_argument("--output", default="artifacts/checkpoint_demo/report.md")
+    args = parser.parse_args()
+
+    storage_path = _project_path(args.storage)
+    output_path = _project_path(args.output)
+    settings = Settings(storage_path=storage_path)
+    store = SQLiteStore(settings.storage_path)
+    engine = DeepResearchEngine(settings=settings, store=store)
+
+    paused = engine.run(
+        topic=args.topic,
+        depth_level=args.depth,
+        stop_after_phase=args.stop_after_phase,
+    )
+    paused_evidence_count = len(paused.evidence_store)
+    checkpoint = store.load_checkpoint(paused.research_id)
+    if not checkpoint:
+        raise SystemExit(f"Checkpoint not found for research_id={paused.research_id}")
+
+    resumed = engine.run(research_id=paused.research_id, resume=True)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(resumed.final_report or "", encoding="utf-8")
+
+    print(f"research_id={resumed.research_id}")
+    print(f"paused_phase={checkpoint.current_phase} paused_status={checkpoint.status}")
+    print(f"paused_evidence_count={paused_evidence_count}")
+    print(f"resumed_phase={resumed.current_phase} resumed_status={resumed.status}")
+    print(f"final_evidence_count={len(resumed.evidence_store)}")
+    print(f"checkpoint_db={storage_path}")
+    print(f"report={output_path}")
+
+
+def _project_path(path: str) -> Path:
+    candidate = Path(path)
+    if candidate.is_absolute():
+        return candidate
+    return project_root() / candidate
 
 
 if __name__ == "__main__":
