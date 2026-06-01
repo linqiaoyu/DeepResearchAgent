@@ -84,6 +84,13 @@ or a similar setting.
 - `GET /research/{id}/report`: fetch JSON containing the markdown report
 - `GET /metrics`: fetch recent evaluation results
 
+FastAPI (`uvicorn deepresearch_agent.api.main:app`) is the primary API demo
+surface and exposes the contract above. `scripts/dev_server.py` is a
+no-dependency fallback implemented with Python's standard library; it exposes
+the same JSON routes for local smoke demos and adds a small browser form at `/`.
+Both surfaces execute the deterministic MVP synchronously today; there is no
+background job queue or async run orchestration yet.
+
 ## What Is Implemented
 
 - `Planner -> Researcher fan-out -> Extractor -> Evidence Store -> Critic -> Reporter -> Evaluator`
