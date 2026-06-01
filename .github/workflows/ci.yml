@@ -36,7 +36,7 @@ jobs:
         run: python scripts/run_demo.py --output artifacts/ci_demo/report.md
 
       - name: Run deterministic eval smoke
-        run: python scripts/run_eval.py --limit 5 --output artifacts/ci_eval/latest_metrics.json
+        run: python scripts/run_eval.py --limit 5 --compare-baseline --output artifacts/ci_eval/latest_metrics.json
 
       - name: Ensure tracked files are unchanged
         run: git diff --exit-code

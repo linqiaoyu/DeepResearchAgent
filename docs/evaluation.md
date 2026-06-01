@@ -27,6 +27,27 @@ PYTHONPATH=src .venv/bin/python scripts/run_eval.py --limit 5
 
 The command writes `artifacts/evaluation/latest_metrics.json`.
 
+## Metric Diff
+
+`data/eval_baseline.json` stores the deterministic MVP baseline for a 5-case
+local sweep. Compare a new run against it with:
+
+```bash
+PYTHONPATH=src .venv/bin/python scripts/run_eval.py --limit 5 --compare-baseline
+```
+
+Use a custom baseline path when validating an experiment:
+
+```bash
+PYTHONPATH=src .venv/bin/python scripts/run_eval.py --limit 5 --compare-baseline --baseline-path artifacts/evaluation/latest_metrics.json
+```
+
+The comparison gates quality regressions for `avg_citation_accuracy`,
+`avg_faithfulness`, `avg_critic_catch_rate`, and total bad-case count.
+`avg_cost_usd`, `avg_latency_seconds`, and `avg_token_used` are reported as
+operational diffs; latency changes are informational so local machine variance
+does not fail the smoke check.
+
 ## Latest Local Validation Snapshot
 
 Post-regression Gate 4 validation passed on `2026-05-25` at commit `4b67275` (`Assert evaluator critic catch rate`).

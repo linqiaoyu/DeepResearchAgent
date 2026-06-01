@@ -3,7 +3,12 @@ from __future__ import annotations
 import argparse
 import json
 
-from deepresearch_agent.evaluation import EvaluationHarness
+from deepresearch_agent.evaluation import (
+    EvaluationHarness,
+    compare_metric_summaries,
+    format_metric_comparison,
+    load_metric_summary,
+)
 from deepresearch_agent.settings import project_root
 from deepresearch_agent.workflow import DeepResearchEngine
 
@@ -34,6 +39,9 @@ def run_eval() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int, default=5)
     parser.add_argument("--output", default="artifacts/evaluation/latest_metrics.json")
+    parser.add_argument("--compare-baseline", action="store_true")
+    parser.add_argument("--baseline-path", default="data/eval_baseline.json")
+    parser.add_argument("--quality-drop-threshold", type=float, default=0.001)
     args = parser.parse_args()
 
     summary = EvaluationHarness().run(limit=args.limit)
@@ -41,6 +49,19 @@ def run_eval() -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(summary, ensure_ascii=False, indent=2))
+    if args.compare_baseline:
+        baseline_path = project_root() / args.baseline_path
+        if not baseline_path.exists():
+            raise SystemExit(f"Baseline metrics not found: {baseline_path}")
+        baseline = load_metric_summary(baseline_path)
+        comparison = compare_metric_summaries(
+            current=summary,
+            baseline=baseline,
+            quality_drop_threshold=args.quality_drop_threshold,
+        )
+        print(format_metric_comparison(comparison))
+        if comparison["status"] == "fail":
+            raise SystemExit(1)
 
 
 if __name__ == "__main__":
