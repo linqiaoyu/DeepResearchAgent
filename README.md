@@ -1,8 +1,15 @@
 # DeepResearchAgent
 
-DeepResearchAgent is a runnable MVP for a multi-agent deep research system. It is built around the resume-grade differentiators from the project plan: Critic feedback, Evidence Store, Citation Verification, checkpoint recovery, and an Evaluation Harness.
+DeepResearchAgent is a runnable MVP for a multi-agent deep research system. It is not a generic RAG demo: every report claim is backed by structured evidence, Critic feedback can trigger retry research, citations are verified against the Evidence Store, evaluation produces quality/cost/latency metrics, and checkpoint recovery is demoable from the command line.
 
-The local MVP is deterministic and can run without external LLM/search keys. The production path is prepared through `pyproject.toml`, Docker, FastAPI, Streamlit, and clear tool boundaries.
+The local MVP is deterministic and runs without external LLM/search keys. The production path is prepared through `pyproject.toml`, Docker, FastAPI, Streamlit, and provider/storage boundaries that keep Tavily, LiteLLM, and Postgres optional; LangGraph parity remains a future backlog item.
+
+## Why It Matters
+
+- Evidence Store: claim-source-subquestion traceability is the source of truth, not vector memory.
+- Critic loop: missing citations, numeric conflicts, stale sources, missing counterarguments, and unverified projections are surfaced before reporting.
+- Evaluation Harness: citation accuracy, faithfulness, Critic catch rate, bad-case categories, cost, latency, and token estimates can be compared against a baseline.
+- Checkpoint recovery: long-horizon runs can pause after an intermediate phase and resume by `research_id`.
 
 ## Architecture
 
@@ -41,6 +48,18 @@ Run a small evaluation sweep:
 PYTHONPATH=src .venv/bin/python scripts/run_eval.py --limit 5
 ```
 
+Compare evaluation metrics against the deterministic baseline:
+
+```bash
+PYTHONPATH=src .venv/bin/python scripts/run_eval.py --limit 5 --compare-baseline
+```
+
+Run the checkpoint resume demo:
+
+```bash
+PYTHONPATH=src .venv/bin/python scripts/run_checkpoint_demo.py
+```
+
 Run tests with the built-in `unittest` suite:
 
 ```bash
@@ -69,6 +88,37 @@ Or use Docker:
 
 ```bash
 docker compose up --build
+```
+
+## Local Output Examples
+
+Deterministic demo:
+
+```text
+research_id=<uuid>
+phase=done status=done
+report=/.../artifacts/demo_report.md
+```
+
+Evaluation with baseline diff:
+
+```text
+"cases": 5
+"avg_citation_accuracy": 1.0
+"avg_critic_catch_rate": 0.8
+"avg_faithfulness": 0.923
+Baseline comparison:
+- status: pass
+```
+
+Checkpoint resume demo:
+
+```text
+paused_phase=critiquing paused_status=paused
+paused_evidence_count=35
+resumed_phase=done resumed_status=done
+final_evidence_count=35
+report=/.../artifacts/checkpoint_demo/report.md
 ```
 
 Current UI/API packaging note: the Streamlit UI runs the local deterministic engine

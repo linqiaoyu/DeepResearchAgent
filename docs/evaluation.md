@@ -48,16 +48,17 @@ The comparison gates quality regressions for `avg_citation_accuracy`,
 operational diffs; latency changes are informational so local machine variance
 does not fail the smoke check.
 
-## Latest Local Validation Snapshot
+## Current Deterministic Baseline
 
-Post-regression Gate 4 validation passed on `2026-05-25` at commit `4b67275` (`Assert evaluator critic catch rate`).
+Task 8 packaging validation uses the repo-local Python 3.12 environment and the
+deterministic fixture path. It does not require external LLM/search keys.
 
-- Tests: `17 tests passed`
+- Tests: `24 tests passed`
 - Demo: `phase=done status=done`
-- Demo artifact: `artifacts/post_regression_demo/report.md` (`54` lines)
-- Citation check: report contained footnote citation markers such as `[^1]` and footnote definitions such as `[^1]:`
+- Demo artifact: `artifacts/demo_report.md`
+- Checkpoint demo: `paused_phase=critiquing paused_status=paused`, then `resumed_phase=done resumed_status=done`
 
-Deterministic evaluation sweep: `PYTHONPATH=src .venv/bin/python scripts/run_eval.py --limit 5`
+Deterministic evaluation sweep: `PYTHONPATH=src .venv/bin/python scripts/run_eval.py --limit 5 --compare-baseline`
 
 | Metric | Value |
 | --- | ---: |
@@ -67,10 +68,12 @@ Deterministic evaluation sweep: `PYTHONPATH=src .venv/bin/python scripts/run_eva
 | `avg_critic_catch_rate` | `0.8` |
 | `avg_answer_relevance` | `1.0` |
 | `avg_faithfulness` | `0.923` |
-| `avg_latency_seconds` | `0.007` |
 | `avg_cost_usd` | `0.023` |
 | `avg_token_used` | `9644.8` |
 | `bad_case_categories.numeric_conflict` | `6` |
+
+The baseline comparison status is `pass`. Latency is reported as an
+informational operational diff because it varies by local machine.
 
 This is a deterministic local fixture run for Gate 4 review, not a production LLM/search benchmark. It does not imply Tavily, LiteLLM, Postgres, or LangGraph production integrations are complete.
 

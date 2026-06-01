@@ -12,10 +12,17 @@ python3.12 -m venv .venv
 .venv/bin/python -m pip install -e ".[dev]"
 PYTHONPATH=src .venv/bin/python -m unittest discover -s tests
 PYTHONPATH=src .venv/bin/python scripts/run_demo.py
-PYTHONPATH=src .venv/bin/python scripts/run_eval.py --limit 5
+PYTHONPATH=src .venv/bin/python scripts/run_eval.py --limit 5 --compare-baseline
+PYTHONPATH=src .venv/bin/python scripts/run_checkpoint_demo.py
 ```
 
 The deterministic MVP does not require external LLM or search API keys.
+
+Expected local smoke signals:
+
+- Demo: `phase=done status=done`
+- Eval: `Baseline comparison:`, then `status: pass`
+- Checkpoint demo: `paused_phase=critiquing paused_status=paused`, then `resumed_phase=done resumed_status=done`
 
 ## Docker Compose
 
