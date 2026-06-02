@@ -31,18 +31,24 @@ Current factory behavior:
   `FixtureSearchTool`.
 - `DEEPRESEARCH_SEARCH_PROVIDER=serper` without `SERPER_API_KEY` falls back to
   `FixtureSearchTool`.
-- With a matching key, the factory records the selected provider but raises a
-  clear `NotImplementedError` on `search()` until the live HTTP adapter and
-  mocked tests are added.
+- `DEEPRESEARCH_SEARCH_PROVIDER=tavily` with `TAVILY_API_KEY` selects
+  `TavilySearchProvider`, which calls Tavily `POST /search` and normalizes
+  results into `Source` objects.
+- `DEEPRESEARCH_SEARCH_PROVIDER=serper` with `SERPER_API_KEY` records provider
+  selection but raises a clear `NotImplementedError` until a Serper adapter has
+  mocked HTTP tests.
 
 Implementation shape:
 
-- Add a new adapter under `src/deepresearch_agent/tools/`.
+- Keep provider adapters under `src/deepresearch_agent/tools/`.
 - Return normalized `Source` objects with URL, title, source type, published date,
   content, and credibility.
 - Keep `FixtureSearchTool` as the no-key default in `DeepResearchEngine`.
-- Select the real adapter only when an env var such as
+- Select an external adapter only when an env var such as
   `DEEPRESEARCH_SEARCH_PROVIDER=tavily` and the matching API key are present.
+- Treat requested `source_type` as a search hint. Do not label a web result as
+  `official` or `industry_report` unless the provider response actually proves
+  that classification.
 
 Minimum tests:
 

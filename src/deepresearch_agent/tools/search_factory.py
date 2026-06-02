@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from deepresearch_agent.schemas import Source
 from deepresearch_agent.tools.fixture_search import FixtureSearchTool
 from deepresearch_agent.tools.provider import SearchProvider
+from deepresearch_agent.tools.tavily_search import TavilySearchProvider
 
 FIXTURE_PROVIDER_NAMES = {"", "fixture", "local", "deterministic"}
 REAL_PROVIDER_KEYS = {
@@ -17,10 +18,10 @@ REAL_PROVIDER_KEYS = {
 
 @dataclass(frozen=True)
 class ConfiguredSearchProvider:
-    """Opt-in real provider placeholder.
+    """Opt-in provider placeholder for providers without an adapter yet.
 
-    This object records provider selection without performing live network calls.
-    A future adapter should replace this class once mocked HTTP tests exist.
+    This object records provider selection without performing live network calls
+    until an adapter has mocked HTTP tests.
     """
 
     provider_name: str
@@ -49,5 +50,8 @@ def build_search_provider(environ: Mapping[str, str] | None = None) -> SearchPro
     api_key = env.get(key_name, "").strip()
     if not api_key:
         return FixtureSearchTool()
+
+    if provider_name == "tavily":
+        return TavilySearchProvider(api_key=api_key)
 
     return ConfiguredSearchProvider(provider_name=provider_name, api_key=api_key)

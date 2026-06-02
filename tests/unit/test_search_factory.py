@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import unittest
 
-from deepresearch_agent.tools import ConfiguredSearchProvider, FixtureSearchTool, build_search_provider
+from deepresearch_agent.tools import (
+    ConfiguredSearchProvider,
+    FixtureSearchTool,
+    TavilySearchProvider,
+    build_search_provider,
+)
 
 
 class SearchFactoryTests(unittest.TestCase):
@@ -21,7 +26,7 @@ class SearchFactoryTests(unittest.TestCase):
 
         self.assertIsInstance(provider, FixtureSearchTool)
 
-    def test_real_provider_with_key_records_configuration_without_live_call(self) -> None:
+    def test_tavily_with_key_builds_adapter(self) -> None:
         provider = build_search_provider(
             {
                 "DEEPRESEARCH_SEARCH_PROVIDER": "tavily",
@@ -29,8 +34,18 @@ class SearchFactoryTests(unittest.TestCase):
             }
         )
 
+        self.assertIsInstance(provider, TavilySearchProvider)
+
+    def test_serper_with_key_records_configuration_without_live_call(self) -> None:
+        provider = build_search_provider(
+            {
+                "DEEPRESEARCH_SEARCH_PROVIDER": "serper",
+                "SERPER_API_KEY": "test-key",
+            }
+        )
+
         self.assertIsInstance(provider, ConfiguredSearchProvider)
-        self.assertEqual(provider.provider_name, "tavily")
+        self.assertEqual(provider.provider_name, "serper")
         with self.assertRaisesRegex(NotImplementedError, "live adapter is not implemented"):
             provider.search("AI agent search smoke")
 
