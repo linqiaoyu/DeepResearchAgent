@@ -29,10 +29,12 @@ deepresearch-eval = "deepresearch_agent.cli:run_eval"
 requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools]
+package-dir = {"" = "src"}
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-

@@ -53,7 +53,7 @@ does not fail the smoke check.
 Task 8 packaging validation uses the repo-local Python 3.12 environment and the
 deterministic fixture path. It does not require external LLM/search keys.
 
-- Tests: `24 tests passed`
+- Tests: full `unittest` suite passes
 - Demo: `phase=done status=done`
 - Demo artifact: `artifacts/demo_report.md`
 - Checkpoint demo: `paused_phase=critiquing paused_status=paused`, then `resumed_phase=done resumed_status=done`

@@ -94,13 +94,13 @@ PYTHONPATH=src .venv/bin/python scripts/dev_server.py --port 8765
 Start the API and UI in separate terminals:
 
 ```bash
-.venv/bin/uvicorn deepresearch_agent.api.main:app --host 0.0.0.0 --port 8000
+PYTHONPATH=src .venv/bin/uvicorn deepresearch_agent.api.main:app --host 0.0.0.0 --port 8000
 ```
 
 Streamlit UI:
 
 ```bash
-.venv/bin/streamlit run ui/app.py
+PYTHONPATH=src .venv/bin/streamlit run ui/app.py
 ```
 
 Or use Docker:
@@ -156,12 +156,12 @@ or a similar setting.
 - `GET /research/{id}/report`: fetch JSON containing the markdown report
 - `GET /metrics`: fetch recent evaluation results
 
-FastAPI (`uvicorn deepresearch_agent.api.main:app`) is the primary API demo
-surface and exposes the contract above. `scripts/dev_server.py` is a
-no-dependency fallback implemented with Python's standard library; it exposes
-the same JSON routes for local smoke demos and adds a small browser form at `/`.
-Both surfaces execute the deterministic MVP synchronously today; there is no
-background job queue or async run orchestration yet.
+FastAPI (`PYTHONPATH=src .venv/bin/uvicorn deepresearch_agent.api.main:app`) is
+the primary API demo surface and exposes the contract above. `scripts/dev_server.py`
+is a no-dependency fallback implemented with Python's standard library; it
+exposes the same JSON routes for local smoke demos and adds a small browser form
+at `/`. Both surfaces execute the deterministic MVP synchronously today; there
+is no background job queue or async run orchestration yet.
 
 ## What Is Implemented
 
