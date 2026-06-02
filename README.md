@@ -155,8 +155,11 @@ background job queue or async run orchestration yet.
 
 ## Production Hardening Backlog
 
-- Replace `FixtureSearchTool` with Tavily/Serper and robust `web_fetch`
-- Replace deterministic agents with LiteLLM-backed prompts in `prompts/`
-- Add a Postgres adapter using `docs/postgres_schema.sql`
-- Add LangGraph graph wiring once the dependency is installed
-- Add CI metric-diff gating against `data/eval_set.jsonl`
+Provider work is optional and must preserve the deterministic no-key MVP. See
+[docs/provider_integration.md](docs/provider_integration.md) for the rollout
+contract.
+
+- Replace `FixtureSearchTool` with Tavily/Serper and robust `web_fetch`.
+- Replace deterministic agents with LiteLLM-backed prompts in `prompts/`.
+- Add a Postgres adapter using `docs/postgres_schema.sql`.
+- Add LangGraph parity while preserving the current workflow semantics.

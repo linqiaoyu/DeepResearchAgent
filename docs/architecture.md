@@ -38,6 +38,9 @@ sequenceDiagram
 - FastAPI and the fallback stdlib server execute runs synchronously. The project does not yet include a background job queue.
 - Checkpoint recovery is available through `research_id` and can be demonstrated with `scripts/run_checkpoint_demo.py`.
 
+Real provider work must follow `docs/provider_integration.md`: optional by
+default, mock-tested, and unable to break the deterministic no-key MVP.
+
 ## State And Recovery
 
 `SQLiteStore` persists checkpoints after every phase. A paused run stores the next phase, evidence collected so far, retry queue, Critic iteration, report draft, metrics, token count, and cost estimate. The engine can resume from `research_id` without discarding Evidence Store entries.
