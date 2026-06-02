@@ -4,11 +4,15 @@ import unittest
 from datetime import date
 from typing import Any
 
-from deepresearch_agent.tools.tavily_search import UNKNOWN_PUBLISHED_AT, TavilySearchProvider
+from deepresearch_agent.tools.tavily_search import (
+    UNKNOWN_PUBLISHED_AT,
+    TavilySearchError,
+    TavilySearchProvider,
+)
 
 
 class FakeResponse:
-    def __init__(self, payload: dict[str, Any], should_raise: bool = False) -> None:
+    def __init__(self, payload: Any, should_raise: bool = False) -> None:
         self.payload = payload
         self.should_raise = should_raise
         self.raise_called = False
@@ -18,7 +22,7 @@ class FakeResponse:
         if self.should_raise:
             raise RuntimeError("provider error")
 
-    def json(self) -> dict[str, Any]:
+    def json(self) -> Any:
         return self.payload
 
 
@@ -44,6 +48,30 @@ class FakeHttpClient:
             }
         )
         return self.response
+
+
+class RaisingHttpClient:
+    def __init__(self, error: Exception) -> None:
+        self.error = error
+        self.calls: list[dict[str, Any]] = []
+
+    def post(
+        self,
+        url: str,
+        *,
+        headers: dict[str, str],
+        json: dict[str, Any],
+        timeout: float,
+    ) -> FakeResponse:
+        self.calls.append(
+            {
+                "url": url,
+                "headers": headers,
+                "json": json,
+                "timeout": timeout,
+            }
+        )
+        raise self.error
 
 
 class TavilySearchProviderTests(unittest.TestCase):
@@ -124,12 +152,39 @@ class TavilySearchProviderTests(unittest.TestCase):
         self.assertEqual(provider.search("skip", top_k=0), [])
         self.assertEqual(client.calls, [])
 
-    def test_http_errors_are_not_swallowed(self) -> None:
+    def test_http_errors_are_wrapped_with_provider_and_query_context(self) -> None:
         client = FakeHttpClient(FakeResponse({"results": []}, should_raise=True))
         provider = TavilySearchProvider("test-key", client=client)
 
-        with self.assertRaisesRegex(RuntimeError, "provider error"):
+        with self.assertRaisesRegex(
+            TavilySearchError,
+            "Tavily search failed for query 'fail': provider error",
+        ) as captured:
             provider.search("fail")
+
+        self.assertIsInstance(captured.exception.__cause__, RuntimeError)
+
+    def test_client_errors_are_wrapped_with_provider_and_query_context(self) -> None:
+        client = RaisingHttpClient(TimeoutError("timed out"))
+        provider = TavilySearchProvider("test-key", client=client)
+
+        with self.assertRaisesRegex(
+            TavilySearchError,
+            "Tavily search failed for query 'slow query': timed out",
+        ) as captured:
+            provider.search("slow query")
+
+        self.assertIsInstance(captured.exception.__cause__, TimeoutError)
+
+    def test_non_object_json_fails_clearly(self) -> None:
+        client = FakeHttpClient(FakeResponse(["not", "an", "object"]))
+        provider = TavilySearchProvider("test-key", client=client)
+
+        with self.assertRaisesRegex(
+            TavilySearchError,
+            "Tavily search failed for query 'bad json': response JSON must be an object",
+        ):
+            provider.search("bad json")
 
 
 if __name__ == "__main__":

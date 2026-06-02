@@ -49,6 +49,8 @@ Implementation shape:
 - Treat requested `source_type` as a search hint. Do not label a web result as
   `official` or `industry_report` unless the provider response actually proves
   that classification.
+- Wrap Tavily request, HTTP status, and malformed JSON failures in
+  `TavilySearchError` with provider and query context.
 
 Minimum tests:
 

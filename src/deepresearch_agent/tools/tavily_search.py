@@ -13,6 +13,10 @@ TAVILY_SEARCH_ENDPOINT = "https://api.tavily.com/search"
 UNKNOWN_PUBLISHED_AT = date(1970, 1, 1)
 
 
+class TavilySearchError(RuntimeError):
+    """Raised when Tavily search cannot return a provider payload."""
+
+
 class HttpResponse(Protocol):
     def raise_for_status(self) -> None:
         """Raise when the provider returned a non-2xx response."""
@@ -65,14 +69,26 @@ class TavilySearchProvider:
             "include_raw_content": False,
             "include_images": False,
         }
-        response = self.client.post(
-            self.endpoint,
-            headers={"Authorization": f"Bearer {self.api_key}"},
-            json=payload,
-            timeout=self.timeout_seconds,
-        )
-        response.raise_for_status()
-        return self._sources_from_response(response.json(), source_type)[:top_k]
+        try:
+            response = self.client.post(
+                self.endpoint,
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                json=payload,
+                timeout=self.timeout_seconds,
+            )
+            response.raise_for_status()
+            response_payload = response.json()
+        except Exception as exc:
+            raise self._search_error(query, exc) from exc
+
+        if not isinstance(response_payload, Mapping):
+            raise self._search_error(query, ValueError("response JSON must be an object"))
+
+        return self._sources_from_response(response_payload, source_type)[:top_k]
+
+    def _search_error(self, query: str, error: Exception) -> TavilySearchError:
+        query_label = query.strip()[:80] or "<empty>"
+        return TavilySearchError(f"Tavily search failed for query {query_label!r}: {error}")
 
     def _sources_from_response(
         self,
