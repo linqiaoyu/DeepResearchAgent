@@ -64,6 +64,23 @@ PYTHONPATH=src .venv/bin/python -m unittest discover -s tests
 PYTHONPATH=src .venv/bin/python scripts/run_eval.py --limit 5 --compare-baseline
 ```
 
+No-key dry run:
+
+```bash
+DEEPRESEARCH_SEARCH_PROVIDER=tavily TAVILY_API_KEY= \
+  PYTHONPATH=src .venv/bin/python scripts/run_demo.py \
+  --output artifacts/tavily_no_key/report.md
+```
+
+Live Tavily opt-in:
+
+```bash
+export DEEPRESEARCH_SEARCH_PROVIDER=tavily
+export TAVILY_API_KEY=<your-key>
+PYTHONPATH=src .venv/bin/python scripts/run_demo.py \
+  --output artifacts/tavily_live/report.md
+```
+
 ### LLM Agents: LiteLLM Planner or Reporter
 
 Current boundary: deterministic agent classes with Pydantic schema contracts and

@@ -33,7 +33,7 @@ sequenceDiagram
 
 ## Current MVP Boundaries
 
-- Search is behind a `SearchProvider` boundary. The default implementation is a deterministic `FixtureSearchTool`; Tavily or Serper are future optional adapters, not required for local tests.
+- Search is behind a `SearchProvider` boundary. The default implementation is a deterministic `FixtureSearchTool`; Tavily is available as an opt-in adapter, while Serper remains a future optional adapter. Local tests do not require external search keys.
 - State and evidence are persisted with `SQLiteStore` for the local MVP. `docs/postgres_schema.sql` documents the production storage path, but there is no Postgres adapter yet.
 - FastAPI and the fallback stdlib server execute runs synchronously. The project does not yet include a background job queue.
 - Checkpoint recovery is available through `research_id` and can be demonstrated with `scripts/run_checkpoint_demo.py`.

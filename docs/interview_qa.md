@@ -22,4 +22,4 @@ No. In the MVP, `critic_catch_rate` is a deterministic heuristic/proxy for wheth
 
 ## What would you improve next?
 
-Replace fixture search with Tavily/Serper, add real web fetch, add Postgres, wire LangGraph checkpointers, and run CI metric diffs over the 50-case golden set.
+Keep fixture search as the deterministic default, harden the opt-in Tavily path with web fetch and quality evals, add Serper as another optional adapter, add Postgres, wire LangGraph checkpointers, and run CI metric diffs over the full 50-case golden set.

@@ -17,6 +17,9 @@ PYTHONPATH=src .venv/bin/python scripts/run_checkpoint_demo.py
 ```
 
 The deterministic MVP does not require external LLM or search API keys.
+Tavily search is optional: leave `DEEPRESEARCH_SEARCH_PROVIDER=fixture` for
+CI/public demo stability, or set `DEEPRESEARCH_SEARCH_PROVIDER=tavily` plus
+`TAVILY_API_KEY` only when intentionally making live search calls.
 
 Expected local smoke signals:
 
@@ -94,7 +97,7 @@ Recording acceptance criteria:
 - Evaluation shows citation accuracy, faithfulness, Critic catch rate, bad-case categories, cost, latency, and tokens.
 - Checkpoint demo shows pause and resume in one command.
 - No API keys or secrets appear on screen.
-- Any production gaps are stated honestly: deterministic fixture search, SQLite MVP storage, synchronous API, and optional provider backlog.
+- Any production gaps are stated honestly: deterministic fixture search by default, Tavily opt-in, SQLite MVP storage, synchronous API, and optional provider backlog.
 
 ## Expected Verification Endpoints
 

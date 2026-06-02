@@ -60,6 +60,25 @@ Run the checkpoint resume demo:
 PYTHONPATH=src .venv/bin/python scripts/run_checkpoint_demo.py
 ```
 
+Optional Tavily search is opt-in. The deterministic MVP and CI do not require
+`TAVILY_API_KEY`; even if the provider is set to `tavily`, an empty key falls
+back to local fixtures:
+
+```bash
+DEEPRESEARCH_SEARCH_PROVIDER=tavily TAVILY_API_KEY= \
+  PYTHONPATH=src .venv/bin/python scripts/run_demo.py \
+  --output artifacts/tavily_no_key/report.md
+```
+
+To make live Tavily search calls locally, set both variables explicitly:
+
+```bash
+export DEEPRESEARCH_SEARCH_PROVIDER=tavily
+export TAVILY_API_KEY=<your-key>
+PYTHONPATH=src .venv/bin/python scripts/run_demo.py \
+  --output artifacts/tavily_live/report.md
+```
+
 Run tests with the built-in `unittest` suite:
 
 ```bash
@@ -149,6 +168,7 @@ background job queue or async run orchestration yet.
 - `Planner -> Researcher fan-out -> Extractor -> Evidence Store -> Critic -> Reporter -> Evaluator`
 - SQLite-backed local Evidence Store and checkpoint table
 - Critic checks for missing citations, numeric conflicts, outdated sources, missing counterarguments, and unverified projections
+- Deterministic fixture search by default, with optional Tavily search behind the `SearchProvider` contract
 - 50-case golden question set in `data/eval_set.jsonl`
 - Streamlit dashboard for report, evidence, and Critic JSON
 - Docker Compose for API/UI, with a Postgres profile reserved for production hardening
@@ -159,7 +179,7 @@ Provider work is optional and must preserve the deterministic no-key MVP. See
 [docs/provider_integration.md](docs/provider_integration.md) for the rollout
 contract.
 
-- Replace `FixtureSearchTool` with Tavily/Serper and robust `web_fetch`.
+- Add Serper and robust `web_fetch`; keep Tavily and future providers optional.
 - Replace deterministic agents with LiteLLM-backed prompts in `prompts/`.
 - Add a Postgres adapter using `docs/postgres_schema.sql`.
 - Add LangGraph parity while preserving the current workflow semantics.
