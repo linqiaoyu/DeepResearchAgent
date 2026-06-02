@@ -90,6 +90,9 @@ Or use Docker:
 docker compose up --build
 ```
 
+For public URL smoke checks and the 1-2 minute recording checklist, see
+[docs/deployment.md](docs/deployment.md).
+
 ## Local Output Examples
 
 Deterministic demo:
