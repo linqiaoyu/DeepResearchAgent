@@ -23,12 +23,24 @@ breaking local tests, CI, or the no-key demo path.
 
 Current boundary: `SearchProvider.search(query, top_k, source_type)`.
 
+Current factory behavior:
+
+- `DEEPRESEARCH_SEARCH_PROVIDER=fixture`, `local`, or `deterministic` selects
+  `FixtureSearchTool`.
+- `DEEPRESEARCH_SEARCH_PROVIDER=tavily` without `TAVILY_API_KEY` falls back to
+  `FixtureSearchTool`.
+- `DEEPRESEARCH_SEARCH_PROVIDER=serper` without `SERPER_API_KEY` falls back to
+  `FixtureSearchTool`.
+- With a matching key, the factory records the selected provider but raises a
+  clear `NotImplementedError` on `search()` until the live HTTP adapter and
+  mocked tests are added.
+
 Implementation shape:
 
 - Add a new adapter under `src/deepresearch_agent/tools/`.
 - Return normalized `Source` objects with URL, title, source type, published date,
   content, and credibility.
-- Keep `FixtureSearchTool` as the default in `DeepResearchEngine`.
+- Keep `FixtureSearchTool` as the no-key default in `DeepResearchEngine`.
 - Select the real adapter only when an env var such as
   `DEEPRESEARCH_SEARCH_PROVIDER=tavily` and the matching API key are present.
 
