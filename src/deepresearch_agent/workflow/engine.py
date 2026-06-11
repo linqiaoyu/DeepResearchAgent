@@ -67,7 +67,7 @@ class DeepResearchEngine:
         self.researcher = ResearcherAgent(self.search_tool)
         self.extractor = ExtractorAgent(llm_client=self.llm_client)
         self.critic = CriticAgent()
-        self.reporter = ReporterAgent()
+        self.reporter = ReporterAgent(llm_client=self.llm_client)
         self.evaluator = Evaluator()
         self._checkpoint_conn = sqlite3.connect(self.settings.storage_path, check_same_thread=False)
         self.checkpointer = SqliteSaver(self._checkpoint_conn)
@@ -91,6 +91,7 @@ class DeepResearchEngine:
             if not state:
                 raise ValueError(f"No checkpoint found for research_id={research_id}")
             state.status = "running"
+            state.metadata["execution_mode"] = self.settings.execution_mode
             config = self._config(research_id)
             graph_input: ResearchGraphState | None = {
                 "research_state": self._dump_state(state),
@@ -105,6 +106,7 @@ class DeepResearchEngine:
             if not topic:
                 raise ValueError("topic is required for a new research run")
             state = ResearchState(topic=topic, depth_level=depth_level)
+            state.metadata["execution_mode"] = self.settings.execution_mode
             research_id = state.research_id
             config = self._config(research_id)
             graph_input = {
@@ -381,7 +383,11 @@ class DeepResearchEngine:
         state.evidence_store = self._sorted_evidence(state.evidence_store)
         state.final_report = self.reporter.report(state)
         state.draft_report = state.final_report
-        state.token_used += self._estimate_tokens(state.final_report)
+        if self.settings.execution_mode == "llm":
+            state.metadata.setdefault("llm_stats", {})["reporter"] = self.reporter.last_stats
+            self._sync_llm_usage(state)
+        else:
+            state.token_used += self._estimate_tokens(state.final_report)
         return self._state_output(
             self._complete_phase(state, graph_state, completed_phase="reporting", next_phase="evaluating")
         )
@@ -392,6 +398,8 @@ class DeepResearchEngine:
     def _evaluator_node(self, graph_state: ResearchGraphState) -> ResearchGraphState:
         state = self._state_from_graph_values(graph_state)
         state.evidence_store = self._sorted_evidence(state.evidence_store)
+        if self.settings.execution_mode == "llm":
+            self._sync_llm_usage(state)
         state.evaluation = self.evaluator.evaluate(state, started_at=graph_state.get("started_at", time.perf_counter()))
         self.store.save_evaluation(state.evaluation)
         state.current_phase = "done"
@@ -473,6 +481,19 @@ class DeepResearchEngine:
 
     def _estimate_tokens(self, text: str) -> int:
         return max(1, len(text) // 4)
+
+    def _sync_llm_usage(self, state: ResearchState) -> None:
+        if not self.llm_client:
+            return
+        aggregate = self.llm_client.aggregate_run(state.research_id)
+        rows = aggregate["rows"]
+        state.token_used = sum(int(row.get("total_tokens", 0)) for row in rows)
+        state.cost_used = round(sum(float(row.get("cost_usd", 0.0)) for row in rows), 8)
+        state.metadata["llm_usage"] = {
+            "by_role": aggregate["by_role"],
+            "total_cost_cny": round(float(aggregate["total_cost_cny"]), 8),
+            "ledger_total_cny": round(self.llm_client.ledger_total_cny(), 8),
+        }
 
     def _config(self, research_id: str) -> dict[str, dict[str, str]]:
         return {"configurable": {"thread_id": research_id}}

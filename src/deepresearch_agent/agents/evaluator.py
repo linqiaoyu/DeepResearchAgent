@@ -23,17 +23,34 @@ class Evaluator:
         )
         citation_accuracy = supported_citations / citation_total if citation_total else 0.0
 
-        topic_terms = {term.lower() for term in WORD_RE.findall(state.topic)}
-        report_terms = {term.lower() for term in WORD_RE.findall(report)}
-        answer_relevance = len(topic_terms & report_terms) / max(len(topic_terms), 1)
+        if state.metadata.get("execution_mode") == "llm":
+            answer_relevance = None
+            answer_relevance_reason = "LLM mode requires LLM-as-Judge before reporting answer relevance."
+            faithfulness = None
+            faithfulness_reason = "LLM mode requires LLM-as-Judge before reporting faithfulness."
+        else:
+            topic_terms = {term.lower() for term in WORD_RE.findall(state.topic)}
+            report_terms = {term.lower() for term in WORD_RE.findall(report)}
+            answer_relevance = round(len(topic_terms & report_terms) / max(len(topic_terms), 1), 3)
+            answer_relevance_reason = None
 
-        cited_claim_lines = [line for line in claim_lines if CITATION_RE.search(line)]
-        faithfulness = len(cited_claim_lines) / max(len(claim_lines), 1)
+            cited_claim_lines = [line for line in claim_lines if CITATION_RE.search(line)]
+            faithfulness = round(len(cited_claim_lines) / max(len(claim_lines), 1), 3)
+            faithfulness_reason = None
 
         issues = state.critic_report.issues if state.critic_report else []
         bad_case_categories = Counter(issue.issue_type for issue in issues)
         if citation_errors:
             bad_case_categories["citation_error"] += citation_errors
+        llm_stats = state.metadata.get("llm_stats", {})
+        extractor_stats = llm_stats.get("extractor", []) if isinstance(llm_stats, dict) else []
+        invalid_extract_text = sum(int(item.get("invalid_extract_text", 0)) for item in extractor_stats)
+        if invalid_extract_text:
+            bad_case_categories["invalid_extract_text"] += invalid_extract_text
+        reporter_stats = llm_stats.get("reporter", {}) if isinstance(llm_stats, dict) else {}
+        invalid_references = int(reporter_stats.get("invalid_references", 0))
+        if invalid_references:
+            bad_case_categories["citation_reference_error"] += invalid_references
         critic_catch_rate = min(1.0, len(issues) / 3) if issues else 1.0
         latency_seconds = 0.0 if started_at is None else max(0.0, time.perf_counter() - started_at)
 
@@ -42,8 +59,10 @@ class Evaluator:
             task_success_rate=1.0 if state.final_report and evidence_count else 0.0,
             citation_accuracy=round(citation_accuracy, 3),
             critic_catch_rate=round(critic_catch_rate, 3),
-            answer_relevance=round(answer_relevance, 3),
-            faithfulness=round(faithfulness, 3),
+            answer_relevance=answer_relevance,
+            answer_relevance_reason=answer_relevance_reason,
+            faithfulness=faithfulness,
+            faithfulness_reason=faithfulness_reason,
             latency_seconds=round(latency_seconds, 3),
             cost_usd=round(state.cost_used, 4),
             token_used=state.token_used,
