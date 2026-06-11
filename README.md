@@ -1,8 +1,8 @@
 # DeepResearchAgent
 
-DeepResearchAgent is a runnable MVP for a multi-agent deep research system. It is not a generic RAG demo: every report claim is backed by structured evidence, Critic feedback can trigger retry research, citations are verified against the Evidence Store, evaluation produces quality/cost/latency metrics, and checkpoint recovery is demoable from the command line.
+DeepResearchAgent is a runnable deterministic MVP for a multi-agent deep research system. Every report claim is backed by structured evidence, Critic feedback can trigger retry research, citations are verified against the Evidence Store, evaluation produces quality/cost/latency metrics, and checkpoint recovery is demoable from the command line.
 
-The local MVP is deterministic and runs without external LLM/search keys. The production path is prepared through `pyproject.toml`, Docker, FastAPI, Streamlit, and provider/storage boundaries that keep Tavily, LiteLLM, and Postgres optional; LangGraph parity remains a future backlog item.
+The current implementation runs without external LLM or search keys. It uses deterministic local agents, fixture search by default, SQLite persistence, FastAPI and Streamlit demo surfaces, and provider boundaries for optional future integrations. LangGraph and LiteLLM are declared dependencies, but the runtime path is still the project engine; LLM integration is not active yet.
 
 ## Why It Matters
 
@@ -16,20 +16,22 @@ The local MVP is deterministic and runs without external LLM/search keys. The pr
 ```mermaid
 flowchart TD
     U[Research topic] --> P[Planner Agent]
-    P --> S[State Manager and Checkpoint]
-    S --> R1[Researcher fan-out]
-    R1 --> X[Extractor Agent]
+    P --> S[SQLite checkpoint and state]
+    S --> R[Researcher Agent]
+    R --> X[Extractor Agent]
     X --> E[(Evidence Store)]
     E --> C[Critic Agent]
-    C -->|retry tasks| R1
+    C -->|retry tasks| R
     C -->|pass or hard limit| W[Reporter Agent]
     W --> V[Evaluator]
-    V --> M[Metrics Dashboard]
+    V --> M[Metrics]
 ```
+
+The researcher currently executes sub-questions and their search queries synchronously. The default search provider is the deterministic fixture provider; Tavily is optional and only used when explicitly configured with a key.
 
 ## Quick Start
 
-Use Python 3.11 or 3.12 for the local runtime. The examples below use a repo-local virtual environment so they do not depend on a system `python` executable:
+Use Python 3.11 or 3.12 for the local runtime. The examples below use a repo-local virtual environment:
 
 ```bash
 python3.12 -m venv .venv
@@ -39,30 +41,60 @@ python3.12 -m venv .venv
 Run the deterministic demo:
 
 ```bash
-PYTHONPATH=src .venv/bin/python scripts/run_demo.py
+PYTHONPATH=src DEEPRESEARCH_SEARCH_PROVIDER=fixture .venv/bin/python scripts/run_demo.py
 ```
 
 Run a small evaluation sweep:
 
 ```bash
-PYTHONPATH=src .venv/bin/python scripts/run_eval.py --limit 5
+PYTHONPATH=src DEEPRESEARCH_SEARCH_PROVIDER=fixture .venv/bin/python scripts/run_eval.py --limit 5
 ```
 
 Compare evaluation metrics against the deterministic baseline:
 
 ```bash
-PYTHONPATH=src .venv/bin/python scripts/run_eval.py --limit 5 --compare-baseline
+PYTHONPATH=src DEEPRESEARCH_SEARCH_PROVIDER=fixture .venv/bin/python scripts/run_eval.py --limit 5 --compare-baseline
 ```
 
 Run the checkpoint resume demo:
 
 ```bash
-PYTHONPATH=src .venv/bin/python scripts/run_checkpoint_demo.py
+PYTHONPATH=src DEEPRESEARCH_SEARCH_PROVIDER=fixture .venv/bin/python scripts/run_checkpoint_demo.py
 ```
 
-Optional Tavily search is opt-in. The deterministic MVP and CI do not require
-`TAVILY_API_KEY`; even if the provider is set to `tavily`, an empty key falls
-back to local fixtures:
+Run tests with the built-in `unittest` suite:
+
+```bash
+PYTHONPATH=src DEEPRESEARCH_SEARCH_PROVIDER=fixture .venv/bin/python -m unittest discover -s tests
+```
+
+Open the no-dependency fallback UI/API:
+
+```bash
+PYTHONPATH=src DEEPRESEARCH_SEARCH_PROVIDER=fixture .venv/bin/python scripts/dev_server.py --port 8765
+```
+
+Start the API and UI in separate terminals:
+
+```bash
+PYTHONPATH=src .venv/bin/uvicorn deepresearch_agent.api.main:app --host 0.0.0.0 --port 8000
+```
+
+```bash
+PYTHONPATH=src .venv/bin/streamlit run ui/app.py
+```
+
+Or use Docker:
+
+```bash
+docker compose up --build
+```
+
+For public URL smoke checks and the recording checklist, see [docs/deployment.md](docs/deployment.md).
+
+## Optional Tavily Search
+
+The deterministic MVP and CI do not require `TAVILY_API_KEY`. If the provider is set to `tavily` but the key is empty, the code falls back to local fixtures:
 
 ```bash
 DEEPRESEARCH_SEARCH_PROVIDER=tavily TAVILY_API_KEY= \
@@ -78,39 +110,6 @@ export TAVILY_API_KEY=<your-key>
 PYTHONPATH=src .venv/bin/python scripts/run_demo.py \
   --output artifacts/tavily_live/report.md
 ```
-
-Run tests with the built-in `unittest` suite:
-
-```bash
-PYTHONPATH=src .venv/bin/python -m unittest discover -s tests
-```
-
-Open the no-dependency fallback UI/API:
-
-```bash
-PYTHONPATH=src .venv/bin/python scripts/dev_server.py --port 8765
-```
-
-Start the API and UI in separate terminals:
-
-```bash
-PYTHONPATH=src .venv/bin/uvicorn deepresearch_agent.api.main:app --host 0.0.0.0 --port 8000
-```
-
-Streamlit UI:
-
-```bash
-PYTHONPATH=src .venv/bin/streamlit run ui/app.py
-```
-
-Or use Docker:
-
-```bash
-docker compose up --build
-```
-
-For public URL smoke checks and the 1-2 minute recording checklist, see
-[docs/deployment.md](docs/deployment.md).
 
 ## Local Output Examples
 
@@ -143,12 +142,6 @@ final_evidence_count=35
 report=/.../artifacts/checkpoint_demo/report.md
 ```
 
-Current UI/API packaging note: the Streamlit UI runs the local deterministic engine
-directly, while FastAPI exposes the same research contract for API demos. Under
-Docker Compose, both services use the same local storage path for the MVP. A
-future production hardening step can wire the UI to the API via `API_BASE_URL`
-or a similar setting.
-
 ## API Contract
 
 - `POST /research`: create a research run from `{ "topic": "...", "depth_level": 2 }`
@@ -156,30 +149,29 @@ or a similar setting.
 - `GET /research/{id}/report`: fetch JSON containing the markdown report
 - `GET /metrics`: fetch recent evaluation results
 
-FastAPI (`PYTHONPATH=src .venv/bin/uvicorn deepresearch_agent.api.main:app`) is
-the primary API demo surface and exposes the contract above. `scripts/dev_server.py`
-is a no-dependency fallback implemented with Python's standard library; it
-exposes the same JSON routes for local smoke demos and adds a small browser form
-at `/`. Both surfaces execute the deterministic MVP synchronously today; there
-is no background job queue or async run orchestration yet.
+FastAPI is the primary API demo surface. `scripts/dev_server.py` is a no-dependency fallback implemented with Python's standard library; it exposes the same JSON routes for local smoke demos and adds a small browser form at `/`. Both surfaces execute the deterministic MVP synchronously today; there is no background job queue or async run orchestration yet.
+
+The Streamlit UI runs the local deterministic engine directly. Under Docker Compose, the API and UI use the same local storage path for the MVP. A future hardening step can wire the UI to the API via `API_BASE_URL` or a similar setting.
 
 ## What Is Implemented
 
-- `Planner -> Researcher fan-out -> Extractor -> Evidence Store -> Critic -> Reporter -> Evaluator`
+- `Planner -> Researcher -> Extractor -> Evidence Store -> Critic -> Reporter -> Evaluator`
 - SQLite-backed local Evidence Store and checkpoint table
+- Checkpoint resume by `research_id`
 - Critic checks for missing citations, numeric conflicts, outdated sources, missing counterarguments, and unverified projections
 - Deterministic fixture search by default, with optional Tavily search behind the `SearchProvider` contract
 - 50-case golden question set in `data/eval_set.jsonl`
 - Streamlit dashboard for report, evidence, and Critic JSON
 - Docker Compose for API/UI, with a Postgres profile reserved for production hardening
 
-## Production Hardening Backlog
+## Roadmap
 
-Provider work is optional and must preserve the deterministic no-key MVP. See
-[docs/provider_integration.md](docs/provider_integration.md) for the rollout
-contract.
+Provider work is optional and must preserve the deterministic no-key MVP. See [docs/provider_integration.md](docs/provider_integration.md) for the rollout contract.
 
-- Add Serper and robust `web_fetch`; keep Tavily and future providers optional.
-- Replace deterministic agents with LiteLLM-backed prompts in `prompts/`.
+- Migrate orchestration to LangGraph `StateGraph` with parallel researcher fan-out and official SQLite checkpointing after approving the required checkpointer package.
+- Replace deterministic agents with LiteLLM-backed calls using prompts from `prompts/`.
+- Add robust live `web_fetch`.
+- Add `rag_search`.
+- Add `structured_query`.
+- Add `temporal_conflict` detection in Critic.
 - Add a Postgres adapter using `docs/postgres_schema.sql`.
-- Add LangGraph parity while preserving the current workflow semantics.

@@ -6,8 +6,10 @@ __pycache__/
 *.egg-info/
 .env
 artifacts/
+data/runtime/
 *.db
 *.sqlite
 *.sqlite3
 .DS_Store
 .agent_handoff/
+_collab/
