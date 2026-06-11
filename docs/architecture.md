@@ -9,6 +9,7 @@ sequenceDiagram
     participant User
     participant Engine as DeepResearchEngine
     participant Graph as LangGraph StateGraph
+    participant LLM as LiteLLMClient
     participant Planner
     participant Researcher
     participant Extractor
@@ -21,20 +22,35 @@ sequenceDiagram
     User->>Engine: topic + depth
     Engine->>Graph: invoke ResearchGraphState with thread_id=research_id
     Graph->>Saver: checkpoint graph state at node boundaries
-    Graph->>Planner: create ResearchPlan
+    alt deterministic mode
+        Graph->>Planner: create ResearchPlan
+    else llm mode
+        Planner->>LLM: structured ResearchPlan call
+        LLM-->>Planner: validated Pydantic output + ledger row
+    end
     Planner-->>Graph: sub-questions
     par Send per sub-question
         Graph->>Researcher: search fixture or configured provider
         Researcher-->>Graph: sources + SearchRecord
     end
-    Graph->>Extractor: extract Evidence from joined sources
+    alt deterministic mode
+        Graph->>Extractor: extract Evidence from joined sources
+    else llm mode
+        Extractor->>LLM: structured ExtractedClaims call
+        LLM-->>Extractor: validated claims + ledger rows
+    end
     Extractor-->>Graph: Evidence rows
     Graph->>Store: persist evidence rows
     loop critic conditional edge until pass or hard limit
         Graph->>Critic: evaluate evidence set
         Critic-->>Graph: CriticReport + retry queue
         alt passed or forced pass
-            Graph->>Reporter: markdown report with footnote citations
+            alt deterministic mode
+                Graph->>Reporter: markdown report with footnote citations
+            else llm mode
+                Reporter->>LLM: structured ReportDraft call
+                LLM-->>Reporter: validated draft + ledger row
+            end
         else retry queue
             par Send per retry task
                 Graph->>Researcher: targeted retry query
@@ -52,6 +68,11 @@ sequenceDiagram
 ```
 
 The engine builds a LangGraph `StateGraph` in `src/deepresearch_agent/workflow/engine.py`. The graph has nodes for `planner`, `researcher`, `extractor`, `critic`, `reporter`, and `evaluator`, with small prepare/join nodes around fan-out. The graph state uses a `TypedDict` wrapper containing JSON-serializable `ResearchState` data so checkpoints do not depend on pickled Pydantic instances.
+
+The runtime has two modes:
+
+- `deterministic`: default, no API keys, deterministic local Planner/Extractor/Reporter.
+- `llm`: opt-in, LiteLLM-backed Planner/Extractor/Reporter, deterministic fixture Researcher, deterministic Critic.
 
 ## Core Contracts
 
@@ -71,7 +92,7 @@ All cross-agent contracts are Pydantic models in `src/deepresearch_agent/schemas
 - Graph checkpoints are persisted by LangGraph's official `SqliteSaver`; evidence rows and evaluations are persisted with `SQLiteStore` for the local MVP. `docs/postgres_schema.sql` documents a production storage path, but there is no Postgres adapter yet.
 - FastAPI and the fallback stdlib server execute runs synchronously. The project does not yet include a background job queue.
 - Checkpoint recovery is available through `research_id` and can be demonstrated with `scripts/run_checkpoint_demo.py`.
-- LiteLLM is declared but not used; current agents are deterministic Python implementations.
+- LiteLLM is used only through `deepresearch_agent.llm.LLMClient` in `llm` mode. No other module should call LiteLLM directly.
 
 ## Checkpoint And Storage Responsibilities
 
@@ -88,6 +109,18 @@ LangGraph checkpoints store the next graph node, current phase, evidence collect
 LangGraph 1.2.2 is installed and active in the runtime path. `langgraph-checkpoint-sqlite` 3.1.0 provides `langgraph.checkpoint.sqlite.SqliteSaver`, which is used for orchestration checkpoints.
 
 Researcher fan-out uses LangGraph `Send` per sub-question, then joins sources in plan order before extraction. Critic routing uses conditional edges: passed reports continue to Reporter, failed reports under the hard iteration limit fan out only the retry queue, and failed reports at the hard limit preserve the force-pass behavior.
+
+## LLM Layer, Ledger, And Budget Fuse
+
+`LLMClient` is the single LLM boundary. It receives a role name, chat messages, and an optional Pydantic schema. It applies a 60-second timeout, two provider retries with exponential backoff, and one structured-output repair retry that feeds validation errors back to the model.
+
+The role-to-model mapping is centralized in `src/deepresearch_agent/llm_config.py`. The default temperature is 0. LLM keys are read only from `.env`.
+
+Every LLM call appends one JSON line to `data/runtime/llm_ledger.jsonl`, including role, model, prompt/completion/total tokens, USD/CNY cost, latency, cache-hit field when present, repair attempts, and parse-error status. The directory is gitignored.
+
+The per-run budget fuse defaults to 3 CNY and is configurable with `DEEPRESEARCH_LLM_BUDGET_CNY`. If cumulative run cost exceeds the budget, the engine marks the state `budget_exceeded`, preserves the latest checkpointed partial state, and stops gracefully.
+
+In LLM mode, `token_used` and `cost_usd` come from ledger aggregation. `citation_accuracy` and `critic_catch_rate` remain programmatic. `answer_relevance` and `faithfulness` are reported as `null` with reason fields until a judge is added.
 
 ## Why Evidence Store Is First-Class
 

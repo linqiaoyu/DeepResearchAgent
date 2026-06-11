@@ -83,31 +83,34 @@ PYTHONPATH=src .venv/bin/python scripts/run_demo.py \
   --output artifacts/tavily_live/report.md
 ```
 
-### LLM Agents: LiteLLM Planner or Reporter
+### LLM Agents: LiteLLM Planner, Extractor, Reporter
 
-Current boundary: deterministic agent classes with Pydantic schema contracts and
-prompt files in `prompts/`.
+Current boundary: `deepresearch_agent.llm.LLMClient` is the only LiteLLM call
+path. Planner, Extractor, and Reporter have opt-in LLM implementations behind
+the same Pydantic contracts and prompt files in `prompts/`.
 
 Implementation shape:
 
-- Add an optional LiteLLM-backed agent behind the same public method contract.
 - Keep deterministic agents as defaults.
+- Keep Researcher and Critic deterministic until later tasks explicitly expand
+  them.
 - Read prompts from `prompts/`; do not hard-code production prompts in business
   logic.
 - Validate all LLM outputs through existing Pydantic schemas before they enter
   workflow state.
+- Keep key values in `.env` only; never log them.
 
 Minimum tests:
 
 - Mock LiteLLM response test for schema-valid output.
 - Malformed response test proving validation fails clearly.
-- No-key test proving deterministic Planner/Reporter still run.
+- No-key test proving deterministic mode still runs.
 
 ### Storage: Postgres Evidence Store
 
-Current boundary: `SQLiteStore` methods used by the engine:
-`save_checkpoint`, `load_checkpoint`, `add_evidence_many`, `list_evidence`,
-`save_evaluation`, and `latest_metrics`.
+Current boundary: LangGraph `SqliteSaver` owns orchestration checkpoints, keyed
+by `thread_id=research_id`. `SQLiteStore` owns evidence and evaluation methods:
+`add_evidence_many`, `list_evidence`, `save_evaluation`, and `latest_metrics`.
 
 Implementation shape:
 
@@ -123,18 +126,18 @@ Minimum tests:
 - Retry attribution tests must pass for any store implementation.
 - No-Postgres CI path must remain green.
 
-### Workflow Parity: LangGraph
+### Workflow Extension: LangGraph
 
 Current boundary: `DeepResearchEngine.run(...)` and `ResearchState`.
 
 Implementation shape:
 
-- Treat LangGraph as parity work, not a rewrite of semantics.
+- LangGraph is the active runtime path. Treat future graph changes as semantic
+  parity work, not a rewrite of product behavior.
 - Preserve the same phases: planning, researching, extracting, critiquing,
   reporting, evaluating, done.
 - Preserve checkpoint resume by `research_id`.
-- Keep existing deterministic engine available until LangGraph passes the same
-  contract tests.
+- Preserve deterministic mode as the default no-key path.
 
 Minimum tests:
 

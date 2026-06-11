@@ -2,7 +2,7 @@
 
 DeepResearchAgent is a runnable deterministic MVP for a multi-agent deep research system. Every report claim is backed by structured evidence, Critic feedback can trigger retry research, citations are verified against the Evidence Store, evaluation produces quality/cost/latency metrics, and checkpoint recovery is demoable from the command line.
 
-The current implementation runs without external LLM or search keys. It uses deterministic local agents, fixture search by default, LangGraph orchestration with SQLite checkpointing, SQLite evidence/metrics persistence, FastAPI and Streamlit demo surfaces, and provider boundaries for optional future integrations. LiteLLM is declared as a future integration dependency, but LLM integration is not active yet.
+The current implementation runs without external LLM or search keys by default. It uses deterministic local agents, fixture search by default, LangGraph orchestration with SQLite checkpointing, SQLite evidence/metrics persistence, FastAPI and Streamlit demo surfaces, and provider boundaries for optional future integrations. An opt-in LiteLLM mode is available for Planner, Extractor, and Reporter; Researcher search and Critic checks remain deterministic in this task.
 
 ## Why It Matters
 
@@ -31,6 +31,22 @@ flowchart TD
 
 The researcher fans out sub-questions through LangGraph `Send` and then joins results before extraction. The default search provider is the deterministic fixture provider; Tavily is optional and only used when explicitly configured with a key.
 
+## Modes And Keys
+
+Deterministic mode is the default and requires no keys:
+
+```bash
+PYTHONPATH=src DEEPRESEARCH_SEARCH_PROVIDER=fixture .venv/bin/python scripts/run_demo.py --mode deterministic
+```
+
+LLM mode uses LiteLLM for Planner, Extractor, and Reporter while keeping fixture retrieval and deterministic Critic:
+
+```bash
+PYTHONPATH=src DEEPRESEARCH_SEARCH_PROVIDER=fixture .venv/bin/python scripts/run_demo.py --mode llm
+```
+
+LLM keys are read only from `.env`; do not export or log key values. Set `DEEPSEEK_API_KEY` for LLM mode. `DASHSCOPE_API_KEY` and `TAVILY_API_KEY` are reserved for later provider tasks.
+
 ## Quick Start
 
 Use Python 3.11 or 3.12 for the local runtime. The examples below use a repo-local virtual environment:
@@ -57,6 +73,8 @@ Compare evaluation metrics against the deterministic baseline:
 ```bash
 PYTHONPATH=src DEEPRESEARCH_SEARCH_PROVIDER=fixture .venv/bin/python scripts/run_eval.py --limit 5 --compare-baseline
 ```
+
+LLM-mode metrics use real LiteLLM token and cost accounting from `data/runtime/llm_ledger.jsonl`. `citation_accuracy` and `critic_catch_rate` remain programmatic. `answer_relevance` and `faithfulness` are `null` in LLM mode with reason fields until LLM-as-Judge is introduced.
 
 Run the checkpoint resume demo:
 
@@ -161,6 +179,8 @@ The Streamlit UI runs the local deterministic engine directly. Under Docker Comp
 - Researcher fan-out by sub-question with deterministic join and evidence ordering
 - Official `SqliteSaver` checkpoints with resume by `research_id`
 - SQLite-backed local Evidence Store and evaluation metrics
+- LiteLLM-backed opt-in mode for Planner, Extractor, and Reporter
+- LLM ledger with token, cost, latency, cache-hit field, repair attempts, and per-run budget fuse
 - Critic checks for missing citations, numeric conflicts, outdated sources, missing counterarguments, and unverified projections
 - Deterministic fixture search by default, with optional Tavily search behind the `SearchProvider` contract
 - 50-case golden question set in `data/eval_set.jsonl`
@@ -171,9 +191,11 @@ The Streamlit UI runs the local deterministic engine directly. Under Docker Comp
 
 Provider work is optional and must preserve the deterministic no-key MVP. See [docs/provider_integration.md](docs/provider_integration.md) for the rollout contract.
 
-- Replace deterministic agents with LiteLLM-backed calls using prompts from `prompts/`.
 - Add robust live `web_fetch`.
 - Add `rag_search`.
 - Add `structured_query`.
+- Add Researcher reflection loop and live retrieval expansion.
+- Add Critic semantic verification beyond deterministic issue rules.
+- Add LLM-as-Judge for answer relevance and faithfulness in LLM mode.
 - Add `temporal_conflict` detection in Critic.
 - Add a Postgres adapter using `docs/postgres_schema.sql`.
