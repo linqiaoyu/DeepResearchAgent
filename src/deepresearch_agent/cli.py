@@ -87,7 +87,7 @@ def run_checkpoint_demo() -> None:
         stop_after_phase=args.stop_after_phase,
     )
     paused_evidence_count = len(paused.evidence_store)
-    checkpoint = store.load_checkpoint(paused.research_id)
+    checkpoint = engine.load_state(paused.research_id)
     if not checkpoint:
         raise SystemExit(f"Checkpoint not found for research_id={paused.research_id}")
 

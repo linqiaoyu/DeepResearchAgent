@@ -25,7 +25,7 @@ def research_state_path_id(path: str) -> str | None:
 
 
 def research_state_response(engine: DeepResearchEngine, research_id: str) -> tuple[object, HTTPStatus]:
-    state = engine.store.load_checkpoint(research_id)
+    state = engine.load_state(research_id)
     if not state:
         return {"error": "research_id not found"}, HTTPStatus.NOT_FOUND
     return state.model_dump(mode="json"), HTTPStatus.OK
@@ -47,7 +47,7 @@ class DeepResearchHandler(BaseHTTPRequestHandler):
             return
         if parsed.path.startswith("/research/") and parsed.path.endswith("/report"):
             research_id = parsed.path.split("/")[2]
-            state = self.engine.store.load_checkpoint(research_id)
+            state = self.engine.load_state(research_id)
             if not state:
                 self._send_json({"error": "research_id not found"}, status=HTTPStatus.NOT_FOUND)
                 return
