@@ -65,7 +65,7 @@ class DeepResearchEngine:
         )
         self.planner = PlannerAgent(llm_client=self.llm_client, settings=self.settings)
         self.researcher = ResearcherAgent(self.search_tool)
-        self.extractor = ExtractorAgent()
+        self.extractor = ExtractorAgent(llm_client=self.llm_client)
         self.critic = CriticAgent()
         self.reporter = ReporterAgent()
         self.evaluator = Evaluator()
@@ -360,6 +360,10 @@ class DeepResearchEngine:
             for source in sources:
                 source_by_url[source.url] = source
             extracted = self.extractor.extract(state.research_id, target_subq, sources)
+            if self.settings.execution_mode == "llm":
+                state.metadata.setdefault("llm_stats", {}).setdefault("extractor", []).append(
+                    {"sub_question_id": target_subq.id, "retry_task_id": task.id, **self.extractor.last_stats}
+                )
             for item in extracted:
                 evidence_by_id[item.id] = item
             task.completed = True
@@ -414,6 +418,10 @@ class DeepResearchEngine:
         for sub_question in state.plan.sub_questions:
             relevant_sources = self._sources_for_subquestion(state, sub_question.id)
             extracted = self.extractor.extract(state.research_id, sub_question, relevant_sources)
+            if self.settings.execution_mode == "llm":
+                state.metadata.setdefault("llm_stats", {}).setdefault("extractor", []).append(
+                    {"sub_question_id": sub_question.id, **self.extractor.last_stats}
+                )
             for item in extracted:
                 evidence_by_id[item.id] = item
         state.evidence_store = self._sorted_evidence(list(evidence_by_id.values()))
