@@ -41,14 +41,14 @@ if FastAPI is not None:
 
     @app.get("/research/{research_id}")
     def get_research(research_id: str) -> dict:
-        state = engine.store.load_checkpoint(research_id)
+        state = engine.load_state(research_id)
         if not state:
             raise HTTPException(status_code=404, detail="research_id not found")
         return state.model_dump(mode="json")
 
     @app.get("/research/{research_id}/report")
     def get_report(research_id: str) -> dict[str, str]:
-        state = engine.store.load_checkpoint(research_id)
+        state = engine.load_state(research_id)
         if not state:
             raise HTTPException(status_code=404, detail="research_id not found")
         return {"research_id": research_id, "report": state.final_report or ""}
@@ -58,4 +58,3 @@ if FastAPI is not None:
         return [item.model_dump(mode="json") for item in engine.store.latest_metrics()]
 else:
     app = None
-

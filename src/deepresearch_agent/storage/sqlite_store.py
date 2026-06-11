@@ -5,7 +5,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-from deepresearch_agent.schemas import EvaluationResult, Evidence, ResearchState, utc_now
+from deepresearch_agent.schemas import EvaluationResult, Evidence
 
 
 class SQLiteStore:
@@ -32,12 +32,6 @@ class SQLiteStore:
         with self._connection() as conn:
             conn.executescript(
                 """
-                CREATE TABLE IF NOT EXISTS checkpoints (
-                    research_id TEXT PRIMARY KEY,
-                    state_json TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                );
-
                 CREATE TABLE IF NOT EXISTS evidence (
                     id TEXT PRIMARY KEY,
                     research_id TEXT NOT NULL,
@@ -58,30 +52,6 @@ class SQLiteStore:
                 );
                 """
             )
-
-    def save_checkpoint(self, state: ResearchState) -> None:
-        state.updated_at = utc_now()
-        with self._connection() as conn:
-            conn.execute(
-                """
-                INSERT INTO checkpoints (research_id, state_json, updated_at)
-                VALUES (?, ?, ?)
-                ON CONFLICT(research_id) DO UPDATE SET
-                    state_json=excluded.state_json,
-                    updated_at=excluded.updated_at
-                """,
-                (state.research_id, state.model_dump_json(), state.updated_at.isoformat()),
-            )
-
-    def load_checkpoint(self, research_id: str) -> ResearchState | None:
-        with self._connection() as conn:
-            row = conn.execute(
-                "SELECT state_json FROM checkpoints WHERE research_id = ?",
-                (research_id,),
-            ).fetchone()
-        if not row:
-            return None
-        return ResearchState.model_validate_json(row["state_json"])
 
     def add_evidence_many(self, items: list[Evidence]) -> None:
         with self._connection() as conn:

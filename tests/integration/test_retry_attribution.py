@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 from deepresearch_agent.schemas import ResearchState, RetryTask, Source
 from deepresearch_agent.settings import Settings
@@ -52,7 +53,7 @@ class RetryAttributionTests(unittest.TestCase):
                 )
             ]
 
-            engine._execute_retry_tasks(state)
+            state = _execute_retry_fanout(engine, state)
 
         self.assertNotEqual(target_subq.id, fallback_subq.id)
         self.assertTrue(state.retry_queue[0].completed)
@@ -84,7 +85,7 @@ class RetryAttributionTests(unittest.TestCase):
                 ),
             ]
 
-            engine._execute_retry_tasks(state)
+            state = _execute_retry_fanout(engine, state)
             persisted = store.list_evidence(state.research_id)
 
         self.assertEqual(len(provider.calls), 2)
@@ -117,7 +118,7 @@ class RetryAttributionTests(unittest.TestCase):
                 )
             ]
 
-            engine._execute_retry_tasks(state)
+            state = _execute_retry_fanout(engine, state)
             persisted = store.list_evidence(state.research_id)
 
         self.assertEqual(len(provider.calls), 1)
@@ -125,6 +126,25 @@ class RetryAttributionTests(unittest.TestCase):
         self.assertGreater(len(state.evidence_store), 0)
         self.assertEqual({item.sub_question_id for item in state.evidence_store}, {fallback_subq.id})
         self.assertEqual({item.sub_question_id for item in persisted}, {fallback_subq.id})
+
+
+def _execute_retry_fanout(engine: DeepResearchEngine, state: ResearchState) -> ResearchState:
+    graph_state: dict[str, Any] = {"research_state": state.model_dump(mode="json")}
+    graph_state.update(engine._retry_prepare_node(graph_state))
+    retry_sources: dict[str, list[dict[str, Any]]] = {}
+    retry_records: dict[str, dict[str, Any]] = {}
+    for task in state.retry_queue:
+        update = engine._retry_one_node(
+            {
+                "research_state": graph_state["research_state"],
+                "fanout_retry_task": task.model_dump(mode="json"),
+            }
+        )
+        retry_sources.update(update.get("retry_sources", {}))
+        retry_records.update(update.get("retry_records", {}))
+    graph_state["retry_sources"] = retry_sources
+    graph_state["retry_records"] = retry_records
+    return engine._state_from_graph_values(engine._retry_join_node(graph_state))
 
 
 if __name__ == "__main__":
