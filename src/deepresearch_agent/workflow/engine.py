@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from typing import Annotated, Any, TypedDict
 
 from deepresearch_agent.agents import CriticAgent, Evaluator, ExtractorAgent, PlannerAgent, ReporterAgent, ResearcherAgent
+from deepresearch_agent.llm import BudgetExceededError, LLMClient
 from deepresearch_agent.schemas import (
     Evidence,
     ResearchState,
@@ -54,7 +55,15 @@ class DeepResearchEngine:
         self.settings = settings or load_settings()
         self.store = store or SQLiteStore(self.settings.storage_path)
         self.search_tool = search_tool or build_search_provider()
-        self.planner = PlannerAgent()
+        self.llm_client = (
+            LLMClient(
+                ledger_path=self.settings.llm_ledger_path,
+                budget_cny=self.settings.llm_budget_cny,
+            )
+            if self.settings.execution_mode == "llm"
+            else None
+        )
+        self.planner = PlannerAgent(llm_client=self.llm_client, settings=self.settings)
         self.researcher = ResearcherAgent(self.search_tool)
         self.extractor = ExtractorAgent()
         self.critic = CriticAgent()
@@ -104,12 +113,22 @@ class DeepResearchEngine:
                 "stop_after_phase": stop_after_phase,
             }
 
-        result = self.graph.invoke(
-            graph_input,
-            config=config,
-            interrupt_before=interrupt_before,
-            interrupt_after=interrupt_after,
-        )
+        if self.llm_client:
+            self.llm_client.start_run(research_id)
+        try:
+            result = self.graph.invoke(
+                graph_input,
+                config=config,
+                interrupt_before=interrupt_before,
+                interrupt_after=interrupt_after,
+            )
+        except BudgetExceededError:
+            state = self.load_state(research_id) or state
+            state.status = "budget_exceeded"
+            state.metadata["llm_budget_exceeded"] = True
+            state.metadata["llm_run_total_cny"] = self.llm_client.run_total_cny(research_id) if self.llm_client else 0.0
+            self.graph.update_state(config, self._state_output(state))
+            return state
         return self._state_from_graph_values(result)
 
     def load_state(self, research_id: str) -> ResearchState | None:
@@ -377,7 +396,9 @@ class DeepResearchEngine:
         return self._state_output(state)
 
     def _planning(self, state: ResearchState) -> None:
-        state.plan = self.planner.plan(state.topic, state.depth_level)
+        state.plan = self.planner.plan(state.topic, state.depth_level, research_id=state.research_id)
+        if self.settings.execution_mode == "llm":
+            state.metadata.setdefault("llm_stats", {})["planner"] = self.planner.last_stats
         state.todo_list = [
             TodoItem(id=item.id, title=item.question, status="pending")
             for item in state.plan.sub_questions

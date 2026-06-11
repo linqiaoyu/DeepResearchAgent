@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import time
 from dataclasses import dataclass
+from importlib import import_module
 from pathlib import Path
 from typing import Any, TypeVar
 
@@ -10,12 +11,6 @@ from pydantic import BaseModel, ValidationError
 
 from deepresearch_agent.llm_config import DEFAULT_LLM_CONFIG, LLMConfig
 from deepresearch_agent.settings import project_root
-
-try:
-    import litellm
-except ModuleNotFoundError:  # pragma: no cover - exercised only in misconfigured envs.
-    litellm = None
-
 
 SchemaT = TypeVar("SchemaT", bound=BaseModel)
 
@@ -63,12 +58,11 @@ class LLMClient:
         sleep_func: Any = time.sleep,
         env_path: Path | None = None,
     ) -> None:
-        if litellm is None and completion_func is None:
-            raise LLMClientError("litellm is not installed.")
+        self._litellm = None if completion_func is not None else self._load_litellm()
         self.ledger_path = ledger_path
         self.budget_cny = budget_cny
         self.config = config
-        self._completion = completion_func or litellm.completion
+        self._completion = completion_func or self._litellm.completion
         self._sleep = sleep_func
         self._env_path = env_path or project_root() / ".env"
         self._run_costs_cny: dict[str, float] = {}
@@ -307,9 +301,9 @@ class LLMClient:
         }
 
     def _cost_usd(self, response: Any, usage: dict[str, int]) -> float:
-        if litellm is not None:
+        if self._litellm is not None:
             try:
-                return float(litellm.completion_cost(completion_response=response) or 0.0)
+                return float(self._litellm.completion_cost(completion_response=response) or 0.0)
             except Exception:
                 pass
         # Conservative fallback for smoke accounting when provider cost mapping is unavailable.
@@ -368,3 +362,9 @@ class LLMClient:
             except json.JSONDecodeError:
                 continue
         return rows
+
+    def _load_litellm(self) -> Any:
+        try:
+            return import_module("litellm")
+        except ModuleNotFoundError as exc:  # pragma: no cover - exercised only in misconfigured envs.
+            raise LLMClientError("litellm is not installed.") from exc
