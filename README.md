@@ -2,7 +2,7 @@
 
 DeepResearchAgent is a runnable deterministic MVP for a multi-agent deep research system. Every report claim is backed by structured evidence, Critic feedback can trigger retry research, citations are verified against the Evidence Store, evaluation produces quality/cost/latency metrics, and checkpoint recovery is demoable from the command line.
 
-The current implementation runs without external LLM or search keys. It uses deterministic local agents, fixture search by default, SQLite persistence, FastAPI and Streamlit demo surfaces, and provider boundaries for optional future integrations. LangGraph and LiteLLM are declared dependencies, but the runtime path is still the project engine; LLM integration is not active yet.
+The current implementation runs without external LLM or search keys. It uses deterministic local agents, fixture search by default, LangGraph orchestration with SQLite checkpointing, SQLite evidence/metrics persistence, FastAPI and Streamlit demo surfaces, and provider boundaries for optional future integrations. LiteLLM is declared as a future integration dependency, but LLM integration is not active yet.
 
 ## Why It Matters
 
@@ -16,18 +16,20 @@ The current implementation runs without external LLM or search keys. It uses det
 ```mermaid
 flowchart TD
     U[Research topic] --> P[Planner Agent]
-    P --> S[SQLite checkpoint and state]
-    S --> R[Researcher Agent]
-    R --> X[Extractor Agent]
+    P --> G[LangGraph StateGraph]
+    G -->|Send fan-out by sub-question| R[Researcher Agent]
+    R --> G
+    G --> X[Extractor Agent]
     X --> E[(Evidence Store)]
     E --> C[Critic Agent]
-    C -->|retry tasks| R
+    C -->|retry queue conditional edge| R
     C -->|pass or hard limit| W[Reporter Agent]
     W --> V[Evaluator]
     V --> M[Metrics]
+    G --> S[(SqliteSaver checkpoints)]
 ```
 
-The researcher currently executes sub-questions and their search queries synchronously. The default search provider is the deterministic fixture provider; Tavily is optional and only used when explicitly configured with a key.
+The researcher fans out sub-questions through LangGraph `Send` and then joins results before extraction. The default search provider is the deterministic fixture provider; Tavily is optional and only used when explicitly configured with a key.
 
 ## Quick Start
 
@@ -155,9 +157,10 @@ The Streamlit UI runs the local deterministic engine directly. Under Docker Comp
 
 ## What Is Implemented
 
-- `Planner -> Researcher -> Extractor -> Evidence Store -> Critic -> Reporter -> Evaluator`
-- SQLite-backed local Evidence Store and checkpoint table
-- Checkpoint resume by `research_id`
+- LangGraph `StateGraph` orchestration for `Planner -> Researcher -> Extractor -> Critic -> Reporter -> Evaluator`
+- Researcher fan-out by sub-question with deterministic join and evidence ordering
+- Official `SqliteSaver` checkpoints with resume by `research_id`
+- SQLite-backed local Evidence Store and evaluation metrics
 - Critic checks for missing citations, numeric conflicts, outdated sources, missing counterarguments, and unverified projections
 - Deterministic fixture search by default, with optional Tavily search behind the `SearchProvider` contract
 - 50-case golden question set in `data/eval_set.jsonl`
@@ -168,7 +171,6 @@ The Streamlit UI runs the local deterministic engine directly. Under Docker Comp
 
 Provider work is optional and must preserve the deterministic no-key MVP. See [docs/provider_integration.md](docs/provider_integration.md) for the rollout contract.
 
-- Migrate orchestration to LangGraph `StateGraph` with parallel researcher fan-out and official SQLite checkpointing after approving the required checkpointer package.
 - Replace deterministic agents with LiteLLM-backed calls using prompts from `prompts/`.
 - Add robust live `web_fetch`.
 - Add `rag_search`.
