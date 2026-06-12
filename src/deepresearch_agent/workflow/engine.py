@@ -19,7 +19,12 @@ from deepresearch_agent.schemas import (
 )
 from deepresearch_agent.settings import Settings, load_settings
 from deepresearch_agent.storage import SQLiteStore
-from deepresearch_agent.tools import SearchProvider, build_search_provider
+from deepresearch_agent.tools import (
+    SearchProvider,
+    StructuredDataProvider,
+    build_search_provider,
+    build_structured_data_provider,
+)
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Send
@@ -41,6 +46,8 @@ class ResearchGraphState(TypedDict, total=False):
     fanout_retry_task: dict[str, Any]
     research_sources: Annotated[dict[str, list[dict[str, Any]]], _merge_dicts]
     research_records: Annotated[dict[str, list[dict[str, Any]]], _merge_dicts]
+    research_structured_evidence: Annotated[dict[str, list[dict[str, Any]]], _merge_dicts]
+    research_structured_stats: Annotated[dict[str, dict[str, int]], _merge_dicts]
     retry_sources: Annotated[dict[str, list[dict[str, Any]]], _merge_dicts]
     retry_records: Annotated[dict[str, dict[str, Any]], _merge_dicts]
 
@@ -51,10 +58,12 @@ class DeepResearchEngine:
         settings: Settings | None = None,
         store: SQLiteStore | None = None,
         search_tool: SearchProvider | None = None,
+        structured_data_provider: StructuredDataProvider | None = None,
     ) -> None:
         self.settings = settings or load_settings()
         self.store = store or SQLiteStore(self.settings.storage_path)
         self.search_tool = search_tool or build_search_provider()
+        self.structured_data_provider = structured_data_provider or build_structured_data_provider()
         self.llm_client = (
             LLMClient(
                 ledger_path=self.settings.llm_ledger_path,
@@ -64,7 +73,7 @@ class DeepResearchEngine:
             else None
         )
         self.planner = PlannerAgent(llm_client=self.llm_client, settings=self.settings)
-        self.researcher = ResearcherAgent(self.search_tool)
+        self.researcher = ResearcherAgent(self.search_tool, self.structured_data_provider)
         self.extractor = ExtractorAgent(llm_client=self.llm_client)
         self.critic = CriticAgent()
         self.reporter = ReporterAgent(llm_client=self.llm_client)
@@ -221,14 +230,22 @@ class DeepResearchEngine:
         return sends or "research_join"
 
     def _research_one_node(self, graph_state: ResearchGraphState) -> ResearchGraphState:
+        state = self._state_from_graph_values(graph_state)
         sub_question = SubQuestion.model_validate(graph_state["fanout_sub_question"])
         sources, records = self.researcher.research(sub_question)
+        structured_evidence = self.researcher.structured_evidence(state.research_id, sub_question)
         return {
             "research_sources": {
                 sub_question.id: [source.model_dump(mode="json") for source in sources]
             },
             "research_records": {
                 sub_question.id: [record.model_dump(mode="json") for record in records]
+            },
+            "research_structured_evidence": {
+                sub_question.id: [item.model_dump(mode="json") for item in structured_evidence]
+            },
+            "research_structured_stats": {
+                sub_question.id: dict(self.researcher.last_structured_stats)
             },
         }
 
@@ -240,6 +257,9 @@ class DeepResearchEngine:
         sources_by_subquestion = dict(state.metadata.get("sources_by_subquestion", {}))
         source_batches = graph_state.get("research_sources", {})
         record_batches = graph_state.get("research_records", {})
+        structured_batches = graph_state.get("research_structured_evidence", {})
+        structured_stats_batches = graph_state.get("research_structured_stats", {})
+        evidence_by_id = {item.id: item for item in state.evidence_store}
 
         for sub_question in state.plan.sub_questions:
             sources = [
@@ -251,6 +271,9 @@ class DeepResearchEngine:
                 for item in record_batches.get(sub_question.id, [])
             ]
             state.search_records.extend(records)
+            for item in structured_batches.get(sub_question.id, []):
+                evidence = Evidence.model_validate(item)
+                evidence_by_id[evidence.id] = evidence
             sources_by_subquestion[sub_question.id] = [source.url for source in sources]
             for source in sources:
                 source_by_url[source.url] = source
@@ -258,7 +281,9 @@ class DeepResearchEngine:
                 state.completed_tasks.append(sub_question.id)
 
         state.sources = list(source_by_url.values())
+        state.evidence_store = self._sorted_evidence(list(evidence_by_id.values()))
         state.metadata["sources_by_subquestion"] = sources_by_subquestion
+        state.metadata["structured_data_stats"] = structured_stats_batches
         state.pending_tasks = []
         for item in state.todo_list:
             item.status = "done"

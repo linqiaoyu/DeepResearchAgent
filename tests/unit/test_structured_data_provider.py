@@ -5,7 +5,8 @@ import unittest
 from datetime import date
 from pathlib import Path
 
-from deepresearch_agent.schemas import Evidence
+from deepresearch_agent.agents import ResearcherAgent
+from deepresearch_agent.schemas import Evidence, StructuredDataRequest, SubQuestion
 from deepresearch_agent.storage import SQLiteStore
 from deepresearch_agent.tools import FixtureStructuredDataProvider, build_structured_data_provider
 
@@ -67,6 +68,31 @@ class StructuredDataProviderTests(unittest.TestCase):
         self.assertEqual(loaded.source_kind, "structured")
         self.assertIsNotNone(loaded.structured_record)
         self.assertEqual(loaded.structured_record.metric_name, "归母净利润")
+
+    def test_researcher_executes_structured_requests_as_evidence(self) -> None:
+        researcher = ResearcherAgent(structured_data_provider=FixtureStructuredDataProvider())
+        sub_question = SubQuestion(
+            id="finance",
+            question="宁德时代 2024 年业绩如何？",
+            search_queries=[],
+            structured_data_requests=[
+                StructuredDataRequest(
+                    capability="financial_indicators",
+                    symbol="300750",
+                    periods=["20241231"],
+                    metrics=["归母净利润"],
+                )
+            ],
+        )
+
+        evidence = researcher.structured_evidence("run-1", sub_question)
+
+        self.assertEqual(len(evidence), 1)
+        self.assertEqual(evidence[0].source_kind, "structured")
+        self.assertEqual(evidence[0].claim_type, "data")
+        self.assertIsNotNone(evidence[0].structured_record)
+        self.assertEqual(evidence[0].structured_record.metric_name, "归母净利润")
+        self.assertEqual(researcher.last_structured_stats["records"], 1)
 
 
 if __name__ == "__main__":
