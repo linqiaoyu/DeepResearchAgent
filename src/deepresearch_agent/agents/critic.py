@@ -1,24 +1,48 @@
 from __future__ import annotations
 
 import itertools
+import json
 import re
+from dataclasses import dataclass
 from datetime import date
+from pathlib import Path
 
 from deepresearch_agent.schemas import CriticReport, Evidence, Issue, ResearchState, RetryTask
+from deepresearch_agent.settings import project_root
 
 NUMBER_RE = re.compile(r"(?P<number>\d+(?:\.\d+)?)\s*(?P<suffix>%|percent|x|倍|万|million|billion)?", re.I)
+DATE_RE = re.compile(r"(\d{4}-\d{1,2}(?:-\d{1,2})?|\d{4}年\d{1,2}月(?:\d{1,2}日)?)")
+
+
+@dataclass(frozen=True)
+class NumericClaimKey:
+    entity: str
+    metric_name: str
+    period: str
+    dimension: str
 
 
 class CriticAgent:
-    def __init__(self, today: date | None = None, max_source_age_days: int = 365) -> None:
+    def __init__(
+        self,
+        today: date | None = None,
+        max_source_age_days: int = 365,
+        metric_table_path: Path | None = None,
+        numeric_relative_tolerance: float = 0.01,
+    ) -> None:
         self.today = today or date(2026, 5, 24)
         self.max_source_age_days = max_source_age_days
+        self.numeric_relative_tolerance = numeric_relative_tolerance
+        self.metric_table = self._load_metric_table(
+            metric_table_path or project_root() / "data" / "finance_metric_normalization.json"
+        )
 
     def critique(self, state: ResearchState) -> CriticReport:
         issues: list[Issue] = []
         evidence = state.evidence_store
         issues.extend(self._missing_citation_issues(state))
         issues.extend(self._numeric_conflicts(evidence))
+        issues.extend(self._temporal_conflicts(evidence))
         issues.extend(self._outdated_sources(evidence))
         issues.extend(self._missing_counterargument(state))
         issues.extend(self._unverified_projections(evidence))
@@ -62,33 +86,71 @@ class CriticAgent:
 
     def _numeric_conflicts(self, evidence: list[Evidence]) -> list[Issue]:
         issues: list[Issue] = []
-        data_claims = [item for item in evidence if item.claim_type == "data"]
-        for left, right in itertools.combinations(data_claims, 2):
-            left_key = self._numeric_topic_key(left.claim)
-            right_key = self._numeric_topic_key(right.claim)
-            if not left_key or left_key != right_key or left.source_url == right.source_url:
+        keyed_claims = [
+            (item, key)
+            for item in evidence
+            if item.claim_type == "data"
+            for key in [self._numeric_claim_key(item)]
+            if key is not None
+        ]
+        for (left, left_key), (right, right_key) in itertools.combinations(keyed_claims, 2):
+            if left_key != right_key or left.source_url == right.source_url:
                 continue
-            left_numbers = self._numbers(left.claim)
-            right_numbers = self._numbers(right.claim)
-            if not left_numbers or not right_numbers:
+            left_value = left.numeric_fields.value if left.numeric_fields else None
+            right_value = right.numeric_fields.value if right.numeric_fields else None
+            if left_value is None or right_value is None:
                 continue
-            if self._meaningfully_different(left_numbers[0], right_numbers[0]):
+            if self._meaningfully_different(left_value, right_value):
+                official_mismatch = left.source_kind == "structured" or right.source_kind == "structured"
                 task = RetryTask(
-                    reason=f"Conflicting numeric claims for {left_key}",
-                    query=f"{left_key} official latest benchmark",
+                    reason=f"Conflicting numeric claims for {left_key.metric_name}",
+                    query=f"{left_key.entity} {left_key.metric_name} {left_key.period} official data",
                     source_type="official",
                     sub_question_id=left.sub_question_id,
                     severity="high",
                 )
+                message = (
+                    f"Numeric conflict on {left_key.entity}/{left_key.metric_name}/"
+                    f"{left_key.period}/{left_key.dimension}: '{left.claim}' vs '{right.claim}'."
+                )
+                if official_mismatch:
+                    message += " Text claim is inconsistent with structured official data source."
                 issues.append(
                     Issue(
                         issue_type="numeric_conflict",
                         severity="high",
                         affected_claims=[left.id, right.id],
-                        message=f"Numeric conflict on '{left_key}': '{left.claim}' vs '{right.claim}'.",
+                        message=message,
                         suggested_retry_task=task,
                     )
                 )
+        return issues[:3]
+
+    def _temporal_conflicts(self, evidence: list[Evidence]) -> list[Issue]:
+        issues: list[Issue] = []
+        dated_claims: list[tuple[Evidence, str, str]] = []
+        for item in evidence:
+            dates = DATE_RE.findall(item.claim)
+            if not dates:
+                continue
+            event_key = self._temporal_event_key(item.claim)
+            if event_key:
+                dated_claims.append((item, event_key, dates[0]))
+        for (left, left_key, left_date), (right, right_key, right_date) in itertools.combinations(
+            dated_claims, 2
+        ):
+            if left_key != right_key or left_date == right_date or left.source_url == right.source_url:
+                continue
+            issues.append(
+                Issue(
+                    issue_type="temporal_conflict",
+                    severity="medium",
+                    affected_claims=[left.id, right.id],
+                    message=(
+                        f"Temporal conflict for '{left_key}': '{left_date}' vs '{right_date}'."
+                    ),
+                )
+            )
         return issues[:3]
 
     def _outdated_sources(self, evidence: list[Evidence]) -> list[Issue]:
@@ -183,4 +245,36 @@ class CriticAgent:
         if left == right:
             return False
         denominator = max(abs(left), abs(right), 1.0)
-        return abs(left - right) / denominator >= 0.2 and abs(left - right) >= 5
+        return abs(left - right) / denominator > self.numeric_relative_tolerance
+
+    def _numeric_claim_key(self, item: Evidence) -> NumericClaimKey | None:
+        fields = item.numeric_fields
+        if not fields or not fields.entity or not fields.metric_name or not fields.period:
+            return None
+        return NumericClaimKey(
+            entity=self._normalize_text(fields.entity),
+            metric_name=self._normalize_metric(fields.metric_name),
+            period=fields.period.strip(),
+            dimension=self._normalize_dimension(fields.dimension),
+        )
+
+    def _normalize_metric(self, metric_name: str) -> str:
+        aliases = self.metric_table.get("metric_aliases", {})
+        normalized = metric_name.strip()
+        return aliases.get(normalized, normalized)
+
+    def _normalize_dimension(self, dimension: str) -> str:
+        aliases = self.metric_table.get("dimension_aliases", {})
+        normalized = (dimension or "未标注").strip()
+        return aliases.get(normalized, normalized)
+
+    def _normalize_text(self, value: str) -> str:
+        return re.sub(r"\s+", "", value.strip().lower())
+
+    def _temporal_event_key(self, claim: str) -> str:
+        without_dates = DATE_RE.sub("", claim)
+        without_numbers = re.sub(r"\d+(?:\.\d+)?", "", without_dates)
+        return self._normalize_text(without_numbers)
+
+    def _load_metric_table(self, path: Path) -> dict[str, dict[str, str]]:
+        return json.loads(path.read_text(encoding="utf-8"))

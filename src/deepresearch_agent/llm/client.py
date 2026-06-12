@@ -38,11 +38,15 @@ class BudgetExceededError(LLMClientError):
 class LLMCallResult:
     content: str
     parsed: BaseModel | None
+    model: str
     prompt_tokens: int
+    prompt_cache_hit_tokens: int
+    prompt_cache_miss_tokens: int
     completion_tokens: int
     total_tokens: int
     cost_usd: float
     cost_cny: float
+    price_source: str
     latency_seconds: float
     cache_hit: bool | None
     repair_attempts: int = 0
@@ -102,6 +106,7 @@ class LLMClient:
         raw_result = self._completion_with_retries(
             role=role,
             model=role_config.model,
+            fallback_model=role_config.fallback_model,
             api_base=role_config.api_base,
             api_key=api_key,
             messages=prompt_messages,
@@ -117,7 +122,6 @@ class LLMClient:
                 self._record_ledger(
                     run_id=run_id,
                     role=role,
-                    model=role_config.model,
                     result=raw_result,
                     structured=True,
                     parse_error=first_error,
@@ -140,6 +144,7 @@ class LLMClient:
                 raw_result = self._completion_with_retries(
                     role=role,
                     model=role_config.model,
+                    fallback_model=role_config.fallback_model,
                     api_base=role_config.api_base,
                     api_key=api_key,
                     messages=repair_messages,
@@ -151,11 +156,15 @@ class LLMClient:
         result = LLMCallResult(
             content=content,
             parsed=parsed,
+            model=raw_result.model,
             prompt_tokens=raw_result.prompt_tokens,
+            prompt_cache_hit_tokens=raw_result.prompt_cache_hit_tokens,
+            prompt_cache_miss_tokens=raw_result.prompt_cache_miss_tokens,
             completion_tokens=raw_result.completion_tokens,
             total_tokens=raw_result.total_tokens,
             cost_usd=raw_result.cost_usd,
             cost_cny=raw_result.cost_cny,
+            price_source=raw_result.price_source,
             latency_seconds=raw_result.latency_seconds,
             cache_hit=raw_result.cache_hit,
             repair_attempts=repair_attempts,
@@ -163,7 +172,6 @@ class LLMClient:
         self._record_ledger(
             run_id=run_id,
             role=role,
-            model=role_config.model,
             result=result,
             structured=bool(schema),
             parse_error=first_error,
@@ -194,6 +202,8 @@ class LLMClient:
                 {
                     "calls": 0,
                     "prompt_tokens": 0,
+                    "prompt_cache_hit_tokens": 0,
+                    "prompt_cache_miss_tokens": 0,
                     "completion_tokens": 0,
                     "total_tokens": 0,
                     "cost_usd": 0.0,
@@ -202,55 +212,75 @@ class LLMClient:
                 },
             )
             bucket["calls"] = int(bucket["calls"]) + 1
-            for key in ("prompt_tokens", "completion_tokens", "total_tokens"):
+            for key in (
+                "prompt_tokens",
+                "prompt_cache_hit_tokens",
+                "prompt_cache_miss_tokens",
+                "completion_tokens",
+                "total_tokens",
+            ):
                 bucket[key] = int(bucket[key]) + int(row.get(key, 0))
             for key in ("cost_usd", "cost_cny", "latency_seconds"):
                 bucket[key] = float(bucket[key]) + float(row.get(key, 0.0))
-        return {"rows": rows, "by_role": by_role, "total_cost_cny": sum(float(r.get("cost_cny", 0.0)) for r in rows)}
+        return {
+            "rows": rows,
+            "by_role": by_role,
+            "total_cost_cny": sum(float(r.get("cost_cny", 0.0)) for r in rows),
+            "price_source": self.config.price_source,
+        }
 
     def _completion_with_retries(
         self,
         *,
         role: str,
         model: str,
+        fallback_model: str | None,
         api_base: str | None,
         api_key: str,
         messages: list[dict[str, str]],
         is_repair: bool = False,
     ) -> LLMCallResult:
         last_error: Exception | None = None
-        for attempt in range(self.config.max_retries + 1):
-            started = time.perf_counter()
-            try:
-                response = self._completion(
-                    model=model,
-                    messages=messages,
-                    temperature=self.config.temperature,
-                    timeout=self.config.timeout_seconds,
-                    api_key=api_key,
-                    api_base=api_base,
-                )
-                latency = time.perf_counter() - started
-                content = self._message_content(response)
-                usage = self._usage(response)
-                cost_usd = self._cost_usd(response, usage)
-                return LLMCallResult(
-                    content=content,
-                    parsed=None,
-                    prompt_tokens=usage["prompt_tokens"],
-                    completion_tokens=usage["completion_tokens"],
-                    total_tokens=usage["total_tokens"],
-                    cost_usd=cost_usd,
-                    cost_cny=cost_usd * self.config.cost_usd_to_cny,
-                    latency_seconds=latency,
-                    cache_hit=self._cache_hit(response),
-                    repair_attempts=1 if is_repair else 0,
-                )
-            except Exception as exc:  # litellm exceptions are provider-specific.
-                last_error = exc
-                if attempt >= self.config.max_retries:
-                    break
-                self._sleep(2**attempt)
+        candidate_models = [model]
+        if fallback_model and fallback_model != model:
+            candidate_models.append(fallback_model)
+        for candidate_model in candidate_models:
+            for attempt in range(self.config.max_retries + 1):
+                started = time.perf_counter()
+                try:
+                    response = self._completion(
+                        model=candidate_model,
+                        messages=messages,
+                        temperature=self.config.temperature,
+                        timeout=self.config.timeout_seconds,
+                        api_key=api_key,
+                        api_base=api_base,
+                    )
+                    latency = time.perf_counter() - started
+                    content = self._message_content(response)
+                    usage = self._usage(response)
+                    cost_cny = self._cost_cny(usage)
+                    return LLMCallResult(
+                        content=content,
+                        parsed=None,
+                        model=candidate_model,
+                        prompt_tokens=usage["prompt_tokens"],
+                        prompt_cache_hit_tokens=usage["prompt_cache_hit_tokens"],
+                        prompt_cache_miss_tokens=usage["prompt_cache_miss_tokens"],
+                        completion_tokens=usage["completion_tokens"],
+                        total_tokens=usage["total_tokens"],
+                        cost_usd=cost_cny * self.config.display_cny_to_usd_rate,
+                        cost_cny=cost_cny,
+                        price_source=self.config.price_source,
+                        latency_seconds=latency,
+                        cache_hit=self._cache_hit(response),
+                        repair_attempts=1 if is_repair else 0,
+                    )
+                except Exception as exc:  # litellm exceptions are provider-specific.
+                    last_error = exc
+                    if attempt >= self.config.max_retries:
+                        break
+                    self._sleep(2**attempt)
         raise LLMClientError(f"LLM call failed for role={role}: {last_error}")
 
     def _deepseek_key(self) -> str:
@@ -294,20 +324,36 @@ class LLMClient:
         prompt_tokens = int(getter("prompt_tokens", 0) or 0)
         completion_tokens = int(getter("completion_tokens", 0) or 0)
         total_tokens = int(getter("total_tokens", prompt_tokens + completion_tokens) or 0)
+        prompt_cache_hit_tokens = int(
+            getter("prompt_cache_hit_tokens", None)
+            or getter("cached_tokens", None)
+            or self._nested_cached_tokens(getter("prompt_tokens_details", None))
+            or 0
+        )
+        prompt_cache_hit_tokens = min(prompt_cache_hit_tokens, prompt_tokens)
+        prompt_cache_miss_tokens = max(0, prompt_tokens - prompt_cache_hit_tokens)
         return {
             "prompt_tokens": prompt_tokens,
+            "prompt_cache_hit_tokens": prompt_cache_hit_tokens,
+            "prompt_cache_miss_tokens": prompt_cache_miss_tokens,
             "completion_tokens": completion_tokens,
             "total_tokens": total_tokens,
         }
 
-    def _cost_usd(self, response: Any, usage: dict[str, int]) -> float:
-        if self._litellm is not None:
-            try:
-                return float(self._litellm.completion_cost(completion_response=response) or 0.0)
-            except Exception:
-                pass
-        # Conservative fallback for smoke accounting when provider cost mapping is unavailable.
-        return (usage["prompt_tokens"] * 0.14 + usage["completion_tokens"] * 0.28) / 1_000_000
+    def _nested_cached_tokens(self, value: Any) -> int:
+        if value is None:
+            return 0
+        if isinstance(value, dict):
+            return int(value.get("cached_tokens", 0) or 0)
+        return int(getattr(value, "cached_tokens", 0) or 0)
+
+    def _cost_cny(self, usage: dict[str, int]) -> float:
+        input_cost = (
+            usage["prompt_cache_miss_tokens"] * self.config.input_cache_miss_cny_per_million
+            + usage["prompt_cache_hit_tokens"] * self.config.input_cache_hit_cny_per_million
+        )
+        output_cost = usage["completion_tokens"] * self.config.output_cny_per_million
+        return (input_cost + output_cost) / 1_000_000
 
     def _cache_hit(self, response: Any) -> bool | None:
         headers = response.get("_hidden_params", {}).get("additional_headers", {}) if isinstance(response, dict) else {}
@@ -323,7 +369,6 @@ class LLMClient:
         *,
         run_id: str,
         role: str,
-        model: str,
         result: LLMCallResult,
         structured: bool,
         parse_error: str | None,
@@ -331,12 +376,15 @@ class LLMClient:
         row = {
             "run_id": run_id,
             "role": role,
-            "model": model,
+            "model": result.model,
             "prompt_tokens": result.prompt_tokens,
+            "prompt_cache_hit_tokens": result.prompt_cache_hit_tokens,
+            "prompt_cache_miss_tokens": result.prompt_cache_miss_tokens,
             "completion_tokens": result.completion_tokens,
             "total_tokens": result.total_tokens,
             "cost_usd": round(result.cost_usd, 8),
             "cost_cny": round(result.cost_cny, 8),
+            "price_source": result.price_source,
             "latency_seconds": round(result.latency_seconds, 3),
             "cache_hit": result.cache_hit,
             "structured": structured,

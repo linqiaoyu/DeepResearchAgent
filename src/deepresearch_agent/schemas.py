@@ -15,11 +15,22 @@ class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
 
+class StructuredDataRequest(StrictModel):
+    capability: str
+    company_name: str | None = None
+    symbol: str | None = None
+    periods: list[str] = Field(default_factory=list)
+    metrics: list[str] = Field(default_factory=list)
+    start_date: date | None = None
+    end_date: date | None = None
+
+
 class SubQuestion(StrictModel):
     id: str
     question: str
     search_queries: list[str]
     expected_source_types: list[str] = Field(default_factory=list)
+    structured_data_requests: list[StructuredDataRequest] = Field(default_factory=list)
     priority: int = Field(default=3, ge=1, le=5)
 
 
@@ -47,18 +58,52 @@ class SearchRecord(StrictModel):
     latency_ms: int = 0
 
 
+class SymbolInfo(StrictModel):
+    entity: str
+    symbol: str
+    exchange: str = "A股"
+    name: str
+    data_source: str
+    as_of: date
+
+
+class StructuredDataRecord(StrictModel):
+    entity: str
+    symbol: str
+    metric_name: str
+    period: str
+    dimension: str
+    value: float
+    unit: str
+    data_source: str
+    as_of: date
+
+
+class NumericFields(StrictModel):
+    entity: str | None = None
+    metric_name: str | None = None
+    period: str | None = None
+    dimension: str = "未标注"
+    value: float | None = None
+    unit: str | None = None
+
+
 class Evidence(StrictModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
     research_id: str
     sub_question_id: str
     claim: str
     claim_type: Literal["fact", "opinion", "data", "projection"]
+    source_kind: Literal["text", "structured"] = "text"
     source_url: str
     source_title: str
     source_pub_date: date
     extract_text: str
     extract_offset_start: int = 0
     confidence: float = Field(default=0.75, ge=0, le=1)
+    structured_record: StructuredDataRecord | None = None
+    numeric_fields: NumericFields | None = None
+    numeric_fields_incomplete: bool = False
     extracted_at: datetime = Field(default_factory=utc_now)
 
 
@@ -68,6 +113,7 @@ class ExtractedClaim(StrictModel):
     source_url: str
     extract_text: str
     confidence: float = Field(default=0.75, ge=0, le=1)
+    numeric_fields: NumericFields | None = None
 
 
 class ExtractedClaims(StrictModel):
@@ -136,7 +182,9 @@ class TodoItem(StrictModel):
 class EvaluationResult(StrictModel):
     research_id: str
     task_success_rate: float = Field(ge=0, le=1)
-    citation_accuracy: float = Field(ge=0, le=1)
+    citation_accuracy: float | None = Field(default=None, ge=0, le=1)
+    citation_accuracy_reason: str | None = None
+    citation_resolution_rate: float = Field(default=0.0, ge=0, le=1)
     critic_catch_rate: float = Field(ge=0, le=1)
     answer_relevance: float | None = Field(default=None, ge=0, le=1)
     answer_relevance_reason: str | None = None
@@ -144,6 +192,8 @@ class EvaluationResult(StrictModel):
     faithfulness_reason: str | None = None
     latency_seconds: float = Field(ge=0)
     cost_usd: float = Field(ge=0)
+    cost_cny: float | None = Field(default=None, ge=0)
+    price_source: str | None = None
     token_used: int = Field(ge=0)
     bad_case_categories: dict[str, int] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=utc_now)

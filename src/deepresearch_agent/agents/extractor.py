@@ -5,7 +5,7 @@ import re
 from uuid import uuid5, NAMESPACE_URL
 
 from deepresearch_agent.llm import LLMClient, LLMClientError, StructuredOutputError
-from deepresearch_agent.schemas import Evidence, ExtractedClaims, Source, SubQuestion
+from deepresearch_agent.schemas import Evidence, ExtractedClaim, ExtractedClaims, Source, SubQuestion
 from deepresearch_agent.settings import project_root
 
 SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
@@ -97,11 +97,15 @@ class ExtractorAgent:
             raise ValueError("Extractor did not return ExtractedClaims.")
         evidence: list[Evidence] = []
         invalid_extract_text = 0
+        incomplete_numeric_fields = 0
         for index, claim in enumerate(result.parsed.claims):
             source = source_by_url.get(claim.source_url)
             if not source or claim.extract_text not in source.content:
                 invalid_extract_text += 1
                 continue
+            numeric_fields_incomplete = self._numeric_fields_incomplete(claim)
+            if numeric_fields_incomplete:
+                incomplete_numeric_fields += 1
             evidence_id = str(
                 uuid5(
                     NAMESPACE_URL,
@@ -121,15 +125,29 @@ class ExtractorAgent:
                     extract_text=claim.extract_text,
                     extract_offset_start=source.content.find(claim.extract_text),
                     confidence=claim.confidence,
+                    numeric_fields=claim.numeric_fields,
+                    numeric_fields_incomplete=numeric_fields_incomplete,
                 )
             )
         self.last_stats = {
             "fallback": False,
             "invalid_extract_text": invalid_extract_text,
+            "incomplete_numeric_fields": incomplete_numeric_fields,
             "claims": len(evidence),
             "repair_attempts": result.repair_attempts,
         }
         return evidence
+
+    def _numeric_fields_incomplete(self, claim: ExtractedClaim) -> bool:
+        if claim.claim_type != "data":
+            return False
+        if claim.numeric_fields is None:
+            return True
+        return not (
+            claim.numeric_fields.entity
+            and claim.numeric_fields.metric_name
+            and claim.numeric_fields.value is not None
+        )
 
     def _classify(self, sentence: str) -> str:
         lowered = sentence.lower()

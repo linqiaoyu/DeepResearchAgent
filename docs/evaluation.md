@@ -5,13 +5,14 @@ The harness treats evaluation as a first-class subsystem, not a screenshot.
 ## Metrics
 
 - `task_success_rate`: report generated with at least one evidence record
-- `citation_accuracy`: citation markers in bullet claims map to Evidence rows and the cited claim has deterministic text overlap with `Evidence.claim` or `Evidence.extract_text`
+- `citation_accuracy`: in deterministic mode, citation markers in bullet claims map to Evidence rows and the cited claim has deterministic text overlap with `Evidence.claim` or `Evidence.extract_text`; in LLM mode this is `null` with a reason because paraphrase-aware judging is not implemented yet
+- `citation_resolution_rate`: citation markers that resolve to real Evidence rows, computed in both deterministic and LLM modes
 - `critic_catch_rate`: MVP heuristic/proxy for whether the Critic exposed quality issues. Current deterministic logic scores visible issue coverage, using `min(1.0, len(issues) / 3)` when issues are present and `1.0` when no issues are found. It is not true seeded issue recall or human-labeled Critic recall.
 - `answer_relevance`: topic terms appear in the final report
 - `faithfulness`: bullet claims in the report carry citations
-- `cost_usd`, `latency_seconds`, `token_used`: operational metrics for Pareto analysis
+- `cost_usd`, `cost_cny`, `latency_seconds`, `token_used`, `price_source`: operational metrics for Pareto analysis. LLM mode accounts natively in CNY from the LiteLLM ledger.
 
-Unsupported or invalid bullet citations are counted as `citation_error` bad cases.
+Unsupported or invalid bullet citations are counted as `citation_error` bad cases in deterministic scoring. In LLM mode, unresolved citation markers are counted mechanically; semantic citation support waits for the judge task.
 
 Production version: compute true critic recall from seeded issues or manually labeled bad cases.
 
@@ -43,7 +44,7 @@ PYTHONPATH=src .venv/bin/python scripts/run_eval.py --limit 5 --compare-baseline
 ```
 
 The comparison gates quality regressions for `avg_citation_accuracy`,
-`avg_faithfulness`, `avg_critic_catch_rate`, and total bad-case count.
+`avg_citation_resolution_rate`, `avg_faithfulness`, `avg_critic_catch_rate`, and total bad-case count.
 `avg_cost_usd`, `avg_latency_seconds`, and `avg_token_used` are reported as
 operational diffs; latency changes are informational so local machine variance
 does not fail the smoke check.
@@ -65,6 +66,7 @@ Deterministic evaluation sweep: `PYTHONPATH=src .venv/bin/python scripts/run_eva
 | `cases` | `5` |
 | `avg_task_success_rate` | `1.0` |
 | `avg_citation_accuracy` | `1.0` |
+| `avg_citation_resolution_rate` | `1.0` |
 | `avg_critic_catch_rate` | `0.8` |
 | `avg_answer_relevance` | `1.0` |
 | `avg_faithfulness` | `0.923` |
@@ -84,6 +86,7 @@ The default Critic and seed data support these categories:
 - retrieval miss
 - citation error
 - numeric conflict
+- temporal conflict
 - outdated source
 - missing counterargument
 - unverified projection

@@ -31,13 +31,17 @@ class ReporterAgent:
         lines: list[str] = [
             f"# {state.topic}",
             "",
+            f"数据截至：{self._data_as_of(evidence)}",
+            "",
+            "免责声明：本报告为研究性输出，不构成投资建议。",
+            "",
             "## 摘要",
             self._summary(state, evidence, ref_map),
             "",
             "## 关键发现",
         ]
         for item in evidence[:6]:
-            lines.append(f"- {item.claim} [^{ref_map[item.id]}]")
+            lines.append(f"- {self._evidence_claim_text(item)} [^{ref_map[item.id]}]")
 
         by_subq: dict[str, list[Evidence]] = defaultdict(list)
         for item in evidence:
@@ -51,7 +55,7 @@ class ReporterAgent:
                 lines.append("当前没有足够证据，需要二次检索补齐。")
                 continue
             for item in items[:3]:
-                lines.append(f"- {item.claim} [^{ref_map[item.id]}]")
+                lines.append(f"- {self._evidence_claim_text(item)} [^{ref_map[item.id]}]")
 
         lines.extend(["", "## 风险与限制"])
         if state.critic_report and state.critic_report.issues:
@@ -103,6 +107,9 @@ class ReporterAgent:
                                     "source_title": item.source_title,
                                     "source_pub_date": item.source_pub_date.isoformat(),
                                     "extract_text": item.extract_text,
+                                    "numeric_fields": item.numeric_fields.model_dump(mode="json")
+                                    if item.numeric_fields
+                                    else None,
                                 }
                                 for item in evidence
                             ],
@@ -134,6 +141,10 @@ class ReporterAgent:
 
         lines: list[str] = [
             f"# {state.topic}",
+            "",
+            f"数据截至：{self._data_as_of(evidence)}",
+            "",
+            "免责声明：本报告为研究性输出，不构成投资建议。",
             "",
             "## 摘要",
             draft.summary.strip() or self._summary(state, evidence, ref_map),
@@ -215,3 +226,23 @@ class ReporterAgent:
             f"累计抽取 {len(evidence)} 条证据。当前 Critic 质量分为 {quality:.2f}，"
             f"首要结论可追溯到来源 [^{ref_map[first.id]}]。"
         )
+
+    def _data_as_of(self, evidence: list[Evidence]) -> str:
+        dates = [item.source_pub_date for item in evidence]
+        for item in evidence:
+            if item.structured_record:
+                dates.append(item.structured_record.as_of)
+        return max(dates).isoformat() if dates else "未标注"
+
+    def _evidence_claim_text(self, item: Evidence) -> str:
+        if item.claim_type != "data" or not item.numeric_fields:
+            return item.claim
+        fields = item.numeric_fields
+        parts = []
+        if fields.period:
+            parts.append(f"报告期/时点: {fields.period}")
+        if fields.dimension:
+            parts.append(f"口径: {fields.dimension}")
+        if fields.unit:
+            parts.append(f"单位: {fields.unit}")
+        return f"{item.claim}（{'; '.join(parts)}）" if parts else item.claim
