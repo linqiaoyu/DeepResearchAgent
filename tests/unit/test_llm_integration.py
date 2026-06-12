@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import tempfile
 import unittest
@@ -21,10 +22,17 @@ from deepresearch_agent.settings import load_settings
 
 
 class MockCompletion:
-    def __init__(self, contents: list[str], prompt_tokens: int = 100, completion_tokens: int = 50) -> None:
+    def __init__(
+        self,
+        contents: list[str],
+        prompt_tokens: int = 100,
+        completion_tokens: int = 50,
+        usage_extra: dict[str, object] | None = None,
+    ) -> None:
         self.contents = contents
         self.prompt_tokens = prompt_tokens
         self.completion_tokens = completion_tokens
+        self.usage_extra = usage_extra or {}
         self.calls = 0
 
     def __call__(self, **_: object) -> dict:
@@ -36,6 +44,7 @@ class MockCompletion:
                 "prompt_tokens": self.prompt_tokens,
                 "completion_tokens": self.completion_tokens,
                 "total_tokens": self.prompt_tokens + self.completion_tokens,
+                **self.usage_extra,
             },
         }
 
@@ -64,6 +73,69 @@ class LLMIntegrationTests(unittest.TestCase):
 
             self.assertTrue(ledger_path.exists())
             self.assertIn('"role": "extractor"', ledger_path.read_text(encoding="utf-8"))
+
+    def test_v4flash_price_calibration_splits_cache_tokens(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            env_path = Path(tmp) / ".env"
+            env_path.write_text("DEEPSEEK_API_KEY=test-key\n", encoding="utf-8")
+            ledger_path = Path(tmp) / "ledger.jsonl"
+            client = LLMClient(
+                ledger_path=ledger_path,
+                budget_cny=3.0,
+                completion_func=MockCompletion(
+                    ["ok"],
+                    prompt_tokens=1_000,
+                    completion_tokens=500,
+                    usage_extra={"prompt_cache_hit_tokens": 400},
+                ),
+                sleep_func=lambda _: None,
+                env_path=env_path,
+            )
+
+            result = client.complete(
+                role="planner",
+                run_id="run-price",
+                messages=[{"role": "user", "content": "hello"}],
+            )
+            row = json.loads(ledger_path.read_text(encoding="utf-8").splitlines()[0])
+
+            self.assertEqual(result.prompt_cache_hit_tokens, 400)
+            self.assertEqual(result.prompt_cache_miss_tokens, 600)
+            self.assertAlmostEqual(result.cost_cny, 0.001608)
+            self.assertAlmostEqual(row["cost_cny"], 0.001608)
+            self.assertEqual(row["price_source"], "v4flash_console_calibrated_20260612")
+
+    def test_model_fallback_records_actual_model(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            env_path = Path(tmp) / ".env"
+            env_path.write_text("DEEPSEEK_API_KEY=test-key\n", encoding="utf-8")
+            ledger_path = Path(tmp) / "ledger.jsonl"
+
+            def completion(**kwargs: object) -> dict:
+                if kwargs["model"] == "openai/deepseek-v4-flash":
+                    raise RuntimeError("model rejected")
+                return {
+                    "choices": [{"message": {"content": "ok"}}],
+                    "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+                }
+
+            client = LLMClient(
+                ledger_path=ledger_path,
+                budget_cny=3.0,
+                completion_func=completion,
+                sleep_func=lambda _: None,
+                env_path=env_path,
+            )
+
+            result = client.complete(
+                role="planner",
+                run_id="run-fallback",
+                messages=[{"role": "user", "content": "hello"}],
+            )
+            row = json.loads(ledger_path.read_text(encoding="utf-8").splitlines()[0])
+
+            self.assertEqual(result.model, "openai/deepseek-chat")
+            self.assertEqual(row["model"], "openai/deepseek-chat")
 
     def test_structured_parse_failure_repairs_and_records_two_calls(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

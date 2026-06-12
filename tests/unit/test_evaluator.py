@@ -94,6 +94,36 @@ class EvaluatorTests(unittest.TestCase):
         self.assertEqual(result.citation_accuracy, 0.0)
         self.assertEqual(result.bad_case_categories["citation_error"], 1)
 
+    def test_llm_mode_nulls_citation_accuracy_but_reports_resolution_rate(self) -> None:
+        state = ResearchState(topic="wealth AI")
+        state.metadata["execution_mode"] = "llm"
+        state.metadata["llm_usage"] = {
+            "total_cost_cny": 0.000123,
+            "price_source": "v4flash_console_calibrated_20260612",
+        }
+        state.evidence_store = [
+            Evidence(
+                research_id=state.research_id,
+                sub_question_id="a",
+                claim="Advisor productivity improved 18%.",
+                claim_type="data",
+                source_url="https://a.example",
+                source_title="A",
+                source_pub_date=date(2026, 1, 1),
+                extract_text="Advisor productivity improved 18%.",
+            )
+        ]
+        state.final_report = "- Assets under management doubled in one quarter. [^1]\n\n[^1]: A"
+
+        result = Evaluator().evaluate(state)
+
+        self.assertIsNone(result.citation_accuracy)
+        self.assertIsNotNone(result.citation_accuracy_reason)
+        self.assertEqual(result.citation_resolution_rate, 1.0)
+        self.assertNotIn("citation_error", result.bad_case_categories)
+        self.assertEqual(result.cost_cny, 0.000123)
+        self.assertEqual(result.price_source, "v4flash_console_calibrated_20260612")
+
     def test_critic_issue_types_are_propagated_to_bad_case_categories(self) -> None:
         state = ResearchState(topic="wealth AI")
         state.evidence_store = [

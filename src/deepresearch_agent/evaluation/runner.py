@@ -11,6 +11,7 @@ from deepresearch_agent.workflow import DeepResearchEngine
 
 QUALITY_METRICS = (
     "avg_citation_accuracy",
+    "avg_citation_resolution_rate",
     "avg_faithfulness",
     "avg_critic_catch_rate",
 )
@@ -52,10 +53,13 @@ class EvaluationHarness:
         return {
             "cases": len(results),
             "avg_task_success_rate": round(sum(r.task_success_rate for r in results) / len(results), 3),
-            "avg_citation_accuracy": round(sum(r.citation_accuracy for r in results) / len(results), 3),
+            "avg_citation_accuracy": _mean_optional([r.citation_accuracy for r in results]),
+            "avg_citation_resolution_rate": round(
+                sum(r.citation_resolution_rate for r in results) / len(results), 3
+            ),
             "avg_critic_catch_rate": round(sum(r.critic_catch_rate for r in results) / len(results), 3),
-            "avg_answer_relevance": round(sum(r.answer_relevance for r in results) / len(results), 3),
-            "avg_faithfulness": round(sum(r.faithfulness for r in results) / len(results), 3),
+            "avg_answer_relevance": _mean_optional([r.answer_relevance for r in results]),
+            "avg_faithfulness": _mean_optional([r.faithfulness for r in results]),
             "avg_latency_seconds": round(sum(r.latency_seconds for r in results) / len(results), 3),
             "avg_cost_usd": round(sum(r.cost_usd for r in results) / len(results), 4),
             "avg_token_used": round(sum(r.token_used for r in results) / len(results), 3),
@@ -65,6 +69,13 @@ class EvaluationHarness:
 
 def load_metric_summary(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _mean_optional(values: list[float | None]) -> float | None:
+    numeric_values = [value for value in values if value is not None]
+    if not numeric_values:
+        return None
+    return round(sum(numeric_values) / len(numeric_values), 3)
 
 
 def compare_metric_summaries(

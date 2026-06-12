@@ -25,6 +25,7 @@ class HarnessTests(unittest.TestCase):
             "cases",
             "avg_task_success_rate",
             "avg_citation_accuracy",
+            "avg_citation_resolution_rate",
             "avg_critic_catch_rate",
             "avg_answer_relevance",
             "avg_faithfulness",
@@ -37,6 +38,7 @@ class HarnessTests(unittest.TestCase):
         rate_metric_keys = {
             "avg_task_success_rate",
             "avg_citation_accuracy",
+            "avg_citation_resolution_rate",
             "avg_critic_catch_rate",
             "avg_answer_relevance",
             "avg_faithfulness",
@@ -66,6 +68,7 @@ class HarnessTests(unittest.TestCase):
     def test_metric_diff_allows_latency_fluctuation(self) -> None:
         baseline = {
             "avg_citation_accuracy": 1.0,
+            "avg_citation_resolution_rate": 1.0,
             "avg_faithfulness": 0.9,
             "avg_critic_catch_rate": 0.8,
             "avg_cost_usd": 0.02,
@@ -88,6 +91,7 @@ class HarnessTests(unittest.TestCase):
     def test_metric_diff_fails_quality_drop_and_bad_case_increase(self) -> None:
         baseline = {
             "avg_citation_accuracy": 1.0,
+            "avg_citation_resolution_rate": 1.0,
             "avg_faithfulness": 0.9,
             "avg_critic_catch_rate": 0.8,
             "avg_cost_usd": 0.02,

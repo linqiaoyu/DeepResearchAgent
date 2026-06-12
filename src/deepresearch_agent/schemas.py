@@ -136,7 +136,9 @@ class TodoItem(StrictModel):
 class EvaluationResult(StrictModel):
     research_id: str
     task_success_rate: float = Field(ge=0, le=1)
-    citation_accuracy: float = Field(ge=0, le=1)
+    citation_accuracy: float | None = Field(default=None, ge=0, le=1)
+    citation_accuracy_reason: str | None = None
+    citation_resolution_rate: float = Field(default=0.0, ge=0, le=1)
     critic_catch_rate: float = Field(ge=0, le=1)
     answer_relevance: float | None = Field(default=None, ge=0, le=1)
     answer_relevance_reason: str | None = None
@@ -144,6 +146,8 @@ class EvaluationResult(StrictModel):
     faithfulness_reason: str | None = None
     latency_seconds: float = Field(ge=0)
     cost_usd: float = Field(ge=0)
+    cost_cny: float | None = Field(default=None, ge=0)
+    price_source: str | None = None
     token_used: int = Field(ge=0)
     bad_case_categories: dict[str, int] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=utc_now)

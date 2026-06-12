@@ -493,6 +493,7 @@ class DeepResearchEngine:
             "by_role": aggregate["by_role"],
             "total_cost_cny": round(float(aggregate["total_cost_cny"]), 8),
             "ledger_total_cny": round(self.llm_client.ledger_total_cny(), 8),
+            "price_source": aggregate.get("price_source"),
         }
 
     def _config(self, research_id: str) -> dict[str, dict[str, str]]:
