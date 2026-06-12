@@ -47,18 +47,41 @@ class SearchRecord(StrictModel):
     latency_ms: int = 0
 
 
+class SymbolInfo(StrictModel):
+    entity: str
+    symbol: str
+    exchange: str = "A股"
+    name: str
+    data_source: str
+    as_of: date
+
+
+class StructuredDataRecord(StrictModel):
+    entity: str
+    symbol: str
+    metric_name: str
+    period: str
+    dimension: str
+    value: float
+    unit: str
+    data_source: str
+    as_of: date
+
+
 class Evidence(StrictModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
     research_id: str
     sub_question_id: str
     claim: str
     claim_type: Literal["fact", "opinion", "data", "projection"]
+    source_kind: Literal["text", "structured"] = "text"
     source_url: str
     source_title: str
     source_pub_date: date
     extract_text: str
     extract_offset_start: int = 0
     confidence: float = Field(default=0.75, ge=0, le=1)
+    structured_record: StructuredDataRecord | None = None
     extracted_at: datetime = Field(default_factory=utc_now)
 
 

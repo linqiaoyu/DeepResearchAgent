@@ -1,0 +1,82 @@
+{
+  "version": "2026-06-12",
+  "provider": "akshare-1.18.64",
+  "notes": "Recorded fixture for deterministic structured finance tests. price_history is a fixture stub because stock_zh_a_hist returned a connection error during task 005 recording.",
+  "aliases": {
+    "300750": [
+      "300750",
+      "宁德时代",
+      "宁德时代新能源科技股份有限公司",
+      "CATL"
+    ]
+  },
+  "symbols": [
+    {
+      "entity": "宁德时代",
+      "symbol": "300750",
+      "exchange": "A股",
+      "name": "宁德时代",
+      "data_source": "AKShare: stock_info_a_code_name",
+      "as_of": "2026-06-12"
+    }
+  ],
+  "financial_indicators": [
+    {
+      "entity": "宁德时代",
+      "symbol": "300750",
+      "metric_name": "归母净利润",
+      "period": "20241231",
+      "dimension": "累计",
+      "value": 50744680000.0,
+      "unit": "元",
+      "data_source": "AKShare: stock_financial_abstract",
+      "as_of": "2026-06-12"
+    },
+    {
+      "entity": "宁德时代",
+      "symbol": "300750",
+      "metric_name": "营业收入",
+      "period": "20241231",
+      "dimension": "累计",
+      "value": 362012600000.0,
+      "unit": "元",
+      "data_source": "AKShare: stock_financial_abstract",
+      "as_of": "2026-06-12"
+    },
+    {
+      "entity": "宁德时代",
+      "symbol": "300750",
+      "metric_name": "归母净利润",
+      "period": "20240331",
+      "dimension": "单季",
+      "value": 10509920000.0,
+      "unit": "元",
+      "data_source": "AKShare: stock_financial_abstract",
+      "as_of": "2026-06-12"
+    }
+  ],
+  "price_history": [
+    {
+      "entity": "宁德时代",
+      "symbol": "300750",
+      "metric_name": "收盘价",
+      "period": "2024-01-02",
+      "dimension": "日频未复权",
+      "value": 154.25,
+      "unit": "元/股",
+      "data_source": "AKShare: stock_zh_a_hist fixture_stub",
+      "as_of": "2026-06-12"
+    },
+    {
+      "entity": "宁德时代",
+      "symbol": "300750",
+      "metric_name": "最高价",
+      "period": "2024-01-02",
+      "dimension": "日频未复权",
+      "value": 156.4,
+      "unit": "元/股",
+      "data_source": "AKShare: stock_zh_a_hist fixture_stub",
+      "as_of": "2026-06-12"
+    }
+  ]
+}
