@@ -2,13 +2,14 @@
 
 DeepResearchAgent is a runnable deterministic MVP for a multi-agent deep research system. Every report claim is backed by structured evidence, Critic feedback can trigger retry research, citations are verified against the Evidence Store, evaluation produces quality/cost/latency metrics, and checkpoint recovery is demoable from the command line.
 
-The current implementation runs without external LLM or search keys by default. It uses deterministic local agents, fixture search by default, LangGraph orchestration with SQLite checkpointing, SQLite evidence/metrics persistence, FastAPI and Streamlit demo surfaces, and provider boundaries for optional future integrations. An opt-in LiteLLM mode is available for Planner, Extractor, and Reporter; Researcher search and Critic checks remain deterministic in this task.
+The current implementation runs without external LLM or search keys by default. It uses deterministic local agents, fixture search by default, fixture structured finance data by default, LangGraph orchestration with SQLite checkpointing, SQLite evidence/metrics persistence, FastAPI and Streamlit demo surfaces, and provider boundaries for optional future integrations. An opt-in LiteLLM mode is available for Planner, Extractor, and Reporter; Researcher search/data execution and Critic checks remain deterministic.
 
 ## Why It Matters
 
 - Evidence Store: claim-source-subquestion traceability is the source of truth, not vector memory.
 - Critic loop: missing citations, numeric conflicts, stale sources, missing counterarguments, and unverified projections are surfaced before reporting.
 - Evaluation Harness: citation accuracy, faithfulness, Critic catch rate, bad-case categories, cost, latency, and token estimates can be compared against a baseline.
+- Finance data pack: whitelisted AKShare-backed structured data records normalize entity, metric, period, dimension, value, and unit for financial fact checks.
 - Checkpoint recovery: long-horizon runs can pause after an intermediate phase and resume by `research_id`.
 
 ## Architecture
@@ -74,7 +75,7 @@ Compare evaluation metrics against the deterministic baseline:
 PYTHONPATH=src DEEPRESEARCH_SEARCH_PROVIDER=fixture .venv/bin/python scripts/run_eval.py --limit 5 --compare-baseline
 ```
 
-LLM-mode metrics use real LiteLLM token and cost accounting from `data/runtime/llm_ledger.jsonl`. `citation_accuracy` and `critic_catch_rate` remain programmatic. `answer_relevance` and `faithfulness` are `null` in LLM mode with reason fields until LLM-as-Judge is introduced.
+LLM-mode metrics use real LiteLLM token and cost accounting from `data/runtime/llm_ledger.jsonl`. In LLM mode, `citation_accuracy` is `null` with a reason because the current scorer is extractive-only; `citation_resolution_rate` and `critic_catch_rate` remain programmatic. `answer_relevance` and `faithfulness` are also `null` with reason fields until LLM-as-Judge is introduced.
 
 Run the checkpoint resume demo:
 
@@ -181,7 +182,9 @@ The Streamlit UI runs the local deterministic engine directly. Under Docker Comp
 - SQLite-backed local Evidence Store and evaluation metrics
 - LiteLLM-backed opt-in mode for Planner, Extractor, and Reporter
 - LLM ledger with token, cost, latency, cache-hit field, repair attempts, and per-run budget fuse
-- Critic checks for missing citations, numeric conflicts, outdated sources, missing counterarguments, and unverified projections
+- AKShare-backed structured finance provider with fixture/live modes for symbol resolve, financial indicators, and price history summaries
+- Five-element numeric claim fields: entity, metric, period/timepoint, dimension, value, and unit
+- Critic checks for missing citations, finance-aware numeric conflicts, temporal conflicts, outdated sources, missing counterarguments, and unverified projections
 - Deterministic fixture search by default, with optional Tavily search behind the `SearchProvider` contract
 - 50-case golden question set in `data/eval_set.jsonl`
 - Streamlit dashboard for report, evidence, and Critic JSON
@@ -193,9 +196,7 @@ Provider work is optional and must preserve the deterministic no-key MVP. See [d
 
 - Add robust live `web_fetch`.
 - Add `rag_search`.
-- Add `structured_query`.
 - Add Researcher reflection loop and live retrieval expansion.
 - Add Critic semantic verification beyond deterministic issue rules.
 - Add LLM-as-Judge for answer relevance and faithfulness in LLM mode.
-- Add `temporal_conflict` detection in Critic.
 - Add a Postgres adapter using `docs/postgres_schema.sql`.
