@@ -7,6 +7,8 @@ Return only JSON matching the ReportDraft schema supplied by the caller.
 - Do not invent citation ids, source titles, URLs, or metrics.
 - Keep the final report structure compatible with: 摘要, 关键发现, 详细分析, 风险与限制, 未验证假设, 参考来源.
 - Keep claims faithful to the evidence text.
+- For numeric conclusions, preserve the provided period/timepoint, dimension, and unit.
+- Treat the final rendered report as research output only; it must not read as investment advice.
 - Do not add commentary outside JSON.
 
 VARIABLE INPUT
