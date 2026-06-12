@@ -70,6 +70,50 @@
     "published_at": "2026-02-18",
     "credibility": 0.8,
     "content": "Planner-researcher-critic-reporter architectures help long-horizon research tasks by separating decomposition, evidence gathering, quality control, and synthesis. Checkpointing reduces recovery cost when tasks exceed 30 steps. The paper recommends max critic iterations, retry queues, and explicit evidence stores instead of relying on vector memory alone."
+  },
+  {
+    "id": "src-catl-annual-summary-2024",
+    "title": "宁德时代 2024 年业绩摘要",
+    "url": "https://example.com/finance/catl-annual-summary-2024",
+    "source_type": "company_report",
+    "published_at": "2026-04-20",
+    "credibility": 0.88,
+    "content": "宁德时代 2024 年累计营业收入为 3620.13 亿元。宁德时代 2024 年累计归母净利润为 507.45 亿元。宁德时代 2024 年累计净利润为 520.00 亿元。宁德时代 2024 年单季归母净利润为 105.10 亿元。"
+  },
+  {
+    "id": "src-catl-conflict-note-2024",
+    "title": "宁德时代 2024 年利润口径快评",
+    "url": "https://example.com/finance/catl-profit-conflict-note-2024",
+    "source_type": "news",
+    "published_at": "2026-04-21",
+    "credibility": 0.7,
+    "content": "宁德时代 2024 年累计归母净利润为 410.00 亿元。该数字与公司摘要存在差异，需要回到官方结构化数据源核查。宁德时代 2024 年累计扣非净利润为 450.00 亿元。"
+  },
+  {
+    "id": "src-catl-expansion-date-a",
+    "title": "宁德时代欧洲工厂扩张跟踪 A",
+    "url": "https://example.com/finance/catl-expansion-date-a",
+    "source_type": "industry_report",
+    "published_at": "2026-03-05",
+    "credibility": 0.74,
+    "content": "宁德时代 欧洲工厂 投产日期为2025年6月。扩张节奏影响海外供应链验证和资本开支节奏。"
+  },
+  {
+    "id": "src-catl-expansion-date-b",
+    "title": "宁德时代欧洲工厂扩张跟踪 B",
+    "url": "https://example.com/finance/catl-expansion-date-b",
+    "source_type": "news",
+    "published_at": "2026-03-06",
+    "credibility": 0.72,
+    "content": "宁德时代 欧洲工厂 投产日期为2025年9月。报道同时提醒读者关注产能爬坡时间和客户认证进度。"
+  },
+  {
+    "id": "src-catl-risk-note",
+    "title": "宁德时代业绩研究风险提示",
+    "url": "https://example.com/finance/catl-risk-note",
+    "source_type": "company_report",
+    "published_at": "2026-04-22",
+    "credibility": 0.82,
+    "content": "However, battery demand, raw material prices, overseas certification, and customer concentration remain key risks. Research output should label data periods and accounting dimensions, and it does not constitute investment advice."
   }
 ]
-
