@@ -70,6 +70,29 @@ class ExtractedClaim(StrictModel):
     confidence: float = Field(default=0.75, ge=0, le=1)
 
 
+class ExtractedClaims(StrictModel):
+    claims: list[ExtractedClaim] = Field(default_factory=list)
+
+
+class ReportClaim(StrictModel):
+    text: str
+    evidence_ids: list[str] = Field(default_factory=list)
+
+
+class ReportSection(StrictModel):
+    sub_question_id: str
+    heading: str
+    claims: list[ReportClaim] = Field(default_factory=list)
+
+
+class ReportDraft(StrictModel):
+    summary: str
+    key_findings: list[ReportClaim] = Field(default_factory=list)
+    detailed_analysis: list[ReportSection] = Field(default_factory=list)
+    risks: list[str] = Field(default_factory=list)
+    unverified_assumptions: list[ReportClaim] = Field(default_factory=list)
+
+
 class RetryTask(StrictModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
     reason: str
@@ -115,8 +138,10 @@ class EvaluationResult(StrictModel):
     task_success_rate: float = Field(ge=0, le=1)
     citation_accuracy: float = Field(ge=0, le=1)
     critic_catch_rate: float = Field(ge=0, le=1)
-    answer_relevance: float = Field(ge=0, le=1)
-    faithfulness: float = Field(ge=0, le=1)
+    answer_relevance: float | None = Field(default=None, ge=0, le=1)
+    answer_relevance_reason: str | None = None
+    faithfulness: float | None = Field(default=None, ge=0, le=1)
+    faithfulness_reason: str | None = None
     latency_seconds: float = Field(ge=0)
     cost_usd: float = Field(ge=0)
     token_used: int = Field(ge=0)
@@ -137,7 +162,7 @@ class ResearchState(StrictModel):
         "evaluating",
         "done",
     ] = "planning"
-    status: Literal["running", "paused", "done", "failed"] = "running"
+    status: Literal["running", "paused", "done", "failed", "budget_exceeded"] = "running"
     plan: ResearchPlan | None = None
     todo_list: list[TodoItem] = Field(default_factory=list)
     completed_tasks: list[str] = Field(default_factory=list)

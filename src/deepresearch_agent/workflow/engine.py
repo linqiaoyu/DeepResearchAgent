@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from typing import Annotated, Any, TypedDict
 
 from deepresearch_agent.agents import CriticAgent, Evaluator, ExtractorAgent, PlannerAgent, ReporterAgent, ResearcherAgent
+from deepresearch_agent.llm import BudgetExceededError, LLMClient
 from deepresearch_agent.schemas import (
     Evidence,
     ResearchState,
@@ -54,11 +55,19 @@ class DeepResearchEngine:
         self.settings = settings or load_settings()
         self.store = store or SQLiteStore(self.settings.storage_path)
         self.search_tool = search_tool or build_search_provider()
-        self.planner = PlannerAgent()
+        self.llm_client = (
+            LLMClient(
+                ledger_path=self.settings.llm_ledger_path,
+                budget_cny=self.settings.llm_budget_cny,
+            )
+            if self.settings.execution_mode == "llm"
+            else None
+        )
+        self.planner = PlannerAgent(llm_client=self.llm_client, settings=self.settings)
         self.researcher = ResearcherAgent(self.search_tool)
-        self.extractor = ExtractorAgent()
+        self.extractor = ExtractorAgent(llm_client=self.llm_client)
         self.critic = CriticAgent()
-        self.reporter = ReporterAgent()
+        self.reporter = ReporterAgent(llm_client=self.llm_client)
         self.evaluator = Evaluator()
         self._checkpoint_conn = sqlite3.connect(self.settings.storage_path, check_same_thread=False)
         self.checkpointer = SqliteSaver(self._checkpoint_conn)
@@ -82,6 +91,7 @@ class DeepResearchEngine:
             if not state:
                 raise ValueError(f"No checkpoint found for research_id={research_id}")
             state.status = "running"
+            state.metadata["execution_mode"] = self.settings.execution_mode
             config = self._config(research_id)
             graph_input: ResearchGraphState | None = {
                 "research_state": self._dump_state(state),
@@ -96,6 +106,7 @@ class DeepResearchEngine:
             if not topic:
                 raise ValueError("topic is required for a new research run")
             state = ResearchState(topic=topic, depth_level=depth_level)
+            state.metadata["execution_mode"] = self.settings.execution_mode
             research_id = state.research_id
             config = self._config(research_id)
             graph_input = {
@@ -104,12 +115,22 @@ class DeepResearchEngine:
                 "stop_after_phase": stop_after_phase,
             }
 
-        result = self.graph.invoke(
-            graph_input,
-            config=config,
-            interrupt_before=interrupt_before,
-            interrupt_after=interrupt_after,
-        )
+        if self.llm_client:
+            self.llm_client.start_run(research_id)
+        try:
+            result = self.graph.invoke(
+                graph_input,
+                config=config,
+                interrupt_before=interrupt_before,
+                interrupt_after=interrupt_after,
+            )
+        except BudgetExceededError:
+            state = self.load_state(research_id) or state
+            state.status = "budget_exceeded"
+            state.metadata["llm_budget_exceeded"] = True
+            state.metadata["llm_run_total_cny"] = self.llm_client.run_total_cny(research_id) if self.llm_client else 0.0
+            self.graph.update_state(config, self._state_output(state))
+            return state
         return self._state_from_graph_values(result)
 
     def load_state(self, research_id: str) -> ResearchState | None:
@@ -341,6 +362,10 @@ class DeepResearchEngine:
             for source in sources:
                 source_by_url[source.url] = source
             extracted = self.extractor.extract(state.research_id, target_subq, sources)
+            if self.settings.execution_mode == "llm":
+                state.metadata.setdefault("llm_stats", {}).setdefault("extractor", []).append(
+                    {"sub_question_id": target_subq.id, "retry_task_id": task.id, **self.extractor.last_stats}
+                )
             for item in extracted:
                 evidence_by_id[item.id] = item
             task.completed = True
@@ -358,7 +383,11 @@ class DeepResearchEngine:
         state.evidence_store = self._sorted_evidence(state.evidence_store)
         state.final_report = self.reporter.report(state)
         state.draft_report = state.final_report
-        state.token_used += self._estimate_tokens(state.final_report)
+        if self.settings.execution_mode == "llm":
+            state.metadata.setdefault("llm_stats", {})["reporter"] = self.reporter.last_stats
+            self._sync_llm_usage(state)
+        else:
+            state.token_used += self._estimate_tokens(state.final_report)
         return self._state_output(
             self._complete_phase(state, graph_state, completed_phase="reporting", next_phase="evaluating")
         )
@@ -369,6 +398,8 @@ class DeepResearchEngine:
     def _evaluator_node(self, graph_state: ResearchGraphState) -> ResearchGraphState:
         state = self._state_from_graph_values(graph_state)
         state.evidence_store = self._sorted_evidence(state.evidence_store)
+        if self.settings.execution_mode == "llm":
+            self._sync_llm_usage(state)
         state.evaluation = self.evaluator.evaluate(state, started_at=graph_state.get("started_at", time.perf_counter()))
         self.store.save_evaluation(state.evaluation)
         state.current_phase = "done"
@@ -377,7 +408,9 @@ class DeepResearchEngine:
         return self._state_output(state)
 
     def _planning(self, state: ResearchState) -> None:
-        state.plan = self.planner.plan(state.topic, state.depth_level)
+        state.plan = self.planner.plan(state.topic, state.depth_level, research_id=state.research_id)
+        if self.settings.execution_mode == "llm":
+            state.metadata.setdefault("llm_stats", {})["planner"] = self.planner.last_stats
         state.todo_list = [
             TodoItem(id=item.id, title=item.question, status="pending")
             for item in state.plan.sub_questions
@@ -393,6 +426,10 @@ class DeepResearchEngine:
         for sub_question in state.plan.sub_questions:
             relevant_sources = self._sources_for_subquestion(state, sub_question.id)
             extracted = self.extractor.extract(state.research_id, sub_question, relevant_sources)
+            if self.settings.execution_mode == "llm":
+                state.metadata.setdefault("llm_stats", {}).setdefault("extractor", []).append(
+                    {"sub_question_id": sub_question.id, **self.extractor.last_stats}
+                )
             for item in extracted:
                 evidence_by_id[item.id] = item
         state.evidence_store = self._sorted_evidence(list(evidence_by_id.values()))
@@ -444,6 +481,19 @@ class DeepResearchEngine:
 
     def _estimate_tokens(self, text: str) -> int:
         return max(1, len(text) // 4)
+
+    def _sync_llm_usage(self, state: ResearchState) -> None:
+        if not self.llm_client:
+            return
+        aggregate = self.llm_client.aggregate_run(state.research_id)
+        rows = aggregate["rows"]
+        state.token_used = sum(int(row.get("total_tokens", 0)) for row in rows)
+        state.cost_used = round(sum(float(row.get("cost_usd", 0.0)) for row in rows), 8)
+        state.metadata["llm_usage"] = {
+            "by_role": aggregate["by_role"],
+            "total_cost_cny": round(float(aggregate["total_cost_cny"]), 8),
+            "ledger_total_cny": round(self.llm_client.ledger_total_cny(), 8),
+        }
 
     def _config(self, research_id: str) -> dict[str, dict[str, str]]:
         return {"configurable": {"thread_id": research_id}}

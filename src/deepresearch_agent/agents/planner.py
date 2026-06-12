@@ -1,10 +1,32 @@
 from __future__ import annotations
 
+import json
+import re
+
+from deepresearch_agent.llm import LLMClient, LLMClientError, StructuredOutputError
 from deepresearch_agent.schemas import ResearchPlan, SubQuestion
+from deepresearch_agent.settings import Settings, project_root
 
 
 class PlannerAgent:
-    def plan(self, topic: str, depth_level: int = 2) -> ResearchPlan:
+    def __init__(
+        self,
+        llm_client: LLMClient | None = None,
+        settings: Settings | None = None,
+    ) -> None:
+        self.llm_client = llm_client
+        self.settings = settings
+        self.last_stats: dict[str, int | bool | str] = {}
+
+    def plan(self, topic: str, depth_level: int = 2, research_id: str | None = None) -> ResearchPlan:
+        if self.llm_client and research_id and self.settings:
+            try:
+                return self._llm_plan(topic, depth_level, research_id)
+            except (LLMClientError, StructuredOutputError, ValueError) as exc:
+                self.last_stats = {"fallback": True, "error_type": type(exc).__name__}
+        return self._deterministic_plan(topic, depth_level)
+
+    def _deterministic_plan(self, topic: str, depth_level: int = 2) -> ResearchPlan:
         base_dimensions = [
             (
                 "market_pain",
@@ -64,3 +86,69 @@ class PlannerAgent:
             ],
         )
 
+    def _llm_plan(self, topic: str, depth_level: int, research_id: str) -> ResearchPlan:
+        assert self.llm_client is not None
+        assert self.settings is not None
+        prompt = (project_root() / "prompts" / "planner.md").read_text(encoding="utf-8")
+        result = self.llm_client.complete(
+            role="planner",
+            run_id=research_id,
+            schema=ResearchPlan,
+            messages=[
+                {"role": "system", "content": prompt},
+                {
+                    "role": "user",
+                    "content": json.dumps(
+                        {
+                            "topic": topic,
+                            "depth_level": depth_level,
+                            "max_sub_questions": self.settings.llm_max_sub_questions,
+                            "max_queries_per_sub_question": self.settings.llm_max_queries_per_sub_question,
+                        },
+                        ensure_ascii=False,
+                    ),
+                },
+            ],
+        )
+        if not isinstance(result.parsed, ResearchPlan):
+            raise ValueError("Planner did not return a ResearchPlan.")
+        plan = self._normalize_plan(result.parsed, topic, depth_level)
+        self.last_stats = {"fallback": False, "repair_attempts": result.repair_attempts}
+        return plan
+
+    def _normalize_plan(self, plan: ResearchPlan, topic: str, depth_level: int) -> ResearchPlan:
+        assert self.settings is not None
+        sub_questions = plan.sub_questions[: self.settings.llm_max_sub_questions]
+        normalized: list[SubQuestion] = []
+        seen_ids: set[str] = set()
+        for index, sub_question in enumerate(sub_questions):
+            subq_id = self._stable_id(sub_question.id or sub_question.question, index)
+            while subq_id in seen_ids:
+                subq_id = f"{subq_id}_{index + 1}"
+            seen_ids.add(subq_id)
+            normalized.append(
+                SubQuestion(
+                    id=subq_id,
+                    question=sub_question.question,
+                    search_queries=sub_question.search_queries[
+                        : self.settings.llm_max_queries_per_sub_question
+                    ],
+                    expected_source_types=sub_question.expected_source_types[
+                        : self.settings.llm_max_queries_per_sub_question
+                    ],
+                    priority=sub_question.priority,
+                )
+            )
+        if not normalized:
+            raise ValueError("Planner returned no sub-questions.")
+        return ResearchPlan(
+            topic=topic,
+            depth_level=depth_level,
+            sub_questions=normalized,
+            estimated_sources=max(6, len(normalized) * 2),
+            success_criteria=plan.success_criteria,
+        )
+
+    def _stable_id(self, value: str, index: int) -> str:
+        slug = re.sub(r"[^a-z0-9]+", "_", value.lower()).strip("_")
+        return slug[:48] or f"sub_question_{index + 1}"

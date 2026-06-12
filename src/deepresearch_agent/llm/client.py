@@ -1,0 +1,370 @@
+from __future__ import annotations
+
+import json
+import time
+from dataclasses import dataclass
+from importlib import import_module
+from pathlib import Path
+from typing import Any, TypeVar
+
+from pydantic import BaseModel, ValidationError
+
+from deepresearch_agent.llm_config import DEFAULT_LLM_CONFIG, LLMConfig
+from deepresearch_agent.settings import project_root
+
+SchemaT = TypeVar("SchemaT", bound=BaseModel)
+
+
+class LLMClientError(RuntimeError):
+    pass
+
+
+class StructuredOutputError(LLMClientError):
+    pass
+
+
+class BudgetExceededError(LLMClientError):
+    def __init__(self, run_id: str, budget_cny: float, actual_cny: float) -> None:
+        super().__init__(
+            f"LLM budget exceeded for run_id={run_id}: actual_cny={actual_cny:.6f} "
+            f"budget_cny={budget_cny:.6f}"
+        )
+        self.run_id = run_id
+        self.budget_cny = budget_cny
+        self.actual_cny = actual_cny
+
+
+@dataclass(frozen=True)
+class LLMCallResult:
+    content: str
+    parsed: BaseModel | None
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+    cost_usd: float
+    cost_cny: float
+    latency_seconds: float
+    cache_hit: bool | None
+    repair_attempts: int = 0
+
+
+class LLMClient:
+    def __init__(
+        self,
+        ledger_path: Path,
+        budget_cny: float,
+        config: LLMConfig = DEFAULT_LLM_CONFIG,
+        completion_func: Any | None = None,
+        sleep_func: Any = time.sleep,
+        env_path: Path | None = None,
+    ) -> None:
+        self._litellm = None if completion_func is not None else self._load_litellm()
+        self.ledger_path = ledger_path
+        self.budget_cny = budget_cny
+        self.config = config
+        self._completion = completion_func or self._litellm.completion
+        self._sleep = sleep_func
+        self._env_path = env_path or project_root() / ".env"
+        self._run_costs_cny: dict[str, float] = {}
+        self.ledger_path.parent.mkdir(parents=True, exist_ok=True)
+
+    def start_run(self, run_id: str) -> None:
+        self._run_costs_cny[run_id] = self._ledger_cost_for_run(run_id)
+
+    def complete(
+        self,
+        *,
+        role: str,
+        messages: list[dict[str, str]],
+        run_id: str,
+        schema: type[SchemaT] | None = None,
+    ) -> LLMCallResult:
+        if run_id not in self._run_costs_cny:
+            self.start_run(run_id)
+        api_key = self._deepseek_key()
+        role_config = self.config.roles.get(role)
+        if not role_config:
+            raise LLMClientError(f"No LLM model configured for role={role}")
+
+        prompt_messages = list(messages)
+        if schema:
+            prompt_messages.append(
+                {
+                    "role": "system",
+                    "content": (
+                        "Return only valid JSON matching this JSON Schema. "
+                        f"Schema: {json.dumps(schema.model_json_schema(), ensure_ascii=False)}"
+                    ),
+                }
+            )
+
+        first_error: str | None = None
+        raw_result = self._completion_with_retries(
+            role=role,
+            model=role_config.model,
+            api_base=role_config.api_base,
+            api_key=api_key,
+            messages=prompt_messages,
+        )
+        content = raw_result.content
+        parsed: BaseModel | None = None
+        repair_attempts = 0
+        if schema:
+            try:
+                parsed = self._parse_schema(content, schema)
+            except StructuredOutputError as exc:
+                first_error = str(exc)
+                self._record_ledger(
+                    run_id=run_id,
+                    role=role,
+                    model=role_config.model,
+                    result=raw_result,
+                    structured=True,
+                    parse_error=first_error,
+                )
+                self._run_costs_cny[run_id] += raw_result.cost_cny
+                if self._run_costs_cny[run_id] > self.budget_cny:
+                    raise BudgetExceededError(run_id, self.budget_cny, self._run_costs_cny[run_id])
+                repair_attempts = 1
+                repair_messages = [
+                    *prompt_messages,
+                    {"role": "assistant", "content": content},
+                    {
+                        "role": "user",
+                        "content": (
+                            "The previous JSON failed validation. Correct it and return only valid JSON. "
+                            f"Validation error: {first_error}"
+                        ),
+                    },
+                ]
+                raw_result = self._completion_with_retries(
+                    role=role,
+                    model=role_config.model,
+                    api_base=role_config.api_base,
+                    api_key=api_key,
+                    messages=repair_messages,
+                    is_repair=True,
+                )
+                content = raw_result.content
+                parsed = self._parse_schema(content, schema)
+
+        result = LLMCallResult(
+            content=content,
+            parsed=parsed,
+            prompt_tokens=raw_result.prompt_tokens,
+            completion_tokens=raw_result.completion_tokens,
+            total_tokens=raw_result.total_tokens,
+            cost_usd=raw_result.cost_usd,
+            cost_cny=raw_result.cost_cny,
+            latency_seconds=raw_result.latency_seconds,
+            cache_hit=raw_result.cache_hit,
+            repair_attempts=repair_attempts,
+        )
+        self._record_ledger(
+            run_id=run_id,
+            role=role,
+            model=role_config.model,
+            result=result,
+            structured=bool(schema),
+            parse_error=first_error,
+        )
+        self._run_costs_cny[run_id] += result.cost_cny
+        if self._run_costs_cny[run_id] > self.budget_cny:
+            raise BudgetExceededError(run_id, self.budget_cny, self._run_costs_cny[run_id])
+        return result
+
+    def run_total_cny(self, run_id: str) -> float:
+        if run_id not in self._run_costs_cny:
+            self.start_run(run_id)
+        return self._run_costs_cny[run_id]
+
+    def ledger_total_cny(self) -> float:
+        total = 0.0
+        for row in self._iter_ledger_rows():
+            total += float(row.get("cost_cny", 0.0))
+        return total
+
+    def aggregate_run(self, run_id: str) -> dict[str, Any]:
+        rows = [row for row in self._iter_ledger_rows() if row.get("run_id") == run_id]
+        by_role: dict[str, dict[str, float | int]] = {}
+        for row in rows:
+            role = str(row.get("role", "unknown"))
+            bucket = by_role.setdefault(
+                role,
+                {
+                    "calls": 0,
+                    "prompt_tokens": 0,
+                    "completion_tokens": 0,
+                    "total_tokens": 0,
+                    "cost_usd": 0.0,
+                    "cost_cny": 0.0,
+                    "latency_seconds": 0.0,
+                },
+            )
+            bucket["calls"] = int(bucket["calls"]) + 1
+            for key in ("prompt_tokens", "completion_tokens", "total_tokens"):
+                bucket[key] = int(bucket[key]) + int(row.get(key, 0))
+            for key in ("cost_usd", "cost_cny", "latency_seconds"):
+                bucket[key] = float(bucket[key]) + float(row.get(key, 0.0))
+        return {"rows": rows, "by_role": by_role, "total_cost_cny": sum(float(r.get("cost_cny", 0.0)) for r in rows)}
+
+    def _completion_with_retries(
+        self,
+        *,
+        role: str,
+        model: str,
+        api_base: str | None,
+        api_key: str,
+        messages: list[dict[str, str]],
+        is_repair: bool = False,
+    ) -> LLMCallResult:
+        last_error: Exception | None = None
+        for attempt in range(self.config.max_retries + 1):
+            started = time.perf_counter()
+            try:
+                response = self._completion(
+                    model=model,
+                    messages=messages,
+                    temperature=self.config.temperature,
+                    timeout=self.config.timeout_seconds,
+                    api_key=api_key,
+                    api_base=api_base,
+                )
+                latency = time.perf_counter() - started
+                content = self._message_content(response)
+                usage = self._usage(response)
+                cost_usd = self._cost_usd(response, usage)
+                return LLMCallResult(
+                    content=content,
+                    parsed=None,
+                    prompt_tokens=usage["prompt_tokens"],
+                    completion_tokens=usage["completion_tokens"],
+                    total_tokens=usage["total_tokens"],
+                    cost_usd=cost_usd,
+                    cost_cny=cost_usd * self.config.cost_usd_to_cny,
+                    latency_seconds=latency,
+                    cache_hit=self._cache_hit(response),
+                    repair_attempts=1 if is_repair else 0,
+                )
+            except Exception as exc:  # litellm exceptions are provider-specific.
+                last_error = exc
+                if attempt >= self.config.max_retries:
+                    break
+                self._sleep(2**attempt)
+        raise LLMClientError(f"LLM call failed for role={role}: {last_error}")
+
+    def _deepseek_key(self) -> str:
+        if not self._env_path.exists():
+            raise LLMClientError("Missing .env with DEEPSEEK_API_KEY.")
+        for line in self._env_path.read_text(encoding="utf-8").splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#") or "=" not in stripped:
+                continue
+            key, value = stripped.split("=", 1)
+            if key.strip() == "DEEPSEEK_API_KEY" and value.strip():
+                return value.strip().strip('"').strip("'")
+        raise LLMClientError("Missing DEEPSEEK_API_KEY in .env.")
+
+    def _parse_schema(self, content: str, schema: type[SchemaT]) -> SchemaT:
+        try:
+            return schema.model_validate_json(self._json_payload(content))
+        except (ValidationError, ValueError, json.JSONDecodeError) as exc:
+            raise StructuredOutputError(str(exc)) from exc
+
+    def _json_payload(self, content: str) -> str:
+        text = content.strip()
+        if text.startswith("```"):
+            lines = text.splitlines()
+            if lines and lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].startswith("```"):
+                lines = lines[:-1]
+            text = "\n".join(lines).strip()
+        return text
+
+    def _message_content(self, response: Any) -> str:
+        choice = response["choices"][0] if isinstance(response, dict) else response.choices[0]
+        message = choice["message"] if isinstance(choice, dict) else choice.message
+        content = message["content"] if isinstance(message, dict) else message.content
+        return content or ""
+
+    def _usage(self, response: Any) -> dict[str, int]:
+        usage = response.get("usage", {}) if isinstance(response, dict) else getattr(response, "usage", {})
+        getter = usage.get if isinstance(usage, dict) else lambda key, default=0: getattr(usage, key, default)
+        prompt_tokens = int(getter("prompt_tokens", 0) or 0)
+        completion_tokens = int(getter("completion_tokens", 0) or 0)
+        total_tokens = int(getter("total_tokens", prompt_tokens + completion_tokens) or 0)
+        return {
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": total_tokens,
+        }
+
+    def _cost_usd(self, response: Any, usage: dict[str, int]) -> float:
+        if self._litellm is not None:
+            try:
+                return float(self._litellm.completion_cost(completion_response=response) or 0.0)
+            except Exception:
+                pass
+        # Conservative fallback for smoke accounting when provider cost mapping is unavailable.
+        return (usage["prompt_tokens"] * 0.14 + usage["completion_tokens"] * 0.28) / 1_000_000
+
+    def _cache_hit(self, response: Any) -> bool | None:
+        headers = response.get("_hidden_params", {}).get("additional_headers", {}) if isinstance(response, dict) else {}
+        if not headers:
+            return None
+        value = headers.get("x-litellm-cache-hit") or headers.get("x-cache")
+        if value is None:
+            return None
+        return str(value).lower() in {"true", "hit", "1"}
+
+    def _record_ledger(
+        self,
+        *,
+        run_id: str,
+        role: str,
+        model: str,
+        result: LLMCallResult,
+        structured: bool,
+        parse_error: str | None,
+    ) -> None:
+        row = {
+            "run_id": run_id,
+            "role": role,
+            "model": model,
+            "prompt_tokens": result.prompt_tokens,
+            "completion_tokens": result.completion_tokens,
+            "total_tokens": result.total_tokens,
+            "cost_usd": round(result.cost_usd, 8),
+            "cost_cny": round(result.cost_cny, 8),
+            "latency_seconds": round(result.latency_seconds, 3),
+            "cache_hit": result.cache_hit,
+            "structured": structured,
+            "repair_attempts": result.repair_attempts,
+            "parse_error": bool(parse_error),
+            "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        }
+        with self.ledger_path.open("a", encoding="utf-8") as file:
+            file.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+    def _ledger_cost_for_run(self, run_id: str) -> float:
+        return sum(float(row.get("cost_cny", 0.0)) for row in self._iter_ledger_rows() if row.get("run_id") == run_id)
+
+    def _iter_ledger_rows(self) -> list[dict[str, Any]]:
+        if not self.ledger_path.exists():
+            return []
+        rows: list[dict[str, Any]] = []
+        for line in self.ledger_path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            try:
+                rows.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+        return rows
+
+    def _load_litellm(self) -> Any:
+        try:
+            return import_module("litellm")
+        except ModuleNotFoundError as exc:  # pragma: no cover - exercised only in misconfigured envs.
+            raise LLMClientError("litellm is not installed.") from exc

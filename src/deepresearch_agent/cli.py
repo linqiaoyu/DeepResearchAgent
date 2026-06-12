@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from dataclasses import replace
 from pathlib import Path
 
 from deepresearch_agent.evaluation import (
@@ -10,7 +11,7 @@ from deepresearch_agent.evaluation import (
     format_metric_comparison,
     load_metric_summary,
 )
-from deepresearch_agent.settings import Settings, project_root
+from deepresearch_agent.settings import Settings, load_settings, project_root
 from deepresearch_agent.storage import SQLiteStore
 from deepresearch_agent.workflow import DeepResearchEngine
 
@@ -23,9 +24,13 @@ def run_demo() -> None:
     parser.add_argument("--topic", default=DEFAULT_TOPIC)
     parser.add_argument("--depth", type=int, default=2)
     parser.add_argument("--output", default="artifacts/demo_report.md")
+    parser.add_argument("--mode", choices=["deterministic", "llm"], default=None)
     args = parser.parse_args()
 
-    engine = DeepResearchEngine()
+    settings = load_settings()
+    if args.mode:
+        settings = replace(settings, execution_mode=args.mode)
+    engine = DeepResearchEngine(settings=settings)
     state = engine.run(topic=args.topic, depth_level=args.depth)
     output_path = project_root() / args.output
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -35,6 +40,8 @@ def run_demo() -> None:
     print(f"report={output_path}")
     if state.evaluation:
         print(state.evaluation.model_dump_json(indent=2))
+    if engine.llm_client:
+        print(f"llm_ledger_total_cny={engine.llm_client.ledger_total_cny():.6f}")
 
 
 def run_eval() -> None:
