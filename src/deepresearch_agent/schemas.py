@@ -15,11 +15,22 @@ class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
 
+class StructuredDataRequest(StrictModel):
+    capability: str
+    company_name: str | None = None
+    symbol: str | None = None
+    periods: list[str] = Field(default_factory=list)
+    metrics: list[str] = Field(default_factory=list)
+    start_date: date | None = None
+    end_date: date | None = None
+
+
 class SubQuestion(StrictModel):
     id: str
     question: str
     search_queries: list[str]
     expected_source_types: list[str] = Field(default_factory=list)
+    structured_data_requests: list[StructuredDataRequest] = Field(default_factory=list)
     priority: int = Field(default=3, ge=1, le=5)
 
 

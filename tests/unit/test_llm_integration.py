@@ -7,7 +7,7 @@ import unittest
 from datetime import date
 from pathlib import Path
 
-from deepresearch_agent.agents import ExtractorAgent, ReporterAgent
+from deepresearch_agent.agents import ExtractorAgent, PlannerAgent, ReporterAgent
 from deepresearch_agent.llm import BudgetExceededError, LLMClient
 from deepresearch_agent.schemas import (
     Evidence,
@@ -18,7 +18,7 @@ from deepresearch_agent.schemas import (
     Source,
     SubQuestion,
 )
-from deepresearch_agent.settings import load_settings
+from deepresearch_agent.settings import Settings, load_settings
 
 
 class MockCompletion:
@@ -176,6 +176,53 @@ class LLMIntegrationTests(unittest.TestCase):
                 os.environ.pop("DEEPRESEARCH_MODE", None)
             else:
                 os.environ["DEEPRESEARCH_MODE"] = old_value
+
+    def test_deterministic_planner_does_not_emit_structured_requests(self) -> None:
+        plan = PlannerAgent().plan("AI Agent 在财富管理行业的落地机会研究", depth_level=1)
+
+        self.assertTrue(plan.sub_questions)
+        self.assertTrue(all(not sub_question.structured_data_requests for sub_question in plan.sub_questions))
+
+    def test_llm_planner_discards_invalid_structured_requests(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            env_path = Path(tmp) / ".env"
+            env_path.write_text("DEEPSEEK_API_KEY=test-key\n", encoding="utf-8")
+            completion = MockCompletion(
+                [
+                    (
+                        '{"topic":"宁德时代业绩研究","depth_level":1,'
+                        '"sub_questions":[{"id":"finance","question":"宁德时代业绩如何？",'
+                        '"search_queries":["宁德时代 业绩"],"expected_source_types":["company_report"],'
+                        '"structured_data_requests":['
+                        '{"capability":"financial_indicators","symbol":"300750","periods":["20241231"],'
+                        '"metrics":["归母净利润"]},'
+                        '{"capability":"raw_akshare","symbol":"300750"},'
+                        '{"capability":"price_history","symbol":"300750"}'
+                        '],"priority":5}],'
+                        '"estimated_sources":2,"success_criteria":["has data"]}'
+                    )
+                ]
+            )
+            client = LLMClient(
+                ledger_path=Path(tmp) / "ledger.jsonl",
+                budget_cny=3.0,
+                completion_func=completion,
+                sleep_func=lambda _: None,
+                env_path=env_path,
+            )
+            planner = PlannerAgent(
+                llm_client=client,
+                settings=Settings(storage_path=Path(tmp) / "research.db"),
+            )
+
+            plan = planner.plan("宁德时代业绩研究", depth_level=1, research_id="run-planner")
+
+        self.assertEqual(len(plan.sub_questions[0].structured_data_requests), 1)
+        self.assertEqual(
+            plan.sub_questions[0].structured_data_requests[0].capability,
+            "financial_indicators",
+        )
+        self.assertEqual(planner.last_stats["invalid_structured_data_requests"], 2)
 
     def test_extractor_discards_claim_when_extract_text_is_not_verbatim(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

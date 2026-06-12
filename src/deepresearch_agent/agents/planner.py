@@ -4,11 +4,13 @@ import json
 import re
 
 from deepresearch_agent.llm import LLMClient, LLMClientError, StructuredOutputError
-from deepresearch_agent.schemas import ResearchPlan, SubQuestion
+from deepresearch_agent.schemas import ResearchPlan, StructuredDataRequest, SubQuestion
 from deepresearch_agent.settings import Settings, project_root
 
 
 class PlannerAgent:
+    STRUCTURED_CAPABILITIES = {"symbol_resolve", "financial_indicators", "price_history"}
+
     def __init__(
         self,
         llm_client: LLMClient | None = None,
@@ -17,6 +19,7 @@ class PlannerAgent:
         self.llm_client = llm_client
         self.settings = settings
         self.last_stats: dict[str, int | bool | str] = {}
+        self._last_invalid_structured_request_count = 0
 
     def plan(self, topic: str, depth_level: int = 2, research_id: str | None = None) -> ResearchPlan:
         if self.llm_client and research_id and self.settings:
@@ -113,19 +116,26 @@ class PlannerAgent:
         if not isinstance(result.parsed, ResearchPlan):
             raise ValueError("Planner did not return a ResearchPlan.")
         plan = self._normalize_plan(result.parsed, topic, depth_level)
-        self.last_stats = {"fallback": False, "repair_attempts": result.repair_attempts}
+        self.last_stats = {
+            "fallback": False,
+            "repair_attempts": result.repair_attempts,
+            "invalid_structured_data_requests": self._last_invalid_structured_request_count,
+        }
         return plan
 
     def _normalize_plan(self, plan: ResearchPlan, topic: str, depth_level: int) -> ResearchPlan:
         assert self.settings is not None
         sub_questions = plan.sub_questions[: self.settings.llm_max_sub_questions]
         normalized: list[SubQuestion] = []
+        invalid_count = 0
         seen_ids: set[str] = set()
         for index, sub_question in enumerate(sub_questions):
             subq_id = self._stable_id(sub_question.id or sub_question.question, index)
             while subq_id in seen_ids:
                 subq_id = f"{subq_id}_{index + 1}"
             seen_ids.add(subq_id)
+            structured_requests = self._valid_structured_requests(sub_question.structured_data_requests)
+            invalid_count += len(sub_question.structured_data_requests) - len(structured_requests)
             normalized.append(
                 SubQuestion(
                     id=subq_id,
@@ -136,11 +146,13 @@ class PlannerAgent:
                     expected_source_types=sub_question.expected_source_types[
                         : self.settings.llm_max_queries_per_sub_question
                     ],
+                    structured_data_requests=structured_requests,
                     priority=sub_question.priority,
                 )
             )
         if not normalized:
             raise ValueError("Planner returned no sub-questions.")
+        self._last_invalid_structured_request_count = invalid_count
         return ResearchPlan(
             topic=topic,
             depth_level=depth_level,
@@ -148,6 +160,24 @@ class PlannerAgent:
             estimated_sources=max(6, len(normalized) * 2),
             success_criteria=plan.success_criteria,
         )
+
+    def _valid_structured_requests(
+        self,
+        requests: list[StructuredDataRequest],
+    ) -> list[StructuredDataRequest]:
+        return [request for request in requests if self._is_valid_structured_request(request)]
+
+    def _is_valid_structured_request(self, request: StructuredDataRequest) -> bool:
+        capability = request.capability.strip()
+        if capability not in self.STRUCTURED_CAPABILITIES:
+            return False
+        if capability == "symbol_resolve":
+            return bool(request.company_name)
+        if capability == "financial_indicators":
+            return bool(request.symbol or request.company_name)
+        if capability == "price_history":
+            return bool((request.symbol or request.company_name) and request.start_date and request.end_date)
+        return False
 
     def _stable_id(self, value: str, index: int) -> str:
         slug = re.sub(r"[^a-z0-9]+", "_", value.lower()).strip("_")
