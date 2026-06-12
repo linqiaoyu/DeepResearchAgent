@@ -6,7 +6,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-from deepresearch_agent.schemas import EvaluationResult, Evidence, StructuredDataRecord
+from deepresearch_agent.schemas import EvaluationResult, Evidence, NumericFields, StructuredDataRecord
 
 
 class SQLiteStore:
@@ -45,6 +45,8 @@ class SQLiteStore:
                     source_pub_date TEXT NOT NULL,
                     extract_text TEXT NOT NULL,
                     structured_record_json TEXT,
+                    numeric_fields_json TEXT,
+                    numeric_fields_incomplete INTEGER NOT NULL DEFAULT 0,
                     confidence REAL NOT NULL
                 );
 
@@ -57,6 +59,8 @@ class SQLiteStore:
             )
             self._ensure_column(conn, "evidence", "source_kind", "TEXT NOT NULL DEFAULT 'text'")
             self._ensure_column(conn, "evidence", "structured_record_json", "TEXT")
+            self._ensure_column(conn, "evidence", "numeric_fields_json", "TEXT")
+            self._ensure_column(conn, "evidence", "numeric_fields_incomplete", "INTEGER NOT NULL DEFAULT 0")
 
     def _ensure_column(self, conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:
         columns = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
@@ -69,9 +73,10 @@ class SQLiteStore:
                 """
                 INSERT OR REPLACE INTO evidence (
                     id, research_id, sub_question_id, claim, claim_type, source_kind, source_url,
-                    source_title, source_pub_date, extract_text, structured_record_json, confidence
+                    source_title, source_pub_date, extract_text, structured_record_json,
+                    numeric_fields_json, numeric_fields_incomplete, confidence
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -86,6 +91,8 @@ class SQLiteStore:
                         item.source_pub_date.isoformat(),
                         item.extract_text,
                         item.structured_record.model_dump_json() if item.structured_record else None,
+                        item.numeric_fields.model_dump_json() if item.numeric_fields else None,
+                        int(item.numeric_fields_incomplete),
                         item.confidence,
                     )
                     for item in items
@@ -111,6 +118,8 @@ class SQLiteStore:
                 source_pub_date=row["source_pub_date"],
                 extract_text=row["extract_text"],
                 structured_record=self._structured_record(row["structured_record_json"]),
+                numeric_fields=self._numeric_fields(row["numeric_fields_json"]),
+                numeric_fields_incomplete=bool(row["numeric_fields_incomplete"]),
                 confidence=row["confidence"],
             )
             for row in rows
@@ -124,6 +133,15 @@ class SQLiteStore:
         except json.JSONDecodeError:
             return None
         return StructuredDataRecord.model_validate(payload)
+
+    def _numeric_fields(self, value: str | None) -> NumericFields | None:
+        if not value:
+            return None
+        try:
+            payload = json.loads(value)
+        except json.JSONDecodeError:
+            return None
+        return NumericFields.model_validate(payload)
 
     def save_evaluation(self, result: EvaluationResult) -> None:
         with self._connection() as conn:

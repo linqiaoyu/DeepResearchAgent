@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import time
 
-from deepresearch_agent.schemas import Evidence, SearchRecord, Source, StructuredDataRecord, SubQuestion
+from deepresearch_agent.schemas import Evidence, NumericFields, SearchRecord, Source, StructuredDataRecord, SubQuestion
 from deepresearch_agent.tools import FixtureSearchTool, FixtureStructuredDataProvider, SearchProvider, StructuredDataProvider
 
 
@@ -143,4 +143,12 @@ class ResearcherAgent:
             extract_text=extract_text,
             confidence=0.98,
             structured_record=record,
+            numeric_fields=NumericFields(
+                entity=record.entity,
+                metric_name=record.metric_name,
+                period=record.period,
+                dimension=record.dimension,
+                value=record.value,
+                unit=record.unit,
+            ),
         )

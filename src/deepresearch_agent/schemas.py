@@ -79,6 +79,15 @@ class StructuredDataRecord(StrictModel):
     as_of: date
 
 
+class NumericFields(StrictModel):
+    entity: str | None = None
+    metric_name: str | None = None
+    period: str | None = None
+    dimension: str = "未标注"
+    value: float | None = None
+    unit: str | None = None
+
+
 class Evidence(StrictModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
     research_id: str
@@ -93,6 +102,8 @@ class Evidence(StrictModel):
     extract_offset_start: int = 0
     confidence: float = Field(default=0.75, ge=0, le=1)
     structured_record: StructuredDataRecord | None = None
+    numeric_fields: NumericFields | None = None
+    numeric_fields_incomplete: bool = False
     extracted_at: datetime = Field(default_factory=utc_now)
 
 
@@ -102,6 +113,7 @@ class ExtractedClaim(StrictModel):
     source_url: str
     extract_text: str
     confidence: float = Field(default=0.75, ge=0, le=1)
+    numeric_fields: NumericFields | None = None
 
 
 class ExtractedClaims(StrictModel):

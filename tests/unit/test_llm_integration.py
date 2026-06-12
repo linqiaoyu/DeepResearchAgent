@@ -264,6 +264,48 @@ class LLMIntegrationTests(unittest.TestCase):
             self.assertEqual(len(evidence), 1)
             self.assertEqual(extractor.last_stats["invalid_extract_text"], 1)
 
+    def test_extractor_marks_incomplete_numeric_fields_without_dropping_claim(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            env_path = Path(tmp) / ".env"
+            env_path.write_text("DEEPSEEK_API_KEY=test-key\n", encoding="utf-8")
+            completion = MockCompletion(
+                [
+                    (
+                        '{"claims":[{"claim":"宁德时代 2024 年归母净利润为 507.45 亿元",'
+                        '"claim_type":"data","source_url":"https://a.example",'
+                        '"extract_text":"宁德时代 2024 年归母净利润为 507.45 亿元",'
+                        '"confidence":0.8,"numeric_fields":{"entity":"宁德时代",'
+                        '"metric_name":"归母净利润","period":"2024","dimension":"未标注",'
+                        '"value":null,"unit":"亿元"}}]}'
+                    )
+                ]
+            )
+            client = LLMClient(
+                ledger_path=Path(tmp) / "ledger.jsonl",
+                budget_cny=3.0,
+                completion_func=completion,
+                sleep_func=lambda _: None,
+                env_path=env_path,
+            )
+            extractor = ExtractorAgent(llm_client=client)
+            source = Source(
+                title="A",
+                url="https://a.example",
+                source_type="company_report",
+                published_at=date(2026, 1, 1),
+                content="宁德时代 2024 年归母净利润为 507.45 亿元。",
+            )
+
+            evidence = extractor.extract(
+                "run-4",
+                SubQuestion(id="sq", question="q", search_queries=["q"]),
+                [source],
+            )
+
+            self.assertEqual(len(evidence), 1)
+            self.assertTrue(evidence[0].numeric_fields_incomplete)
+            self.assertEqual(extractor.last_stats["incomplete_numeric_fields"], 1)
+
     def test_reporter_reference_validation_counts_invalid_ids(self) -> None:
         state = ResearchState(topic="wealth AI")
         state.plan = ResearchPlan(

@@ -6,7 +6,7 @@ from datetime import date
 from pathlib import Path
 
 from deepresearch_agent.agents import ResearcherAgent
-from deepresearch_agent.schemas import Evidence, StructuredDataRequest, SubQuestion
+from deepresearch_agent.schemas import Evidence, NumericFields, StructuredDataRequest, SubQuestion
 from deepresearch_agent.storage import SQLiteStore
 from deepresearch_agent.tools import FixtureStructuredDataProvider, build_structured_data_provider
 
@@ -60,6 +60,14 @@ class StructuredDataProviderTests(unittest.TestCase):
                 source_pub_date=record.as_of,
                 extract_text="宁德时代|归母净利润|20241231|累计|50744680000.0|元",
                 structured_record=record,
+                numeric_fields=NumericFields(
+                    entity=record.entity,
+                    metric_name=record.metric_name,
+                    period=record.period,
+                    dimension=record.dimension,
+                    value=record.value,
+                    unit=record.unit,
+                ),
             )
 
             store.add_evidence_many([evidence])
@@ -68,6 +76,8 @@ class StructuredDataProviderTests(unittest.TestCase):
         self.assertEqual(loaded.source_kind, "structured")
         self.assertIsNotNone(loaded.structured_record)
         self.assertEqual(loaded.structured_record.metric_name, "归母净利润")
+        self.assertIsNotNone(loaded.numeric_fields)
+        self.assertEqual(loaded.numeric_fields.metric_name, "归母净利润")
 
     def test_researcher_executes_structured_requests_as_evidence(self) -> None:
         researcher = ResearcherAgent(structured_data_provider=FixtureStructuredDataProvider())
@@ -92,6 +102,8 @@ class StructuredDataProviderTests(unittest.TestCase):
         self.assertEqual(evidence[0].claim_type, "data")
         self.assertIsNotNone(evidence[0].structured_record)
         self.assertEqual(evidence[0].structured_record.metric_name, "归母净利润")
+        self.assertIsNotNone(evidence[0].numeric_fields)
+        self.assertEqual(evidence[0].numeric_fields.period, "20241231")
         self.assertEqual(researcher.last_structured_stats["records"], 1)
 
 
