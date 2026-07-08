@@ -88,10 +88,10 @@ class LLMClient:
     ) -> LLMCallResult:
         if run_id not in self._run_costs_cny:
             self.start_run(run_id)
-        api_key = self._deepseek_key()
         role_config = self.config.roles.get(role)
         if not role_config:
             raise LLMClientError(f"No LLM model configured for role={role}")
+        api_key = self._api_key(role_config.api_key_env)
 
         prompt_messages = list(messages)
         if schema:
@@ -288,17 +288,17 @@ class LLMClient:
                     self._sleep(2**attempt)
         raise LLMClientError(f"LLM call failed for role={role}: {last_error}")
 
-    def _deepseek_key(self) -> str:
+    def _api_key(self, key_name: str) -> str:
         if not self._env_path.exists():
-            raise LLMClientError("Missing .env with DEEPSEEK_API_KEY.")
+            raise LLMClientError(f"Missing .env with {key_name}.")
         for line in self._env_path.read_text(encoding="utf-8").splitlines():
             stripped = line.strip()
             if not stripped or stripped.startswith("#") or "=" not in stripped:
                 continue
             key, value = stripped.split("=", 1)
-            if key.strip() == "DEEPSEEK_API_KEY" and value.strip():
+            if key.strip() == key_name and value.strip():
                 return value.strip().strip('"').strip("'")
-        raise LLMClientError("Missing DEEPSEEK_API_KEY in .env.")
+        raise LLMClientError(f"Missing {key_name} in .env.")
 
     def _parse_schema(self, content: str, schema: type[SchemaT]) -> SchemaT:
         try:

@@ -167,6 +167,38 @@ class LLMIntegrationTests(unittest.TestCase):
             self.assertEqual(result.model, "openai/deepseek-chat")
             self.assertEqual(row["model"], "openai/deepseek-chat")
 
+    def test_judge_role_uses_dashscope_key(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            env_path = Path(tmp) / ".env"
+            env_path.write_text("DASHSCOPE_API_KEY=test-key\n", encoding="utf-8")
+            observed: dict[str, object] = {}
+
+            def completion(**kwargs: object) -> dict:
+                observed.update(kwargs)
+                return {
+                    "choices": [{"message": {"content": "ok"}}],
+                    "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+                }
+
+            client = LLMClient(
+                ledger_path=Path(tmp) / "task_ledger.jsonl",
+                budget_cny=3.0,
+                completion_func=completion,
+                sleep_func=lambda _: None,
+                env_path=env_path,
+                global_ledger_path=Path(tmp) / "global_ledger.jsonl",
+            )
+
+            result = client.complete(
+                role="judge",
+                run_id="run-judge",
+                messages=[{"role": "user", "content": "score"}],
+            )
+
+        self.assertEqual(result.model, "openai/qwen-plus")
+        self.assertEqual(observed["api_base"], "https://dashscope.aliyuncs.com/compatible-mode/v1")
+        self.assertEqual(observed["api_key"], "test-key")
+
     def test_structured_parse_failure_repairs_and_records_two_calls(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             env_path = Path(tmp) / ".env"
