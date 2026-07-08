@@ -106,6 +106,8 @@ class LLMIntegrationTests(unittest.TestCase):
             self.assertAlmostEqual(result.cost_cny, 0.001608)
             self.assertAlmostEqual(row["cost_cny"], 0.001608)
             self.assertEqual(row["price_source"], "v4flash_console_calibrated_20260612")
+            self.assertEqual(row["input_tokens"], row["prompt_tokens"])
+            self.assertEqual(row["output_tokens"], row["completion_tokens"])
 
     def test_ledger_writes_global_and_task_copy(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

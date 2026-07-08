@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 
 from deepresearch_agent.schemas import Source
@@ -36,7 +37,11 @@ class ConfiguredSearchProvider:
         )
 
 
-def build_search_provider(environ: Mapping[str, str] | None = None) -> SearchProvider:
+def build_search_provider(
+    environ: Mapping[str, str] | None = None,
+    *,
+    as_of: date | None = None,
+) -> SearchProvider:
     env = os.environ if environ is None else environ
     provider_name = env.get("DEEPRESEARCH_SEARCH_PROVIDER", "fixture").strip().lower()
     recording_mode = env.get("DEEPRESEARCH_SEARCH_RECORDING_MODE", "live").strip().lower()
@@ -50,6 +55,8 @@ def build_search_provider(environ: Mapping[str, str] | None = None) -> SearchPro
             mode="replay",
             recording_dir=None if not recording_dir else Path(recording_dir),
         )
+    if recording_mode == "record" and as_of is None:
+        raise ValueError("record mode requires DEEPRESEARCH_AS_OF/settings.as_of.")
 
     key_name = REAL_PROVIDER_KEYS.get(provider_name)
     if key_name is None:
@@ -69,12 +76,15 @@ def build_search_provider(environ: Mapping[str, str] | None = None) -> SearchPro
             search_depth=env.get("DEEPRESEARCH_TAVILY_SEARCH_DEPTH", "basic").strip().lower(),
             include_raw_content=env.get("DEEPRESEARCH_TAVILY_INCLUDE_RAW_CONTENT", "").lower()
             in {"1", "true", "yes"},
+            timeout_seconds=float(env.get("DEEPRESEARCH_TAVILY_TIMEOUT_SECONDS", "60")),
+            raw_content_char_limit=int(env.get("DEEPRESEARCH_TAVILY_RAW_CONTENT_CHAR_LIMIT", "40000")),
         )
         if recording_mode == "record":
             return RecordingSearchProvider(
                 mode="record",
                 live_provider=tavily,
                 recording_dir=None if not recording_dir else Path(recording_dir),
+                as_of=as_of,
             )
         return tavily
 

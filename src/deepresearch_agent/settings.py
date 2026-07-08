@@ -19,6 +19,8 @@ class Settings:
     llm_max_sub_questions: int = 3
     llm_max_queries_per_sub_question: int = 3
     as_of: date | None = None
+    max_searches_per_run: int = 20
+    tavily_raw_content_char_limit: int = 40_000
 
 
 def project_root() -> Path:
@@ -50,4 +52,6 @@ def load_settings() -> Settings:
             os.getenv("DEEPRESEARCH_LLM_MAX_QUERIES_PER_SUB_QUESTION", "3")
         ),
         as_of=as_of,
+        max_searches_per_run=int(os.getenv("DEEPRESEARCH_MAX_SEARCHES_PER_RUN", "20")),
+        tavily_raw_content_char_limit=int(os.getenv("DEEPRESEARCH_TAVILY_RAW_CONTENT_CHAR_LIMIT", "40000")),
     )

@@ -16,6 +16,18 @@ Unsupported or invalid bullet citations are counted as `citation_error` bad case
 
 Production version: compute true critic recall from seeded issues or manually labeled bad cases.
 
+## Golden Recording Controls
+
+Golden Set live recording uses the search recording layer in `record` mode and
+requires an explicit `DEEPRESEARCH_AS_OF`; the recording metadata uses that
+runtime value as the single as-of source. Tavily read timeout defaults to 60
+seconds, failed individual queries are recorded as partial instead of aborting
+the run, and existing recording keys are replayed idempotently on rerun. Each
+run stops issuing additional searches after `DEEPRESEARCH_MAX_SEARCHES_PER_RUN`
+(default `20`). Tavily `raw_content` is capped per source by
+`DEEPRESEARCH_TAVILY_RAW_CONTENT_CHAR_LIMIT` (default `40000` characters) before
+extraction.
+
 ## Golden Questions
 
 `data/eval_set_deterministic.jsonl` contains 50 deterministic CI regression cases covering financial AI, wealth management, citation verification, Evidence Store design, Critic loops, checkpointing, Docker deployment, and interview packaging.

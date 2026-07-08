@@ -49,10 +49,11 @@ class TavilySearchProvider:
         api_key: str,
         client: SyncHttpClient | None = None,
         endpoint: str = TAVILY_SEARCH_ENDPOINT,
-        timeout_seconds: float = 10.0,
+        timeout_seconds: float = 60.0,
         max_retries: int = 2,
         search_depth: str = "basic",
         include_raw_content: bool = False,
+        raw_content_char_limit: int = 40_000,
         ledger_path: Path | None = None,
         credit_warning_threshold: int = 450,
         sleep_func: Any = time.sleep,
@@ -67,14 +68,17 @@ class TavilySearchProvider:
         self.max_retries = max_retries
         self.search_depth = search_depth
         self.include_raw_content = include_raw_content
+        self.raw_content_char_limit = raw_content_char_limit
         self.ledger_path = ledger_path or project_root() / "data" / "runtime" / "search_ledger.jsonl"
         self.credit_warning_threshold = credit_warning_threshold
         self._sleep = sleep_func
+        self.last_error_type: str | None = None
         self.ledger_path.parent.mkdir(parents=True, exist_ok=True)
 
     def search(self, query: str, top_k: int = 3, source_type: str | None = None) -> list[Source]:
         if top_k <= 0:
             return []
+        self.last_error_type = None
 
         max_results = min(top_k, 20)
         credit_estimate = 2 if self.search_depth == "advanced" else 1
@@ -114,6 +118,7 @@ class TavilySearchProvider:
                 if not isinstance(response_payload, Mapping):
                     raise ValueError("response JSON must be an object")
                 sources = self._sources_from_response(response_payload, source_type)[:top_k]
+                self.last_error_type = None
                 self._record_ledger(
                     query=query,
                     search_depth=self.search_depth,
@@ -138,7 +143,8 @@ class TavilySearchProvider:
             result_count=0,
             error_type=type(last_error).__name__ if last_error else "unknown",
         )
-        raise self._search_error(query, last_error or RuntimeError("unknown error")) from last_error
+        self.last_error_type = type(last_error).__name__ if last_error else "unknown"
+        return []
 
     def _search_error(self, query: str, error: Exception) -> TavilySearchError:
         query_label = query.strip()[:80] or "<empty>"
@@ -191,6 +197,8 @@ class TavilySearchProvider:
 
     def _content(self, result: Mapping[str, Any], title: str) -> str:
         raw_content = self._text(result.get("raw_content"))
+        if raw_content:
+            raw_content = raw_content[: self.raw_content_char_limit]
         content = raw_content or self._text(result.get("content"))
         return content or title
 

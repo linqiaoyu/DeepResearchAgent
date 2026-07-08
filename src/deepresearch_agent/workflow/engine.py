@@ -63,7 +63,7 @@ class DeepResearchEngine:
     ) -> None:
         self.settings = settings or load_settings()
         self.store = store or SQLiteStore(self.settings.storage_path)
-        self.search_tool = search_tool or build_search_provider()
+        self.search_tool = search_tool or build_search_provider(as_of=self.settings.as_of)
         self.structured_data_provider = structured_data_provider or build_structured_data_provider()
         self.llm_client = (
             LLMClient(
@@ -74,7 +74,11 @@ class DeepResearchEngine:
             else None
         )
         self.planner = PlannerAgent(llm_client=self.llm_client, settings=self.settings)
-        self.researcher = ResearcherAgent(self.search_tool, self.structured_data_provider)
+        self.researcher = ResearcherAgent(
+            self.search_tool,
+            self.structured_data_provider,
+            max_searches_per_run=self.settings.max_searches_per_run,
+        )
         self.extractor = ExtractorAgent(llm_client=self.llm_client)
         self.critic = CriticAgent(today=self.settings.as_of)
         self.reporter = ReporterAgent(llm_client=self.llm_client)
@@ -94,6 +98,7 @@ class DeepResearchEngine:
         interrupt_after: Sequence[str] | None = None,
     ) -> ResearchState:
         started = time.perf_counter()
+        self.researcher.reset_search_budget()
         if resume:
             if not research_id:
                 raise ValueError("research_id is required when resume=True")
