@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+import json
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +28,7 @@ class FakeTavilyClient:
     def __init__(self) -> None:
         self.calls: list[dict[str, Any]] = []
         self.responses: list[FakeTavilyResponse] = []
+        self.failures_before_success = 0
 
     def post(
         self,
@@ -36,6 +38,9 @@ class FakeTavilyClient:
         json: dict[str, Any],
         timeout: float,
     ) -> FakeTavilyResponse:
+        if self.failures_before_success > 0:
+            self.failures_before_success -= 1
+            raise RuntimeError("temporary Tavily failure")
         call_index = len(self.calls) + 1
         self.calls.append(
             {
@@ -96,6 +101,29 @@ class TavilyProviderWorkflowTests(unittest.TestCase):
             all(item.source_url.startswith("https://tavily.test/") for item in state.evidence_store)
         )
         self.assertIn("[^1]", state.final_report or "")
+
+    def test_tavily_retries_and_records_search_ledger(self) -> None:
+        client = FakeTavilyClient()
+        client.failures_before_success = 1
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger_path = Path(tmp) / "search_ledger.jsonl"
+            provider = TavilySearchProvider(
+                "test-key",
+                client=client,
+                timeout_seconds=2.0,
+                ledger_path=ledger_path,
+                sleep_func=lambda _: None,
+            )
+
+            results = provider.search("retry query", top_k=1)
+            rows = [json.loads(line) for line in ledger_path.read_text(encoding="utf-8").splitlines()]
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(len(client.calls), 1)
+        self.assertEqual(rows[0]["provider"], "tavily")
+        self.assertEqual(rows[0]["credit_estimate"], 1)
+        self.assertTrue(rows[0]["success"])
+        self.assertEqual(rows[0]["result_count"], 1)
 
 
 if __name__ == "__main__":
