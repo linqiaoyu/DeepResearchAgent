@@ -93,7 +93,7 @@ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 DEEPRESEARCH_SEARCH_PROVIDER=fixture DE
 ## 7. 运行产物纪律
 
 - 一切运行期产物只允许写入被 `.gitignore` 覆盖的路径，包括 `*.db`、demo 输出、metrics 快照、缓存和临时报告。
-- `data/eval_set.jsonl`、`data/eval_baseline.json`、`data/bad_cases.jsonl`、`data/mock_data/` 是受管资产，必须保持追踪。
+- `data/eval_set_deterministic.jsonl`、`data/eval_baseline.json`、`data/bad_cases_deterministic.jsonl`、`data/bad_cases_llm.jsonl`、`data/mock_data/` 是受管资产，必须保持追踪。
 - 不得提交 `.env`、runtime 数据库、`artifacts/`、`_collab/`、缓存目录或本地生成的包元数据。
 
 ## 8. 协作协议

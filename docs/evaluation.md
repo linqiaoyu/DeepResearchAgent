@@ -18,7 +18,7 @@ Production version: compute true critic recall from seeded issues or manually la
 
 ## Golden Questions
 
-`data/eval_set.jsonl` contains 50 cases covering financial AI, wealth management, citation verification, Evidence Store design, Critic loops, checkpointing, Docker deployment, and interview packaging.
+`data/eval_set_deterministic.jsonl` contains 50 deterministic CI regression cases covering financial AI, wealth management, citation verification, Evidence Store design, Critic loops, checkpointing, Docker deployment, and interview packaging.
 
 Run:
 

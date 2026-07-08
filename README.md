@@ -186,7 +186,7 @@ The Streamlit UI runs the local deterministic engine directly. Under Docker Comp
 - Five-element numeric claim fields: entity, metric, period/timepoint, dimension, value, and unit
 - Critic checks for missing citations, finance-aware numeric conflicts, temporal conflicts, outdated sources, missing counterarguments, and unverified projections
 - Deterministic fixture search by default, with optional Tavily search behind the `SearchProvider` contract
-- 50-case golden question set in `data/eval_set.jsonl`
+- 50-case deterministic CI regression set in `data/eval_set_deterministic.jsonl`
 - Streamlit dashboard for report, evidence, and Critic JSON
 - Docker Compose for API/UI, with a Postgres profile reserved for production hardening
 

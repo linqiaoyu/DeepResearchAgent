@@ -61,6 +61,7 @@ class LLMIntegrationTests(unittest.TestCase):
                 completion_func=MockCompletion(['{"claims": []}']),
                 sleep_func=lambda _: None,
                 env_path=env_path,
+                global_ledger_path=Path(tmp) / "global_ledger.jsonl",
             )
 
             with self.assertRaises(BudgetExceededError):
@@ -90,6 +91,7 @@ class LLMIntegrationTests(unittest.TestCase):
                 ),
                 sleep_func=lambda _: None,
                 env_path=env_path,
+                global_ledger_path=Path(tmp) / "global_ledger.jsonl",
             )
 
             result = client.complete(
@@ -104,6 +106,33 @@ class LLMIntegrationTests(unittest.TestCase):
             self.assertAlmostEqual(result.cost_cny, 0.001608)
             self.assertAlmostEqual(row["cost_cny"], 0.001608)
             self.assertEqual(row["price_source"], "v4flash_console_calibrated_20260612")
+
+    def test_ledger_writes_global_and_task_copy(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            env_path = Path(tmp) / ".env"
+            env_path.write_text("DEEPSEEK_API_KEY=test-key\n", encoding="utf-8")
+            task_ledger = Path(tmp) / "task" / "ledger.jsonl"
+            global_ledger = Path(tmp) / "global" / "llm_ledger.jsonl"
+            client = LLMClient(
+                ledger_path=task_ledger,
+                budget_cny=3.0,
+                completion_func=MockCompletion(["ok"], prompt_tokens=10, completion_tokens=5),
+                sleep_func=lambda _: None,
+                env_path=env_path,
+                global_ledger_path=global_ledger,
+            )
+
+            client.complete(
+                role="planner",
+                run_id="run-ledger",
+                messages=[{"role": "user", "content": "hello"}],
+            )
+
+            self.assertTrue(task_ledger.exists())
+            self.assertTrue(global_ledger.exists())
+            self.assertEqual(len(task_ledger.read_text(encoding="utf-8").splitlines()), 1)
+            self.assertEqual(len(global_ledger.read_text(encoding="utf-8").splitlines()), 1)
+            self.assertAlmostEqual(client.ledger_total_cny(), 0.00002)
 
     def test_model_fallback_records_actual_model(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -125,6 +154,7 @@ class LLMIntegrationTests(unittest.TestCase):
                 completion_func=completion,
                 sleep_func=lambda _: None,
                 env_path=env_path,
+                global_ledger_path=Path(tmp) / "global_ledger.jsonl",
             )
 
             result = client.complete(
@@ -149,6 +179,7 @@ class LLMIntegrationTests(unittest.TestCase):
                 completion_func=completion,
                 sleep_func=lambda _: None,
                 env_path=env_path,
+                global_ledger_path=Path(tmp) / "global_ledger.jsonl",
             )
 
             from deepresearch_agent.schemas import ExtractedClaims
@@ -209,6 +240,7 @@ class LLMIntegrationTests(unittest.TestCase):
                 completion_func=completion,
                 sleep_func=lambda _: None,
                 env_path=env_path,
+                global_ledger_path=Path(tmp) / "global_ledger.jsonl",
             )
             planner = PlannerAgent(
                 llm_client=client,
@@ -245,6 +277,7 @@ class LLMIntegrationTests(unittest.TestCase):
                 completion_func=completion,
                 sleep_func=lambda _: None,
                 env_path=env_path,
+                global_ledger_path=Path(tmp) / "global_ledger.jsonl",
             )
             extractor = ExtractorAgent(llm_client=client)
             source = Source(
@@ -286,6 +319,7 @@ class LLMIntegrationTests(unittest.TestCase):
                 completion_func=completion,
                 sleep_func=lambda _: None,
                 env_path=env_path,
+                global_ledger_path=Path(tmp) / "global_ledger.jsonl",
             )
             extractor = ExtractorAgent(llm_client=client)
             source = Source(
