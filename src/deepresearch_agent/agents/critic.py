@@ -30,7 +30,7 @@ class CriticAgent:
         metric_table_path: Path | None = None,
         numeric_relative_tolerance: float = 0.01,
     ) -> None:
-        self.today = today or date(2026, 5, 24)
+        self.today = today or date.today()
         self.max_source_age_days = max_source_age_days
         self.numeric_relative_tolerance = numeric_relative_tolerance
         self.metric_table = self._load_metric_table(

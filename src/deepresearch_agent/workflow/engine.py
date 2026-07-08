@@ -76,7 +76,7 @@ class DeepResearchEngine:
         self.planner = PlannerAgent(llm_client=self.llm_client, settings=self.settings)
         self.researcher = ResearcherAgent(self.search_tool, self.structured_data_provider)
         self.extractor = ExtractorAgent(llm_client=self.llm_client)
-        self.critic = CriticAgent()
+        self.critic = CriticAgent(today=self.settings.as_of)
         self.reporter = ReporterAgent(llm_client=self.llm_client)
         self.evaluator = Evaluator()
         self._checkpoint_conn = sqlite3.connect(self.settings.storage_path, check_same_thread=False)
