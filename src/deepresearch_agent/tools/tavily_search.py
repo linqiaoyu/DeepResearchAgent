@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import time
 from collections.abc import Mapping
 from datetime import date, datetime
+from pathlib import Path
 from typing import Any, Protocol
 
 import httpx
 
 from deepresearch_agent.schemas import Source
+from deepresearch_agent.settings import project_root
 
 TAVILY_SEARCH_ENDPOINT = "https://api.tavily.com/search"
 UNKNOWN_PUBLISHED_AT = date(1970, 1, 1)
@@ -46,6 +50,12 @@ class TavilySearchProvider:
         client: SyncHttpClient | None = None,
         endpoint: str = TAVILY_SEARCH_ENDPOINT,
         timeout_seconds: float = 10.0,
+        max_retries: int = 2,
+        search_depth: str = "basic",
+        include_raw_content: bool = False,
+        ledger_path: Path | None = None,
+        credit_warning_threshold: int = 450,
+        sleep_func: Any = time.sleep,
     ) -> None:
         api_key = api_key.strip()
         if not api_key:
@@ -54,37 +64,81 @@ class TavilySearchProvider:
         self.client = client or httpx.Client()
         self.endpoint = endpoint
         self.timeout_seconds = timeout_seconds
+        self.max_retries = max_retries
+        self.search_depth = search_depth
+        self.include_raw_content = include_raw_content
+        self.ledger_path = ledger_path or project_root() / "data" / "runtime" / "search_ledger.jsonl"
+        self.credit_warning_threshold = credit_warning_threshold
+        self._sleep = sleep_func
+        self.ledger_path.parent.mkdir(parents=True, exist_ok=True)
 
     def search(self, query: str, top_k: int = 3, source_type: str | None = None) -> list[Source]:
         if top_k <= 0:
             return []
 
         max_results = min(top_k, 20)
+        credit_estimate = 2 if self.search_depth == "advanced" else 1
+        if self._ledger_credit_total() + credit_estimate >= self.credit_warning_threshold:
+            self._record_ledger(
+                query=query,
+                search_depth=self.search_depth,
+                credit_estimate=credit_estimate,
+                latency_seconds=0.0,
+                success=False,
+                result_count=0,
+                error_type="credit_warning_threshold",
+            )
+            raise TavilySearchError("Tavily credit warning threshold reached; stop live recording.")
+
         payload: dict[str, Any] = {
             "query": query,
             "max_results": max_results,
-            "search_depth": "basic",
+            "search_depth": self.search_depth,
             "topic": self._topic_for_source_type(source_type),
             "include_answer": False,
-            "include_raw_content": False,
+            "include_raw_content": self.include_raw_content,
             "include_images": False,
         }
-        try:
-            response = self.client.post(
-                self.endpoint,
-                headers={"Authorization": f"Bearer {self.api_key}"},
-                json=payload,
-                timeout=self.timeout_seconds,
-            )
-            response.raise_for_status()
-            response_payload = response.json()
-        except Exception as exc:
-            raise self._search_error(query, exc) from exc
+        last_error: Exception | None = None
+        started = time.perf_counter()
+        for attempt in range(self.max_retries + 1):
+            try:
+                response = self.client.post(
+                    self.endpoint,
+                    headers={"Authorization": f"Bearer {self.api_key}"},
+                    json=payload,
+                    timeout=self.timeout_seconds,
+                )
+                response.raise_for_status()
+                response_payload = response.json()
+                if not isinstance(response_payload, Mapping):
+                    raise ValueError("response JSON must be an object")
+                sources = self._sources_from_response(response_payload, source_type)[:top_k]
+                self._record_ledger(
+                    query=query,
+                    search_depth=self.search_depth,
+                    credit_estimate=credit_estimate,
+                    latency_seconds=time.perf_counter() - started,
+                    success=True,
+                    result_count=len(sources),
+                    error_type=None,
+                )
+                return sources
+            except Exception as exc:
+                last_error = exc
+                if attempt < self.max_retries:
+                    self._sleep(2**attempt)
 
-        if not isinstance(response_payload, Mapping):
-            raise self._search_error(query, ValueError("response JSON must be an object"))
-
-        return self._sources_from_response(response_payload, source_type)[:top_k]
+        self._record_ledger(
+            query=query,
+            search_depth=self.search_depth,
+            credit_estimate=credit_estimate,
+            latency_seconds=time.perf_counter() - started,
+            success=False,
+            result_count=0,
+            error_type=type(last_error).__name__ if last_error else "unknown",
+        )
+        raise self._search_error(query, last_error or RuntimeError("unknown error")) from last_error
 
     def _search_error(self, query: str, error: Exception) -> TavilySearchError:
         query_label = query.strip()[:80] or "<empty>"
@@ -165,3 +219,41 @@ class TavilySearchProvider:
 
     def _text(self, value: Any) -> str:
         return value.strip() if isinstance(value, str) else ""
+
+    def _record_ledger(
+        self,
+        *,
+        query: str,
+        search_depth: str,
+        credit_estimate: int,
+        latency_seconds: float,
+        success: bool,
+        result_count: int,
+        error_type: str | None,
+    ) -> None:
+        row = {
+            "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "provider": "tavily",
+            "query": query,
+            "search_depth": search_depth,
+            "credit_estimate": credit_estimate,
+            "latency_seconds": round(latency_seconds, 3),
+            "success": success,
+            "result_count": result_count,
+            "error_type": error_type,
+        }
+        with self.ledger_path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+    def _ledger_credit_total(self) -> int:
+        if not self.ledger_path.exists():
+            return 0
+        total = 0
+        for line in self.ledger_path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            try:
+                total += int(json.loads(line).get("credit_estimate", 0) or 0)
+            except (json.JSONDecodeError, ValueError):
+                continue
+        return total

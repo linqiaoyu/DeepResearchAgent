@@ -48,6 +48,7 @@ class ResearchGraphState(TypedDict, total=False):
     research_records: Annotated[dict[str, list[dict[str, Any]]], _merge_dicts]
     research_structured_evidence: Annotated[dict[str, list[dict[str, Any]]], _merge_dicts]
     research_structured_stats: Annotated[dict[str, dict[str, int]], _merge_dicts]
+    research_symbol_resolutions: Annotated[dict[str, list[dict[str, Any]]], _merge_dicts]
     retry_sources: Annotated[dict[str, list[dict[str, Any]]], _merge_dicts]
     retry_records: Annotated[dict[str, dict[str, Any]], _merge_dicts]
 
@@ -75,7 +76,7 @@ class DeepResearchEngine:
         self.planner = PlannerAgent(llm_client=self.llm_client, settings=self.settings)
         self.researcher = ResearcherAgent(self.search_tool, self.structured_data_provider)
         self.extractor = ExtractorAgent(llm_client=self.llm_client)
-        self.critic = CriticAgent()
+        self.critic = CriticAgent(today=self.settings.as_of)
         self.reporter = ReporterAgent(llm_client=self.llm_client)
         self.evaluator = Evaluator()
         self._checkpoint_conn = sqlite3.connect(self.settings.storage_path, check_same_thread=False)
@@ -247,6 +248,9 @@ class DeepResearchEngine:
             "research_structured_stats": {
                 sub_question.id: dict(self.researcher.last_structured_stats)
             },
+            "research_symbol_resolutions": {
+                sub_question.id: list(self.researcher.last_symbol_resolutions)
+            },
         }
 
     def _research_join_node(self, graph_state: ResearchGraphState) -> ResearchGraphState:
@@ -259,6 +263,7 @@ class DeepResearchEngine:
         record_batches = graph_state.get("research_records", {})
         structured_batches = graph_state.get("research_structured_evidence", {})
         structured_stats_batches = graph_state.get("research_structured_stats", {})
+        symbol_resolution_batches = graph_state.get("research_symbol_resolutions", {})
         evidence_by_id = {item.id: item for item in state.evidence_store}
 
         for sub_question in state.plan.sub_questions:
@@ -284,6 +289,7 @@ class DeepResearchEngine:
         state.evidence_store = self._sorted_evidence(list(evidence_by_id.values()))
         state.metadata["sources_by_subquestion"] = sources_by_subquestion
         state.metadata["structured_data_stats"] = structured_stats_batches
+        state.metadata["symbol_resolutions"] = symbol_resolution_batches
         state.pending_tasks = []
         for item in state.todo_list:
             item.status = "done"

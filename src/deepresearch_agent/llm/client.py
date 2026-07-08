@@ -61,9 +61,11 @@ class LLMClient:
         completion_func: Any | None = None,
         sleep_func: Any = time.sleep,
         env_path: Path | None = None,
+        global_ledger_path: Path | None = None,
     ) -> None:
         self._litellm = None if completion_func is not None else self._load_litellm()
         self.ledger_path = ledger_path
+        self.global_ledger_path = global_ledger_path or project_root() / "data" / "runtime" / "llm_ledger.jsonl"
         self.budget_cny = budget_cny
         self.config = config
         self._completion = completion_func or self._litellm.completion
@@ -71,6 +73,7 @@ class LLMClient:
         self._env_path = env_path or project_root() / ".env"
         self._run_costs_cny: dict[str, float] = {}
         self.ledger_path.parent.mkdir(parents=True, exist_ok=True)
+        self.global_ledger_path.parent.mkdir(parents=True, exist_ok=True)
 
     def start_run(self, run_id: str) -> None:
         self._run_costs_cny[run_id] = self._ledger_cost_for_run(run_id)
@@ -85,10 +88,10 @@ class LLMClient:
     ) -> LLMCallResult:
         if run_id not in self._run_costs_cny:
             self.start_run(run_id)
-        api_key = self._deepseek_key()
         role_config = self.config.roles.get(role)
         if not role_config:
             raise LLMClientError(f"No LLM model configured for role={role}")
+        api_key = self._api_key(role_config.api_key_env)
 
         prompt_messages = list(messages)
         if schema:
@@ -188,12 +191,14 @@ class LLMClient:
 
     def ledger_total_cny(self) -> float:
         total = 0.0
-        for row in self._iter_ledger_rows():
+        for row in self._iter_ledger_rows(self.global_ledger_path):
             total += float(row.get("cost_cny", 0.0))
         return total
 
     def aggregate_run(self, run_id: str) -> dict[str, Any]:
-        rows = [row for row in self._iter_ledger_rows() if row.get("run_id") == run_id]
+        rows = [
+            row for row in self._iter_ledger_rows(self.global_ledger_path) if row.get("run_id") == run_id
+        ]
         by_role: dict[str, dict[str, float | int]] = {}
         for row in rows:
             role = str(row.get("role", "unknown"))
@@ -283,17 +288,17 @@ class LLMClient:
                     self._sleep(2**attempt)
         raise LLMClientError(f"LLM call failed for role={role}: {last_error}")
 
-    def _deepseek_key(self) -> str:
+    def _api_key(self, key_name: str) -> str:
         if not self._env_path.exists():
-            raise LLMClientError("Missing .env with DEEPSEEK_API_KEY.")
+            raise LLMClientError(f"Missing .env with {key_name}.")
         for line in self._env_path.read_text(encoding="utf-8").splitlines():
             stripped = line.strip()
             if not stripped or stripped.startswith("#") or "=" not in stripped:
                 continue
             key, value = stripped.split("=", 1)
-            if key.strip() == "DEEPSEEK_API_KEY" and value.strip():
+            if key.strip() == key_name and value.strip():
                 return value.strip().strip('"').strip("'")
-        raise LLMClientError("Missing DEEPSEEK_API_KEY in .env.")
+        raise LLMClientError(f"Missing {key_name} in .env.")
 
     def _parse_schema(self, content: str, schema: type[SchemaT]) -> SchemaT:
         try:
@@ -392,17 +397,27 @@ class LLMClient:
             "parse_error": bool(parse_error),
             "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         }
-        with self.ledger_path.open("a", encoding="utf-8") as file:
-            file.write(json.dumps(row, ensure_ascii=False) + "\n")
+        encoded = json.dumps(row, ensure_ascii=False) + "\n"
+        ledger_paths = [self.global_ledger_path]
+        if self.ledger_path.resolve() != self.global_ledger_path.resolve():
+            ledger_paths.append(self.ledger_path)
+        for path in ledger_paths:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with path.open("a", encoding="utf-8") as file:
+                file.write(encoded)
 
     def _ledger_cost_for_run(self, run_id: str) -> float:
-        return sum(float(row.get("cost_cny", 0.0)) for row in self._iter_ledger_rows() if row.get("run_id") == run_id)
+        return sum(
+            float(row.get("cost_cny", 0.0))
+            for row in self._iter_ledger_rows(self.global_ledger_path)
+            if row.get("run_id") == run_id
+        )
 
-    def _iter_ledger_rows(self) -> list[dict[str, Any]]:
-        if not self.ledger_path.exists():
+    def _iter_ledger_rows(self, path: Path) -> list[dict[str, Any]]:
+        if not path.exists():
             return []
         rows: list[dict[str, Any]] = []
-        for line in self.ledger_path.read_text(encoding="utf-8").splitlines():
+        for line in path.read_text(encoding="utf-8").splitlines():
             if not line.strip():
                 continue
             try:

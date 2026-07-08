@@ -106,6 +106,23 @@ class StructuredDataProviderTests(unittest.TestCase):
         self.assertEqual(evidence[0].numeric_fields.period, "20241231")
         self.assertEqual(researcher.last_structured_stats["records"], 1)
 
+    def test_symbol_resolve_records_metadata_not_evidence(self) -> None:
+        researcher = ResearcherAgent(structured_data_provider=FixtureStructuredDataProvider())
+        sub_question = SubQuestion(
+            id="resolve",
+            question="宁德时代代码是什么？",
+            search_queries=[],
+            structured_data_requests=[
+                StructuredDataRequest(capability="symbol_resolve", company_name="宁德时代")
+            ],
+        )
+
+        evidence = researcher.structured_evidence("run-1", sub_question)
+
+        self.assertEqual(evidence, [])
+        self.assertEqual(researcher.last_structured_stats["records"], 0)
+        self.assertEqual(researcher.last_symbol_resolutions[0]["symbol"], "300750")
+
 
 if __name__ == "__main__":
     unittest.main()

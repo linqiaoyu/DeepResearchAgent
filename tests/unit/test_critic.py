@@ -180,6 +180,28 @@ class CriticTests(unittest.TestCase):
 
         self.assertIn("temporal_conflict", {issue.issue_type for issue in report.issues})
 
+    def test_as_of_controls_outdated_source_boundary(self) -> None:
+        state = ResearchState(topic="as of test")
+        state.evidence_store = [
+            Evidence(
+                id="timed",
+                research_id=state.research_id,
+                sub_question_id="finance",
+                claim="A time-sensitive data claim.",
+                claim_type="data",
+                source_url="https://example.com/timed",
+                source_title="Timed",
+                source_pub_date=date(2025, 6, 1),
+                extract_text="A time-sensitive data claim.",
+            )
+        ]
+
+        at_boundary = CriticAgent(today=date(2026, 6, 1)).critique(state)
+        past_boundary = CriticAgent(today=date(2026, 6, 2)).critique(state)
+
+        self.assertNotIn("outdated_source", {issue.issue_type for issue in at_boundary.issues})
+        self.assertIn("outdated_source", {issue.issue_type for issue in past_boundary.issues})
+
     def test_retry_task_sub_question_id_is_optional_for_old_checkpoints(self) -> None:
         task = RetryTask(reason="legacy retry", query="legacy query")
 

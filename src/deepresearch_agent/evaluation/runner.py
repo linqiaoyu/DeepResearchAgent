@@ -25,7 +25,7 @@ OPERATIONAL_METRICS = (
 class EvaluationHarness:
     def __init__(self, engine: DeepResearchEngine | None = None, eval_path: Path | None = None) -> None:
         self.engine = engine or DeepResearchEngine()
-        self.eval_path = eval_path or project_root() / "data" / "eval_set.jsonl"
+        self.eval_path = eval_path or project_root() / "data" / "eval_set_deterministic.jsonl"
 
     def load_cases(self, limit: int | None = None) -> list[dict]:
         cases: list[dict] = []

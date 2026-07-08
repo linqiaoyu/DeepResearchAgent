@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 from typing import Literal
 
@@ -17,6 +18,7 @@ class Settings:
     llm_ledger_path: Path = Path("data/runtime/llm_ledger.jsonl")
     llm_max_sub_questions: int = 3
     llm_max_queries_per_sub_question: int = 3
+    as_of: date | None = None
 
 
 def project_root() -> Path:
@@ -34,6 +36,8 @@ def load_settings() -> Settings:
     mode = os.getenv("DEEPRESEARCH_MODE", "deterministic")
     if mode not in {"deterministic", "llm"}:
         mode = "deterministic"
+    as_of_value = os.getenv("DEEPRESEARCH_AS_OF", "").strip()
+    as_of = date.fromisoformat(as_of_value) if as_of_value else None
     return Settings(
         storage_path=storage,
         max_critic_iter=int(os.getenv("DEEPRESEARCH_MAX_CRITIC_ITER", "3")),
@@ -45,4 +49,5 @@ def load_settings() -> Settings:
         llm_max_queries_per_sub_question=int(
             os.getenv("DEEPRESEARCH_LLM_MAX_QUERIES_PER_SUB_QUESTION", "3")
         ),
+        as_of=as_of,
     )

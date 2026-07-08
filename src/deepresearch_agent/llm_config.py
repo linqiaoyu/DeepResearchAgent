@@ -8,6 +8,7 @@ class RoleModelConfig:
     model: str
     fallback_model: str | None = None
     api_base: str | None = None
+    api_key_env: str = "DEEPSEEK_API_KEY"
 
 
 @dataclass(frozen=True)
@@ -40,6 +41,16 @@ class LLMConfig:
                 model="openai/deepseek-v4-flash",
                 fallback_model="openai/deepseek-chat",
                 api_base="https://api.deepseek.com",
+            ),
+            "judge": RoleModelConfig(
+                model="openai/qwen-plus",
+                api_base="https://dashscope.aliyuncs.com/compatible-mode/v1",
+                api_key_env="DASHSCOPE_API_KEY",
+            ),
+            "citation_support": RoleModelConfig(
+                model="openai/qwen-plus",
+                api_base="https://dashscope.aliyuncs.com/compatible-mode/v1",
+                api_key_env="DASHSCOPE_API_KEY",
             ),
         }
     )

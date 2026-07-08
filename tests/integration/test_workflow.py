@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from datetime import date
 from pathlib import Path
 
 from deepresearch_agent.settings import Settings
@@ -24,7 +25,13 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("[^1]", state.final_report or "")
         self.assertGreaterEqual(state.evaluation.citation_accuracy, 0.9)
 
+    def test_engine_passes_as_of_to_critic(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            settings = Settings(storage_path=Path(tmp) / "research.db", as_of=date(2025, 12, 31))
+            engine = DeepResearchEngine(settings=settings, store=SQLiteStore(settings.storage_path))
+
+        self.assertEqual(engine.critic.today, date(2025, 12, 31))
+
 
 if __name__ == "__main__":
     unittest.main()
-

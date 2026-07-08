@@ -1,0 +1,21 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"贵州茅台 2024年年报 券商点评\",\"source_type\":\"news\",\"top_k\":1}",
+    "query": "贵州茅台 2024年年报 券商点评",
+    "top_k": 1,
+    "source_type": "news",
+    "as_of": "2026-07-08",
+    "recorded_at": "2026-07-08T20:09:31Z"
+  },
+  "sources": [
+    {
+      "id": "tavily-c07f9fdb4752",
+      "title": "Taiwan Semiconductor Manufacturing Company Ltd. $TSM Shares Sold by R Squared Ltd - MarketBeat",
+      "url": "https://www.marketbeat.com/instant-alerts/filing-taiwan-semiconductor-manufacturing-company-ltd-tsm-shares-sold-by-r-squared-ltd-2026-07-07/",
+      "source_type": "news",
+      "published_at": "1970-01-01",
+      "content": "[Skip to main content](#main)\n\nQQQ   712.86   (-1.38%)\n\nAAPL   313.61   (+0.30%)\n\nMSFT   394.10   (+1.90%)\n\nMETA   607.64   (+1.22%)\n\nGOOGL   369.52   (+0.83%)\n\nAMZN   245.69   (+0.63%)\n\nNVDA   197.43   (+0.96%)\n\nTSLA   408.45   (-2.70%)\n\nAMD   522.54   (-5.35%)\n\nNIO   4.92   (-2.09%)\n\nBABA   97.86   (-0.05%)\n\nMU   924.77   (-6.09%)\n\nF   13.67   (-1.13%)\n\nT   20.91   (+1.58%)\n\nGE   368.00   (-2.82%)\n\nPLTR   137.06   (+3.41%)\n\nPYPL   45.61   (+1.16%)\n\nCGC   0.97   (+1.35%)\n\nPFE   24.04   (+1.33%)\n\nINTC   110.99   (-9.17%)\n\nDIS   97.32   (-0.09%)\n\n[→ PH: Do THESE 4 things to your bank account now …](https://www.marketbeat.com/scripts/redirect.aspx?TriggeredCampaignID=18872&UserID=0&Placement=NativeDisplay&Source=NativeDisplay&interstitial=1)  (From Weiss Ratings) (Ad)",
+      "credibility": 0.039
+    }
+  ]
+}

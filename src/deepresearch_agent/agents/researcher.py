@@ -16,6 +16,7 @@ class ResearcherAgent:
         self.search_tool = search_tool or FixtureSearchTool()
         self.structured_data_provider = structured_data_provider or FixtureStructuredDataProvider()
         self.last_structured_stats: dict[str, int] = {}
+        self.last_symbol_resolutions: list[dict[str, object]] = []
 
     def research(self, sub_question: SubQuestion, top_k_per_query: int = 1) -> tuple[list[Source], list[SearchRecord]]:
         seen: dict[str, Source] = {}
@@ -50,6 +51,7 @@ class ResearcherAgent:
             "symbol_resolution_failures": 0,
             "execution_failures": 0,
         }
+        self.last_symbol_resolutions = []
         for request in sub_question.structured_data_requests:
             try:
                 records: list[StructuredDataRecord] = []
@@ -58,19 +60,8 @@ class ResearcherAgent:
                     if symbol is None:
                         stats["symbol_resolution_failures"] += 1
                         continue
-                    records = [
-                        StructuredDataRecord(
-                            entity=symbol.entity,
-                            symbol=symbol.symbol,
-                            metric_name="证券代码",
-                            period=symbol.as_of.isoformat(),
-                            dimension=symbol.exchange,
-                            value=float(symbol.symbol),
-                            unit="代码",
-                            data_source=symbol.data_source,
-                            as_of=symbol.as_of,
-                        )
-                    ]
+                    self.last_symbol_resolutions.append(symbol.model_dump(mode="json"))
+                    continue
                 elif request.capability == "financial_indicators":
                     symbol = request.symbol or self._resolve_symbol(request.company_name)
                     if not symbol:
