@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"京东方a 2024年一季度 归母净利润\",\"source_type\":\"official\",\"top_k\":1}",
+    "query": "京东方A 2024年一季度 归母净利润",
+    "top_k": 1,
+    "source_type": "official",
+    "as_of": "2026-07-08",
+    "recorded_at": "2026-07-08T22:00:03Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-e3a25606c280",
+      "title": "京东方A：一季度归母净利润9.84亿元，同比增长297.8% | 界面新闻",
+      "url": "https://m.jiemian.com/article/11122908.html",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "![](https://img.jiemian.com/101/original/20220712/165760844893303600_a300x300.png)\n![界面新闻](https://res.jiemian.com/assets/wap/common/img/logo@3x.png)\n![京东方A：一季度归母净利润9.84亿元，同比增长297.8%](https://img.jiemian.com/101/original/20220712/165760844893303600_a640x364.png)\n\n# 京东方A：一季度归母净利润9.84亿元，同比增长297.8%\n\n![](https://img.jiemian.com/101/original/20200630/159350104126796300.jpg)\n\n京东方A4月29日发布2024年一季度报告，一季度实现营业收入458.88亿元，同比增长20.84%；归属于上市公司股东的净利润9.84亿元，同比增长297.80%；基本每股收益0.026元。\n\n广告等商务合作，[请点击这里](https://m.jiemian.com/about/business.html)\n\n[未经正式授权严禁转载本文，侵权必究。](https://m.jiemian.com/about/copyright.html)\n\n![界面新闻](https://res.jiemian.com/assets/wap/article/img/new-slogan.gif)\n\n## 相关推荐\n\n### 热门评论\n\n## 热门推荐\n\n![界面新闻](https://res.jiemian.com/assets/wap/common/img/jm-new-logo.png)",
+      "credibility": 0.968
+    }
+  ]
+}

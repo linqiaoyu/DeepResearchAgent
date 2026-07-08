@@ -1,0 +1,32 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"长江电力 归母净利润 2024年\",\"source_type\":\"official\",\"top_k\":2}",
+    "query": "长江电力 归母净利润 2024年",
+    "top_k": 2,
+    "source_type": "official",
+    "as_of": "2026-07-08",
+    "recorded_at": "2026-07-08T21:49:20Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-a4b1b077df9c",
+      "title": "长江电力：2024年归母净利润325.2亿元，同比增长19.36%",
+      "url": "https://wap.eastmoney.com/a/202501203302249326.html",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "长江电力1月20日公告，2024年营收841.98亿元，同比增长7.75%；归母净利润325.20亿元，同比增长19.36%；基本每股收益1.3291元。业绩增长主要系2024年公司六座",
+      "credibility": 0.968
+    },
+    {
+      "id": "tavily-47ebd3956751",
+      "title": "【财报】长江电力2024年年报及2025年一季报简评",
+      "url": "https://xueqiu.com/5241127869/334894777",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "2024年，长江电力全年归母净利润325亿元，较2023年增长了19%。2025年第一季度，长江电力归母净利润继续上升超30%。这里面，既有不同年份间气候变化的",
+      "credibility": 0.962
+    }
+  ]
+}

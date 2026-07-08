@@ -1,0 +1,32 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"华虹公司 产能利用率 2024年全年\",\"source_type\":\"official\",\"top_k\":2}",
+    "query": "华虹公司 产能利用率 2024年全年",
+    "top_k": 2,
+    "source_type": "official",
+    "as_of": "2026-07-08",
+    "recorded_at": "2026-07-08T22:28:45Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-5dc51f501063",
+      "title": "华虹公司2024年整体业绩逐季提升 产能利用率近满产_新浪财经_新浪网",
+      "url": "https://finance.sina.com.cn/stock/relnews/cn/2025-03-28/doc-inerexcp7165184.shtml",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "![](//beacon.sina.com.cn/a.gif?noScript)\n![](//i.sso.sina.com.cn/images/login/thumb_default.png)\n![](//n.sinaimg.cn/finance/c30320b4/20190809/cj_sinafinance_app2x.png)\n\n# 华虹公司2024年整体业绩逐季提升 产能利用率近满产\n\n![](//n.sinaimg.cn/spider20250328/248/w688h360/20250328/c703-042278035477605e83cfc3e328da3f18.png)\n![](//n.sinaimg.cn/spider20250328/248/w688h360/20250328/a5d0-ecefc790184b4612af555d07f5862e90.png)\n\n上证报中国证券网讯（记者李兴彩）3月28日，[华虹公司](https://finance.sina.com.cn/realstock/company/sh688347/nc.shtml)发布2024年年度报告，公司全年实现营收143.88亿元，归母净利润3.81亿元。\n\n财报显示，得益于产业复苏和无锡项目投产，2024年，华虹公司产能、营收均逐季增加，全年产能利用率达到99.5%，同比提升5.2个百分点；付运晶圆（折合8英寸）454.5万片，同比提升10.8%，其中第一至第四季度付运晶圆分别为102.6万片、110.6万片、120万片、121.3万片。\n\n![](//n.sinaimg.cn/spider20250328/213/w561h452/20250328/d699-4757f9a0619fd18d039d49627f31dae4.png)\n\n华虹公司在“致股东的信”中表示，2024年，全球半导体产业在经历需求疲软与库存高压的行业寒冬后迎来温和复苏。尽管面临除AI及消费电子领域以外市场需求的不确定性，以及成熟制程芯片供给量增加导致的激烈竞争和价格压力，华虹公司凭借在特色工艺方面持续深耕累积的技术优势和客户支持，在复杂多变的环境中仍保持了稳健发展，平均产能利用率接近满产，整体业绩表现逐季提升。\n\n公司披露，2024年第四季度，位于无锡的第二条12英寸产线——华虹制造项目顺利投产，标志着公司“8英寸+12英寸”战略实现了又一个重要的里程碑。预计从2025年起，该项目将带动收入稳步提升，为未来业绩增长奠定坚实基础。\n\n根据规划，华虹制造项目（华虹九厂）于2023年6月举行开工仪式，规划月产能8.3万片，聚焦先进特色IC和高端功率器件，主要应用于车规级工艺制造平台。\n\n截至2024年底，华虹公司累计获得国内外授权专利达到4644件。这背后，是华虹公司连续增长的研发投入和澎湃创新动能。公司披露，其2022年、2023年、2024年研发投入金额分别为12.81亿元、14.79亿元、16.43亿元。其中2024年研发费用率达到11.42%，同比增加2.31个百分点。\n\n![](//n.sinaimg.cn/spider20250328/451/w613h638/20250328/cdd1-996b487ecdb96196f886962d41ffdfdf.png)\n\n展望2025年的产业趋势，华虹公司表示，2025年，全球半导体市场预计延续温和回升态势，AI应用渗透将加速手机、计算机、汽车智驾等领域的升级需求，工业与新能源等领域需求也有望逐步复苏。\n\n具体到公司2025年的经营计划，华虹公司表示，研发方面，将依托华虹制造项目新产线，大力推进关键技术平台的提升，补齐短板，重点突破，丰富产品组合，提高公司的核心竞争力；产能方面，2025年，华虹制造项目进入爬坡阶段，将逐渐释放更多产能，与华虹无锡项目（华虹七厂） 形成柔性产能配置，更好满足客户需求；营运方面，公司将进一步提升营运效率，加强成本控制；市场方面，围绕推动国内生态链建设，做大做强国内客户群体。\n\n在3月26日开幕的SEMICON China 2025上，华虹公司总裁兼执行董事白鹏博士应邀出席并发表主题演讲。他表示，全球半导体产业将继续保持增长，摩尔定律依然是半导体技术发展的核心指导原则；然而随着技术节点进步，晶体管成本降低优势逐渐减弱，如何继续提升晶体管的性能和能效，成为半导体行业面临的挑战。\n\n应对挑战，白鹏认为，需要在晶体管结构和材料上进行创新，同时，探索新的集成方案和系统级优化，异构集成将成为新的技术趋势。\n\n![](//n.sinaimg.cn/finance/cece9e13/20240627/655959900_20240627.png)\n![](//n.sinaimg.cn/finance/260/w880h180/20190724/5154-iafwsqp6192795.jpg)\n![](//n.sinaimg.cn/finance/transform/260/w880h180/20180326/zi4T-fysqfnf9377213.png)\n\n## VIP课程推荐\n\n## [新浪直播](http://live.finance.sina.com.cn/)\n\n![@@title@@]()\n\n### @@title@@\n\n## APP专享直播\n\n## 热门推荐\n\n![新浪财经公众号](//n.sinaimg.cn/finance/72219a70/20180103/_thumb_23666.png \"新浪财经公众号\")\n\n24小时滚动播报最新的财经资讯和视频，更多粉丝福利扫描二维码关注（sinafinance）\n\n## [股市直播](http://live.finance.sina.com.cn)\n\n## [7X24小时](http://live.sina.com.cn/zt/f/v/finance/globalnews1)\n\n![杨伟民](https://n.sinaimg.cn/zhuanlan/transform/170/w85h85/20221230/f01f-b20f33f6583ea1f69aefeedf1b86f051.jpg)\n![董明珠还能为格力奋战多久？|《至少一个小时》](//n.sinaimg.cn/finance/transform/525/w300h225/20201030/ecb0-kcaeqzy3436531.jpg)\n![梁建章：中国人口衰竭的速度前所未有](//n.sinaimg.cn/finance/transform/525/w300h225/20201030/75b9-kcaeqzy3438114.jpg)\n![冷友斌回应网友质疑：说价格高 对飞鹤不公平！](//n.sinaimg.cn/finance/transform/525/w300h225/20201030/c485-kcaeqzy3442305.jpg)\n![王中军：我喜欢比较“江湖”一点的人](//n.sinaimg.cn/finance/transform/525/w300h225/20201030/a563-kcaeqzy3444360.jpg)\n\n[新浪财经意见反馈留言板](http://news.sina.com.cn/feedback/post.html)\n\n[新浪简介](http://ir.sina.com.cn/index.shtml)|[广告服务](http://emarketing.sina.com.cn/)|[About Sina](http://corp.sina.com.cn/eng/)\n  \n[联系我们](http://www.sina.com.cn/contactus.html)|[招聘信息](http://corp.sina.com.cn/chn/sina_job.html)|[通行证注册](https://login.sina.com.cn/signup/signup.php)\n  \n[产品答疑](http://help.sina.com.cn/)|[网站律师](http://www.sina.com.cn/intro/lawfirm.shtml)|[SINA English](http://english.sina.com)\n\nCopyright © 1996-2025 SINA Corporation\n\nAll Rights Reserved 新浪公司 [版权所有](http://www.sina.com.cn/intro/copyright.shtml)",
+      "credibility": 0.99
+    },
+    {
+      "id": "tavily-e53acb8e574a",
+      "title": "华虹半导体的产品线、产能、制程情况",
+      "url": "https://zhuanlan.zhihu.com/p/1907792087702810977",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "2024年全年华虹半导体收入20亿美元，毛利率10.2%，亏损1.4亿美元，产能利用率99.5%，处于满产状态，好于2023年全年。 2024年四季度来自12英寸晶圆的收入为",
+      "credibility": 0.978
+    }
+  ]
+}

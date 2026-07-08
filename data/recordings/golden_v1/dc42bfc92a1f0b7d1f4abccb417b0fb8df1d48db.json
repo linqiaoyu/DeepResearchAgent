@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"茅台 五粮液 2024 净利率 比较\",\"source_type\":\"paper\",\"top_k\":1}",
+    "query": "茅台 五粮液 2024 净利率 比较",
+    "top_k": 1,
+    "source_type": "paper",
+    "as_of": "2026-07-08",
+    "recorded_at": "2026-07-08T22:17:58Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-1cb509bd30ee",
+      "title": "茅五双雄深度解析 - 新浪财经",
+      "url": "https://cj.sina.cn/articles/view/7857141524/1d452771401901p5fs?froms=ggmp&vt=4",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "五粮液同样表现出色，2024年整体毛利率为77.05%，其中五粮液酒毛利率87.02%，其他酒产品毛利率60.81%。公司净利率为37.22%，虽低于茅台，但仍远高于白酒行业",
+      "credibility": 0.913
+    }
+  ]
+}

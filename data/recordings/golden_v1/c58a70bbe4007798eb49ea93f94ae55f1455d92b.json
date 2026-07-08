@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"五粮液 2024 归母净利润\",\"source_type\":\"official\",\"top_k\":1}",
+    "query": "五粮液 2024 归母净利润",
+    "top_k": 1,
+    "source_type": "official",
+    "as_of": "2026-07-08",
+    "recorded_at": "2026-07-08T22:17:57Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-52a6f63cbeea",
+      "title": "五粮液：2024年年度报告网页链接",
+      "url": "https://xueqiu.com/0/333138849",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "$五粮液(SZ000858)$ 2024年营收891.75亿元（同比+7.1%），归母净利318.53亿元（同+比5.4%），毛利率77.1%（+1.3pct），归母净利率35.7%（-0.6pct）。 24Q4低于预期营",
+      "credibility": 0.957
+    }
+  ]
+}

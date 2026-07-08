@@ -1,0 +1,32 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"中芯国际 折合8英寸标准逻辑月产能 2024年底\",\"source_type\":\"official\",\"top_k\":2}",
+    "query": "中芯国际 折合8英寸标准逻辑月产能 2024年底",
+    "top_k": 2,
+    "source_type": "official",
+    "as_of": "2026-07-08",
+    "recorded_at": "2026-07-08T22:28:46Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-29d5c35c112a",
+      "title": "中芯国际首破80亿美元，最新财报出炉",
+      "url": "https://zhuanlan.zhihu.com/p/23080975647",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "2024 年公司资本开支为73.3 亿美元，年底折合8 英寸标准逻辑月产能为94.8 万片，出货总量超过800 万片，年平均产能利用率为85.6%。 关于2025 年第一",
+      "credibility": 0.935
+    },
+    {
+      "id": "tavily-b214df7765a2",
+      "title": "中芯国际2024年营收同比增长28% 共销售晶圆802万片",
+      "url": "https://stcn.com/article/detail/1616900.html",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "[![](https://static-web.stcn.com/static/images/zqsb.png)](/)   [![](https://static-web.stcn.com/static/images/stcn.png)](/)\n\n* [首页](/)\n* [快讯](/article/list/kx.html)\n* [新闻](/article/list/xw.html) \n\n  [要闻](/article/list/yw.html)   [金融](/article/list/finance.html)   [评论](/article/list/comment.html)   [产经](/article/list/cj.html)   [创投](/chuangtou/index.html)   [滚动](/article/list/gd.html)\n* [视频](/live/media.html)\n* [投资](/article/list/investment.html) \n\n  [A股](/article/list/a_stock.html)   [公司](/article/list/company.html)   [新股](/article/xg.html)   [基金](/article/list/fund.html)   [港美股](/article/gmg.html)\n* [数据](/article/data.html)\n* [信披+](/xinpi/index.html)\n* [专题](/article/list/zt.html)\n* [地方](/article/list/area.html?subType=%E7%B2%A4) \n\n  [京](/article/list/area.html?subType=京)   [津](/article/list/area.html?subType=津)   [冀](/article/list/area.html?subType=冀)   [晋](/article/list/area.html?subType=晋)   [蒙](/article/list/area.html?subType=蒙)   [辽](/article/list/area.html?subType=辽)   [吉](/article/list/area.html?subType=吉)   [黑](/article/list/area.html?subType=黑)   [沪](/article/list/area.html?subType=沪)   [苏](/article/list/area.html?subType=苏)   [浙](/article/list/area.html?subType=浙)   [皖](/article/list/area.html?subType=皖)   [闽](/article/list/area.html?subType=闽)   [赣](/article/list/area.html?subType=赣)   [鲁](/article/list/area.html?subType=鲁)   [豫](/article/list/area.html?subType=豫)   [鄂](/article/list/area.html?subType=鄂)   [湘](/article/list/area.html?subType=湘)   [粤](/article/list/area.html?subType=粤)   [桂](/article/list/area.html?subType=桂)   [琼](/article/list/area.html?subType=琼)   [渝](/article/list/area.html?subType=渝)   [川](/article/list/area.html?subType=川)   [黔](/article/list/area.html?subType=黔)   [滇](/article/list/area.html?subType=滇)   [藏](/article/list/area.html?subType=藏)   [陕](/article/list/area.html?subType=陕)   [甘](/article/list/area.html?subType=甘)   [青](/article/list/area.html?subType=青)   [宁](/article/list/area.html?subType=宁)   [新](/article/list/area.html?subType=新)   [鹏](/article/list/area.html?subType=鹏)\n* [服务](/article/service.html) \n\n  [人民鉴真](/article/cq.html)   [投关服务](/xinpi/index.html)   [投教服务](/edu/index.html)   [其他服务](/article/service.html#qtfw)\n\n公众号\n\n![](https://static-web.stcn.com/static/images/qr.png)  [电子报](https://epaper.stcn.com/)   [客户端](/public/download.html) \n\n![](https://static-web.stcn.com/static/images/default-avatar.png)\n\n您当前的位置：[证券时报](/) > [公司](/article/list/company.html) > [正文](javascript:;)\n\n中芯国际2024年营收同比增长28% 共销售晶圆802万片\n\n来源：证券时报网作者：王一鸣2025-03-27 20:49\n\n字号\n\n超大\n\n大\n\n标准\n\n小\n\n点赞\n\n分享\n\n3月27日晚间，国内晶圆代工领先企业中芯国际发布2024年年度报告。报告期内，公司实现营业收入人民币577.96亿元，同比增长27.7%；同期实现归属于上市公司股东的净利润36.99亿元，同比下滑23.3%；毛利率18%，产能利用率85.6%；截至2024年末，公司总资产约人民币3534亿元，折合8英寸标准逻辑月产能达到94.8万片。\n\n据披露，公司营业收入主要是由于2024年晶圆销售数量增加和产品组合变动所致。销售晶圆的数量（折合8英寸标准逻辑）由2023年的586.7万片增加36.7%至2024年的802.1万片。平均售价（销售晶圆收入除以销售晶圆总数）2024年为人民币6639元，2023年为人民币6967元。\n\n谈及经营情况，中芯国际阐述，2024年，半导体市场整体呈现复苏态势，智能手机、个人电脑、消费电子等终端产品市场逐步企稳回升，智能穿戴、物联网设备等新兴市场需求持续扩张，成为推动半导体行业增长的重要力量。中长期看，全球半导体行业兼具周期性和成长性，短期的供需失衡不会影响行业的中长期向好。伴随着家居、教育、科研、商业、工业、交通、医疗等各领域应用设备智能化需求的上升趋势，市场活力逐渐恢复，终端市场规模获得持续改善，产业链主要环节逐级回暖。\n\n报告期内，公司在管理提升、队伍建设、降本增效、技术攻关、市场拓展等方面积极采取创新举措，全力以赴落实全年各项任务。在整体处于行业上行周期的大环境下，公司把握日益增长的在地制造需求，通过快速识别客户市场份额的增量品类，积极主动地响应客户需求变化，及时调整产品组合，聚焦技术创新和工艺优化，为客户提供全方位的平台技术支持与设计服务。公司在夯实短期经营基础的同时，放眼中长期产能布局，坚定把握半导体长期增长的大趋势。\n\n从公司的集成电路晶圆制造代工收入分析，以应用分类，2024年智能手机、个人电脑、消费电子、互联与可穿戴、工业与汽车业务占代工收入比例分别为27.8%、16.6%、37.8%、10.0%和7.8%。2023年上述对应业务占收入比例分别为26.7%、26.7%、25.0%、12.1%和9.5%。\n\n以地区分类，2024年中国区、美国区和欧亚区业务占主营业务收入比例分别为84.6%、12.4%和3.0%；2023年相应占比分别为80.1%、16.4%和3.5%。\n\n从地域发展情况看，中芯国际认为，为加强半导体供应链便利，近地产业链建设已成为全球各国各地区发展半导体产业的大趋势。从中国内地的产业建设情况来看，现有集成电路产业在芯片设计、晶圆代工产能规模、工艺技术能力、封装技术等领域与实际市场需求仍不匹配。我国作为全球最大的半导体消费市场之一，现阶段的半导体需求仍一定程度地依赖进口，国内产业链的上下游企业与全球头部企业在技术与规模化程度上仍存在较大差距，面临诸多挑战。随着新一轮科技创新举措的推动，行业具备较大的成长空间。\n\n对于经营计划，中芯国际阐述，2025年初，根据与产业链伙伴的广泛沟通，大家普遍认为2025年除了人工智能继续高速成长外，市场各应用领域需求持平或温和增长。外部环境给2025年下半年带来一定的不确定性，同业竞争也愈演愈烈。\n\n“在外部环境无重大变化的前提下，公司给出的2025年指引为：销售收入增幅高于可比同业的平均值，资本开支与上一年持平。”中芯国际表示。\n\n责任编辑： 臧晓松\n\n声明：证券时报力求信息真实、准确，文章提及内容仅供参考，不构成实质性投资建议，据此操作风险自担\n\n下载\"证券时报\"官方APP，或关注官方微信公众号，即可随时了解股市动态，洞察政策信息，把握财富机会。\n\n用户评论\n\n登录后可以发言\n\n网友评论仅供其表达个人看法，并不表明证券时报立场\n\n发表评论\n\n暂无评论\n\n时报热榜\n\n换一换\n\n [![](https://static-web.stcn.com/static/images/aside-app-download.png?x-oss-process=image/resize,m_fill,h_324,w_350)](/public/download.html) \n\n热点视频\n\n换一换\n\n[关于我们](/public/about-us.html)|[服务条例](/public/service.html)|[联系我们](/public/contact.html)|[版权声明](/public/copyright.html)|[网站地图](/public/site-map.html)|[线索提交](/public/clue.html)\n\n备案号：[粤ICP备09109218号-7](https://beian.miit.gov.cn/#/Integrated/index)|[增值电信业务经营许可证：粤B2-20080118](/public/license_2.html)|[互联网新闻信息服务许可证10120170066](/public/license_1.html)|[粤公网安备44030002008846号](https://beian.mps.gov.cn/#/query/webSearch?code=44030002008846)\n\n违法和不良信息举报电话：0755-83514034 邮箱：[bwb@stcn.com](mailto:0) ![](https://static-web.stcn.com/static/images/wxb-icon.png)[中央网信办违法和不良信息举报中心](https://www.12377.cn/)|[证券时报网举报中心](/user-center/tip-off.html)\n\nCopyright © 2008-2026 Shenzhen Securities Times Co., Ltd. All Rights Reserved",
+      "credibility": 0.929
+    }
+  ]
+}

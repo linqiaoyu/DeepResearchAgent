@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"贵州茅台 2024 归母净利润\",\"source_type\":\"official\",\"top_k\":1}",
+    "query": "贵州茅台 2024 归母净利润",
+    "top_k": 1,
+    "source_type": "official",
+    "as_of": "2026-07-08",
+    "recorded_at": "2026-07-08T22:17:55Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-902a24273334",
+      "title": "贵州茅台2024年一季报简评",
+      "url": "https://xueqiu.com/7889199778/287980624",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "4月26日，贵州茅台发布了2024年一季报，Q1实现营业总收入457.7亿元，同比增长18.11%；实现归母净利润240.65亿元，同比增长15.73%。净利润增长低于营收增长。",
+      "credibility": 0.957
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"格力电器 2024年年报 营业收入\",\"source_type\":\"company_report\",\"top_k\":1}",
+    "query": "格力电器 2024年年报 营业收入",
+    "top_k": 1,
+    "source_type": "company_report",
+    "as_of": "2026-07-08",
+    "recorded_at": "2026-07-08T22:23:47Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-42bc239ea6d6",
+      "title": "格力电器2024 年年报点评 - 雪球",
+      "url": "https://xueqiu.com/1929796343/334224373",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "2024年格力核心财务运营数据。 收入1892亿，同比下降7.26%。净利润321.8亿，同比增长10.91%。账面价值1374亿，roe25.42%，",
+      "credibility": 0.954
+    }
+  ]
+}

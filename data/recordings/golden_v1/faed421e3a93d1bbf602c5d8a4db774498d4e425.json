@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"招商银行 2024 年度 业绩 营业收入 增长\",\"source_type\":\"official\",\"top_k\":1}",
+    "query": "招商银行 2024 年度 业绩 营业收入 增长",
+    "top_k": 1,
+    "source_type": "official",
+    "as_of": "2026-07-08",
+    "recorded_at": "2026-07-08T22:13:03Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-9d42b740febf",
+      "title": "招商银行：2024年净利润同比增长1.22% 拟10派20元",
+      "url": "https://stcn.com/article/detail/1608864.html",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "![](https://static-web.stcn.com/static/images/zqsb.png)\n![](https://static-web.stcn.com/static/images/stcn.png)\n![](https://static-web.stcn.com/static/images/qr.png)\n![](https://static-web.stcn.com/static/images/default-avatar.png)\n\n人民财讯3月25日电，招商银行(600036)3月25日晚间发布年报，2024年实现营业收入3374.88亿元，同比下降0.48%；归属于本行股东的净利润1483.91亿元，同比增长1.22%；基本每股收益5.66元。截至报告期末，不良贷款余额656.10亿元，较上年末增加40.31亿元；不良贷款率0.95%，与上年末持平；拨备覆盖率411.98%，较上年末下降25.72个百分点；贷款拨备率3.92%，较上年末下降0.22个百分点。拟每股现金分红2元（含税）。\n\n![](https://static-web.stcn.com/static/images/aside-app-download.png?x-oss-process=image/resize,m_fill,h_324,w_350)\n![](https://static-web.stcn.com/static/images/wxb-icon.png)",
+      "credibility": 0.945
+    }
+  ]
+}

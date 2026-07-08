@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"隆基绿能 晶科能源 2024 组件出货 对比\",\"source_type\":\"industry_report\",\"top_k\":1}",
+    "query": "隆基绿能 晶科能源 2024 组件出货 对比",
+    "top_k": 1,
+    "source_type": "industry_report",
+    "as_of": "2026-07-08",
+    "recorded_at": "2026-07-08T22:32:10Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-ff1146eb604b",
+      "title": "2025年光伏组件十大龙头出货量预期",
+      "url": "https://cj.sina.cn/articles/view/5145329956/132af812400101l9cw",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "隆基绿能2024年组件出货82.32GW，2025年第一季度出货量16.93GW，2025年全年组件出货量预期在80-90GW，相对也偏向谨慎。综合来看，晶科、隆基可能是对2025年H2",
+      "credibility": 0.91
+    }
+  ]
+}
