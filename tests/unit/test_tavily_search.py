@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import unittest
+import tempfile
 from datetime import date
+from pathlib import Path
 from typing import Any
 
 from deepresearch_agent.tools.tavily_search import (
@@ -90,9 +92,15 @@ class TavilySearchProviderTests(unittest.TestCase):
             }
         )
         client = FakeHttpClient(response)
-        provider = TavilySearchProvider("test-key", client=client, timeout_seconds=3.5)
+        with tempfile.TemporaryDirectory() as tmp:
+            provider = TavilySearchProvider(
+                "test-key",
+                client=client,
+                timeout_seconds=3.5,
+                ledger_path=Path(tmp) / "search_ledger.jsonl",
+            )
 
-        sources = provider.search("AI wealth management", top_k=2, source_type="news")
+            sources = provider.search("AI wealth management", top_k=2, source_type="news")
 
         self.assertEqual(len(sources), 1)
         self.assertEqual(len(client.calls), 1)
@@ -133,9 +141,14 @@ class TavilySearchProviderTests(unittest.TestCase):
             }
         )
         client = FakeHttpClient(response)
-        provider = TavilySearchProvider("test-key", client=client)
+        with tempfile.TemporaryDirectory() as tmp:
+            provider = TavilySearchProvider(
+                "test-key",
+                client=client,
+                ledger_path=Path(tmp) / "search_ledger.jsonl",
+            )
 
-        sources = provider.search("missing fields", top_k=5, source_type="official")
+            sources = provider.search("missing fields", top_k=5, source_type="official")
 
         self.assertEqual(len(sources), 1)
         self.assertEqual(sources[0].title, "https://example.com/missing-fields")
@@ -146,31 +159,51 @@ class TavilySearchProviderTests(unittest.TestCase):
 
     def test_empty_top_k_does_not_call_client(self) -> None:
         client = FakeHttpClient(FakeResponse({"results": []}))
-        provider = TavilySearchProvider("test-key", client=client)
+        with tempfile.TemporaryDirectory() as tmp:
+            provider = TavilySearchProvider(
+                "test-key",
+                client=client,
+                ledger_path=Path(tmp) / "search_ledger.jsonl",
+            )
 
-        self.assertEqual(provider.search("skip", top_k=0), [])
+            self.assertEqual(provider.search("skip", top_k=0), [])
         self.assertEqual(client.calls, [])
 
     def test_http_errors_degrade_to_empty_result(self) -> None:
         client = FakeHttpClient(FakeResponse({"results": []}, should_raise=True))
-        provider = TavilySearchProvider("test-key", client=client)
+        with tempfile.TemporaryDirectory() as tmp:
+            provider = TavilySearchProvider(
+                "test-key",
+                client=client,
+                ledger_path=Path(tmp) / "search_ledger.jsonl",
+            )
 
-        self.assertEqual(provider.search("fail"), [])
-        self.assertEqual(provider.last_error_type, "RuntimeError")
+            self.assertEqual(provider.search("fail"), [])
+            self.assertEqual(provider.last_error_type, "RuntimeError")
 
     def test_client_errors_degrade_to_empty_result(self) -> None:
         client = RaisingHttpClient(TimeoutError("timed out"))
-        provider = TavilySearchProvider("test-key", client=client)
+        with tempfile.TemporaryDirectory() as tmp:
+            provider = TavilySearchProvider(
+                "test-key",
+                client=client,
+                ledger_path=Path(tmp) / "search_ledger.jsonl",
+            )
 
-        self.assertEqual(provider.search("slow query"), [])
-        self.assertEqual(provider.last_error_type, "TimeoutError")
+            self.assertEqual(provider.search("slow query"), [])
+            self.assertEqual(provider.last_error_type, "TimeoutError")
 
     def test_non_object_json_degrades_to_empty_result(self) -> None:
         client = FakeHttpClient(FakeResponse(["not", "an", "object"]))
-        provider = TavilySearchProvider("test-key", client=client)
+        with tempfile.TemporaryDirectory() as tmp:
+            provider = TavilySearchProvider(
+                "test-key",
+                client=client,
+                ledger_path=Path(tmp) / "search_ledger.jsonl",
+            )
 
-        self.assertEqual(provider.search("bad json"), [])
-        self.assertEqual(provider.last_error_type, "ValueError")
+            self.assertEqual(provider.search("bad json"), [])
+            self.assertEqual(provider.last_error_type, "ValueError")
 
     def test_raw_content_is_capped_per_source(self) -> None:
         response = FakeResponse(
@@ -185,9 +218,15 @@ class TavilySearchProviderTests(unittest.TestCase):
             }
         )
         client = FakeHttpClient(response)
-        provider = TavilySearchProvider("test-key", client=client, raw_content_char_limit=3)
+        with tempfile.TemporaryDirectory() as tmp:
+            provider = TavilySearchProvider(
+                "test-key",
+                client=client,
+                raw_content_char_limit=3,
+                ledger_path=Path(tmp) / "search_ledger.jsonl",
+            )
 
-        sources = provider.search("large source", top_k=1)
+            sources = provider.search("large source", top_k=1)
 
         self.assertEqual(sources[0].content, "abc")
 

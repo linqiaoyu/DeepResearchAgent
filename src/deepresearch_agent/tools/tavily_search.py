@@ -73,6 +73,7 @@ class TavilySearchProvider:
         self.credit_warning_threshold = credit_warning_threshold
         self._sleep = sleep_func
         self.last_error_type: str | None = None
+        self.search_counts_toward_budget = True
         self.ledger_path.parent.mkdir(parents=True, exist_ok=True)
 
     def search(self, query: str, top_k: int = 3, source_type: str | None = None) -> list[Source]:

@@ -8,6 +8,8 @@ from deepresearch_agent.schemas import Source, SubQuestion
 
 
 class CountingSearchProvider:
+    search_counts_toward_budget = True
+
     def __init__(self) -> None:
         self.queries: list[str] = []
 
@@ -54,6 +56,21 @@ class ResearcherSearchBudgetTests(unittest.TestCase):
         self.assertEqual(first_record.query, "[search_limit_exceeded] q2")
         self.assertEqual(len(second_sources), 1)
         self.assertEqual(second_record.query, "q3")
+
+    def test_non_live_provider_does_not_consume_search_budget(self) -> None:
+        provider = CountingSearchProvider()
+        provider.search_counts_toward_budget = False
+        researcher = ResearcherAgent(search_tool=provider, max_searches_per_run=1)
+        sub_question = SubQuestion(
+            id="sq1",
+            question="question",
+            search_queries=["q1", "q2", "q3"],
+        )
+
+        _sources, records = researcher.research(sub_question)
+
+        self.assertEqual(provider.queries, ["q1", "q2", "q3"])
+        self.assertTrue(all(not record.query.startswith("[search_limit_exceeded]") for record in records))
 
 
 if __name__ == "__main__":
