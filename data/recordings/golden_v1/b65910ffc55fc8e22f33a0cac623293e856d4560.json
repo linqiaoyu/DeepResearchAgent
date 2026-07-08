@@ -5,7 +5,9 @@
     "top_k": 2,
     "source_type": "official",
     "as_of": "2026-07-08",
-    "recorded_at": "2026-07-08T20:10:49Z"
+    "recorded_at": "2026-07-08T20:36:51Z",
+    "status": "complete",
+    "error_type": null
   },
   "sources": [
     {

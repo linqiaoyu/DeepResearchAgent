@@ -162,7 +162,7 @@ class CriticAgent:
             if item.claim_type in {"data", "projection"}:
                 task = RetryTask(
                     reason="Time-sensitive claim uses an old source",
-                    query=f"{item.claim[:80]} latest 2026",
+                    query=self._verification_query(item),
                     source_type="official",
                     sub_question_id=item.sub_question_id,
                     severity="medium",
@@ -223,6 +223,36 @@ class CriticAgent:
             if "risk" in lowered or "governance" in lowered:
                 return sub_question.id
         return state.plan.sub_questions[-1].id
+
+    def _verification_query(self, item: Evidence) -> str:
+        fields = item.numeric_fields
+        if fields and (fields.entity or fields.metric_name or fields.period):
+            parts = [
+                fields.entity or "",
+                fields.metric_name or "",
+                fields.period or "",
+            ]
+        else:
+            parts = [
+                self._compact_source_title(item.source_title),
+                self._numeric_topic_key(item.claim) or self._claim_keywords(item.claim),
+            ]
+        compacted = [part.strip() for part in parts if part and part.strip()]
+        if not compacted:
+            compacted = ["official source verification"]
+        return " ".join(" ".join(compacted).split()[:10])
+
+    def _compact_source_title(self, title: str) -> str:
+        words = title.strip().split()
+        if words:
+            return " ".join(words[:4])
+        return title.strip()[:24]
+
+    def _claim_keywords(self, claim: str) -> str:
+        cleaned = re.sub(r"\d+(?:\.\d+)?", " ", claim)
+        cleaned = re.sub(r"[^\w\u4e00-\u9fff]+", " ", cleaned)
+        tokens = cleaned.split()
+        return " ".join(tokens[:6]) or "official source verification"
 
     def _numeric_topic_key(self, claim: str) -> str | None:
         lowered = claim.lower()

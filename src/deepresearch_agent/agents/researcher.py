@@ -12,22 +12,31 @@ class ResearcherAgent:
         self,
         search_tool: SearchProvider | None = None,
         structured_data_provider: StructuredDataProvider | None = None,
+        max_searches_per_run: int = 20,
     ) -> None:
         self.search_tool = search_tool or FixtureSearchTool()
         self.structured_data_provider = structured_data_provider or FixtureStructuredDataProvider()
+        self.max_searches_per_run = max_searches_per_run
+        self.searches_used = 0
         self.last_structured_stats: dict[str, int] = {}
         self.last_symbol_resolutions: list[dict[str, object]] = []
+
+    def reset_search_budget(self) -> None:
+        self.searches_used = 0
 
     def research(self, sub_question: SubQuestion, top_k_per_query: int = 1) -> tuple[list[Source], list[SearchRecord]]:
         seen: dict[str, Source] = {}
         records: list[SearchRecord] = []
         for idx, query in enumerate(sub_question.search_queries):
+            if not self._consume_search_budget():
+                records.append(SearchRecord(query=f"[search_limit_exceeded] {query}", source_ids=[]))
+                break
             started = time.perf_counter()
             source_type = None
             if sub_question.expected_source_types:
                 source_type = sub_question.expected_source_types[idx % len(sub_question.expected_source_types)]
             results = self.search_tool.search(query, top_k=top_k_per_query, source_type=source_type)
-            if not results and source_type:
+            if not results and source_type and self._consume_search_budget():
                 results = self.search_tool.search(query, top_k=top_k_per_query)
             latency_ms = int((time.perf_counter() - started) * 1000)
             records.append(SearchRecord(query=query, source_ids=[source.id for source in results], latency_ms=latency_ms))
@@ -36,9 +45,11 @@ class ResearcherAgent:
         return list(seen.values()), records
 
     def retry(self, query: str, source_type: str | None = None, top_k: int = 2) -> tuple[list[Source], SearchRecord]:
+        if not self._consume_search_budget():
+            return [], SearchRecord(query=f"[search_limit_exceeded] {query}", source_ids=[])
         started = time.perf_counter()
         results = self.search_tool.search(query, top_k=top_k, source_type=source_type)
-        if not results and source_type:
+        if not results and source_type and self._consume_search_budget():
             results = self.search_tool.search(query, top_k=top_k)
         latency_ms = int((time.perf_counter() - started) * 1000)
         return results, SearchRecord(query=query, source_ids=[source.id for source in results], latency_ms=latency_ms)
@@ -101,6 +112,14 @@ class ResearcherAgent:
             return None
         symbol = self.structured_data_provider.symbol_resolve(company_name)
         return symbol.symbol if symbol else None
+
+    def _consume_search_budget(self) -> bool:
+        if self.max_searches_per_run <= 0:
+            return False
+        if self.searches_used >= self.max_searches_per_run:
+            return False
+        self.searches_used += 1
+        return True
 
     def _evidence_from_record(
         self,

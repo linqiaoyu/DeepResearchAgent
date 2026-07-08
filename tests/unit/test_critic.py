@@ -202,6 +202,31 @@ class CriticTests(unittest.TestCase):
         self.assertNotIn("outdated_source", {issue.issue_type for issue in at_boundary.issues})
         self.assertIn("outdated_source", {issue.issue_type for issue in past_boundary.issues})
 
+    def test_outdated_source_retry_uses_structured_verification_query(self) -> None:
+        state = ResearchState(topic="retry query test")
+        state.evidence_store = [
+            self._data_evidence(
+                state,
+                "old-data",
+                "宁德时代 2024 年累计归母净利润为 507.45 亿元，这是一条很长的原始 claim，不应直接作为检索查询。",
+                "https://old.example",
+                50_745_000_000,
+            ).model_copy(update={"source_pub_date": date(2024, 1, 1)})
+        ]
+
+        report = CriticAgent(today=date(2026, 7, 8)).critique(state)
+        outdated_tasks = [
+            issue.suggested_retry_task
+            for issue in report.issues
+            if issue.issue_type == "outdated_source" and issue.suggested_retry_task
+        ]
+
+        self.assertEqual(len(outdated_tasks), 1)
+        self.assertEqual(outdated_tasks[0].query, "宁德时代 归母净利润 20241231")
+        self.assertNotIn("latest", outdated_tasks[0].query)
+        self.assertNotIn("2026", outdated_tasks[0].query)
+        self.assertLessEqual(len(outdated_tasks[0].query.split()), 10)
+
     def test_retry_task_sub_question_id_is_optional_for_old_checkpoints(self) -> None:
         task = RetryTask(reason="legacy retry", query="legacy query")
 
