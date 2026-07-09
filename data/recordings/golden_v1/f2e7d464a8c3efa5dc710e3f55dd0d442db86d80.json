@@ -1,0 +1,32 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"宁德时代 动力电池市占率 2026年一季度\",\"source_type\":\"official\",\"top_k\":2}",
+    "query": "宁德时代 动力电池市占率 2026年一季度",
+    "top_k": 2,
+    "source_type": "official",
+    "as_of": "2026-07-09",
+    "recorded_at": "2026-07-09T01:28:07Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-9a1cf67be762",
+      "title": "2026年一季度动力电池市场份额：宁德时代重回50%",
+      "url": "https://post.smzdm.com/p/axkwg6qw",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "乘联分会发布的2026年一季度动力电池市场份额数据显示，宁德时代以50.1%的市场占比重回50%关口，这是其自2021年以来时隔5年再度占据半壁江山。与此同时，比亚迪作为第二大",
+      "credibility": 0.959
+    },
+    {
+      "id": "tavily-bdc177fa7e51",
+      "title": "宁德时代重返巅峰！2026一季度市占率破50%",
+      "url": "https://finance.sina.com.cn/roll/2026-03-30/doc-inhsueey6451187.shtml",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "![](//beacon.sina.com.cn/a.gif?noScript)\n![](//i.sso.sina.com.cn/images/login/thumb_default.png)\n![](//n.sinaimg.cn/finance/c30320b4/20190809/cj_sinafinance_app2x.png)\n\n# 宁德时代重返巅峰！2026一季度市占率破50%，比亚迪创五年新低？\n\n（来源：储能世界）\n\n[宁德时代](https://finance.sina.com.cn/realstock/company/sz300750/nc.shtml)重回半壁江山\n\n乘联会（CPCA）最新数据显示，2026年第一季度国内动力电池市场迎来了历史性时刻。宁德时代的生产份额强势拉升至50.1%。\n\n![储能世界资料图片](//n.sinaimg.cn/spider20260330/0/w1024h576/20260330/8d46-ef4afc6b80d2eba3d6afaf2480d082d3.jpg)\n\n这是该行业巨头五年来首次在国内市场突破50%的占有率大关。这一数据标志着宁德时代在激烈的市场竞争中再次稳固了绝对的霸主地位。\n\n电池装机量与产能现状\n\n今年前两个月，[中国动力](https://finance.sina.com.cn/realstock/company/sh600482/nc.shtml)电池总产量达到了310 GWh，同比增长高达22%。然而，产量与装机量的比例却降至19%的历史低点。\n\n受新能源补贴逐步退坡影响，短期内市场需求出现下滑。2月份新能源汽车电池装机量约为37万辆，其中纯电和插混车型均出现明显下降。\n\n|  |  |  |  |  |\n| --- | --- | --- | --- | --- |\n| Place | Battery Maker | Total share | NMC share | LFP share |\n| 1 | CATL | 50.1% | 81.6% | 41% |\n| 2 | BYD | 17.% | 0% | 22.6% |\n| 3 | Gotion | 6.1% | 0.4% | 7.7% |\n| 4 | CALB | 5.3% | 5.4% | 5.3% |\n| 5 | EVE | 5% | 1.1% | 6.1% |\n| 6 | Rept Battero | 3.1% | 0% | 4% |\n| 7 | Sunwoda | 2.8% | 0.2% | 3.6% |\n| 8 | SVOLT | 2.5% | 7.6% | 1.1% |\n| 9 | Zenergy | 2.1% | 0.3% | 2.6% |\n| 10 | Zhejiang Yaoning | 1.8% | 0% | 2.4% |\n\nPlace\n\nBattery Maker\n\nTotal share\n\nNMC share\n\nLFP share\n\n1\n\nCATL\n\n50.1%\n\n81.6%\n\n41%\n\n2\n\nBYD\n\n17.%\n\n0%\n\n22.6%\n\n3\n\nGotion\n\n6.1%\n\n0.4%\n\n7.7%\n\n4\n\nCALB\n\n5.3%\n\n5.4%\n\n5.3%\n\n5\n\nEVE\n\n5%\n\n1.1%\n\n6.1%\n\n6\n\nRept Battero\n\n3.1%\n\n0%\n\n4%\n\n7\n\nSunwoda\n\n2.8%\n\n0.2%\n\n3.6%\n\n8\n\nSVOLT\n\n2.5%\n\n7.6%\n\n1.1%\n\n9\n\nZenergy\n\n2.1%\n\n0.3%\n\n2.6%\n\n10\n\nZhejiang Yaoning\n\n1.8%\n\n0%\n\n2.4%\n\nBattery makers share in Q1 2026\n\n三元锂与磷酸铁锂格局分化\n\n在细分领域，宁德时代在三元锂（NMC）电池市场的份额飙升至惊人的81.6%。同时，其磷酸铁锂（LFP）电池份额也达到了四年来最高的41%。\n\n反观[比亚迪](https://finance.sina.com.cn/realstock/company/sz002594/nc.shtml)，第一季度整体市占率下滑至17.5%，同比下降4.3%，创下五年来的最低记录。不过，比亚迪在全面转型后，在磷酸铁锂细分市场仍保持着22.6%的份额。\n\n电池能量密度与技术趋势\n\n从技术指标来看，高能量密度电池正加速普及。一季度装车电池中，能量密度超过160 Wh/kg的比例达到了15%。\n\n与此同时，低于125 Wh/kg的低端电池份额已彻底清零。目前纯电动汽车的主流电池能量密度稳定在125至160 Wh/kg之间。\n\n固态与钠离子电池的未来博弈\n\n展望未来，动力电池的竞争焦点正逐步向钠离子和固态电池等新领域转移。新技术路线将成为[国轩高科](https://finance.sina.com.cn/realstock/company/sz002074/nc.shtml)、中创新航等各大厂商角逐的新战场。\n\n中国计划于2026年7月发布固态电池标准，以规范行业发展。而比亚迪也已蓄势待发，准备在2027年开始量产钠离子电池。\n\n免责声明\n\n免责声明：我们登载此文出于传递更多信息之目的，并不意味着赞同其观点或证实其描述，其原创性以及文中陈述文字和内容未经证实，对本文以及其中全部或者部分内容、文字的真实性、完整性、及时性本站不作任何保证或承诺，文章内容仅供参考！如果您不希望我们转载您的作品，请和我们联系处理，谢谢！\n\n![](//n.sinaimg.cn/finance/cece9e13/20240627/655959900_20240627.png)\n![](//n.sinaimg.cn/finance/transform/260/w880h180/20180326/zi4T-fysqfnf9377213.png)\n\n## VIP课程推荐\n\n## APP专享直播\n\n## 热门推荐\n\n![新浪财经公众号](//n.sinaimg.cn/finance/72219a70/20180103/_thumb_23666.png \"新浪财经公众号\")\n\n24小时滚动播报最新的财经资讯和视频，更多粉丝福利扫描二维码关注（sinafinance）\n\n## [股市直播](http://live.finance.sina.com.cn)\n\n## [7X24小时](http://live.sina.com.cn/zt/f/v/finance/globalnews1)\n\n![杨伟民](https://n.sinaimg.cn/zhuanlan/transform/170/w85h85/20221230/f01f-b20f33f6583ea1f69aefeedf1b86f051.jpg)\n![董明珠还能为格力奋战多久？|《至少一个小时》](//n.sinaimg.cn/finance/transform/525/w300h225/20201030/ecb0-kcaeqzy3436531.jpg)\n![梁建章：中国人口衰竭的速度前所未有](//n.sinaimg.cn/finance/transform/525/w300h225/20201030/75b9-kcaeqzy3438114.jpg)\n![冷友斌回应网友质疑：说价格高 对飞鹤不公平！](//n.sinaimg.cn/finance/transform/525/w300h225/20201030/c485-kcaeqzy3442305.jpg)\n![王中军：我喜欢比较“江湖”一点的人](//n.sinaimg.cn/finance/transform/525/w300h225/20201030/a563-kcaeqzy3444360.jpg)\n\n[新浪财经意见反馈留言板](http://news.sina.com.cn/feedback/post.html)\n\n[新浪简介](http://ir.sina.com.cn/index.shtml)|[广告服务](http://emarketing.sina.com.cn/)|[About Sina](http://corp.sina.com.cn/eng/)\n  \n[联系我们](http://www.sina.com.cn/contactus.html)|[招聘信息](http://corp.sina.com.cn/chn/sina_job.html)|[通行证注册](https://login.sina.com.cn/signup/signup.php)\n  \n[产品答疑](http://help.sina.com.cn/)|[网站律师](http://www.sina.com.cn/intro/lawfirm.shtml)|[SINA English](http://english.sina.com)\n\nCopyright © 1996-2026 SINA Corporation\n\nAll Rights Reserved 新浪公司 [版权所有](http://www.sina.com.cn/intro/copyright.shtml)",
+      "credibility": 0.958
+    }
+  ]
+}

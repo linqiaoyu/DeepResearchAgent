@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"贵州茅台 2024 总经理 变更\",\"source_type\":\"company_report\",\"top_k\":1}",
+    "query": "贵州茅台 2024 总经理 变更",
+    "top_k": 1,
+    "source_type": "company_report",
+    "as_of": "2026-07-09",
+    "recorded_at": "2026-07-09T02:59:54Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-0f61de3028b9",
+      "title": "贵州茅台，重要高管变更",
+      "url": "https://www.sino-manager.com/detail/17813",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "资料显示，余思明曾在中铁建工集团工作，于2015年正式加入茅台；2024年8月起，任贵州茅台集团财务有限公司党支部书记、董事长；2025年1月2日，贵州金融监管局",
+      "credibility": 0.855
+    }
+  ]
+}

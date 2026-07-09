@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"浪潮信息 2024 ai服务器 业绩 订单 出货\",\"source_type\":\"official\",\"top_k\":1}",
+    "query": "浪潮信息 2024 AI服务器 业绩 订单 出货",
+    "top_k": 1,
+    "source_type": "official",
+    "as_of": "2026-07-09",
+    "recorded_at": "2026-07-09T02:34:17Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-5f1d15c32d60",
+      "title": "浪潮信息2024年年报解读：AI服务器助推营收破千亿",
+      "url": "https://zhuanlan.zhihu.com/p/1893375916320724809",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "预计2026 年，AI 服务器出货量为237 万台，占比达15%。2022-2026 年AI 服务器出货量复合增长率高达29%。 因此，浪潮信息作为国内外AI服务器龙头企业，未来增长",
+      "credibility": 0.908
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"比亚迪 动力电池市场份额 2026年一季度\",\"source_type\":\"official\",\"top_k\":2}",
+    "query": "比亚迪 动力电池市场份额 2026年一季度",
+    "top_k": 2,
+    "source_type": "official",
+    "as_of": "2026-07-09",
+    "recorded_at": "2026-07-09T01:28:07Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-7971566f0953",
+      "title": "2026年一季度动力电池市场份额：宁德时代重回50% - 什么值得买",
+      "url": "https://post.smzdm.com/p/axkwg6qw",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "比亚迪在2023年达到26.9%的峰值后持续回落，2026年一季度份额为17.5%，较2025年的21.8%下降了4.3个百分点，显示出市场压力。",
+      "credibility": 0.951
+    },
+    {
+      "id": "tavily-13b8315c08ba",
+      "title": "2026年動力電池份額出爐：寧德時代時隔5年重回50%之上 — Berita TradingView",
+      "url": "https://id.tradingview.com/news/gelonghui:699338398acdf:0",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "![]()\n![Gelonghui](https://s3.tradingview.com/news/logo/gelonghui--theme-light.svg)\n![Gelonghui](https://s3.tradingview.com/news/logo/gelonghui--theme-dark.svg)\n\n# 2026年動力電池份額出爐：寧德時代時隔5年重回50%之上\n\n![](https://s3-symbol-logo.tradingview.com/contemporary-amper.svg)\n\n格隆匯3月25日｜據快科技，乘聯分會2026年一季度動力電池市場份額數據正式出爐，寧德時代以50.1%的佔比重回50%關口，這是其自2021年以來時隔5年再度站上半壁江山。從歷年數據來看，寧德時代份額在2021年達到峯值51.9%後逐步回落，2023年降至43.5%，2024年小幅回升至45.3%，2025年為43.8%，2026年一季度強勢反彈至50.1%。比亞迪作為第二大廠商，2026年一季度份額為17.5%，較2025年的21.8%有所下滑，延續了自2023年26.9%峯值後的回落趨勢。\n\n二線廠商格局分化明顯，國軒高科以6.1%的份額位居第三，較2020年的5.2%穩步提升；中創新航份額為5.3%，較2023年峯值8.5%有所回調；億緯鋰能、瑞浦蘭鈞、欣旺達等企業份額均在2%-5%區間，呈現穩步增長態勢。海外廠商方面，LG新能源份額進一步降至0.7%，SK等企業基本退出國內主流市場，國產動力電池主導地位持續強化。整體來看，2026年一季度動力電池市場集中度再度提升，寧德時代一家獨大格局重現。\n\n## [Chart 300750](/chart/?symbol=SZSE%3A300750)\n\n## [Berita terbaru](/news-flow)\n\n## [Berita lainnya dari Gelonghui](/news-flow/?provider=gelonghui)\n\nPilih data pasar yang disediakan oleh [ICE Data Services](https://www.theice.com/market-data). Pilih data referensi yang disediakan oleh FactSet. Hak Cipta © 2026 FactSet Research Systems Inc.Hak Cipta © 2026, American Bankers Association. Basis Data CUSIP disediakan oleh FactSet Research Systems Inc. Seluruh hak cipta dilindungi undang-undang. Dokumen SEC dan dokumen lainnya disediakan oleh [Quartr](https://www.quartr.com).© 2026 TradingView, Inc.\n\n![Look First](https://static.tradingview.com/static/bundles/look-first-dark.8cb7462c584f600e8f31.svg)\n![Look First](https://static.tradingview.com/static/bundles/look-first-light.74b5bba06f657157cdb4.svg)",
+      "credibility": 0.945
+    }
+  ]
+}

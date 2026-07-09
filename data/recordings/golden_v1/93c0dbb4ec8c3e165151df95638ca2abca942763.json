@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"资产收益率下行 净息差 原因 2024\",\"source_type\":\"industry_report\",\"top_k\":1}",
+    "query": "资产收益率下行 净息差 原因 2024",
+    "top_k": 1,
+    "source_type": "industry_report",
+    "as_of": "2026-07-09",
+    "recorded_at": "2026-07-09T02:22:17Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-a609c0effdc8",
+      "title": "六大行2024年总资产近200万亿净息差降幅收窄",
+      "url": "https://www.xiaohuakepu.com/xinxizixun/liu-da-xing-2024-nian-zong-zi-chan-jin-200-wan-yi-jing-xi",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "其中，六大行利息净收入整体降1.58%，其中三增（农行、交行、邮储）三降（工行、建行、中行）；由于市场风险偏好尚未明显回温、费率调整影响仍在，手续费及佣金净",
+      "credibility": 0.804
+    }
+  ]
+}

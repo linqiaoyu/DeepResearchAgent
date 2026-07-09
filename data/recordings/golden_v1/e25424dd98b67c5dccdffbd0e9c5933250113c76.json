@@ -1,0 +1,32 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"比亚迪 动力电池市占率 2026年一季度\",\"source_type\":\"official\",\"top_k\":2}",
+    "query": "比亚迪 动力电池市占率 2026年一季度",
+    "top_k": 2,
+    "source_type": "official",
+    "as_of": "2026-07-09",
+    "recorded_at": "2026-07-09T01:29:58Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-8f12c865a46a",
+      "title": "宁德时代重返巅峰！2026一季度市占率破50%，比亚迪创五年新低？|中国动力|电池|份额|钠离子|固态_手机新浪网",
+      "url": "https://finance.sina.cn/2026-03-30/detail-inhsueey6451187.d.html?vt=4",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "## [新浪财经](https://finance.sina.cn/?vt=4 \"新浪财经\")\n\n  [![](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQMAAAAl21bKAAAAA1BMVEUAAACnej3aAAAAAXRSTlMAQObYZgAAAApJREFUCNdjYAAAAAIAAeIhvDMAAAAASUVORK5CYII=)](https://my.sina.cn/?vt=4)  \n\n# 宁德时代重返巅峰！2026一季度市占率破50%，比亚迪创五年新低？\n\n市场资讯  03.30 15:59\n\n![](//k.sinaimg.cn/n/spider20260330/0/w1024h576/20260330/8d46-ef4afc6b80d2eba3d6afaf2480d082d3.jpg/w300h300z1l10t10q100e57.jpg)\n\n[宁德时代](javascript:void(0);)重回半壁江山\n\n [![储能世界资料图片](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAADAQMAAACOOjyFAAAAA1BMVEUAAACnej3aAAAAAXRSTlMAQObYZgAAAApJREFUCNdjAAMAAAYAAegKKqQAAAAASUVORK5CYII=) ![储能世界资料图片](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAADAQMAAACOOjyFAAAAA1BMVEUAAACnej3aAAAAAXRSTlMAQObYZgAAAApJREFUCNdjAAMAAAYAAegKKqQAAAAASUVORK5CYII=)\n\n## 储能世界资料图片](JavaScript:void(0)) \n\n今年前两个月，[中国动力](javascript:void(0);)电池总产量达到了310 GWh，同比增长高达22%。然而，产量与装机量的比例却降至19%的历史低点。\n\n受新能源补贴逐步退坡影响，短期内市场需求出现下滑。2月份新能源汽车电池装机量约为37万辆，其中纯电和插混车型均出现明显下降。\n\n|  |  |  |  |  |\n| --- | --- | --- | --- | --- |\n| Place | Battery Maker | Total share | NMC share | LFP share |\n| 1 | CATL | 50.1% | 81.6% | 41% |\n| 2 | BYD | 17.% | 0% | 22.6% |\n| 3 | Gotion | 6.1% | 0.4% | 7.7% |\n| 4 | CALB | 5.3% | 5.4% | 5.3% |\n| 5 | EVE | 5% | 1.1% | 6.1% |\n| 6 | Rept Battero | 3.1% | 0% | 4% |\n| 7 | Sunwoda | 2.8% | 0.2% | 3.6% |\n| 8 | SVOLT | 2.5% | 7.6% | 1.1% |\n| 9 | Zenergy | 2.1% | 0.3% | 2.6% |\n| 10 | Zhejiang Yaoning | 1.8% | 0% | 2.4% |\n\nBattery makers share in Q1 2026\n\n三元锂与磷酸铁锂格局分化\n\n反观[比亚迪](javascript:void(0);)，第一季度整体市占率下滑至17.5%，同比下降4.3%，创下五年来的最低记录。不过，比亚迪在全面转型后，在磷酸铁锂细分市场仍保持着22.6%的份额。\n\n从技术指标来看，高能量密度电池正加速普及。一季度装车电池中，能量密度超过160 Wh/kg的比例达到了15%。\n\n与此同时，低于125 Wh/kg的低端电池份额已彻底清零。目前纯电动汽车的主流电池能量密度稳定在125至160 Wh/kg之间。\n\n展望未来，动力电池的竞争焦点正逐步向钠离子和固态电池等新领域转移。新技术路线将成为[国轩高科](javascript:void(0);)、中创新航等各大厂商角逐的新战场。\n\n![](//n.sinaimg.cn/default/2fb77759/20151125/320X320.png)",
+      "credibility": 0.937
+    },
+    {
+      "id": "tavily-b87f00a63370",
+      "title": "2026年1-4月全球动力电池市场份额：宁德时代40.1%，比亚迪14.2%",
+      "url": "https://evchuhai.com/market/content-1780713557846-q43sn9",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "[![中国电动车出海资讯站](/_next/image?url=https%3A%2F%2Fthousand-realms-prod.oss-cn-guangzhou.aliyuncs.com%2Fmedia%2F%E7%94%B5%E8%BD%A6%E5%87%BA%E6%B5%B7.png&w=96&q=75)\n\n中国电动车出海资讯站](/)\n\n![中国电动车出海资讯站](/_next/image?url=https%3A%2F%2Fthousand-realms-prod.oss-cn-guangzhou.aliyuncs.com%2Fmedia%2F%E7%94%B5%E8%BD%A6%E5%87%BA%E6%B5%B7.png&w=96&q=75)\n\n# 2026年1-4月全球动力电池市场份额：宁德时代40.1%，比亚迪14.2%\n\n发布时间: 2026/6/6\n\n![dfc482294bb04bb2968ecb25477e3353.avif](/_next/image?url=https%3A%2F%2Fserver-boot.oss-cn-guangzhou.aliyuncs.com%2F2026%2F06%2F04%2Fdfc482294bb04bb2968ecb25477e3353.avif&w=1920&q=75)\n\n**导读：** 2026年1至4月全球电动汽车电池装机量数据新鲜出炉。在这场愈发白热化的国际角逐中，中国电池巨头凭借压倒性优势持续领跑。宁德时代与比亚迪稳居全球冠亚军宝座，两家企业合力斩获了超过半数的市场份额。与此同时，排名前十的企业中中资企业独占七席，总份额突破七成，进一步压缩了日韩竞争对手的生存空间。\n\n## 宁德时代与比亚迪双雄并立，中国巨头统治力再升级\n\n据韩国知名市场研究机构SNE Research最新发布的统计数据显示，2026年1至4月，全球电动汽车电池的消耗总量达到352.7吉瓦时（GWh），与去年同期相比显著增长13.8%。\n\n在这场激烈的全球市场争夺战中，**宁德时代**再度展现出行业霸主的绝对实力。今年前四个月，其电池装车量高达141.4 GWh，同比强劲增长19.8%。凭借这一惊人表现，这家中国电池领头羊夺得了40.1%的全球市场份额，不仅高于去年同期的38.1%，更持续巩固了其全球第一的统治地位。虽然该数据相比今年一季度的40.7%略有回落，但其市场号召力依然无人能及。\n\n与此同时，位列次席的**比亚迪**在2026年前四个月遭遇了轻微波动，其电池装车总量为50.0 GWh，同比小幅下滑2.4%。尽管如此，比亚迪依然以14.2%的全球市场份额牢牢捍卫了其亚军头衔。这一成绩虽然低于去年同期的16.5%，但相较于今年前三个月13.7%的市场份额，已经呈现出稳步回升的良好势头。\n\n两大中国新能源巨头的合并市场份额高达54.3%，清晰地向外界展示了中国企业在动力电池领域的绝对统治地位。\n\n---\n\n## 日韩梯队分化加剧，二线中资电池企业异军突起\n\n相比之下，海外电池企业的生存空间正面临进一步挤压。韩国本土龙头企业LG新能源（LGES）以32.0 GWh的装车量排名全球第三。尽管其电池使用量实现了8.3%的同比增长，但在全球市场整体快节奏扩容的背景下，其市场份额仍从去年的9.5%稀释至9.1%。\n\n反观中国二线电池企业，则展现出了极为强劲的追赶势头。**中创新航**在1至4月期间的电池装车量达到18.1 GWh，同比暴涨39.3%，以5.1%的市场份额高居全球第四。紧随其后的[国轩高科](/market/gotion-gnascent-sodium-battery-launch)同样表现亮眼，装车量达到15.6 GWh，同比实现30.2%的快速增长，以4.4%的市占率位列第五。\n\n另外几家韩日企业则陷入了不同程度的下滑泥潭。韩国SK On由于其在北美和欧洲的主要客户电动车销量放缓，导致其动力电池装车量同比下跌7.9%至12.3 GWh，全球排名跌至第六，市场份额也从去年的4.3%滑落至3.5%。日本老牌巨头松下同样未能幸免，其前四个月装车量为12.0 GWh，同比减少3.7%，3.4%的市占率使其位列第七，这主要受到了核心客户特斯拉在部分地区销量增速放缓的拖累。\n\n在榜单的后三名中，[亿纬锂能](/market/xiaomi-skynomad-erev-suv-suppliers)、[蜂巢能源](/market/svolt-hybrid-solid-battery-mass-production)和[欣旺达](/market/xiaomi-skynomad-erev-suv-suppliers)三家中国企业齐头并进，分别以11.5 GWh、9.3 GWh和8.7 GWh的装车量位居全球第八、第九和第十位。这三家企业的市场份额分别为3.3%、2.6%和2.5%，且同比增速分别达到了惊人的30.3%、37.2%和17.6%。\n\n总体来看，在全球电动汽车电池装车量前十强企业中，中国本土企业独占七席，合并市场份额已经攀升至72.2%。与去年同期相比，中资企业的总体份额再度提高了2.1个百分点，全球电池产业向中国集中的趋势已经不可逆转。\n\n### 高清播放入口\n\n电影 / 电视剧 / 动漫 / 综艺 / 体育\n\n立即观看",
+      "credibility": 0.933
+    }
+  ]
+}

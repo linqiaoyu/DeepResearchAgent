@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"固态电池 成本 制造 挑战 进展\",\"source_type\":\"industry_report\",\"top_k\":1}",
+    "query": "固态电池 成本 制造 挑战 进展",
+    "top_k": 1,
+    "source_type": "industry_report",
+    "as_of": "2026-07-09",
+    "recorded_at": "2026-07-09T01:38:41Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-1a059f969c89",
+      "title": "固态电池的市场前景和挑战：成本和制造难题",
+      "url": "https://www.auto-testing.net/news/show-118910.html",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "一方面，固态电池的生产成本仍相对较高。这其中主要是由于固态电池所使用的电解质材料和制造工艺相对复杂，使得其成本难以降低。然而，随着技术的发展和生产",
+      "credibility": 0.772
+    }
+  ]
+}

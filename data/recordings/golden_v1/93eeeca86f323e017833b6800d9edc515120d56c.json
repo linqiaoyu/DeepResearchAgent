@@ -1,0 +1,32 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"恒瑞医药 首付款 2024-05-16\",\"source_type\":\"official\",\"top_k\":2}",
+    "query": "恒瑞医药 首付款 2024-05-16",
+    "top_k": 2,
+    "source_type": "official",
+    "as_of": "2026-07-09",
+    "recorded_at": "2026-07-09T01:52:34Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-deae22c47092",
+      "title": "$恒瑞医药(SH600276)$ 恒瑞医药近年的BD交易首付款列表（按时间 ...",
+      "url": "https://xueqiu.com/7134624068/332920365",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "4. 2024-05-16：与Kailera Therapeutics（原Hercules）就GLP-1组合（HRS-7535/HRS9531/HRS-4729）的全球授权，首付款1亿美元（另含1000万美元技术转移费）。",
+      "credibility": 0.922
+    },
+    {
+      "id": "tavily-af20c0dc1158",
+      "title": "创造出海新模式？恒瑞打包GLP-1产品组合与美企达成重磅BD交易",
+      "url": "https://www.cls.cn/detail/1678565",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "[关于我们](/our?nav=our)[网站声明](/our?nav=copyright)[联系方式](/our?nav=contact)[用户反馈](/our?nav=feedBack)[网站地图](/our?nav=map)[帮助](/our?nav=tips)\n\n[## 首页](/)[## 电报](/telegraph)[## 话题](/subject)[## 盯盘](/finance)[## VIP](/vip)[## FM](/fm)[## 投研](/investpro)[## 下载](/download)\n\n原创\n\n[速读公告](/subject/8271)\n\n2024-05-16 23:18 星期四\n\n财联社记者 卢阿峰\n\n责编 曹婧晨\n\n```\n①今日晚间，恒瑞医药公告与一家由数个资本机构于5月在美设立的特殊公司达成BD交易； ②该交易不仅牵涉到巨额首付款和后续里程碑付款、销售分成，还包含该美企近20%的股权； ③业内认为，恒瑞医药正在联合资本创造一种创新药出海的新模式，能实现多方共赢，十分新颖。\n```\n\n**财联社5月16日讯（记者 卢阿峰）**自去年开始，BD战略开始明显转变，去年总交易金额超40亿美元的恒瑞医药(600276.SH)，今晚又做出了一次BD交易重大举措，且该笔交易似乎与恒瑞医药过往BD交易不太一样。业内人士对财联社记者表示，其模式设计之精妙，让人感觉到耳目一新。\n\n今日晚间，恒瑞医药对外公告，将具有自主知识产权GLP-1产品组合的除大中华区以外的全球范围内开发、生产和商业化GLP-1产品组合的独家权利有偿许可给美国Hercules公司，恒瑞医药将取得美国Hercules公司19.9%的股权和授权许可费。\n\n在首付款及后续付款方面，公告透露，此次BD交易，恒瑞医药获得的首付款和近期里程碑总计1.1亿美元，其中包括1亿美元的首付款和完成技术转移后的1000万美元的近期里程碑付款。基于HRS-7535临床开发进度及FDA首次获批上市，美国Hercules公司将向恒瑞支付累计不超过2亿美元的临床开发及监管里程碑款。基于GLP-1产品组合在许可区域实际年净销售额情况，美国Hercules公司将向恒瑞支付累计不超过57.25亿美元的销售里程碑款。\n\n等到相关产品在美国上市销售，美国Hercules公司还要向恒瑞医药支付达到实际年净销售额低个位数至低两位数比例的销售提成。另外，恒瑞医药将与美国Hercules公司设立联合管理委员会，以协调许可产品在全球范围内的开发和商业化，双方各向联合管理委员会指派3名代表。\n\n针对该笔BD交易，恒瑞医药董事、首席战略官江宁军对外表示，本次合作是恒瑞医药持续深入国际化的又一个里程碑，也代表国际市场对恒瑞医药创新质量的高度认可。与贝恩资本、Atlas Ventures、RTW资本、Lyra资本等顶尖投资基金合作对于恒瑞医药是一种新模式探索，有助于进一步拓宽恒瑞医药丰富创新管线的国际化道路，更好服务全球未满足的医疗需求。\n\n公开信息显示，美国Hercules是一家极其年轻的公司，于2024年5月在美国特拉华州设立，贝恩资本生命科学基金联合AtlasVentures、RTW资本、Lyra资本联合出资4亿美元，公司经营范围与主营业务为生物医药开发。投资方将负责美国Hercules公司筹建及运营。\n\n鲸平台智库专家，河北泽运生物医药科技有限公司总经理齐正伟对财联社记者表示，在交易达成之后，美国Hercules公司可以说是成为了恒瑞医药联合几家投资机构，专门为了承载恒瑞医药的三款GLP-1类的管线出海业务而设立的特别公司。\n\n而此次被“打包”BD的GLP-1产品组合主要涉及三款在研品种，分别是小分子GLP-1受体激动剂HRS-7535、多肽GLP-1/GIP双受体激动剂注液以及口服产品HRS9531和下一代肠促胰岛素产品HRS-4729。\n\n据恒瑞医药最新财报披露，HRS-7535和多肽GLP-1/GIP双受体激动剂注液HRS9531处于临床Ⅱ期阶段，HRS-4729处于临床前开发阶段，口服产品HRS9531则刚获得临床试验批准。\n\n“恒瑞医药此次将GLP-1产品组合进行打包BD，意味着恒瑞医药在当前的国际化战略愈发以稳健为主基调。”北京百思力营销策划有限公司总经理王恒对财联社记者分析道，当前GLP-1领域，或者说减肥药赛道依旧存在巨大未被满足的市场需求，大企业与MNC争先恐后都在快速推进研发和商业化，时间就是金钱，恒瑞医药或许也是为了GLP-1产品组合未来在国际市场的研发、上市和商业化进行提前布局，海外资本组建Hercules公司时还筹措了在美进行临床试验的数亿美元“弹药”，恒瑞医药简直是考虑得面面俱到。\n\n“联合这些资本，恒瑞医药在美进行GLP-1产品组合的临床试验的风险以及未来上市、商业化风险被摊薄了，投资方也拿到了潜力较好的GLP-1品种权益，恒瑞医药还拿到了现在和未来的不菲收益，这实现了多赢。恒瑞医药的这种创新药出海模式设计非常的新颖，是一种创新药出海模式的‘创新’，其他有志出海的企业应该学习。”齐正伟告诉财联社记者。\n\n阅77.11W\n\n要闻\n\n股市\n\n[查看更多](/depth?id=1000)\n\n关联话题\n\n[速读公告](/subject/8271)\n\n2.16W人关注\n\n[医药](/subject/1424)\n\n3.07W人关注\n\n[医药商业](/subject/1425)\n\n![](https://cdnjs.cls.cn/images/site/cailianWeb/kefu.png)![](https://cdnjs.cls.cn/www/20180717/images/rightSide/kfCodeSlider.png)\n\n![](https://cdnjs.cls.cn/images/site/cailianWeb/xlCode.png)![](https://cdnjs.cls.cn/www/20180717/images/rightSide/xlCodeSlider.png)\n\n![](https://cdnjs.cls.cn/images/site/cailianWeb/wxCode.png)![](https://cdnjs.cls.cn/www/20180717/images/rightSide/wxCodeSlider.png)\n\n![](https://cdnjs.cls.cn/images/site/cailianWeb/appLogo.png)![](https://cdnjs.cls.cn/www/20180717/images/rightSide/downloadCodeSlider.png)\n\n![](https://cdnjs.cls.cn/images/site/cailianWeb/toTop.png)\n\n[关于我们](/our?nav=our)|[网站声明](/our?nav=copyright)|[联系方式](/our?nav=contact)|[用户反馈](/our?nav=feedBack)|[网站地图](/our?nav=map)|[友情链接](/our?nav=friend)|举报电话：021-54679377转617举报邮箱：editor@cls.cn[![财联社举报](https://cdnjs.cls.cn/images/site/cailianWeb/jubaologo1.png)](http://www.shjbzx.cn)\n\n[财联社](/ \"财联社\") ©2018-2026上海界面财联社科技股份有限公司 版权所有[沪ICP备14040942号-9](http://beian.miit.gov.cn)[沪公网安备31010402006047号](http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=31010402006047)互联网新闻信息服务许可证：31120170007[沪金信备 [2021] 2号](https://fisbaobei.ifcert.cn/Home/homeIindex)",
+      "credibility": 0.868
+    }
+  ]
+}

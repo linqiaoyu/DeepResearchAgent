@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"无人机 配送 商业化 案例 2025\",\"source_type\":\"company_report\",\"top_k\":1}",
+    "query": "无人机 配送 商业化 案例 2025",
+    "top_k": 1,
+    "source_type": "company_report",
+    "as_of": "2026-07-09",
+    "recorded_at": "2026-07-09T02:08:52Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-2f0b3f8f824d",
+      "title": "木头姐的ARK投资公司发布《ARK Invest Big Ideas 2025》 ...",
+      "url": "https://zhuanlan.zhihu.com/p/26757954279",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "美团在中国和阿联酋运营，虽然还没有获得美国的相关认证，但也完成了40万次商业飞行。这些成功案例表明，无人机配送在特定场景下已经具备了商业化的潜力。",
+      "credibility": 0.876
+    }
+  ]
+}

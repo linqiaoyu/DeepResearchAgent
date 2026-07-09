@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"evtol 商业化 运营 2025 现状\",\"source_type\":\"industry_report\",\"top_k\":1}",
+    "query": "eVTOL 商业化 运营 2025 现状",
+    "top_k": 1,
+    "source_type": "industry_report",
+    "as_of": "2026-07-09",
+    "recorded_at": "2026-07-09T02:08:47Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-761475194668",
+      "title": "浅析eVTOL产业发展现状",
+      "url": "https://www.dataadt.com/nd.jsp?fromColId=126&id=384",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "头部eVTOL企业的机型将在2025-2026年大量完成取证，并投入市场化运营，峰飞、沃兰特、时的、沃飞等企业eVTOL已受理，预计2026年获得取证。万丰奥威、中直股份",
+      "credibility": 0.871
+    }
+  ]
+}

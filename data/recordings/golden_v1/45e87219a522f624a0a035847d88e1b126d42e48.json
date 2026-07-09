@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"midea group hong kong ipo filing date\",\"source_type\":\"official\",\"top_k\":1}",
+    "query": "Midea Group Hong Kong IPO filing date",
+    "top_k": 1,
+    "source_type": "official",
+    "as_of": "2026-07-09",
+    "recorded_at": "2026-07-09T03:06:25Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-bb2b8bb286f8",
+      "title": "MIDEA GROUP CO., LTD. IPO Stock Code: 00300",
+      "url": "https://www.gtjai.com/upload/UploadFiles/2024/09/09/2685670bf4ae49c09c1062a48c46a294.pdf",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "MIDEA GROUP CO., LTD. IPO Stock Code: 00300 IPO HIGHLIGHT Number of Offer Shares 492,135,100 H Shares (subject to the Offer Size Adjustment Option and the Over-allotment Option) Number of Public Offer Shares 24,606,800 H Shares (subject to reallocation and the Offer Size Adjustment Option) Maximum Offer Price HKD 54.8 per H Share No. of Shares Per Lot 100 shares Regarding the IPO announcement and prospectuses, please refer to the section of “Listing Matters and Listed Companies”: https://www1.hkexnews.hk/listedco/listconews/sehk/2024/0909/2024090900005.pdf IPO TIMETABLE Application cut off time Allocation Announcement Date: Sep 16, 2024 (Monday) Refund Date: Sep 13, 2024 (Friday) Dealing Commences On: Sep 17, 2024 (Tuesday) Financing required: (1): Sep 11, 2024 (Wednesday) 04:00 PM Apply with full deposit (2): Sep 11, 2024 (Wednesday) 04:00 PM FINANCING - 90% financing available - Minimum application amount for margin financing: Nil - Interest rate applicable (indication only, subject to change): 5.8% p.a. CHARGES Application Charges HKD 50.00 Financial Charges HKD 100.00 (1) Financing application/subscription: In order to qualify for the financing application/subscription, clients are required to deposit sufficient margins into their securities account to fulfill financing application/ subscription requirement and please keep client’s account with sufficient funds for deduction. Financing amounts allocated to clients are based on “first come first served” basis. No financing will be available when all funding quotas are fulfilled. Interest rate is for indication only, subject to change. The provision of financing by Guotai Junan Securities (Hong Kong) Limited (\"GTJAS\") to facilitate client’s acquisition of captioned IPO shares will only be available while funding lasts. Client’s application for the acquisition of the captioned IPO shares (the \"Application\") shall be irrevocable. GTJAS reserves the final right to reject client’s Application. Any subsequent request related to amendment of the Application by client may incur handling charge equivalent to the initially committed loan interest payable by client. (2) Non-financing application/ subscription: In order to qualify for the financing application/subscription, clients are required to deposit sufficient margins into their securities account to fulfill financing application/ subscription requirement and please keep client’s account with sufficient funds for deduction. Guotai Junan reserves the right to cancel the application/subscription of the client, if clients deposit money after the cut off time , or deposit insufficient money. DISCLAIMERS: The material stated above is according to the prospectus issued by the issuer. Neither the information nor any opinions contained in this material is recommended by Guotai Junan Securities (HK) Ltd. Potential investors should read the prospectus for detailed information about the offer before deciding whether or not to invest in the shares or debentures being offered. The material does not constitute an offer or an invitation to induce an offer by any person to acquire, purchase or subscribe for the shares or debentures being offered. No application for the shares or debentures mentioned in the material should be made by any person nor would such application be accepted without the completion of a formal application form or other application procedure that is issued with or in respect of the prospectus.",
+      "credibility": 0.893
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"license-out 中国生物医药 驱动 风险 分析\",\"source_type\":\"paper\",\"top_k\":1}",
+    "query": "License-out 中国生物医药 驱动 风险 分析",
+    "top_k": 1,
+    "source_type": "paper",
+    "as_of": "2026-07-09",
+    "recorded_at": "2026-07-09T01:51:03Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-a7ff4c497b73",
+      "title": "License-out爆发、医保多元支付、创新药加速上市—中",
+      "url": "https://zhuanlan.zhihu.com/p/2025279688969299731",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "12.2中国生物医药行业投资风险预警. 12.2.1政策风险. 12.2.2行业技术风险. 12.2.3行业供求风险分析. 12.3.4原材料价格风险. 12.3.5宏观经济波动风险. 12.3",
+      "credibility": 0.752
+    }
+  ]
+}

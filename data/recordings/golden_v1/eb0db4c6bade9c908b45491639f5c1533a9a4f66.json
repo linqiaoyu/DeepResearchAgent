@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"midea group hong kong ipo pricing and listing date\",\"source_type\":\"company_report\",\"top_k\":1}",
+    "query": "Midea Group Hong Kong IPO pricing and listing date",
+    "top_k": 1,
+    "source_type": "company_report",
+    "as_of": "2026-07-09",
+    "recorded_at": "2026-07-09T03:06:25Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-62e5fd86bc32",
+      "title": "Midea Group — IPOX",
+      "url": "https://www.ipox.com/ipo-calendar/midea-group",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "[Skip to Content](#page) \n\n[![IPOX](//images.squarespace-cdn.com/content/v1/62a723fe65db8739d014d3f8/83c5df40-a95f-44b2-8b88-827e6878971c/IPOX+Logo+White+2348x1192+8bit.png?format=1500w)](/)\n\n[Schedule a Meeting](/meet-us)\n\n[![IPOX](//images.squarespace-cdn.com/content/v1/62a723fe65db8739d014d3f8/83c5df40-a95f-44b2-8b88-827e6878971c/IPOX+Logo+White+2348x1192+8bit.png?format=1500w)](/)\n\n[Schedule a Meeting](/meet-us)\n\n\n\n[Back to All Events](/ipo-calendar)\n\n# Midea Group\n\n\n\n* [Google Calendar](http://www.google.com/calendar/event?action=TEMPLATE&text=Midea%20Group&dates=20240917T050000Z/20240918T045500Z) [ICS](/ipo-calendar/midea-group?format=ical)\n\n![](https://images.squarespace-cdn.com/content/v1/62a723fe65db8739d014d3f8/0346233e-7ff4-4828-a504-7b1f88492849/Midea.jpg)\n\n**Midea Group Co., Ltd.** (Ticker: 300.HK) is a leading global manufacturer of home appliances, including air conditioners, kitchen appliances, refrigerators, washing machines, and small appliances. The company also produces advanced systems for robotics, automation, and medical imaging. Already listed with A shares in mainland China, Midea is set to go public on the Hong Kong Stock Exchange on September 17, 2024, through an H-share listing.\n\nThe company is offering 3.37 million shares at a price range of HKD 52.00 to HKD 54.80, aiming to raise HKD 3,371.22 million. The expected market capitalization at the offer is HKD 51,275.58 million. The offering is managed by China International Capital Corporation Hong Kong Securities Limited and Merrill Lynch (Asia Pacific) Limited.\n\n* Tagged: [Hong Kong](/ipo-calendar?tag=Hong+Kong)\n\n[Previous\n\nPrevious\n\nSeptember 16\n\n## Bajaj Housing Finance](/ipo-calendar/yy40mutl7x0ur6ch7jztqkhlkg4z1e)  [Next\n\nNext\n\nSeptember 25\n\n## ROXX](/ipo-calendar/roxx)",
+      "credibility": 0.921
+    }
+  ]
+}
