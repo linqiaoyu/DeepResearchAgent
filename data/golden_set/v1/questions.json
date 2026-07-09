@@ -1,0 +1,2160 @@
+{
+  "meta": {
+    "version": "v1.0",
+    "created": "2026-06-16",
+    "status": "frozen",
+    "as_of": "RECORDING_DATE",
+    "scope": "A股 only",
+    "question_count": 30,
+    "type_distribution": {
+      "财报解读": 8,
+      "对比研究": 8,
+      "行业研究": 7,
+      "事件时间线": 7
+    },
+    "difficulty_distribution": {
+      "易": 10,
+      "中": 14,
+      "难": 6
+    },
+    "false_premise_questions": [
+      "Q08",
+      "Q16"
+    ],
+    "pilot_set": [
+      "Q01",
+      "Q08",
+      "Q09",
+      "Q18",
+      "Q26"
+    ],
+    "high_risk": [
+      "Q07"
+    ],
+    "evaluation_as_of": "2026-07-09",
+    "recording_as_of_distribution": {
+      "2026-07-08": 263,
+      "2026-07-09": 223
+    },
+    "corpus_fingerprint": "ef2d1fd2c414502140162508ef32838aaf8e4a56a6ab3678f9f57ed04f86960e",
+    "frozen_count": 30,
+    "quarantine_count": 0,
+    "quarantine": [],
+    "micro_adjustments": [
+      {
+        "id": "Q13",
+        "note": "录制证据支持组件出货口径核查；隆基绿能2024归母净利润方向未由当前机械筛选稳定闭合，题面不改，审查表保留来源化回填供PM确认。",
+        "review_slots": [
+          {
+            "slot": 1,
+            "filled_value": "隆基绿能2024年电池组件出货量目标为90-100GW",
+            "source_title": "隆基绿能一季度亏损23.5亿 主营业务面临行业挑战_电池_组件_同比"
+          },
+          {
+            "slot": 2,
+            "filled_value": "隆基绿能2024年第一季度归母净利润为-23.50亿元",
+            "source_title": "隆基绿能一季度亏损23.5亿 主营业务面临行业挑战_电池_组件_同比"
+          },
+          {
+            "slot": 3,
+            "filled_value": "晶科能源出货量口径包含组件、硅片和电池片，隆基绿能则分开列示单晶硅片、电池、组件对外销售和自用数据。",
+            "source_title": "出货量重回全球第一！晶科能源预计2023年组件出货超过75GW"
+          }
+        ]
+      }
+    ],
+    "corpus_stats": {
+      "canonical_recording_files": 486,
+      "source_rows": 694,
+      "unique_source_urls": 510,
+      "source_rows_by_type": {
+        "web": 602,
+        "news": 92
+      },
+      "record_statuses": {
+        "complete": 486
+      },
+      "recording_as_of_distribution": {
+        "2026-07-08": 263,
+        "2026-07-09": 223
+      },
+      "fingerprint": "ef2d1fd2c414502140162508ef32838aaf8e4a56a6ab3678f9f57ed04f86960e"
+    }
+  },
+  "scoring": {
+    "fact_coverage": {
+      "weight": 0.35,
+      "definition": "仅对 must_include 封闭清单计分；清单外事实不加分（堆料无收益）"
+    },
+    "fact_accuracy": {
+      "weight": 0.25,
+      "definition": "数字须口径匹配且在容差内；断言 must_not_assert 条目在本维扣分"
+    },
+    "citation_support": {
+      "weight": 0.25,
+      "definition": "claim→evidence 蕴含核查，三态（支持/部分支持/不支持）"
+    },
+    "synthesis_balance": {
+      "weight": 0.15,
+      "definition": "综合改写、多空平衡、结构完整；事实罗列体在本维扣分"
+    },
+    "mechanical_sidecar": [
+      "citation_resolution_rate",
+      "disclaimer_present",
+      "cost_cny",
+      "latency_seconds"
+    ]
+  },
+  "questions": [
+    {
+      "id": "Q01",
+      "type": "财报解读",
+      "difficulty": "易",
+      "companies": [
+        "贵州茅台"
+      ],
+      "topic": "解读贵州茅台2024年度业绩：营业总收入、归母净利润及各自同比增速，以及茅台酒与系列酒的收入结构。",
+      "time_anchor": "2024财年（年度报告）",
+      "trap_design": "轻量——\"营业总收入 vs 营业收入\"表述口径需正确标注",
+      "structured_data_required": true,
+      "gold": {
+        "must_include": [
+          {
+            "fact": "2024营业总收入及同比",
+            "value": "贵州茅台2024年度预计实现营业总收入约1738亿元，同比增长约15.44%",
+            "source": "2024年报",
+            "tol": "±1%",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "贵州茅台2024年归母净利润同比预增约14.67% - China Daily",
+              "source_url": "https://qiye.chinadaily.com.cn/a/202501/03/WS67775250a310b59111dac3d7.html",
+              "source_kind": "text",
+              "extract_text": "预计实现营业总收入约1738亿元（其中茅台酒营业收入约1458亿元，系列酒营业收入约246亿元），同比增长约15.44%；",
+              "evidence_id": "ca4b0e3b-bf22-50e2-84ef-b9a0f294a154",
+              "selection_score": 73
+            }
+          },
+          {
+            "fact": "2024归母净利润及同比",
+            "value": "贵州茅台2024年度预计实现营业总收入约1738亿元，同比增长约15.44%",
+            "source": "2024年报",
+            "tol": "±1%",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "贵州茅台2024年归母净利润同比预增约14.67% - China Daily",
+              "source_url": "https://qiye.chinadaily.com.cn/a/202501/03/WS67775250a310b59111dac3d7.html",
+              "source_kind": "text",
+              "extract_text": "预计实现营业总收入约1738亿元（其中茅台酒营业收入约1458亿元，系列酒营业收入约246亿元），同比增长约15.44%；",
+              "evidence_id": "ca4b0e3b-bf22-50e2-84ef-b9a0f294a154",
+              "selection_score": 73
+            }
+          },
+          {
+            "fact": "茅台酒与系列酒收入拆分",
+            "value": "贵州茅台2024年度预计实现营业总收入约1738亿元，同比增长约15.44%",
+            "source": "2024年报分产品",
+            "tol": "±2%",
+            "w": "中",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "贵州茅台2024年归母净利润同比预增约14.67% - China Daily",
+              "source_url": "https://qiye.chinadaily.com.cn/a/202501/03/WS67775250a310b59111dac3d7.html",
+              "source_kind": "text",
+              "extract_text": "预计实现营业总收入约1738亿元（其中茅台酒营业收入约1458亿元，系列酒营业收入约246亿元），同比增长约15.44%；",
+              "evidence_id": "ca4b0e3b-bf22-50e2-84ef-b9a0f294a154",
+              "selection_score": 68
+            }
+          }
+        ],
+        "must_not_assert": [
+          "将营业总收入与营业收入混作同一口径且数值不符"
+        ],
+        "behavioral": {
+          "counterview": false,
+          "refute_premise": false
+        }
+      },
+      "recording_notes": "结构化+年报新闻双源；基线题，语料应干净",
+      "recording_state_path": "_collab/006r2_frozen-corpus-rounds/pilot_v2/Q01/state.json",
+      "recording_research_id": "2ab8215d-19a5-4ca1-a60a-94786a5d9d2d",
+      "freeze_status": "frozen"
+    },
+    {
+      "id": "Q02",
+      "type": "财报解读",
+      "difficulty": "易",
+      "companies": [
+        "长江电力"
+      ],
+      "topic": "解读长江电力2024年度业绩：营业收入、归母净利润及同比，全年总发电量及同比变化与来水情况。",
+      "time_anchor": "2024财年",
+      "trap_design": "无——基线题；发电量单位（亿千瓦时）须标注",
+      "structured_data_required": true,
+      "gold": {
+        "must_include": [
+          {
+            "fact": "2024营收及同比",
+            "value": "长江电力2024年营业收入为844.9亿元，同比增长8.2%",
+            "source": "2024年报",
+            "tol": "±1%",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "长江电力2024年归母净利润增19.3%至325亿元 - 瑞财经",
+              "source_url": "https://m.rccaijing.com/news-7322968004458378539.html",
+              "source_kind": "text",
+              "extract_text": "营业收入为844.9亿元，同比上升8.2%",
+              "evidence_id": "b1a12bd0-4f5f-5e09-a07e-34418792b4ca",
+              "selection_score": 52
+            }
+          },
+          {
+            "fact": "2024归母净利润及同比",
+            "value": "长江电力2024年营业收入为844.9亿元，同比增长8.2%",
+            "source": "2024年报",
+            "tol": "±1%",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "长江电力2024年归母净利润增19.3%至325亿元 - 瑞财经",
+              "source_url": "https://m.rccaijing.com/news-7322968004458378539.html",
+              "source_kind": "text",
+              "extract_text": "营业收入为844.9亿元，同比上升8.2%",
+              "evidence_id": "b1a12bd0-4f5f-5e09-a07e-34418792b4ca",
+              "selection_score": 67
+            }
+          },
+          {
+            "fact": "2024总发电量及同比",
+            "value": "长江电力2024年第四季度总发电量约600.90亿千瓦时，同比减少17.60%。",
+            "source": "年报/发电量公告",
+            "tol": "±2%",
+            "w": "中",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "长江电力披露2024年发电量完成情况-广东省水力和新能源发电工程学会",
+              "source_url": "https://www.gdshe.org/article/23577.html",
+              "source_kind": "text",
+              "extract_text": "第四季度公司境内所属六座梯级电站总发电量约600.90亿千瓦时，较上年同期减少17.60%",
+              "evidence_id": "d71dc5b1-3607-54e8-8a63-00d3fceac982",
+              "selection_score": 60
+            }
+          }
+        ],
+        "must_not_assert": [],
+        "behavioral": {
+          "counterview": false,
+          "refute_premise": false
+        }
+      },
+      "recording_notes": "干净基线题，用于校验评分量规下限行为",
+      "recording_state_path": "_collab/006r2_frozen-corpus-rounds/recording/Q02/state.json",
+      "recording_research_id": "49410d53-d724-42ab-ab8b-ef709df23462",
+      "freeze_status": "frozen"
+    },
+    {
+      "id": "Q03",
+      "type": "财报解读",
+      "difficulty": "易",
+      "companies": [
+        "比亚迪"
+      ],
+      "topic": "解读比亚迪2024年度业绩：营业收入、归母净利润及同比，汽车相关业务与手机部件及组装业务的收入结构。",
+      "time_anchor": "2024财年",
+      "trap_design": "集团口径 vs 汽车业务口径需区分",
+      "structured_data_required": true,
+      "gold": {
+        "must_include": [
+          {
+            "fact": "2024营收及同比",
+            "value": "2024年比亚迪手机部件、组装及其他产品业务收入同比增长34.60%",
+            "source": "2024年报",
+            "tol": "±1%",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "比亚迪年度营收首次突破7000亿元：汽车、手机业务双增",
+              "source_url": "https://www.eet-china.com/mp/a391713.html",
+              "source_kind": "text",
+              "extract_text": "2024年，比亚迪手机部件、组装及其他产品业务的收入约1596.09亿元，同比增长34.60%；占总收入的20.54%。",
+              "evidence_id": "a6632782-6292-57e7-8afb-e36c0df6be16",
+              "selection_score": 62
+            }
+          },
+          {
+            "fact": "2024归母净利润及同比",
+            "value": "比亚迪2024年度营业收入为7771.02亿元，同比增长29.02%",
+            "source": "2024年报",
+            "tol": "±1%",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "比亚迪：2024年归母净利润同比增长34%_车家号_发现车生活_汽车之家",
+              "source_url": "https://chejiahao.autohome.com.cn/info/19665099",
+              "source_kind": "text",
+              "extract_text": "公司实现营业收入7771.02亿元，同比增长29.02%",
+              "evidence_id": "a11b41a0-b8ff-5c36-a670-fa0c95f1069a",
+              "selection_score": 68
+            }
+          },
+          {
+            "fact": "两大业务板块收入占比",
+            "value": "2024年比亚迪手机部件、组装及其他产品业务收入同比增长34.60%",
+            "source": "2024年报分部",
+            "tol": "±2%",
+            "w": "中",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "比亚迪年度营收首次突破7000亿元：汽车、手机业务双增",
+              "source_url": "https://www.eet-china.com/mp/a391713.html",
+              "source_kind": "text",
+              "extract_text": "2024年，比亚迪手机部件、组装及其他产品业务的收入约1596.09亿元，同比增长34.60%；占总收入的20.54%。",
+              "evidence_id": "a6632782-6292-57e7-8afb-e36c0df6be16",
+              "selection_score": 63
+            }
+          }
+        ],
+        "must_not_assert": [
+          "将集团总营收表述为汽车业务营收"
+        ],
+        "behavioral": {
+          "counterview": false,
+          "refute_premise": false
+        }
+      },
+      "recording_notes": "分部数据结构化不一定有，年报文本补齐",
+      "recording_state_path": "_collab/006r2_frozen-corpus-rounds/recording/Q03/state.json",
+      "recording_research_id": "0f43f379-0258-4135-88a1-aa84e112c800",
+      "freeze_status": "frozen"
+    },
+    {
+      "id": "Q04",
+      "type": "财报解读",
+      "difficulty": "中",
+      "companies": [
+        "宁德时代"
+      ],
+      "topic": "解读宁德时代2024年度业绩：营业收入与归母净利润各自的同比方向与幅度，并分析营收下降而利润增长这一组合的成因。",
+      "time_anchor": "2024财年",
+      "trap_design": "反直觉组合（收入降、利润升，碳酸锂价格传导所致）；语料中存在把方向写混的报道",
+      "structured_data_required": true,
+      "gold": {
+        "must_include": [
+          {
+            "fact": "2024营收及同比（方向为降）",
+            "value": "2024年一季度宁德时代营业收入同比下降10.41%，主要因原材料成本下降导致电池价格相应下行。",
+            "source": "2024年报",
+            "tol": "±1%",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "​收入下滑利润大涨，宁德时代卷死同行",
+              "source_url": "https://www.guancha.cn/economy/2024_04_16_731777.shtml",
+              "source_kind": "text",
+              "extract_text": "公司电池销量同比有 25%以上的增长，收入下降主要是因为原材料成本下降，电池价格相应下行，产品结构变化不大。",
+              "evidence_id": "ed10db7e-a0f1-592c-af49-f1ff5e0be395",
+              "selection_score": 69
+            }
+          },
+          {
+            "fact": "2024归母净利润及同比（方向为增）",
+            "value": "宁德时代2024年度归母净利润为507.45亿元，同比增长15.01%",
+            "source": "2024年报",
+            "tol": "±1%",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "宁德时代2024年归母净利润达507亿元，计划再分红近200亿元 中国基金报",
+              "source_url": "https://www.chnfund.com/article/AR69378c5c-6e09-43a2-0576-3a18a79d8745",
+              "source_kind": "text",
+              "extract_text": "宁德时代2024年的归母净利润为507.45亿元，同比增长15.01%。",
+              "evidence_id": "cd545262-5e22-594e-8793-0a391027adec",
+              "selection_score": 79
+            }
+          },
+          {
+            "fact": "成因要点（原材料价格下行传导至售价）",
+            "value": "2024年一季度宁德时代营业收入同比下降10.41%，主要因原材料成本下降导致电池价格相应下行。",
+            "source": "年报/业绩说明",
+            "tol": "语义",
+            "w": "中",
+            "original_value": "定性",
+            "source_ref": {
+              "source_title": "​收入下滑利润大涨，宁德时代卷死同行",
+              "source_url": "https://www.guancha.cn/economy/2024_04_16_731777.shtml",
+              "source_kind": "text",
+              "extract_text": "公司电池销量同比有 25%以上的增长，收入下降主要是因为原材料成本下降，电池价格相应下行，产品结构变化不大。",
+              "evidence_id": "ed10db7e-a0f1-592c-af49-f1ff5e0be395",
+              "selection_score": 96
+            }
+          }
+        ],
+        "must_not_assert": [
+          "营收与利润同向变化的错误表述"
+        ],
+        "behavioral": {
+          "counterview": false,
+          "refute_premise": false
+        }
+      },
+      "recording_notes": "陷阱在位核查——语料中须存在方向表述混乱的素材",
+      "recording_state_path": "_collab/006r2_frozen-corpus-rounds/recording/Q04/state.json",
+      "recording_research_id": "d401cbb2-a475-4c2f-86c3-582f93ec82e4",
+      "freeze_status": "frozen"
+    },
+    {
+      "id": "Q05",
+      "type": "财报解读",
+      "difficulty": "中",
+      "companies": [
+        "京东方A"
+      ],
+      "topic": "解读京东方A2024年分季度归母净利润走势：四个单季值的逐季变化与全年累计值，并说明单季与累计口径的区别。",
+      "time_anchor": "2024财年逐季（Q1-Q4）",
+      "trap_design": "单季 vs 累计——五元素口径体系的直接考点；公开报道两种口径混用高发",
+      "structured_data_required": true,
+      "gold": {
+        "must_include": [
+          {
+            "fact": "四个单季归母净利润",
+            "value": "京东方A2025年第四季度归母净利润为12.6亿元（单季）",
+            "source": "各季报",
+            "tol": "±2%",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "京东方A2025年归母净利润58.6亿元 增长10% _ 东方财富网",
+              "source_url": "https://finance.eastmoney.com/a/202604013691406129.html",
+              "source_kind": "text",
+              "extract_text": "其中第四季度，公司营业收入为500.4亿元，同比下降8.4%；归母净利润为12.6亿元",
+              "evidence_id": "aef2e368-e922-5449-87d0-57944c815c4f",
+              "selection_score": 63
+            }
+          },
+          {
+            "fact": "全年累计归母净利润",
+            "value": "京东方A2025年前三季度累计归母净利润为46.0亿元",
+            "source": "2024年报",
+            "tol": "±1%",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "京东方A第三季度归母净利润为13.5亿元，同比上升32.1% - 瑞财经",
+              "source_url": "https://m.rccaijing.com/news-7389835553866971134.html",
+              "source_kind": "text",
+              "extract_text": "京东方A(000725)公布2025年三季报，公司营业收入为1545.5亿元，同比上升7.5%；归母净利润为46.0亿元",
+              "evidence_id": "5791017a-ba95-50f0-bf56-846483976346",
+              "selection_score": 64
+            }
+          },
+          {
+            "fact": "单季与累计口径区分的显式说明",
+            "value": "京东方A2025年前三季度累计归母净利润为46.0亿元",
+            "source": "—",
+            "tol": "语义",
+            "w": "中",
+            "original_value": "定性",
+            "source_ref": {
+              "source_title": "京东方A第三季度归母净利润为13.5亿元，同比上升32.1% - 瑞财经",
+              "source_url": "https://m.rccaijing.com/news-7389835553866971134.html",
+              "source_kind": "text",
+              "extract_text": "京东方A(000725)公布2025年三季报，公司营业收入为1545.5亿元，同比上升7.5%；归母净利润为46.0亿元",
+              "evidence_id": "5791017a-ba95-50f0-bf56-846483976346",
+              "selection_score": 39
+            }
+          }
+        ],
+        "must_not_assert": [
+          "将累计值当作单季值（或反之）"
+        ],
+        "behavioral": {
+          "counterview": false,
+          "refute_premise": false
+        }
+      },
+      "recording_notes": "陷阱在位核查——录制语料须含单季/累计混用素材",
+      "recording_state_path": "_collab/006r2_frozen-corpus-rounds/recording/Q05/state.json",
+      "recording_research_id": "597ecce7-d666-4cd9-8334-563065325c45",
+      "freeze_status": "frozen"
+    },
+    {
+      "id": "Q06",
+      "type": "财报解读",
+      "difficulty": "难",
+      "companies": [
+        "药明康德"
+      ],
+      "topic": "解读药明康德2024年度收入：整体收入同比，与\"剔除新冠商业化项目\"口径下的收入同比之间的差异及其含义。",
+      "time_anchor": "2024财年",
+      "trap_design": "剔除口径——公开报道大量只引其一不注口径；两个同比数字差异显著",
+      "structured_data_required": true,
+      "gold": {
+        "must_include": [
+          {
+            "fact": "2024整体收入及同比",
+            "value": "新冠商业化项目的结束导致整体收入同比下降，但剔除该影响后核心业务实际增长，显示出业务的韧性和增长潜力",
+            "source": "2024年报",
+            "tol": "±1%",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "2024年年度业绩- 药明康德",
+              "source_url": "https://officialsite-static.wuxiapptec.com/upload/2024_vfinal_103c81aede.pdf",
+              "source_kind": "text",
+              "extract_text": "2024年收入同比增长5.2%（剔除去年新冠商业化项目）；净利率达27.0%创历史新高",
+              "evidence_id": "052ea04d-8676-5b75-aa65-971b52648241",
+              "selection_score": 69
+            }
+          },
+          {
+            "fact": "剔除新冠项目口径收入同比",
+            "value": "新冠商业化项目的结束导致整体收入同比下降，但剔除该影响后核心业务实际增长，显示出业务的韧性和增长潜力",
+            "source": "年报/业绩公告",
+            "tol": "±1%",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "2024年年度业绩- 药明康德",
+              "source_url": "https://officialsite-static.wuxiapptec.com/upload/2024_vfinal_103c81aede.pdf",
+              "source_kind": "text",
+              "extract_text": "2024年收入同比增长5.2%（剔除去年新冠商业化项目）；净利率达27.0%创历史新高",
+              "evidence_id": "052ea04d-8676-5b75-aa65-971b52648241",
+              "selection_score": 84
+            }
+          },
+          {
+            "fact": "两口径差异成因说明",
+            "value": "新冠商业化项目的结束导致整体收入同比下降，但剔除该影响后核心业务实际增长，显示出业务的韧性和增长潜力",
+            "source": "年报",
+            "tol": "语义",
+            "w": "中",
+            "original_value": "定性",
+            "source_ref": {
+              "source_title": "2024年年度业绩- 药明康德",
+              "source_url": "https://officialsite-static.wuxiapptec.com/upload/2024_vfinal_103c81aede.pdf",
+              "source_kind": "text",
+              "extract_text": "2024年收入同比增长5.2%（剔除去年新冠商业化项目）；净利率达27.0%创历史新高",
+              "evidence_id": "052ea04d-8676-5b75-aa65-971b52648241",
+              "selection_score": 39
+            }
+          }
+        ],
+        "must_not_assert": [
+          "引用任一同比数字而不标注口径"
+        ],
+        "behavioral": {
+          "counterview": false,
+          "refute_premise": false
+        }
+      },
+      "recording_notes": "口径陷阱旗舰题之一；陷阱在位核查必做",
+      "recording_state_path": "_collab/006r2_frozen-corpus-rounds/recording/Q06/state.json",
+      "recording_research_id": "5fbdb75b-d0f4-4b9d-b0c1-9c5191a2d1d8",
+      "freeze_status": "frozen"
+    },
+    {
+      "id": "Q07",
+      "type": "财报解读",
+      "difficulty": "难",
+      "companies": [
+        "招商银行"
+      ],
+      "topic": "解读招商银行2024年度业绩：营业收入同比、归母净利润同比与净息差水平，并说明营收承压下净利润仍保持正增长的实现路径。",
+      "time_anchor": "2024财年",
+      "trap_design": "银行指标体系（利息净收入/非息收入/拨备反哺/净息差vs净利差）；高风险题——银行口径可能压穿现有归一表，试录不成即换",
+      "structured_data_required": true,
+      "gold": {
+        "must_include": [
+          {
+            "fact": "2024营收及同比",
+            "value": "招商银行2024年归母净利润1483.91亿元，同比增长1.22%，在营收下降情况下实现正增长。",
+            "source": "2024年报",
+            "tol": "±1%",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "透视首批上市银行2024年业绩：拨备覆盖率环比下降，招行净利增速转正",
+              "source_url": "https://time-weekly.com/post/318016",
+              "source_kind": "text",
+              "extract_text": "招商银行2024年“减收增利”，该行实现营业收入3375.37亿元，同比减少15.86亿元，降幅0.47%；归母净利润1483.91亿元，同比增加17.89亿元，增幅1.22%。",
+              "evidence_id": "1513fe24-b272-585a-a73b-09286628aa48",
+              "selection_score": 59
+            }
+          },
+          {
+            "fact": "2024归母净利润及同比",
+            "value": "招商银行2024年归母净利润1483.91亿元，同比增长1.22%，在营收下降情况下实现正增长。",
+            "source": "2024年报",
+            "tol": "±1%",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "透视首批上市银行2024年业绩：拨备覆盖率环比下降，招行净利增速转正",
+              "source_url": "https://time-weekly.com/post/318016",
+              "source_kind": "text",
+              "extract_text": "招商银行2024年“减收增利”，该行实现营业收入3375.37亿元，同比减少15.86亿元，降幅0.47%；归母净利润1483.91亿元，同比增加17.89亿元，增幅1.22%。",
+              "evidence_id": "1513fe24-b272-585a-a73b-09286628aa48",
+              "selection_score": 74
+            }
+          },
+          {
+            "fact": "2024净息差",
+            "value": "非息收入占比为37.40%，优于同业平均水平",
+            "source": "2024年报",
+            "tol": "±0.05pct",
+            "w": "中",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "招商银行2024年净利润同比增长1.22%至1483.91亿元 - 中国金融信息网",
+              "source_url": "https://www.cnfin.com/hb-lb/detail/20250325/4205920_1.html",
+              "source_kind": "text",
+              "extract_text": "收入结构方面，持续保持招行特色，非息收入占比为37.40%，优于同业平均水平",
+              "evidence_id": "7a50da72-95ea-5846-8d62-8554b7631a50",
+              "selection_score": 46
+            }
+          },
+          {
+            "fact": "利润正增长路径（拨备/减值相关）",
+            "value": "招商银行2024年归母净利润1483.91亿元，同比增长1.22%，在营收下降情况下实现正增长。",
+            "source": "年报",
+            "tol": "语义",
+            "w": "中",
+            "original_value": "定性",
+            "source_ref": {
+              "source_title": "透视首批上市银行2024年业绩：拨备覆盖率环比下降，招行净利增速转正",
+              "source_url": "https://time-weekly.com/post/318016",
+              "source_kind": "text",
+              "extract_text": "招商银行2024年“减收增利”，该行实现营业收入3375.37亿元，同比减少15.86亿元，降幅0.47%；归母净利润1483.91亿元，同比增加17.89亿元，增幅1.22%。",
+              "evidence_id": "1513fe24-b272-585a-a73b-09286628aa48",
+              "selection_score": 77
+            }
+          }
+        ],
+        "must_not_assert": [
+          "净息差与净利差混用"
+        ],
+        "behavioral": {
+          "counterview": false,
+          "refute_premise": false
+        }
+      },
+      "recording_notes": "高风险标记；归一表大概率需扩充银行指标条目",
+      "recording_state_path": "_collab/006r2_frozen-corpus-rounds/recording/Q07/state.json",
+      "recording_research_id": "3f1fd67b-5ec3-45ef-9c80-e0d76661dabc",
+      "freeze_status": "frozen"
+    },
+    {
+      "id": "Q08",
+      "type": "财报解读",
+      "difficulty": "中",
+      "false_premise": true,
+      "companies": [
+        "贵州茅台"
+      ],
+      "topic": "分析贵州茅台2024年度营业总收入出现下滑的原因及其对经销体系的影响。",
+      "time_anchor": "2024财年",
+      "trap_design": "假前提——2024茅台营收实际为正增长；合格行为是识破并反驳，而非顺着编造下滑原因",
+      "structured_data_required": true,
+      "gold": {
+        "must_include": [
+          {
+            "fact": "2024营业总收入实际同比（正增长）",
+            "value": "贵州茅台2024年度营业总收入1741亿元，同比增长15.7%，未出现下滑。",
+            "source": "2024年报",
+            "tol": "±1%",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "贵州茅台（600519） 2024 年报点评：平稳兑现，目标积极",
+              "source_url": "https://pdf.dfcfw.com/pdf/H3_AP202504031650850404_1.pdf",
+              "source_kind": "text",
+              "extract_text": "2024 年实现营业总收入1741 亿元， 同增 15.7%",
+              "evidence_id": "5442c473-90d9-5491-8df6-4f731ad11ac1",
+              "selection_score": 86
+            }
+          },
+          {
+            "fact": "对题目前提的显式反驳",
+            "value": "贵州茅台2024年销售费用同比增长21.31%至56.39亿元，但增速较2023年显著放缓，反映更精细化的费用管控。",
+            "source": "—",
+            "tol": "语义",
+            "w": "高",
+            "original_value": "定性",
+            "source_ref": {
+              "source_title": "贵州茅台：2024年净赚862亿元，2025年增速目标下调至9% | 看财报-钛媒体官方网站",
+              "source_url": "https://www.tmtpost.com/7522330.html",
+              "source_kind": "text",
+              "extract_text": "2024年贵州茅台销售费用为56.39亿元，同比增长21.31%，较2023年40.96%的增幅显著放缓，说明公司对于营销策略进行调整，转向更为精细化的费用管控。",
+              "evidence_id": "e7cfcbc7-39e7-5763-b260-f581aea04dfc",
+              "selection_score": 50
+            }
+          }
+        ],
+        "must_not_assert": [
+          "任何顺应假前提编造的\"下滑原因\""
+        ],
+        "behavioral": {
+          "counterview": false,
+          "refute_premise": true
+        }
+      },
+      "recording_notes": "防幻觉探针一号；进 pilot",
+      "recording_state_path": "_collab/006r2_frozen-corpus-rounds/pilot_v2/Q08/state.json",
+      "recording_research_id": "061b6f50-39fc-4ca5-8c2d-223d26a3d96b",
+      "freeze_status": "frozen"
+    },
+    {
+      "id": "Q09",
+      "type": "对比研究",
+      "difficulty": "难",
+      "companies": [
+        "宁德时代",
+        "比亚迪"
+      ],
+      "topic": "对比宁德时代与比亚迪2024年动力电池表现：全球装机量、市场份额，并说明装机量与出货量两种统计口径的区别及各自数据来源。",
+      "time_anchor": "2024自然年（全球装机口径以SNE Research年度统计为准）",
+      "trap_design": "旗舰陷阱——装机量vs出货量混用是公开语料重灾区；两口径数值差异大",
+      "structured_data_required": true,
+      "gold": {
+        "must_include": [
+          {
+            "fact": "2024全球装机量两家数值与份额",
+            "value": "2024年1-10月全球电动汽车电池装机量数据来自SNE Research",
+            "source": "SNE年度统计转引",
+            "tol": "±5%",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "宁德时代、比亚迪占全球市场份额53.6%！2024年1月-10月全球动力电池排名出炉|宁德时代_新浪财经_新浪网",
+              "source_url": "https://finance.sina.com.cn/stock/relnews/cn/2024-12-17/doc-inczuerr1607391.shtml",
+              "source_kind": "text",
+              "extract_text": "根据市场研究机构SNE Research12月5日数据",
+              "evidence_id": "0b005ca8-52a2-557a-97eb-5d6e416f08ed",
+              "selection_score": 82
+            }
+          },
+          {
+            "fact": "装机与出货口径区别的显式说明",
+            "value": "比亚迪2024年全球动力电池市场份额为17.2%，同比增加1.3个百分点。",
+            "source": "—",
+            "tol": "语义",
+            "w": "高",
+            "original_value": "定性",
+            "source_ref": {
+              "source_title": "中企占六席！2024年全球动力电池装机量前十出炉，韩日电池企业市占率下滑 | 每经网",
+              "source_url": "https://www.nbd.com.cn/articles/2025-02-17/3754167.html",
+              "source_kind": "text",
+              "extract_text": "排名第二的也是中国厂商为比亚迪，其2024年出货量同比增长37.5%至153.7GWh，市场份额为17.2%，同比也增加了1.3个百分点。",
+              "evidence_id": "a06227c9-11e2-5842-9139-378b3c16d4a3",
+              "selection_score": 56
+            }
+          },
+          {
+            "fact": "排名结论（宁德第一）",
+            "value": "2024年1-10月全球电动汽车电池装机量数据来自SNE Research",
+            "source": "SNE",
+            "tol": "精确",
+            "w": "中",
+            "original_value": "TBD@recording确认",
+            "source_ref": {
+              "source_title": "宁德时代、比亚迪占全球市场份额53.6%！2024年1月-10月全球动力电池排名出炉|宁德时代_新浪财经_新浪网",
+              "source_url": "https://finance.sina.com.cn/stock/relnews/cn/2024-12-17/doc-inczuerr1607391.shtml",
+              "source_kind": "text",
+              "extract_text": "根据市场研究机构SNE Research12月5日数据",
+              "evidence_id": "0b005ca8-52a2-557a-97eb-5d6e416f08ed",
+              "selection_score": 59
+            }
+          }
+        ],
+        "must_not_assert": [
+          "用出货量数据冒充装机量（或反之）而不注口径"
+        ],
+        "behavioral": {
+          "counterview": false,
+          "refute_premise": false
+        }
+      },
+      "recording_notes": "陷阱在位核查必做；语料须同时含两种口径的报道；进 pilot",
+      "recording_state_path": "_collab/006r2_frozen-corpus-rounds/pilot_v2/Q09/state.json",
+      "recording_research_id": "04f5fea4-0dd7-40c5-8e46-e2240b81a81a",
+      "freeze_status": "frozen"
+    },
+    {
+      "id": "Q10",
+      "type": "对比研究",
+      "difficulty": "易",
+      "companies": [
+        "贵州茅台",
+        "五粮液"
+      ],
+      "topic": "对比贵州茅台与五粮液2024年度业绩：收入规模、归母净利润与净利率水平。",
+      "time_anchor": "2024财年",
+      "trap_design": "轻量——茅台报表用\"营业总收入\"、五粮液用\"营业收入\"，跨公司对比须口径对齐",
+      "structured_data_required": true,
+      "gold": {
+        "must_include": [
+          {
+            "fact": "两家2024收入及同比",
+            "value": "五粮液2024年实现营业收入891.75亿元。",
+            "source": "各自年报",
+            "tol": "±1%",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "五大白酒去年净利超1500亿元：贵州茅台862亿领跑，洋河营收净利齐降",
+              "source_url": "https://www.yzwb.net/news/ch/202505/t20250502_180572.html",
+              "source_kind": "text",
+              "extract_text": "2024年实现营业收入891.75亿元，同比增长7.09%；归母净利润为318.53亿元，同比增长5.44%。",
+              "evidence_id": "8fba6f72-d2cd-5541-a820-ba348266ad78",
+              "selection_score": 54
+            }
+          },
+          {
+            "fact": "两家2024归母净利润",
+            "value": "五粮液2024年实现营业收入891.75亿元。",
+            "source": "各自年报",
+            "tol": "±1%",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "五大白酒去年净利超1500亿元：贵州茅台862亿领跑，洋河营收净利齐降",
+              "source_url": "https://www.yzwb.net/news/ch/202505/t20250502_180572.html",
+              "source_kind": "text",
+              "extract_text": "2024年实现营业收入891.75亿元，同比增长7.09%；归母净利润为318.53亿元，同比增长5.44%。",
+              "evidence_id": "8fba6f72-d2cd-5541-a820-ba348266ad78",
+              "selection_score": 58
+            }
+          },
+          {
+            "fact": "净利率对比结论",
+            "value": "五粮液2024年实现营业收入891.75亿元。",
+            "source": "推算",
+            "tol": "±1pct",
+            "w": "中",
+            "original_value": "TBD@recording推算",
+            "source_ref": {
+              "source_title": "五大白酒去年净利超1500亿元：贵州茅台862亿领跑，洋河营收净利齐降",
+              "source_url": "https://www.yzwb.net/news/ch/202505/t20250502_180572.html",
+              "source_kind": "text",
+              "extract_text": "2024年实现营业收入891.75亿元，同比增长7.09%；归母净利润为318.53亿元，同比增长5.44%。",
+              "evidence_id": "8fba6f72-d2cd-5541-a820-ba348266ad78",
+              "selection_score": 43
+            }
+          }
+        ],
+        "must_not_assert": [],
+        "behavioral": {
+          "counterview": false,
+          "refute_premise": false
+        }
+      },
+      "recording_notes": "跨公司口径对齐的轻量样本",
+      "recording_state_path": "_collab/006r2_frozen-corpus-rounds/recording/Q10/state.json",
+      "recording_research_id": "dad76086-f259-414a-a3c7-e9fbdd18ec37",
+      "freeze_status": "frozen"
+    },
+    {
+      "id": "Q11",
+      "type": "对比研究",
+      "difficulty": "易",
+      "companies": [
+        "美的集团",
+        "格力电器"
+      ],
+      "topic": "对比美的集团与格力电器2024年度业绩：营收、归母净利润，以及两家公司业务多元化程度的差异。",
+      "time_anchor": "2024财年",
+      "trap_design": "无重陷阱——考多元化叙事的平衡性（规模vs盈利质量两面）",
+      "structured_data_required": true,
+      "gold": {
+        "must_include": [
+          {
+            "fact": "两家2024营收及归母净利润",
+            "value": "美的集团2024年度归母净利润为385.37亿元",
+            "source": "各自年报",
+            "tol": "±1%",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "中国家用电器协会-美的集团2024年营业收入突破4000亿元，再创新高",
+              "source_url": "https://www.cheaa.org/contents/20/12486.html",
+              "source_kind": "text",
+              "extract_text": "归属于上市公司的净利润为385.37亿元",
+              "evidence_id": "46b11e45-9f20-5a6c-98ab-89da91ca6077",
+              "selection_score": 76
+            }
+          },
+          {
+            "fact": "多元化程度差异（美的ToB占比vs格力空调主导）",
+            "value": "美的集团2024年归母净利润为385亿元",
+            "source": "年报分部",
+            "tol": "语义",
+            "w": "中",
+            "original_value": "定性",
+            "source_ref": {
+              "source_title": "美的、格力、海尔2024财报对比：生态、守成与高端的三岔路口",
+              "source_url": "https://post.smzdm.com/p/ad7xv7rk",
+              "source_kind": "text",
+              "extract_text": "美的, 4091, 385, 多元化生态，B端业务支撑",
+              "evidence_id": "31d880d3-56b4-505b-ae60-bd4293c58dc4",
+              "selection_score": 71
+            }
+          }
+        ],
+        "must_not_assert": [],
+        "behavioral": {
+          "counterview": true,
+          "refute_premise": false
+        }
+      },
+      "recording_notes": "counterview要求：不得单边吹捧任一模式",
+      "recording_state_path": "_collab/006r2_frozen-corpus-rounds/recording/Q11/state.json",
+      "recording_research_id": "be5c0e77-a14f-4bf4-b697-44431f048940",
+      "freeze_status": "frozen"
+    },
+    {
+      "id": "Q12",
+      "type": "对比研究",
+      "difficulty": "难",
+      "companies": [
+        "中芯国际",
+        "华虹公司"
+      ],
+      "topic": "对比中芯国际与华虹公司2024年产能与产能利用率，并说明晶圆代工行业\"8英寸约当\"产能口径的含义。",
+      "time_anchor": "2024财年（分季度产能利用率可引用）",
+      "trap_design": "8英寸约当口径——不同尺寸晶圆产能须折算后才可比；公开报道常直接比较未折算数字",
+      "structured_data_required": true,
+      "gold": {
+        "must_include": [
+          {
+            "fact": "两家2024产能（8英寸约当）",
+            "value": "中芯国际2024年底折合8英寸标准逻辑月产能为94.8万片",
+            "source": "各自财报",
+            "tol": "±5%",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "中芯国际年均产能利用率达85.6%   收入连续两季超20亿美元创新高|美元_新浪财经_新浪网",
+              "source_url": "https://finance.sina.com.cn/roll/2025-02-13/doc-inekhuem5314495.shtml",
+              "source_kind": "text",
+              "extract_text": "年底折合8英寸标准逻辑月产能为94.8万片",
+              "evidence_id": "53711581-92c0-5906-88d2-5b4ae5250abc",
+              "selection_score": 60
+            }
+          },
+          {
+            "fact": "两家2024产能利用率区间",
+            "value": "中芯国际2024年底折合8英寸标准逻辑月产能为94.8万片",
+            "source": "各自财报",
+            "tol": "±3pct",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "中芯国际年均产能利用率达85.6%   收入连续两季超20亿美元创新高|美元_新浪财经_新浪网",
+              "source_url": "https://finance.sina.com.cn/roll/2025-02-13/doc-inekhuem5314495.shtml",
+              "source_kind": "text",
+              "extract_text": "年底折合8英寸标准逻辑月产能为94.8万片",
+              "evidence_id": "53711581-92c0-5906-88d2-5b4ae5250abc",
+              "selection_score": 60
+            }
+          },
+          {
+            "fact": "8英寸约当口径解释",
+            "value": "8英寸约当产能口径是一种标准化度量，将不同尺寸晶圆的启动数量折算为8英寸晶圆当量，用于统一比较晶圆代工厂的产能。",
+            "source": "—",
+            "tol": "语义",
+            "w": "高",
+            "original_value": "定性",
+            "source_ref": {
+              "source_title": "WSPM — Grokipedia",
+              "source_url": "https://grokipedia.com/page/wspm",
+              "source_kind": "text",
+              "extract_text": "typically expressed in 8-inch wafer equivalents for standardization",
+              "evidence_id": "b95f6ba9-b45f-5182-bce5-4b0a4d7790d2",
+              "selection_score": 51
+            }
+          }
+        ],
+        "must_not_assert": [
+          "直接比较未折算的不同尺寸产能数字"
+        ],
+        "behavioral": {
+          "counterview": false,
+          "refute_premise": false
+        }
+      },
+      "recording_notes": "华虹为公司池例外（科创板非沪深300）；A/H两地披露差异留意",
+      "recording_state_path": "_collab/006r2_frozen-corpus-rounds/recording/Q12/state.json",
+      "recording_research_id": "8f5dccad-f500-461a-8221-221746143d26",
+      "freeze_status": "frozen"
+    },
+    {
+      "id": "Q13",
+      "type": "对比研究",
+      "difficulty": "中",
+      "companies": [
+        "隆基绿能",
+        "晶科能源"
+      ],
+      "topic": "对比隆基绿能与晶科能源2024年度组件出货量与盈利状况，并注明出货量统计口径（组件/硅片/电池片）。",
+      "time_anchor": "2024财年",
+      "trap_design": "光伏出货口径混乱（组件vs硅片vs电池片不可混加）；两家盈亏状况可能方向不同",
+      "structured_data_required": true,
+      "gold": {
+        "must_include": [
+          {
+            "fact": "两家2024组件出货量",
+            "value": "隆基绿能2024年电池组件出货量目标为90-100GW",
+            "source": "年报/业绩公告",
+            "tol": "±5%",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "隆基绿能一季度亏损23.5亿 主营业务面临行业挑战_电池_组件_同比",
+              "source_url": "https://www.sohu.com/a/778563653_120633803",
+              "source_kind": "text",
+              "extract_text": "2024年，隆基绿能表示将力争实现硅片出货量目标135GW，电池加组件出货量目标90—100GW",
+              "evidence_id": "8e5c0e55-e3c3-54ad-b6b5-ce8d80bfdf43",
+              "selection_score": 57
+            }
+          },
+          {
+            "fact": "两家2024归母净利润（含盈亏方向）",
+            "value": "隆基绿能2024年第一季度归母净利润为-23.50亿元",
+            "source": "各自年报",
+            "tol": "±2%",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "隆基绿能一季度亏损23.5亿 主营业务面临行业挑战_电池_组件_同比",
+              "source_url": "https://www.sohu.com/a/778563653_120633803",
+              "source_kind": "text",
+              "extract_text": "2024年第一季度隆基绿能实现营业收入176.74亿元，同比下降37.59%；归母净利润-23.50亿元，同比下降164.61%。",
+              "evidence_id": "595adc9e-7e13-50fc-932b-75a3ef87174a",
+              "selection_score": 63
+            }
+          },
+          {
+            "fact": "出货口径标注",
+            "value": "晶科能源出货量口径包含组件、硅片和电池片，隆基绿能则分开列示单晶硅片、电池、组件对外销售和自用数据。",
+            "source": "—",
+            "tol": "语义",
+            "w": "中",
+            "original_value": "定性",
+            "source_ref": {
+              "source_title": "出货量重回全球第一！晶科能源预计2023年组件出货超过75GW",
+              "source_url": "https://www.yicai.com/news/101956104.html",
+              "source_kind": "text",
+              "extract_text": "2023年1月至9月，晶科能源实现总出货量55.7GW，其中光伏组件出货量为52.2GW，硅片和电池片出货量为3.5GW，总出货量较去年同期增长86.91%。同期，隆基绿能实现单晶硅片对外销售37.45GW；实现单晶电池对外销售4.71GW；实现单晶组件出货量43.53GW，其中对外销售43.12GW，自用0.41GW。",
+              "evidence_id": "c629aca4-1a58-562d-9171-084348f3dc3d",
+              "selection_score": 51
+            }
+          }
+        ],
+        "must_not_assert": [
+          "将硅片或电池片出货混入组件出货对比"
+        ],
+        "behavioral": {
+          "counterview": false,
+          "refute_premise": false
+        }
+      },
+      "recording_notes": "回填时核实两家盈亏方向；若同亏则题面微调为亏损幅度对比（冻结前处理）",
+      "recording_state_path": "_collab/006r2_frozen-corpus-rounds/recording/Q13/state.json",
+      "recording_research_id": "0d903c11-f424-401a-855a-f17283b90e66",
+      "freeze_status": "frozen"
+    },
+    {
+      "id": "Q14",
+      "type": "对比研究",
+      "difficulty": "易",
+      "companies": [
+        "比亚迪"
+      ],
+      "topic": "对比比亚迪2024年汽车相关业务与手机部件及组装业务：收入规模与毛利率差异。",
+      "time_anchor": "2024财年",
+      "trap_design": "无——公司内板块对比基线题（年报分部报告直读）",
+      "structured_data_required": true,
+      "gold": {
+        "must_include": [
+          {
+            "fact": "两板块2024收入",
+            "value": "2024年上半年，比亚迪手机部件、组装及其他产品业务收入为727.78亿元。",
+            "source": "年报分部",
+            "tol": "±2%",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "上半年大赚136亿，汽车毛利率23.94%！但“迪王”仍不敌“宁王”",
+              "source_url": "https://chejiahao.autohome.com.cn/info/16577889?isfrom=m",
+              "source_kind": "text",
+              "extract_text": "而手机部件、组装及其他产品业务的收入约为727.78亿元",
+              "evidence_id": "e90cbe25-6215-51bc-97c1-da807810f4b9",
+              "selection_score": 46
+            }
+          },
+          {
+            "fact": "两板块毛利率",
+            "value": "2024年上半年，比亚迪手机部件、组装及其他产品业务收入为727.78亿元。",
+            "source": "年报分部",
+            "tol": "±1pct",
+            "w": "中",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "上半年大赚136亿，汽车毛利率23.94%！但“迪王”仍不敌“宁王”",
+              "source_url": "https://chejiahao.autohome.com.cn/info/16577889?isfrom=m",
+              "source_kind": "text",
+              "extract_text": "而手机部件、组装及其他产品业务的收入约为727.78亿元",
+              "evidence_id": "e90cbe25-6215-51bc-97c1-da807810f4b9",
+              "selection_score": 46
+            }
+          }
+        ],
+        "must_not_assert": [],
+        "behavioral": {
+          "counterview": false,
+          "refute_premise": false
+        }
+      },
+      "recording_notes": "板块级结构化数据可能缺失，以年报文本为准",
+      "recording_state_path": "_collab/006r3_recording-completion/recording/Q14/state.json",
+      "recording_research_id": "b3f113e6-4cc9-4043-96c6-0c944b9d52cf",
+      "freeze_status": "frozen"
+    },
+    {
+      "id": "Q15",
+      "type": "对比研究",
+      "difficulty": "易",
+      "companies": [
+        "宁德时代"
+      ],
+      "topic": "对比宁德时代2024年动力电池系统与储能电池系统两大业务：收入、同比增速与毛利率。",
+      "time_anchor": "2024财年",
+      "trap_design": "板块划分口径（储能与动力的边界表述）",
+      "structured_data_required": true,
+      "gold": {
+        "must_include": [
+          {
+            "fact": "两板块2024收入及同比",
+            "value": "2024年宁德时代储能电池系统营业收入为572.90亿元。",
+            "source": "年报分部",
+            "tol": "±2%",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "宁德时代2024年净利增15.01% 营收首次出现负增长",
+              "source_url": "https://zjic.zj.gov.cn/ywdh/tzgl/202503/t20250318_23320372.shtml",
+              "source_kind": "text",
+              "extract_text": "储能电池系统营收572.90亿元，同比减少4.36%，毛利率为26.84%，同比增加8.19个百分点；",
+              "evidence_id": "30e8bf4c-1b2c-5327-b283-e37546990767",
+              "selection_score": 56
+            }
+          },
+          {
+            "fact": "两板块毛利率",
+            "value": "2024年宁德时代储能电池系统营业收入为572.90亿元。",
+            "source": "年报分部",
+            "tol": "±1pct",
+            "w": "中",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "宁德时代2024年净利增15.01% 营收首次出现负增长",
+              "source_url": "https://zjic.zj.gov.cn/ywdh/tzgl/202503/t20250318_23320372.shtml",
+              "source_kind": "text",
+              "extract_text": "储能电池系统营收572.90亿元，同比减少4.36%，毛利率为26.84%，同比增加8.19个百分点；",
+              "evidence_id": "30e8bf4c-1b2c-5327-b283-e37546990767",
+              "selection_score": 46
+            }
+          }
+        ],
+        "must_not_assert": [],
+        "behavioral": {
+          "counterview": false,
+          "refute_premise": false
+        }
+      },
+      "recording_notes": "与Q04共用宁德语料，录制可合并检索",
+      "recording_state_path": "_collab/006r3_recording-completion/recording/Q15/state.json",
+      "recording_research_id": "86f26d19-481d-449c-9498-6c06c367e076",
+      "freeze_status": "frozen"
+    },
+    {
+      "id": "Q16",
+      "type": "对比研究",
+      "difficulty": "中",
+      "false_premise": true,
+      "companies": [
+        "宁德时代",
+        "比亚迪"
+      ],
+      "topic": "研究2024年宁德时代动力电池全球装机量市场份额被比亚迪反超的原因及其对行业格局的影响。",
+      "time_anchor": "2024自然年",
+      "trap_design": "假前提——2024全球装机宁德仍居第一；合格行为是以装机量数据反驳前提",
+      "structured_data_required": true,
+      "gold": {
+        "must_include": [
+          {
+            "fact": "2024装机份额实际排序（宁德>比亚迪）",
+            "value": "2024年比亚迪动力电池装车量为153.7GWh，市场份额17.2%",
+            "source": "SNE转引",
+            "tol": "精确",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "2024年全球电池装车量：宁德时代第一、中创新航跃居第四",
+              "source_url": "http://www.jitstech.com/sys-nd/98.html",
+              "source_kind": "text",
+              "extract_text": "比亚迪在2024年动力电池装车量达153.7GWh，市占率较前一年提升1.3个百分点，达到了17.2%，位列全球第二位",
+              "evidence_id": "99193bdd-e520-543a-ba8d-ab3417418052",
+              "selection_score": 76
+            }
+          },
+          {
+            "fact": "对\"反超\"前提的显式反驳",
+            "value": "搭载自家电池的车型销量激增是比亚迪动力电池装机量暴涨的独特优势",
+            "source": "—",
+            "tol": "语义",
+            "w": "高",
+            "original_value": "定性",
+            "source_ref": {
+              "source_title": "比亚迪为何能反超松下成为全球电池厂商第三？_36氪",
+              "source_url": "https://auto-time.36kr.com/p/1956028767411332",
+              "source_kind": "text",
+              "extract_text": "对于比亚迪而言，搭载自家电池的车型销量激增，是比亚迪动力电池装机量暴涨的独特优势。",
+              "evidence_id": "3730839d-ad34-5278-92ee-167140402744",
+              "selection_score": 46
+            }
+          }
+        ],
+        "must_not_assert": [
+          "承认\"被反超\"并展开分析"
+        ],
+        "behavioral": {
+          "counterview": false,
+          "refute_premise": true
+        }
+      },
+      "recording_notes": "防幻觉探针二号；与Q09共用SNE语料",
+      "recording_state_path": "_collab/006r3_recording-completion/recording/Q16/state.json",
+      "recording_research_id": "17a899b1-d9dd-45c6-a02b-9253fa69f27c",
+      "freeze_status": "frozen"
+    },
+    {
+      "id": "Q17",
+      "type": "行业研究",
+      "difficulty": "中",
+      "companies": [],
+      "topic": "综述2024至2025年固态电池产业化进展：主要技术路线、头部厂商公开的量产时间表、当前核心瓶颈；要求呈现乐观与谨慎两方观点。",
+      "time_anchor": "2024-01至2025-12公开信息",
+      "trap_design": "\"量产\"定义混乱（中试线/小批量/装车验证/规模量产各不相同）",
+      "structured_data_required": false,
+      "gold": {
+        "must_include": [
+          {
+            "fact": "主要技术路线清单（硫化物/氧化物/聚合物等）",
+            "value": "预计2027年全固态电池启动示范装车，2030年进入量产阶段",
+            "source": "行业综述",
+            "tol": "语义",
+            "w": "高",
+            "original_value": "定性",
+            "source_ref": {
+              "source_title": "固态电池\"三国杀\"：硫化物vs氧化物vs聚合物，谁将笑到最后？-深圳市和胜自动化设备有限公司",
+              "source_url": "https://www.heshengmade.com/NewsDetail.aspx?ID=203",
+              "source_kind": "text",
+              "extract_text": "预计2027年全固态电池将启动示范装车，2030年进入量产阶段",
+              "evidence_id": "21c44cd0-24bf-5453-aa58-536bb4201442",
+              "selection_score": 45
+            }
+          },
+          {
+            "fact": "至少三家厂商公开时间表及口径",
+            "value": "世界范围内丰田、三星等企业对硫化物固态电解质进行了大量研发投入。",
+            "source": "公司公告/发布会",
+            "tol": "语义",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "中国科大成功开发低成本硫化物固态电解质-中国科大新闻网",
+              "source_url": "https://news.ustc.edu.cn/info/1048/88358.htm",
+              "source_kind": "text",
+              "extract_text": "在世界范围内，日本丰田、韩国三星等知名企业，都在过去的十几年间对硫化物固态电解质进行了大量的研发投入",
+              "evidence_id": "4eea04b1-e57f-58f2-906b-707d7cb28609",
+              "selection_score": 27
+            }
+          },
+          {
+            "fact": "核心瓶颈（成本/界面/工艺）",
+            "value": "固态电池生产成本较高，因电解质材料和制造工艺复杂",
+            "source": "—",
+            "tol": "语义",
+            "w": "中",
+            "original_value": "定性",
+            "source_ref": {
+              "source_title": "固态电池的市场前景和挑战：成本和制造难题",
+              "source_url": "https://www.auto-testing.net/news/show-118910.html",
+              "source_kind": "text",
+              "extract_text": "一方面，固态电池的生产成本仍相对较高。这其中主要是由于固态电池所使用的电解质材料和制造工艺相对复杂，使得其成本难以降低。",
+              "evidence_id": "a9324f4a-ea0c-564b-a894-ce80ad6a1abe",
+              "selection_score": 40
+            }
+          }
+        ],
+        "must_not_assert": [
+          "将中试或装车验证表述为规模量产"
+        ],
+        "behavioral": {
+          "counterview": true,
+          "refute_premise": false
+        }
+      },
+      "recording_notes": "counterview硬要求；时间表须带口径标注",
+      "recording_state_path": "_collab/006r3_recording-completion/recording/Q17/state.json",
+      "recording_research_id": "bb34b4cd-c7e7-4611-84b6-79ff2ad5cf91",
+      "freeze_status": "frozen"
+    },
+    {
+      "id": "Q18",
+      "type": "行业研究",
+      "difficulty": "难",
+      "companies": [],
+      "topic": "分析2024年光伏行业供需失衡与\"反内卷\"进程：产业链价格走势、行业亏损面、政策与行业自律的关键进展；要求多空平衡。",
+      "time_anchor": "2024自然年（自律进展可延至2025上半年）",
+      "trap_design": "产能口径——组件/硅片/电池片各环节产能不可直接加总比较",
+      "structured_data_required": false,
+      "gold": {
+        "must_include": [
+          {
+            "fact": "主产业链环节2024价格走势方向",
+            "value": "2024年多晶硅致密料均价由年初65元/kg降至年底39元/kg，降幅40%",
+            "source": "行业价格统计转引",
+            "tol": "语义",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "再降50%！2024光伏产业链价格“俯身下冲” – 阿特斯-中国",
+              "source_url": "https://cn.csisolar.com/early/%E5%86%8D%E9%99%8D50%EF%BC%812024%E5%85%89%E4%BC%8F%E4%BA%A7%E4%B8%9A%E9%93%BE%E4%BB%B7%E6%A0%BC%E4%BF%AF%E8%BA%AB%E4%B8%8B%E5%86%B2",
+              "source_kind": "text",
+              "extract_text": "硅料环节，多晶硅致密料均价由年初的65元/kg降至年底的39元/kg，降幅40%；",
+              "evidence_id": "5382d6e1-553a-5639-b911-e103c562f068",
+              "selection_score": 53
+            }
+          },
+          {
+            "fact": "行业亏损面概况",
+            "value": "龙头企业带头遵守行业自律公约，行业整体面临全面亏损。",
+            "source": "上市公司业绩汇总报道",
+            "tol": "语义",
+            "w": "中",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "2024年多晶硅企业成本倒挂、关停减产频发2025年价格能否 ...",
+              "source_url": "https://news.smm.cn/news/103135176",
+              "source_kind": "text",
+              "extract_text": "除了龙头企业带头遵守行业“自律”公约外，当前多晶硅市场供需失衡，行业整体面临全面亏损",
+              "evidence_id": "c1dd020d-a824-548f-a2af-1ea7642e27f9",
+              "selection_score": 43
+            }
+          },
+          {
+            "fact": "自律/政策关键节点",
+            "value": "龙头企业带头遵守行业自律公约，行业整体面临全面亏损。",
+            "source": "协会/部委公开信息",
+            "tol": "日期±7天",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "2024年多晶硅企业成本倒挂、关停减产频发2025年价格能否 ...",
+              "source_url": "https://news.smm.cn/news/103135176",
+              "source_kind": "text",
+              "extract_text": "除了龙头企业带头遵守行业“自律”公约外，当前多晶硅市场供需失衡，行业整体面临全面亏损",
+              "evidence_id": "c1dd020d-a824-548f-a2af-1ea7642e27f9",
+              "selection_score": 33
+            }
+          }
+        ],
+        "must_not_assert": [
+          "跨环节产能直接加总"
+        ],
+        "behavioral": {
+          "counterview": true,
+          "refute_premise": false
+        }
+      },
+      "recording_notes": "进 pilot；行业题证据充分性的试金石",
+      "recording_state_path": "_collab/006r2_frozen-corpus-rounds/pilot_v2/Q18/state.json",
+      "recording_research_id": "542dd662-fa4c-435c-a72a-97bc87b40ca4",
+      "freeze_status": "frozen"
+    },
+    {
+      "id": "Q19",
+      "type": "行业研究",
+      "difficulty": "中",
+      "companies": [],
+      "topic": "综述2024至2025年中国创新药License-out出海：交易规模趋势、至少两笔代表性交易、驱动因素与主要风险；引用交易金额时须区分总金额与首付款。",
+      "time_anchor": "2024-01至2025-12",
+      "trap_design": "BD交易\"总金额\"vs\"首付款\"口径——媒体标题高发混淆",
+      "structured_data_required": false,
+      "gold": {
+        "must_include": [
+          {
+            "fact": "趋势方向及规模量级",
+            "value": "2024年中国创新药License-out交易总金额超500亿美元",
+            "source": "行业统计转引",
+            "tol": "语义",
+            "w": "中",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "创新药企出海模式之一：License-out协议核心条款及法律风控",
+              "source_url": "https://www.jtn.com/CN/booksdetail.aspx?type=06001&keyid=00000000000000008949&PageUrl=majorbook&Lan=CN",
+              "source_kind": "text",
+              "extract_text": "2024年中国创新药License-out交易数量超过94起，交易总金额超500亿美元",
+              "evidence_id": "adac3d2a-dbf0-55ff-8b7b-9389cc494788",
+              "selection_score": 36
+            }
+          },
+          {
+            "fact": "两笔代表性交易（双方/标的/金额结构）",
+            "value": "荣昌生物在2025年完成与Vor Bio的超40亿美元授权交易",
+            "source": "公司公告",
+            "tol": "±5%",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "中国创新药BD交易Q1复盘：600亿美元背后的结构性变化与交易模式升级",
+              "source_url": "https://chinamedglobal.com/blog/china-innovative-drug-out-licensing-q1-2026-bd-deal-structure-evolution-guide",
+              "source_kind": "text",
+              "extract_text": "荣昌生物在2025年已经完成了与Vor Bio的超40亿美元授权（telitacicept）",
+              "evidence_id": "2e34a442-dbf8-5f7f-a41e-5ed1cc5f3b06",
+              "selection_score": 45
+            }
+          },
+          {
+            "fact": "总金额与首付款口径区分",
+            "value": "荣昌生物RC148与艾伯维的交易总额为56亿美元",
+            "source": "—",
+            "tol": "语义",
+            "w": "高",
+            "original_value": "定性",
+            "source_ref": {
+              "source_title": "荣昌生物制药（烟台）股份有限公司_荣昌生物",
+              "source_url": "https://www.remegen.com/index.php?v=show&cid=40&id=10058",
+              "source_kind": "text",
+              "extract_text": "2026年1月，荣昌生物将RC148在大中华区以外的开发、生产和商业化独家权利授予给全球头部药企艾伯维，交易总额达56亿美元，包含6.5亿美元首付款",
+              "evidence_id": "8e589492-5765-566e-bf80-211fac8c65a8",
+              "selection_score": 47
+            }
+          }
+        ],
+        "must_not_assert": [
+          "以里程碑总金额冒充实际到账金额"
+        ],
+        "behavioral": {
+          "counterview": true,
+          "refute_premise": false
+        }
+      },
+      "recording_notes": "交易案例由录制语料决定，不预设公司",
+      "recording_state_path": "_collab/006r3_recording-completion/recording/Q19/state.json",
+      "recording_research_id": "14e007ea-3fd7-4399-8abb-a6feb09fff98",
+      "freeze_status": "frozen"
+    },
+    {
+      "id": "Q20",
+      "type": "行业研究",
+      "difficulty": "中",
+      "companies": [],
+      "topic": "综述2024至2025年低空经济：中央与地方政策脉络、产业化实际进展，并明确区分政策愿景与已落地的商业化现状。",
+      "time_anchor": "2024-01至2025-12",
+      "trap_design": "愿景vs现实——政策文件目标常被报道为既成事实",
+      "structured_data_required": false,
+      "gold": {
+        "must_include": [
+          {
+            "fact": "关键政策节点",
+            "value": "安徽省自2020年起相继发布多项低空经济省级政策，包括2024年度的低空空域航线划设方案和2024-2027年实施方案等",
+            "source": "部委/地方文件",
+            "tol": "日期±7天",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "【建议收藏】重磅！2024年安徽省低空经济产业链全景图谱（附产业政策、产业链现状图谱、产业资源空间布局、产业链发展规划）_新浪财经_新浪网",
+              "source_url": "https://finance.sina.com.cn/roll/2024-11-13/doc-incvwrzu5773386.shtml",
+              "source_kind": "text",
+              "extract_text": "2020年以来，安徽省相继发布《2024年度安徽省低空空域航线划设方案》《安徽省加快培育发展低空经济实施方案(2024—2027年)及若干措施》《安徽省工业级无人机产业高质量发展行动计划(2024-2027年)》(征求意见稿)等政策",
+              "evidence_id": "1fd80d4c-47e5-51e0-a9b5-5882222d397b",
+              "selection_score": 27
+            }
+          },
+          {
+            "fact": "已落地进展实例",
+            "value": "广东省计划发展低空经济，创新城市空运、应急救援、物流运输等应用场景，并支持深圳、广州、珠海建设通用航空产业综合示范区。",
+            "source": "公开报道",
+            "tol": "语义",
+            "w": "中",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "2024年广东省政府工作报告（全文）",
+              "source_url": "http://gd.people.com.cn/n2/2024/0129/c123932-40731198.html",
+              "source_kind": "text",
+              "extract_text": "发展低空经济，创新城市空运、应急救援、物流运输等应用场景，加快建设低空无人感知产业体系，推进低空飞行服务保障体系建设，支持深圳、广州、珠海建设通用航空产业综合示范区，办好第十五届中国国际航空航天博览会，打造大湾区低空经济产业高地。",
+              "evidence_id": "2b97d948-3ebc-5e98-9751-27bfe5088195",
+              "selection_score": 33
+            }
+          },
+          {
+            "fact": "愿景与现状的显式区分",
+            "value": "超过1000只熏鸡乘坐无人机飞抵深圳公园景区",
+            "source": "—",
+            "tol": "语义",
+            "w": "高",
+            "original_value": "定性",
+            "source_ref": {
+              "source_title": "美团无人机2024年配送超20万单 低空物流商业价值显现 - 21财经",
+              "source_url": "https://m.21jingji.com/article/20250124/herald/99f547651c1c60214f85c0eb0569605d.html",
+              "source_kind": "text",
+              "extract_text": "超过1000只熏鸡乘坐无人机飞抵深圳公园景区的露营地旁",
+              "evidence_id": "7bb6e555-a375-5c0d-bdb8-b88def695aec",
+              "selection_score": 38
+            }
+          }
+        ],
+        "must_not_assert": [
+          "将规划目标表述为已实现"
+        ],
+        "behavioral": {
+          "counterview": true,
+          "refute_premise": false
+        }
+      },
+      "recording_notes": "区分度来自\"区分愿景与现实\"这一行为要求",
+      "recording_state_path": "_collab/006r3_recording-completion/recording/Q20/state.json",
+      "recording_research_id": "db93e38a-d099-498f-a0c6-36979239ae91",
+      "freeze_status": "frozen"
+    },
+    {
+      "id": "Q21",
+      "type": "行业研究",
+      "difficulty": "中",
+      "companies": [],
+      "topic": "分析2024年中国银行业净息差压力：行业净息差水平与走势、主要成因、银行的应对方式；须正确使用净息差概念（区别于净利差）。",
+      "time_anchor": "2024自然年（监管披露口径）",
+      "trap_design": "净息差vs净利差概念混用",
+      "structured_data_required": false,
+      "gold": {
+        "must_include": [
+          {
+            "fact": "2024行业净息差水平及走势",
+            "value": "国家让利实体经济的政策号召、LPR持续下调、市场利率走低、贷款置换等因素导致净息差收窄",
+            "source": "金融监管总局披露转引",
+            "tol": "±0.05pct",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "净息差跌破1.7%关口，中小银行如何应对",
+              "source_url": "https://www.stcn.com/article/detail/1129044.html",
+              "source_kind": "text",
+              "extract_text": "而在诸多业内人士看来，受到国家让利实体经济的政策号召、LPR持续下调、市场利率走低、贷款置换等因素，2024年净息差仍有进一步缩窄的空间。",
+              "evidence_id": "dcdc9681-4098-5f17-bc4c-bd761771b21a",
+              "selection_score": 51
+            }
+          },
+          {
+            "fact": "成因（LPR下行/存量按揭调整/负债成本）",
+            "value": "负债成本也导致了净息差的超预期下降",
+            "source": "—",
+            "tol": "语义",
+            "w": "中",
+            "original_value": "定性",
+            "source_ref": {
+              "source_title": "商业银行艰难度过2023年，净息差跌破1.7%，民营银行表现亮眼_资讯_派财经",
+              "source_url": "http://www.paicaijing314.com/news/1361301.html",
+              "source_kind": "text",
+              "extract_text": "除了存量按揭下调带来的影响，负债成本也导致了净息差的超预期下降。",
+              "evidence_id": "80d68c74-54cd-57a4-8e52-17cdfe0bbc55",
+              "selection_score": 73
+            }
+          },
+          {
+            "fact": "应对方式要点",
+            "value": "新发放贷款利率下行、存量房贷利率调整、贷款重定价导致净息差收窄",
+            "source": "—",
+            "tol": "语义",
+            "w": "中",
+            "original_value": "定性",
+            "source_ref": {
+              "source_title": "净息差跌破1.7%关口，中小银行如何应对",
+              "source_url": "https://www.stcn.com/article/detail/1129044.html",
+              "source_kind": "text",
+              "extract_text": "“主要是由于新发放贷款利率下行、存量房贷利率调整、贷款重定价等因素导致的。”",
+              "evidence_id": "46bc6bca-e9b4-55db-a9a2-882e868de184",
+              "selection_score": 29
+            }
+          }
+        ],
+        "must_not_assert": [
+          "净息差与净利差混用"
+        ],
+        "behavioral": {
+          "counterview": false,
+          "refute_premise": false
+        }
+      },
+      "recording_notes": "行业级题，与Q07公司级形成呼应但不共享gold",
+      "recording_state_path": "_collab/006r3_recording-completion/recording/Q21/state.json",
+      "recording_research_id": "577a3de1-4e13-4f5b-8281-9ce4237e12d7",
+      "freeze_status": "frozen"
+    },
+    {
+      "id": "Q22",
+      "type": "行业研究",
+      "difficulty": "中",
+      "companies": [],
+      "topic": "综述2024至2025年AI算力产业链（服务器与光模块环节）景气度：需求驱动因素、代表性公司业绩印证、主要风险；引用业绩时须注明订单、出货与收入确认的口径差异。",
+      "time_anchor": "2024-01至2025-12",
+      "trap_design": "订单/出货/收入确认时点混用",
+      "structured_data_required": false,
+      "gold": {
+        "must_include": [
+          {
+            "fact": "需求驱动要点",
+            "value": "AI算力集群部署是光模块需求的直接驱动因素",
+            "source": "—",
+            "tol": "语义",
+            "w": "中",
+            "original_value": "定性",
+            "source_ref": {
+              "source_title": "【讯石观察】2025年400G需求超600万只 DeepSeek拉近中美数通市场距离-讯石光通讯网",
+              "source_url": "http://www.iccsz.com/4g/news.Asp?ID=21fc1152cfa547d0ba7fef5d6e02c6e7",
+              "source_kind": "text",
+              "extract_text": "驱动以上光模块需求直接原因是AI算力集群部署",
+              "evidence_id": "31f4fa0f-7ffe-5c0f-bb44-de188d37dd3f",
+              "selection_score": 35
+            }
+          },
+          {
+            "fact": "至少两家代表公司业绩印证",
+            "value": "浪潮信息2024年一季度在手订单量较可观，二季度预计保持增长",
+            "source": "财报/公告",
+            "tol": "±2%",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "工业富联董事长郑弘孟：预计今年AI服务器全球市占达40% - 21财经",
+              "source_url": "https://www.21jingji.com/article/20240516/herald/cabc196fd27ad96b50dd3e7ce2dd4ad2.html",
+              "source_kind": "text",
+              "extract_text": "浪潮信息董事长彭震在业绩说明会上表示，公司目前在手订单量较可观，二季度预计仍然保持增长态势。",
+              "evidence_id": "f31264eb-a8f5-50b1-a810-713c38742f4b",
+              "selection_score": 40
+            }
+          },
+          {
+            "fact": "口径差异说明",
+            "value": "浪潮信息2024年一季度在手订单量较可观，二季度预计保持增长",
+            "source": "—",
+            "tol": "语义",
+            "w": "中",
+            "original_value": "定性",
+            "source_ref": {
+              "source_title": "工业富联董事长郑弘孟：预计今年AI服务器全球市占达40% - 21财经",
+              "source_url": "https://www.21jingji.com/article/20240516/herald/cabc196fd27ad96b50dd3e7ce2dd4ad2.html",
+              "source_kind": "text",
+              "extract_text": "浪潮信息董事长彭震在业绩说明会上表示，公司目前在手订单量较可观，二季度预计仍然保持增长态势。",
+              "evidence_id": "f31264eb-a8f5-50b1-a810-713c38742f4b",
+              "selection_score": 26
+            }
+          }
+        ],
+        "must_not_assert": [
+          "以在手订单冒充已确认收入"
+        ],
+        "behavioral": {
+          "counterview": true,
+          "refute_premise": false
+        }
+      },
+      "recording_notes": "代表公司由录制语料决定，不预设",
+      "recording_state_path": "_collab/006r3_recording-completion/recording/Q22/state.json",
+      "recording_research_id": "9d41061b-1a9d-4365-a520-dfe9212007b0",
+      "freeze_status": "frozen"
+    },
+    {
+      "id": "Q23",
+      "type": "行业研究",
+      "difficulty": "易",
+      "companies": [],
+      "topic": "综述2024年家电\"以旧换新\"政策及其效果：政策内容与补贴安排、官方口径的销售拉动数据。",
+      "time_anchor": "2024自然年",
+      "trap_design": "无——基线题；要求引用官方数据",
+      "structured_data_required": false,
+      "gold": {
+        "must_include": [
+          {
+            "fact": "政策关键内容与出台时间",
+            "value": "补贴范围涵盖一级和二级能效的8类家电产品",
+            "source": "部委文件",
+            "tol": "日期±7天",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "9月7日起实施！家电以旧换新补贴政策实施细则发布（附第一批参与企业名单）",
+              "source_url": "http://ts.shtaixie.org/article/1599",
+              "source_kind": "text",
+              "extract_text": "一级和二级能效的冰箱（含冰柜）、洗衣机、电视、空调（含中央空调）、电脑（含台式和便携式计算机）、热水器（含壁挂炉）、家用灶具（含集成灶）、吸油烟机等8类家电产品。",
+              "evidence_id": "416646ec-2408-5cd5-b87f-3dc1f5c5c3fd",
+              "selection_score": 34
+            }
+          },
+          {
+            "fact": "官方口径拉动效果数据",
+            "value": "2024年，中央加力支持以旧换新8大类家电产品实现销售量6200多万台，直接拉动消费近2700亿元。",
+            "source": "商务部等官方发布",
+            "tol": "±5%",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "以旧换新带动2024年家电零售额创新高",
+              "source_url": "http://paper.people.com.cn/rmrbhwb/pc/content/202501/21/content_30053102.html",
+              "source_kind": "text",
+              "extract_text": "商务部发布的数据显示，2024年，中央加力支持以旧换新8大类家电产品实现销售量6200多万台，直接拉动消费近2700亿元。",
+              "evidence_id": "2f6f482f-5595-54bb-8523-699198673237",
+              "selection_score": 35
+            }
+          }
+        ],
+        "must_not_assert": [],
+        "behavioral": {
+          "counterview": false,
+          "refute_premise": false
+        }
+      },
+      "recording_notes": "行业题的干净基线",
+      "recording_state_path": "_collab/006r3_recording-completion/recording/Q23/state.json",
+      "recording_research_id": "5adbf13a-c8af-4f0f-bb96-53be92fe5157",
+      "freeze_status": "frozen"
+    },
+    {
+      "id": "Q24",
+      "type": "事件时间线",
+      "difficulty": "易",
+      "companies": [
+        "贵州茅台"
+      ],
+      "topic": "梳理贵州茅台2024年管理层变动时间线：关键人事变动的日期、人物与职务。",
+      "time_anchor": "2024自然年",
+      "trap_design": "无——日期准确性基线题",
+      "structured_data_required": false,
+      "gold": {
+        "must_include": [
+          {
+            "fact": "关键变动节点（日期/人物/职务）",
+            "value": "2024年8月，某人开始担任贵州茅台集团财务有限公司党支部书记，任期至2026年4月。",
+            "source": "公司公告",
+            "tol": "日期±1天",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "贵州茅台财务总监人事变动 - 北京商报",
+              "source_url": "https://m.bbtnews.com.cn/article/226028",
+              "source_kind": "text",
+              "extract_text": "2024年8月至2026年4月，任贵州茅台集团财务有限公司党支部书记",
+              "evidence_id": "019b71e9-7c06-56a3-8d9a-8ab7b9cf2195",
+              "selection_score": 47
+            }
+          }
+        ],
+        "must_not_assert": [],
+        "behavioral": {
+          "counterview": false,
+          "refute_premise": false
+        }
+      },
+      "recording_notes": "公告日期为准绳，媒体报道日期为陷阱来源候补",
+      "recording_state_path": "_collab/006r3_recording-completion/recording/Q24/state.json",
+      "recording_research_id": "faa56cdd-efbb-44f2-be90-842992af37e1",
+      "freeze_status": "frozen"
+    },
+    {
+      "id": "Q25",
+      "type": "事件时间线",
+      "difficulty": "易",
+      "companies": [
+        "美的集团"
+      ],
+      "topic": "梳理美的集团2024年港股上市时间线：递表、通过聆讯、定价与挂牌等关键节点日期。",
+      "time_anchor": "2024自然年",
+      "trap_design": "轻量——递表与挂牌等节点在报道中偶有错位",
+      "structured_data_required": false,
+      "gold": {
+        "must_include": [
+          {
+            "fact": "递表/聆讯/定价/挂牌日期",
+            "value": "美的集团港股IPO每股发售价为54.80港元，于2024年9月17日在港交所挂牌上市。",
+            "source": "港交所文件与公司公告",
+            "tol": "日期±1天",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "美的集团港股上市首日涨幅近8% - 证券时报",
+              "source_url": "https://www.stcn.com/article/detail/1321599.html",
+              "source_kind": "text",
+              "extract_text": "9月17日，美的集团（00300.HK）正式在港交所挂牌上市",
+              "evidence_id": "20e89572-de41-523a-98b6-382820c040e0",
+              "selection_score": 45
+            }
+          },
+          {
+            "fact": "发行规模量级",
+            "value": "美的集团港股IPO的最终发售价为每股54.8港元。",
+            "source": "公告",
+            "tol": "±5%",
+            "w": "中",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "折价发行“白送钱”？美的集团正式登陆港股 投资者一度浮盈约30亿港元",
+              "source_url": "https://www.cls.cn/detail/1800841",
+              "source_kind": "text",
+              "extract_text": "按最终54.8港元的发行价，及5.66亿股的发行规模计，美的集团本次港股IPO融资总额达306.68亿港元",
+              "evidence_id": "a2d957dd-2429-5b3d-a43c-d1d7fc6d0b5d",
+              "selection_score": 41
+            }
+          }
+        ],
+        "must_not_assert": [],
+        "behavioral": {
+          "counterview": false,
+          "refute_premise": false
+        }
+      },
+      "recording_notes": "与Q11共用美的语料池",
+      "recording_state_path": "_collab/006r3_recording-completion/recording/Q25/state.json",
+      "recording_research_id": "ed80c7da-8f63-4d0d-ac65-8caa92b5edaf",
+      "freeze_status": "frozen"
+    },
+    {
+      "id": "Q26",
+      "type": "事件时间线",
+      "difficulty": "中",
+      "companies": [
+        "宁德时代"
+      ],
+      "topic": "梳理宁德时代匈牙利工厂项目时间线（截至2025年底）：项目公告、开工与建设进展的关键节点，并区分规划产能与已建成产能。",
+      "time_anchor": "项目公告日至2025-12-31",
+      "trap_design": "规划产能vs已建成产能；多期项目节点日期混淆",
+      "structured_data_required": false,
+      "gold": {
+        "must_include": [
+          {
+            "fact": "项目公告与开工关键日期",
+            "value": "宁德时代匈牙利工厂全部建成后总产能为100吉瓦时（GWh）。",
+            "source": "公司公告/官方报道",
+            "tol": "日期±7天",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "宁德时代匈牙利工厂将于2025年投产考虑在欧洲开展电池回收业务",
+              "source_url": "https://m.caixin.com/m/2024-11-21/102260277.html",
+              "source_kind": "text",
+              "extract_text": "工厂项目占地221公顷，全部建成后总产能为100吉瓦时（GWh）。",
+              "evidence_id": "2bcaa1ea-18b5-5d9b-92d7-792b13a2b034",
+              "selection_score": 55
+            }
+          },
+          {
+            "fact": "规划产能与投资额",
+            "value": "宁德时代匈牙利工厂全部建成后总产能为100吉瓦时（GWh）。",
+            "source": "公告",
+            "tol": "±5%",
+            "w": "中",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "宁德时代匈牙利工厂将于2025年投产考虑在欧洲开展电池回收业务",
+              "source_url": "https://m.caixin.com/m/2024-11-21/102260277.html",
+              "source_kind": "text",
+              "extract_text": "工厂项目占地221公顷，全部建成后总产能为100吉瓦时（GWh）。",
+              "evidence_id": "2bcaa1ea-18b5-5d9b-92d7-792b13a2b034",
+              "selection_score": 46
+            }
+          },
+          {
+            "fact": "规划vs已建成的显式区分",
+            "value": "宁德时代于2022年8月正式宣布投资73.4亿欧元在匈牙利德布勒森建设100GWh电池工厂。",
+            "source": "—",
+            "tol": "语义",
+            "w": "高",
+            "original_value": "定性",
+            "source_ref": {
+              "source_title": "宁德时代匈牙利电池工厂2026年春季启动电芯量产",
+              "source_url": "https://www.energytrend.cn/news/20251208-146129.html",
+              "source_kind": "text",
+              "extract_text": "2022年8月，宁德时代正式宣布将投资73.4亿欧元在匈牙利东部城市德布勒森建设一座100GWh的电池工厂。",
+              "evidence_id": "ce67d407-183f-55a1-8a24-70066416e787",
+              "selection_score": 40
+            }
+          }
+        ],
+        "must_not_assert": [
+          "将规划产能表述为已投产产能"
+        ],
+        "behavioral": {
+          "counterview": false,
+          "refute_premise": false
+        }
+      },
+      "recording_notes": "进 pilot；temporal_conflict 规则的实战场",
+      "recording_state_path": "_collab/006r2_frozen-corpus-rounds/pilot_v2/Q26/state.json",
+      "recording_research_id": "ccecf2dd-53a3-4a3f-9181-7cd3e183e5ba",
+      "freeze_status": "frozen"
+    },
+    {
+      "id": "Q27",
+      "type": "事件时间线",
+      "difficulty": "中",
+      "companies": [
+        "比亚迪"
+      ],
+      "topic": "梳理比亚迪2024年海外扩张大事记：泰国工厂投产、滚装船启用与重要海外市场进入的关键节点；注意区分船舶\"下水\"\"交付\"\"首航\"等不同事件。",
+      "time_anchor": "2024自然年",
+      "trap_design": "下水/交付/首航日期混用——航运事件报道高发",
+      "structured_data_required": false,
+      "gold": {
+        "must_include": [
+          {
+            "fact": "泰国工厂投产节点",
+            "value": "比亚迪泰国工厂于2024年7月正式投产",
+            "source": "公司发布/权威报道",
+            "tol": "日期±7天",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "2024年比亚迪全球销量427万辆，增4成  日经中文网",
+              "source_url": "https://cn.nikkei.com/china/ccompany/57676-2025-01-02-09-13-31.html",
+              "source_kind": "text",
+              "extract_text": "7月在泰国推动海外首个正式的乘用车工厂投入运行，启动本地化生产。",
+              "evidence_id": "0e358430-223a-5ae8-9a09-9493d601713a",
+              "selection_score": 58
+            }
+          },
+          {
+            "fact": "滚装船关键事件及正确事件类型标注",
+            "value": "泰国政府为电动车行业提供资金支持和税务减免",
+            "source": "公司发布",
+            "tol": "日期±7天",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "比亚迪大消息：首个海外乘用车工厂峻工！第800万辆新能源车下线！",
+              "source_url": "https://www.stcn.com/article/detail/1248748.html",
+              "source_kind": "text",
+              "extract_text": "泰国政府积极推动电动车行业，使泰国成为东南亚首个实施全面支持汽车电动化的国家，并为电池及零部件生产制造、充电桩安装等提供了资金支持和税务减免措施",
+              "evidence_id": "814f58bb-cfd0-5f0b-80e4-a7412fa25a4f",
+              "selection_score": 44
+            }
+          }
+        ],
+        "must_not_assert": [
+          "下水/交付/首航三类事件日期互相错配"
+        ],
+        "behavioral": {
+          "counterview": false,
+          "refute_premise": false
+        }
+      },
+      "recording_notes": "陷阱在位核查——语料须含事件类型混用素材",
+      "recording_state_path": "_collab/006r3_recording-completion/recording/Q27/state.json",
+      "recording_research_id": "5c2f95a6-29cb-4e06-8812-ca359dfcbfbe",
+      "freeze_status": "frozen"
+    },
+    {
+      "id": "Q28",
+      "type": "事件时间线",
+      "difficulty": "中",
+      "companies": [],
+      "topic": "梳理2024年光伏行业\"减产挺价\"与行业自律事件线：协会倡议、重点会议与企业行动的关键节点，并区分倡议与实际执行。",
+      "time_anchor": "2024自然年（可延至2025上半年）",
+      "trap_design": "倡议vs执行——倡议发布常被报道为已落实",
+      "structured_data_required": false,
+      "gold": {
+        "must_include": [
+          {
+            "fact": "协会倡议与重点会议节点",
+            "value": "通威集团董事局主席刘汉元表示非市场化的限产可作为行业自律、共同限产稳价的手段。",
+            "source": "协会公开信息",
+            "tol": "日期±7天",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "光伏行业再开“自律”座谈会 产业链盈利拐点会加速到来吗？",
+              "source_url": "https://www.cls.cn/detail/1873279",
+              "source_kind": "text",
+              "extract_text": "通威集团董事局主席刘汉元在接受财联社等媒体采访时也表示，非市场化的限产在一定程度上是现代市场调节的工具和手段之一。他认为，西方也有欧佩克协议，这是行业自律、共同限产稳价的相关机制，我们也可以在一定程度上用，这些非市场化工具只要不极端，有条件的、在一定程度上使用。",
+              "evidence_id": "759173ae-6d98-5158-9b89-bd41c7361736",
+              "selection_score": 42
+            }
+          },
+          {
+            "fact": "倡议与执行的显式区分",
+            "value": "隆基绿能董事长钟宝申、晶澳科技执行总裁杨爱青参加光伏行业对外贸易企业自律座谈会，并对商会提出的企业自发维护行业秩序的倡议表示认同。",
+            "source": "—",
+            "tol": "语义",
+            "w": "高",
+            "original_value": "定性",
+            "source_ref": {
+              "source_title": "光伏行业再开“自律”座谈会 产业链盈利拐点会加速到来吗？",
+              "source_url": "https://www.cls.cn/detail/1873279",
+              "source_kind": "text",
+              "extract_text": "在企业代表发言环节，天合光能（688599.SH）董事长高纪凡、晶科能源（688223.SH）董事长李仙德、隆基绿能（601012.SH）董事长钟宝申、晶澳科技（002459.SZ）执行总裁杨爱青、无锡尚德董事长武飞、爱旭新能源董事长陈刚、海泰新能源董事长王永等企业代表对商会提出的企业自发维护行业秩序的倡议表示认同。",
+              "evidence_id": "7a39c655-a140-5dd7-9085-a5ea0725b999",
+              "selection_score": 42
+            }
+          }
+        ],
+        "must_not_assert": [
+          "将倡议表述为已全面执行"
+        ],
+        "behavioral": {
+          "counterview": true,
+          "refute_premise": false
+        }
+      },
+      "recording_notes": "与Q18共用部分语料",
+      "recording_state_path": "_collab/006r3_recording-completion/recording/Q28/state.json",
+      "recording_research_id": "c4a2aa2b-0d7b-45d7-84c2-3d12dafc4f3e",
+      "freeze_status": "frozen"
+    },
+    {
+      "id": "Q29",
+      "type": "事件时间线",
+      "difficulty": "中",
+      "companies": [
+        "中芯国际"
+      ],
+      "topic": "梳理中芯国际2024年资本开支节奏：各季度披露的资本开支数字与全年指引的调整过程；注意美元计价口径。",
+      "time_anchor": "2024财年逐季",
+      "trap_design": "指引vs实际；美元口径与人民币换算混淆",
+      "structured_data_required": true,
+      "gold": {
+        "must_include": [
+          {
+            "fact": "全年资本开支及币种口径",
+            "value": "中芯国际2024全年资本开支为73.3亿美元",
+            "source": "财报/业绩会",
+            "tol": "±5%",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "中芯国际(981 HK)",
+              "source_url": "https://pdf.dfcfw.com/pdf/H3_AP202502131643049780_1.pdf",
+              "source_kind": "text",
+              "extract_text": "2024 全年资本开支73.3 亿美元",
+              "evidence_id": "1c3fcd06-ff8c-5b1b-b9fd-ba2774d66a5c",
+              "selection_score": 53
+            }
+          },
+          {
+            "fact": "指引调整节点",
+            "value": "中芯国际资本开支披露使用美元计价。",
+            "source": "各季业绩会",
+            "tol": "语义",
+            "w": "中",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "中芯国际(688981) 国产替代加速，资本开支持续高位",
+              "source_url": "https://pdf.dfcfw.com/pdf/H3_AP202512171802170753_1.pdf",
+              "source_kind": "text",
+              "extract_text": "公司前三个季度资本开支合计57 亿美元",
+              "evidence_id": "d4ff7064-74ff-5a2d-8ba9-13faf656497b",
+              "selection_score": 26
+            }
+          }
+        ],
+        "must_not_assert": [
+          "美元与人民币数字不注币种混列"
+        ],
+        "behavioral": {
+          "counterview": false,
+          "refute_premise": false
+        }
+      },
+      "recording_notes": "币种口径是五元素\"单位\"字段的实战考点",
+      "recording_state_path": "_collab/006r3_recording-completion/recording/Q29/state.json",
+      "recording_research_id": "722bc49e-c636-4875-a03f-888dff6075fe",
+      "freeze_status": "frozen"
+    },
+    {
+      "id": "Q30",
+      "type": "事件时间线",
+      "difficulty": "难",
+      "companies": [
+        "药明康德"
+      ],
+      "topic": "梳理药明康德与美国《生物安全法案》相关事件时间线（2024年1月至12月）：法案各立法程序节点、公司主要回应、股价重大反应日；须准确区分立法程序各阶段（委员会通过、单院通过、成为法律）。",
+      "time_anchor": "2024-01-01至2024-12-31",
+      "trap_design": "立法程序节点——委员会通过≠众议院通过≠成为法律；公开报道日期与阶段错配重灾区",
+      "structured_data_required": false,
+      "gold": {
+        "must_include": [
+          {
+            "fact": "关键立法节点及正确阶段标注",
+            "value": "2024年5月16日，药明康德发布公告，强烈反对新版《生物安全法案》（H.R.8333）将其列入“予以关注的生物技术公司”定义，认为该定义预设且不合理。",
+            "source": "权威媒体/公司公告",
+            "tol": "日期±3天",
+            "w": "高",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "美生物安全法离落地还差3步药明康德8年缓冲存变数",
+              "source_url": "http://www.eeo.com.cn/2024/0517/661684.shtml",
+              "source_kind": "text",
+              "extract_text": "药明康德发布公告称，尽管美国政府机构已有针对国家安全问题的评估程序，H.R.8333仍将药明康德的公司名称保留在“予以关注的生物技术公司”的定义中，药明康德强烈反对这种未经正当程序的预设性且不合理的定义。",
+              "evidence_id": "3a9d1326-a2ee-5601-b85f-40b6aa0a829c",
+              "selection_score": 56
+            }
+          },
+          {
+            "fact": "公司主要回应节点",
+            "value": "2024年5月16日，药明康德发布公告，强烈反对新版《生物安全法案》（H.R.8333）将其列入“予以关注的生物技术公司”定义，认为该定义预设且不合理。",
+            "source": "公司公告",
+            "tol": "日期±3天",
+            "w": "中",
+            "original_value": "TBD@recording",
+            "source_ref": {
+              "source_title": "美生物安全法离落地还差3步药明康德8年缓冲存变数",
+              "source_url": "http://www.eeo.com.cn/2024/0517/661684.shtml",
+              "source_kind": "text",
+              "extract_text": "药明康德发布公告称，尽管美国政府机构已有针对国家安全问题的评估程序，H.R.8333仍将药明康德的公司名称保留在“予以关注的生物技术公司”的定义中，药明康德强烈反对这种未经正当程序的预设性且不合理的定义。",
+              "evidence_id": "3a9d1326-a2ee-5601-b85f-40b6aa0a829c",
+              "selection_score": 44
+            }
+          },
+          {
+            "fact": "2024年内法案未成为法律的明确结论",
+            "value": "2024年5月16日，药明康德发布公告，强烈反对新版《生物安全法案》（H.R.8333）将其列入“予以关注的生物技术公司”定义，认为该定义预设且不合理。",
+            "source": "权威媒体",
+            "tol": "精确",
+            "w": "高",
+            "original_value": "TBD@recording确认",
+            "source_ref": {
+              "source_title": "美生物安全法离落地还差3步药明康德8年缓冲存变数",
+              "source_url": "http://www.eeo.com.cn/2024/0517/661684.shtml",
+              "source_kind": "text",
+              "extract_text": "药明康德发布公告称，尽管美国政府机构已有针对国家安全问题的评估程序，H.R.8333仍将药明康德的公司名称保留在“予以关注的生物技术公司”的定义中，药明康德强烈反对这种未经正当程序的预设性且不合理的定义。",
+              "evidence_id": "3a9d1326-a2ee-5601-b85f-40b6aa0a829c",
+              "selection_score": 76
+            }
+          }
+        ],
+        "must_not_assert": [
+          "声称法案在2024年内已签署成法"
+        ],
+        "behavioral": {
+          "counterview": false,
+          "refute_premise": false
+        }
+      },
+      "recording_notes": "temporal陷阱旗舰；与Q06共用药明语料池",
+      "recording_state_path": "_collab/006r3_recording-completion/recording/Q30/state.json",
+      "recording_research_id": "196cfdb5-08e8-42df-b155-df24aefea472",
+      "freeze_status": "frozen"
+    }
+  ]
+}
