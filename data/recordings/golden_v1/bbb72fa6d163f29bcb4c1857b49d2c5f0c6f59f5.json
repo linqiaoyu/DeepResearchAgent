@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"贵州茅台 2024 职工代表 监事 选举\",\"source_type\":\"official\",\"top_k\":1}",
+    "query": "贵州茅台 2024 职工代表 监事 选举",
+    "top_k": 1,
+    "source_type": "official",
+    "as_of": "2026-07-09",
+    "recorded_at": "2026-07-09T02:59:56Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-14e6a6996f99",
+      "title": "贵州茅台：选举田鹏为公司第四届监事会职工监事",
+      "url": "https://www.cls.cn/detail/2101092",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "# \n\n## 首页\n\n## 电报\n\n## 话题\n\n## 盯盘\n\n## VIP\n\n## FM\n\n## 投研\n\n## 下载\n\n### [全部](/telegraph)\n\n### [加红](/telegraph?type=red&topic=0)\n\n### [公司](/telegraph?type=announcement&topic=0)\n\n### [看盘](/telegraph?type=watch&topic=0)\n\n### [港美股](/telegraph?type=hk_us&topic=0)\n\n### [基金](/telegraph?type=fund&topic=0)\n\n### [提醒](/telegraph?type=remind&topic=0)\n\n![logo](https://cdnjs.cls.cn/www/20200601/image/telegraph-logo.png)\n![](https://cdnjs.cls.cn/www/20200601/image/link-icon.png)\n![](https://cdnjs.cls.cn/images/site/cailianWeb/kefu.png)\n![](https://cdnjs.cls.cn/www/20180717/images/rightSide/kfCodeSlider.png)\n![](https://cdnjs.cls.cn/images/site/cailianWeb/xlCode.png)\n![](https://cdnjs.cls.cn/www/20180717/images/rightSide/xlCodeSlider.png)\n![](https://cdnjs.cls.cn/images/site/cailianWeb/wxCode.png)\n![](https://cdnjs.cls.cn/www/20180717/images/rightSide/wxCodeSlider.png)\n![](https://cdnjs.cls.cn/images/site/cailianWeb/appLogo.png)\n![](https://cdnjs.cls.cn/www/20180717/images/rightSide/downloadCodeSlider.png)\n![](https://cdnjs.cls.cn/images/site/cailianWeb/toTop.png)\n![财联社举报](https://cdnjs.cls.cn/images/site/cailianWeb/jubaologo1.png)",
+      "credibility": 0.812
+    }
+  ]
+}

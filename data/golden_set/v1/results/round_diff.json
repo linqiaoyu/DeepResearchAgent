@@ -1,0 +1,104 @@
+{
+  "metric_diff": [
+    {
+      "metric": "avg_weighted_score",
+      "round1": 0.6134,
+      "round2": 0.6177,
+      "delta": 0.0043
+    },
+    {
+      "metric": "avg_fact_coverage",
+      "round1": 0.6806,
+      "round2": 0.6749,
+      "delta": -0.0057
+    },
+    {
+      "metric": "avg_fact_accuracy",
+      "round1": 0.595,
+      "round2": 0.5922,
+      "delta": -0.0028
+    },
+    {
+      "metric": "avg_citation_support",
+      "round1": 0.5589,
+      "round2": 0.5789,
+      "delta": 0.02
+    },
+    {
+      "metric": "avg_synthesis_balance",
+      "round1": 0.5783,
+      "round2": 0.5917,
+      "delta": 0.0134
+    },
+    {
+      "metric": "avg_citation_support_rate",
+      "round1": 0.8104,
+      "round2": 0.8256,
+      "delta": 0.0152
+    },
+    {
+      "metric": "avg_citation_resolution_rate",
+      "round1": 0.6,
+      "round2": 0.6,
+      "delta": 0.0
+    },
+    {
+      "metric": "total_cost_cny",
+      "round1": 5.165906,
+      "round2": 5.165906,
+      "delta": 0.0
+    },
+    {
+      "metric": "total_latency_seconds",
+      "round1": 3478.951,
+      "round2": 3712.361,
+      "delta": 233.41
+    }
+  ],
+  "bad_case_diff": [
+    {
+      "category": "事实错误",
+      "round1": 16,
+      "round2": 15,
+      "delta": -1
+    },
+    {
+      "category": "引用不支持",
+      "round1": 21,
+      "round2": 21,
+      "delta": 0
+    },
+    {
+      "category": "检索不全",
+      "round1": 15,
+      "round2": 14,
+      "delta": -1
+    },
+    {
+      "category": "结构或平衡缺失",
+      "round1": 17,
+      "round2": 16,
+      "delta": -1
+    }
+  ],
+  "false_premise_results": [
+    {
+      "id": "Q08",
+      "round1_failed": false,
+      "round2_failed": false,
+      "round1_weighted": 0.9725,
+      "round2_weighted": 0.9725
+    },
+    {
+      "id": "Q16",
+      "round1_failed": false,
+      "round2_failed": false,
+      "round1_weighted": 0.965,
+      "round2_weighted": 0.965
+    }
+  ],
+  "repair_loop": {
+    "applied": false,
+    "reason": "Round1 bad cases were dominated by report quality/citation support in saved outputs; no scoped mechanical code repair was applied before round2."
+  }
+}

@@ -1,0 +1,22 @@
+{"id": "Q01", "round": "round1", "categories": ["检索不全", "事实错误", "引用不支持", "结构或平衡缺失"], "weighted_score": 0.0, "citation_support_rate": 0.792, "false_premise_failed": false}
+{"id": "Q02", "round": "round1", "categories": ["检索不全", "事实错误", "引用不支持", "结构或平衡缺失"], "weighted_score": 0.1467, "citation_support_rate": 0.792, "false_premise_failed": false}
+{"id": "Q05", "round": "round1", "categories": ["检索不全", "事实错误", "引用不支持", "结构或平衡缺失"], "weighted_score": 0.2392, "citation_support_rate": 0.833, "false_premise_failed": false}
+{"id": "Q06", "round": "round1", "categories": ["引用不支持"], "weighted_score": 0.9725, "citation_support_rate": 0.625, "false_premise_failed": false}
+{"id": "Q07", "round": "round1", "categories": ["检索不全", "事实错误", "引用不支持", "结构或平衡缺失"], "weighted_score": 0.66, "citation_support_rate": 0.875, "false_premise_failed": false}
+{"id": "Q09", "round": "round1", "categories": ["检索不全", "事实错误", "引用不支持", "结构或平衡缺失"], "weighted_score": 0.432, "citation_support_rate": 0.958, "false_premise_failed": false}
+{"id": "Q10", "round": "round1", "categories": ["事实错误", "引用不支持"], "weighted_score": 0.82, "citation_support_rate": 0.958, "false_premise_failed": false}
+{"id": "Q11", "round": "round1", "categories": ["引用不支持"], "weighted_score": 0.935, "citation_support_rate": 0.792, "false_premise_failed": false}
+{"id": "Q12", "round": "round1", "categories": ["引用不支持", "结构或平衡缺失"], "weighted_score": 0.9, "citation_support_rate": 0.75, "false_premise_failed": false}
+{"id": "Q13", "round": "round1", "categories": ["检索不全", "事实错误", "引用不支持", "结构或平衡缺失"], "weighted_score": 0.5017, "citation_support_rate": 0.875, "false_premise_failed": false}
+{"id": "Q14", "round": "round1", "categories": ["检索不全", "事实错误", "引用不支持", "结构或平衡缺失"], "weighted_score": 0.0, "citation_support_rate": 0.833, "false_premise_failed": false}
+{"id": "Q18", "round": "round1", "categories": ["引用不支持"], "weighted_score": 0.9925, "citation_support_rate": 0.792, "false_premise_failed": false}
+{"id": "Q19", "round": "round1", "categories": ["检索不全", "事实错误", "引用不支持", "结构或平衡缺失"], "weighted_score": 0.1455, "citation_support_rate": 0.833, "false_premise_failed": false}
+{"id": "Q20", "round": "round1", "categories": ["检索不全", "事实错误", "引用不支持", "结构或平衡缺失"], "weighted_score": 0.6058, "citation_support_rate": 0.875, "false_premise_failed": false}
+{"id": "Q21", "round": "round1", "categories": ["检索不全", "事实错误", "引用不支持", "结构或平衡缺失"], "weighted_score": 0.4317, "citation_support_rate": 0.917, "false_premise_failed": false}
+{"id": "Q23", "round": "round1", "categories": ["结构或平衡缺失"], "weighted_score": 0.9175, "citation_support_rate": 0.875, "false_premise_failed": false}
+{"id": "Q24", "round": "round1", "categories": ["引用不支持"], "weighted_score": 0.915, "citation_support_rate": 0.312, "false_premise_failed": false}
+{"id": "Q25", "round": "round1", "categories": ["检索不全", "事实错误", "引用不支持", "结构或平衡缺失"], "weighted_score": 0.0, "citation_support_rate": 0.458, "false_premise_failed": false}
+{"id": "Q27", "round": "round1", "categories": ["检索不全", "事实错误", "引用不支持", "结构或平衡缺失"], "weighted_score": 0.36, "citation_support_rate": 0.833, "false_premise_failed": false}
+{"id": "Q28", "round": "round1", "categories": ["检索不全", "事实错误", "引用不支持", "结构或平衡缺失"], "weighted_score": 0.63, "citation_support_rate": 0.75, "false_premise_failed": false}
+{"id": "Q29", "round": "round1", "categories": ["检索不全", "事实错误", "引用不支持", "结构或平衡缺失"], "weighted_score": 0.0, "citation_support_rate": 0.417, "false_premise_failed": false}
+{"id": "Q30", "round": "round1", "categories": ["检索不全", "事实错误", "引用不支持", "结构或平衡缺失"], "weighted_score": 0.23, "citation_support_rate": 1.0, "false_premise_failed": false}

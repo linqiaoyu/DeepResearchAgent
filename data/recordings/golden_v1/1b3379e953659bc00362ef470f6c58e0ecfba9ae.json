@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"家电以旧换新 财政补贴 2024\",\"source_type\":\"regulation\",\"top_k\":1}",
+    "query": "家电以旧换新 财政补贴 2024",
+    "top_k": 1,
+    "source_type": "regulation",
+    "as_of": "2026-07-09",
+    "recorded_at": "2026-07-09T02:47:13Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-974c9d21c34b",
+      "title": "商务部等4部门办公厅关于进一步做好家电以旧换新工作的通知",
+      "url": "https://scyxs.mofcom.gov.cn/xfpyjhx/zccs/art/2024/art_4dcde88682904909b20af86fd1fecbcc.html",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "各省级商务主管部门、发展改革部门、财政部门应于2025年2月10日前将家电以旧换新补贴资金发放情况报送商务部、国家发展改革委、财政部。",
+      "credibility": 0.985
+    }
+  ]
+}

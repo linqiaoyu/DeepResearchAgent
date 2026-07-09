@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"midea group hkex hearing approval date\",\"source_type\":\"official\",\"top_k\":1}",
+    "query": "Midea Group HKEX hearing approval date",
+    "top_k": 1,
+    "source_type": "official",
+    "as_of": "2026-07-09",
+    "recorded_at": "2026-07-09T03:06:25Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-1b9be08a7ea5",
+      "title": "Midea Group (300 HK): IPO Open Now - Brian Freitas",
+      "url": "https://www.smartkarma.com/insights/midea-group-300-hk-ipo-open-now-upcoming-index-flows",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "On 10 August, Midea Group Co Ltd A (000333 CH) announced that they had got permission from the HKEX to list.",
+      "credibility": 0.592
+    }
+  ]
+}

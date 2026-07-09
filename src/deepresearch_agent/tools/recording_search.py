@@ -12,9 +12,7 @@ from deepresearch_agent.schemas import Source
 from deepresearch_agent.settings import project_root
 from deepresearch_agent.tools.provider import SearchProvider
 
-
-class RecordingReplayMiss(RuntimeError):
-    """Raised when replay mode cannot find an exact recorded query key."""
+RECORDING_FILENAME_PATTERN = re.compile(r"[0-9a-f]{40}\.json")
 
 
 def normalize_query_key(query: str, top_k: int = 3, source_type: str | None = None) -> str:
@@ -117,6 +115,8 @@ class RecordingSearchProvider:
             return self._frozen_sources
         by_url: dict[str, Source] = {}
         for path in sorted(self.recording_dir.glob("*.json")):
+            if not _is_recording_asset(path):
+                continue
             try:
                 payload = json.loads(path.read_text(encoding="utf-8"))
             except json.JSONDecodeError:
@@ -169,8 +169,14 @@ class RecordingSearchProvider:
 def recording_corpus_fingerprint(recording_dir: Path) -> str:
     digest = hashlib.sha256()
     for path in sorted(recording_dir.glob("*.json")):
+        if not _is_recording_asset(path):
+            continue
         digest.update(path.name.encode("utf-8"))
         digest.update(b"\0")
         digest.update(path.read_bytes())
         digest.update(b"\0")
     return digest.hexdigest()
+
+
+def _is_recording_asset(path: Path) -> bool:
+    return bool(RECORDING_FILENAME_PATTERN.fullmatch(path.name))

@@ -1,0 +1,32 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"sino biopharma upfront payment\",\"source_type\":\"official\",\"top_k\":2}",
+    "query": "Sino Biopharma upfront payment",
+    "top_k": 2,
+    "source_type": "official",
+    "as_of": "2026-07-09",
+    "recorded_at": "2026-07-09T01:55:07Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-e8e58e5e9038",
+      "title": "What are Sino Biopharmaceutical's recent drug deals?",
+      "url": "https://synapse.patsnap.com/article/what-are-sino-biopharmaceuticals-recent-drug-deals",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "# What are Sino Biopharmaceutical's recent drug deals?\n\n## **Discover Eureka LS: AI Agents Built for Biopharma Efficiency**\n\nStop wasting time on biopharma busywork. Meet [**Eureka LS**](https://eureka.patsnap.com?from=ls&campaign_promotion=synapse_article) - your AI agent squad for drug discovery.\n\n▶ See how 50+ research teams saved 300+ hours/month\n\nFrom reducing screening time to simplifying Markush drafting, our AI Agents are ready to deliver immediate value. [**Explore Eureka LS**](https://eureka.patsnap.com?from=ls&campaign_promotion=synapse_article) today and unlock powerful capabilities that help you innovate with confidence.\n\n![](https://synapse-static.patsnap.com/strapi-static/eurekals_32b751cd59.png)\n\n### Who we are\n\n### What we do\n\n### Keep updated\n\n### Try Synapse\n\n### PatSnap group products",
+      "credibility": 0.883
+    },
+    {
+      "id": "tavily-a1f041c4d430",
+      "title": "Sino Biopharm Strikes Drug Licensing Deal With ...",
+      "url": "https://www.wsj.com/health/pharma/astrazeneca-sino-biopharm-sign-up-to-1-9-billion-respiratory-drug-licensing-deal-1c7d7a08",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "As part of the deal, Sino Biopharmaceutical will receive $200 million upfront from AstraZeneca and will be eligible for milestone payments",
+      "credibility": 0.822
+    }
+  ]
+}

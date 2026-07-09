@@ -1,0 +1,32 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"全固态电芯 价格\",\"source_type\":\"official\",\"top_k\":2}",
+    "query": "全固态电芯 价格",
+    "top_k": 2,
+    "source_type": "official",
+    "as_of": "2026-07-09",
+    "recorded_at": "2026-07-09T01:40:18Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-22adf9b8e6d0",
+      "title": "量产中狂奔的全固态电池，何时直面“成本项”？",
+      "url": "https://zhuanlan.zhihu.com/p/26826892680",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "全固态电池电芯价格将有机会降至0.6-0.7元/Wh。 芯价格为0.353元/Wh,6系方形三元电芯价格为0.5元/Wh。 为0.33-0.38元/Wh",
+      "credibility": 0.844
+    },
+    {
+      "id": "tavily-d3a9278dffd8",
+      "title": "固态电池的各部分成本占比小研究",
+      "url": "https://xueqiu.com/3646857461/314508526",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "目前固态电池的成本相对较高,在没有大规模量产的前提下，全固态电池材料成本约为1.5-2.5 元/wh，若制成100 度的电池包，材料成本在15-25 万元，加上其他",
+      "credibility": 0.762
+    }
+  ]
+}

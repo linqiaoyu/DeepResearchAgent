@@ -12,9 +12,92 @@ The harness treats evaluation as a first-class subsystem, not a screenshot.
 - `faithfulness`: bullet claims in the report carry citations
 - `cost_usd`, `cost_cny`, `latency_seconds`, `token_used`, `price_source`: operational metrics for Pareto analysis. LLM mode accounts natively in CNY from the LiteLLM ledger.
 
-Unsupported or invalid bullet citations are counted as `citation_error` bad cases in deterministic scoring. In LLM mode, unresolved citation markers are counted mechanically; semantic citation support waits for the judge task.
+Unsupported or invalid bullet citations are counted as `citation_error` bad cases in deterministic scoring. Golden Set LLM rounds additionally run a judge-backed `citation_support_rate` over extracted report claims and evidence.
 
 Production version: compute true critic recall from seeded issues or manually labeled bad cases.
+
+## Golden Set v1
+
+Golden Set v1 is frozen under `data/golden_set/v1/` with version `v1.0`.
+It contains 30 finance-oriented cases across 财报解读, 对比研究, 行业研究,
+and 事件时间线. The frozen set records gold facts, source references, the
+quarantine list, freeze-time adjustments, the evaluation `as_of`, recording
+`as_of` distribution, and the frozen corpus fingerprint.
+
+Frozen assets:
+
+- `data/golden_set/v1/questions.json`: 30 cases with source-backed gold fields.
+- `data/golden_set/v1/freeze.md`: freeze note, corpus stats, quarantine list, and adjustments.
+- `data/golden_set/v1/results/round1.json`: first full judge round.
+- `data/golden_set/v1/results/round2.json`: second full judge round.
+- `data/golden_set/v1/results/round_diff.json`: round two minus round one metrics.
+- `data/golden_set/v1/results/judge_calibration.json`: qwen-plus vs qwen-max calibration sample.
+
+Golden Set v1 evaluation `as_of` is `2026-07-09`. The frozen corpus contains
+486 canonical recording files, 694 source rows, 510 unique source URLs, and
+fingerprint `ef2d1fd2c414502140162508ef32838aaf8e4a56a6ab3678f9f57ed04f86960e`.
+No cases were quarantined in the v1.0 freeze.
+
+Run the current round runner against saved states or replay search:
+
+```bash
+PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_golden_round.py \
+  --questions data/golden_set/v1/questions.json \
+  --output data/golden_set/v1/results/round1.json \
+  --work-dir _collab/006r3_recording-completion/round1 \
+  --round-id round1 \
+  --as-of 2026-07-09 \
+  --ledger-path _collab/006r3_recording-completion/round_llm_ledger.jsonl \
+  --judge-samples 3 \
+  --state-path-map _collab/006r3_recording-completion/state_path_map.json
+```
+
+`--state-path-map` re-scores saved `ResearchState` artifacts without rerunning
+Planner, Extractor, Reporter, or search. Omit it to run the full LLM pipeline
+over frozen-corpus replay; that path is significantly slower for evidence-heavy
+cases.
+
+## Judge
+
+Golden Set judge calls use the unified `LLMClient` with role `judge`; citation
+support uses role `citation_support`. Both default to `openai/qwen3.7-plus` through
+DashScope's OpenAI-compatible endpoint. Each full round uses three judge samples
+per question and aggregates dimensions by median. The locked scoring dimensions
+and weights are:
+
+| Dimension | Weight |
+| --- | ---: |
+| `fact_coverage` | 0.35 |
+| `fact_accuracy` | 0.25 |
+| `citation_support` | 0.25 |
+| `synthesis_balance` | 0.15 |
+
+Prompt file: `prompts/judge.md`. Current prompt hash:
+`2e87f85cb54673ab6f84e0f0fc4b8c108441757e20ecd9ec4c3416df5d893533`.
+
+The historical qwen-plus vs qwen-max calibration sample over Q01-Q10 produced
+dimension agreement rate <=0.1 of `0.4`, average dimension absolute difference
+`0.3299`, and average weighted-score absolute difference `0.3362`. This is a
+material judge-model sensitivity signal. Current operational judge calls use the
+explicit `qwen3.7-plus` model name; PM review is still required before treating
+Golden Set scores as stable product benchmarks.
+
+## Golden Set v1 Results
+
+| Metric | Round 1 | Round 2 | Delta |
+| --- | ---: | ---: | ---: |
+| avg weighted score | 0.6134 | 0.6177 | +0.0043 |
+| avg fact coverage | 0.6806 | 0.6749 | -0.0057 |
+| avg fact accuracy | 0.5950 | 0.5922 | -0.0028 |
+| avg citation support | 0.5589 | 0.5789 | +0.0200 |
+| avg synthesis balance | 0.5783 | 0.5917 | +0.0134 |
+| avg citation support rate | 0.8104 | 0.8256 | +0.0152 |
+| avg citation resolution rate | 0.6000 | 0.6000 | +0.0000 |
+
+Both false-premise cases, Q08 and Q16, were classified as refuted in both rounds.
+No code repair was applied between rounds because the round-one bad cases were
+dominated by saved report quality and citation-support limitations rather than a
+small, isolated mechanical defect.
 
 ## Golden Recording Controls
 
@@ -27,6 +110,22 @@ run stops issuing additional searches after `DEEPRESEARCH_MAX_SEARCHES_PER_RUN`
 (default `20`). Tavily `raw_content` is capped per source by
 `DEEPRESEARCH_TAVILY_RAW_CONTENT_CHAR_LIMIT` (default `40000` characters) before
 extraction.
+
+Before a new live recording round, rotate `data/runtime/search_ledger.jsonl` to
+the task collaboration directory and start a fresh runtime ledger. Tavily credit
+guardrails are scoped to the current ledger file, not to all historical runs.
+Only rows that actually attempted a Tavily API call count toward credit usage.
+Rows refused by the guardrail are written with `refused=true` and
+`credit_estimate=0`. The warning and hard-stop thresholds are configurable via
+`DEEPRESEARCH_TAVILY_CREDIT_WARNING_THRESHOLD` and
+`DEEPRESEARCH_TAVILY_CREDIT_HARD_THRESHOLD`; evaluation recording currently uses
+450 and 520.
+
+Recording `as_of` and evaluation `as_of` are separate facts. Recording `as_of`
+is provenance metadata for when a source key was collected and may have multiple
+values inside one frozen corpus. Evaluation `as_of` is a single run-level date
+injected through `DEEPRESEARCH_AS_OF`; for Golden Set v1 it is the latest
+recording date in the frozen corpus and controls freshness-sensitive rules.
 
 ## Frozen Corpus Replay
 

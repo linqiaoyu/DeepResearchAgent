@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"银行存款成本 压降 策略 2024\",\"source_type\":\"company_report\",\"top_k\":1}",
+    "query": "银行存款成本 压降 策略 2024",
+    "top_k": 1,
+    "source_type": "company_report",
+    "as_of": "2026-07-09",
+    "recorded_at": "2026-07-09T02:22:16Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-1dc494151e64",
+      "title": "2024→2025，银行资负安排回顾与展望",
+      "url": "http://www.jzx88.com/ios/pages/wxshare/news_detail.html?id=106918&newsType=4",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "5.5、 净息差：预计较2024年继续收窄10-15BP，存款成本或有明显改善. 息差能否企稳主要看存款成本能否有效压降。资产端定价更市场化，同业负债等市场化资金利率或走低，存款",
+      "credibility": 0.784
+    }
+  ]
+}

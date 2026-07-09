@@ -8,7 +8,7 @@ The current implementation runs without external LLM or search keys by default. 
 
 - Evidence Store: claim-source-subquestion traceability is the source of truth, not vector memory.
 - Critic loop: missing citations, numeric conflicts, stale sources, missing counterarguments, and unverified projections are surfaced before reporting.
-- Evaluation Harness: citation accuracy, faithfulness, Critic catch rate, bad-case categories, cost, latency, and token estimates can be compared against a baseline.
+- Evaluation Harness: deterministic regression cases, Golden Set v1, frozen-corpus replay, judge-based scoring, citation support checks, bad-case categories, cost, latency, and token accounting can be compared across rounds.
 - Finance data pack: whitelisted AKShare-backed structured data records normalize entity, metric, period, dimension, value, and unit for financial fact checks.
 - Checkpoint recovery: long-horizon runs can pause after an intermediate phase and resume by `research_id`.
 
@@ -75,7 +75,7 @@ Compare evaluation metrics against the deterministic baseline:
 PYTHONPATH=src DEEPRESEARCH_SEARCH_PROVIDER=fixture .venv/bin/python scripts/run_eval.py --limit 5 --compare-baseline
 ```
 
-LLM-mode metrics use real LiteLLM token and cost accounting from `data/runtime/llm_ledger.jsonl`. In LLM mode, `citation_accuracy` is `null` with a reason because the current scorer is extractive-only; `citation_resolution_rate` and `critic_catch_rate` remain programmatic. `answer_relevance` and `faithfulness` are also `null` with reason fields until LLM-as-Judge is introduced.
+LLM-mode metrics use real LiteLLM token and cost accounting from `data/runtime/llm_ledger.jsonl`. In LLM mode, `citation_accuracy` is `null` with a reason because the current scorer is extractive-only; `citation_resolution_rate` and `critic_catch_rate` remain programmatic. Golden Set rounds use a separate qwen3.7-plus judge for four-dimensional scoring and semantic citation support.
 
 Run the checkpoint resume demo:
 
@@ -87,6 +87,20 @@ Run tests with the built-in `unittest` suite:
 
 ```bash
 PYTHONPATH=src DEEPRESEARCH_SEARCH_PROVIDER=fixture .venv/bin/python -m unittest discover -s tests
+```
+
+Run a Golden Set v1 judge round from saved states:
+
+```bash
+PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_golden_round.py \
+  --questions data/golden_set/v1/questions.json \
+  --output data/golden_set/v1/results/round1.json \
+  --work-dir _collab/006r3_recording-completion/round1 \
+  --round-id round1 \
+  --as-of 2026-07-09 \
+  --ledger-path _collab/006r3_recording-completion/round_llm_ledger.jsonl \
+  --judge-samples 3 \
+  --state-path-map _collab/006r3_recording-completion/state_path_map.json
 ```
 
 Open the no-dependency fallback UI/API:
@@ -187,6 +201,7 @@ The Streamlit UI runs the local deterministic engine directly. Under Docker Comp
 - Critic checks for missing citations, finance-aware numeric conflicts, temporal conflicts, outdated sources, missing counterarguments, and unverified projections
 - Deterministic fixture search by default, with optional Tavily search behind the `SearchProvider` contract
 - 50-case deterministic CI regression set in `data/eval_set_deterministic.jsonl`
+- Golden Set v1 under `data/golden_set/v1/` with 30 finance questions, frozen-corpus replay methodology, qwen3.7-plus judge rounds, and round diff assets
 - Streamlit dashboard for report, evidence, and Critic JSON
 - Docker Compose for API/UI, with a Postgres profile reserved for production hardening
 
@@ -198,5 +213,5 @@ Provider work is optional and must preserve the deterministic no-key MVP. See [d
 - Add `rag_search`.
 - Add Researcher reflection loop and live retrieval expansion.
 - Add Critic semantic verification beyond deterministic issue rules.
-- Add LLM-as-Judge for answer relevance and faithfulness in LLM mode.
+- Operationalize LLM-as-Judge inside normal LLM-mode metrics beyond the offline Golden Set runner.
 - Add a Postgres adapter using `docs/postgres_schema.sql`.

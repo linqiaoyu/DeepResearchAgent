@@ -1,8 +1,18 @@
 from __future__ import annotations
 
 import unittest
+import json
 
-from deepresearch_agent.evaluation import JudgeScore, classify_bad_case, validate_golden_design
+from deepresearch_agent.evaluation import (
+    JudgeScore,
+    aggregate_round_results,
+    classify_bad_case,
+    extract_report_claims,
+    false_premise_failed,
+    judge_sample_spread,
+    validate_golden_design,
+)
+from deepresearch_agent.settings import project_root
 
 
 def _valid_design() -> dict:
@@ -81,6 +91,106 @@ class GoldenEvaluationTests(unittest.TestCase):
                 "假前提未识破",
                 "结构或平衡缺失",
             ],
+        )
+
+    def test_judge_sample_spread_reports_dimension_ranges(self) -> None:
+        samples = [
+            JudgeScore(fact_coverage=0.9, fact_accuracy=0.8, citation_support=0.7, synthesis_balance=0.6),
+            JudgeScore(fact_coverage=0.4, fact_accuracy=0.6, citation_support=0.7, synthesis_balance=0.9),
+        ]
+
+        self.assertEqual(
+            judge_sample_spread(samples),
+            {
+                "fact_coverage": 0.5,
+                "fact_accuracy": 0.2,
+                "citation_support": 0.0,
+                "synthesis_balance": 0.3,
+            },
+        )
+
+    def test_extract_report_claims_skips_reference_section(self) -> None:
+        claims = extract_report_claims(
+            "\n".join(
+                [
+                    "# 标题",
+                    "## 关键发现",
+                    "- 2024年收入增长，并有来源[^1]。",
+                    "- 短",
+                    "## 参考来源",
+                    "[^1]: source",
+                ]
+            )
+        )
+
+        self.assertEqual(claims, [{"claim": "2024年收入增长，并有来源。", "evidence_ids": ["1"]}])
+
+    def test_aggregate_round_results_summarizes_scores_and_bad_cases(self) -> None:
+        results = [
+            {
+                "status": "done",
+                "judge": {
+                    "median": {
+                        "weighted_score": 0.8,
+                        "fact_coverage": 0.7,
+                        "fact_accuracy": 0.8,
+                        "citation_support": 0.9,
+                        "synthesis_balance": 1.0,
+                    }
+                },
+                "citation_support": {"support_rate": 0.5},
+                "mechanical": {"citation_resolution_rate": 0.75},
+                "cost_cny": 0.1,
+                "latency_seconds": 1.5,
+                "bad_case_categories": ["引用不支持"],
+                "false_premise": True,
+                "false_premise_failed": False,
+            },
+            {
+                "status": "done",
+                "judge": {
+                    "median": {
+                        "weighted_score": 0.6,
+                        "fact_coverage": 0.5,
+                        "fact_accuracy": 0.6,
+                        "citation_support": 0.7,
+                        "synthesis_balance": 0.8,
+                    }
+                },
+                "citation_support": {"support_rate": 1.0},
+                "mechanical": {"citation_resolution_rate": 0.25},
+                "cost_cny": 0.2,
+                "latency_seconds": 2.5,
+                "bad_case_categories": ["引用不支持", "事实错误"],
+            },
+        ]
+
+        summary = aggregate_round_results(results)
+
+        self.assertEqual(summary["cases"], 2)
+        self.assertEqual(summary["avg_weighted_score"], 0.7)
+        self.assertEqual(summary["avg_citation_support_rate"], 0.75)
+        self.assertEqual(summary["bad_case_categories"], {"引用不支持": 2, "事实错误": 1})
+        self.assertEqual(summary["false_premise"], {"passed": 1, "failed": 0})
+
+    def test_false_premise_failed_honors_explicit_refutation(self) -> None:
+        self.assertFalse(false_premise_failed("题目前提不成立：并未下滑。", ["下滑原因"]))
+        self.assertTrue(false_premise_failed("以下分析下滑原因。", ["下滑原因"]))
+
+    def test_frozen_golden_set_v1_asset_has_locked_shape(self) -> None:
+        path = project_root() / "data" / "golden_set" / "v1" / "questions.json"
+        payload = json.loads(path.read_text(encoding="utf-8"))
+
+        self.assertEqual(payload["meta"]["version"], "v1.0")
+        self.assertLessEqual(payload["meta"]["quarantine_count"], 3)
+        self.assertEqual(validate_golden_design(payload), [])
+        self.assertEqual(len(payload["questions"]), 30)
+        self.assertTrue(
+            all(
+                "source_ref" in item
+                for question in payload["questions"]
+                for item in question["gold"]["must_include"]
+            )
         )
 
 
