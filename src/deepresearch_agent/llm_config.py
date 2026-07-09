@@ -43,12 +43,12 @@ class LLMConfig:
                 api_base="https://api.deepseek.com",
             ),
             "judge": RoleModelConfig(
-                model="openai/qwen3.7-plus",
+                model="openai/qwen-plus",
                 api_base="https://dashscope.aliyuncs.com/compatible-mode/v1",
                 api_key_env="DASHSCOPE_API_KEY",
             ),
             "citation_support": RoleModelConfig(
-                model="openai/qwen3.7-plus",
+                model="openai/qwen-plus",
                 api_base="https://dashscope.aliyuncs.com/compatible-mode/v1",
                 api_key_env="DASHSCOPE_API_KEY",
             ),
