@@ -398,11 +398,53 @@ class LLMIntegrationTests(unittest.TestCase):
             key_findings=[ReportClaim(text="Finding", evidence_ids=["e1", "missing"])],
         )
 
-        report, invalid = ReporterAgent()._render_llm_report(state, draft)
+        report, invalid, backfilled = ReporterAgent()._render_llm_report(state, draft)
 
         self.assertEqual(invalid, 1)
+        self.assertEqual(backfilled, 0)
         self.assertIn("[^1]", report)
         self.assertNotIn("missing", report)
+
+    def test_reporter_backfills_missing_evidence_ids_with_best_available_citation(self) -> None:
+        state = ResearchState(topic="wealth AI")
+        state.plan = ResearchPlan(
+            topic=state.topic,
+            sub_questions=[SubQuestion(id="sq", question="q", search_queries=["q"])],
+        )
+        state.evidence_store = [
+            Evidence(
+                id="productivity",
+                research_id=state.research_id,
+                sub_question_id="sq",
+                claim="Advisor productivity improved 18% after AI triage.",
+                claim_type="data",
+                source_url="https://a.example",
+                source_title="A",
+                source_pub_date=date(2026, 1, 1),
+                extract_text="Advisor productivity improved 18% after AI triage.",
+            ),
+            Evidence(
+                id="risk",
+                research_id=state.research_id,
+                sub_question_id="sq",
+                claim="Human review reduced mistaken outreach escalations.",
+                claim_type="fact",
+                source_url="https://b.example",
+                source_title="B",
+                source_pub_date=date(2026, 1, 2),
+                extract_text="Human review reduced mistaken outreach escalations.",
+            ),
+        ]
+        draft = ReportDraft(
+            summary="Summary",
+            key_findings=[ReportClaim(text="Advisor productivity improved 18% after AI triage.")],
+        )
+
+        report, invalid, backfilled = ReporterAgent()._render_llm_report(state, draft)
+
+        self.assertEqual(invalid, 0)
+        self.assertEqual(backfilled, 1)
+        self.assertIn("- Advisor productivity improved 18% after AI triage. [^1]", report)
 
 
 if __name__ == "__main__":

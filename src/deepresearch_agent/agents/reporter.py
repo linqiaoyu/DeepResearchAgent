@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections import defaultdict
 
 from deepresearch_agent.citations import build_footnote_maps
@@ -124,20 +125,25 @@ class ReporterAgent:
         )
         if not isinstance(result.parsed, ReportDraft):
             raise ValueError("Reporter did not return ReportDraft.")
-        report, invalid_reference_count = self._render_llm_report(state, result.parsed)
+        report, invalid_reference_count, missing_reference_backfills = self._render_llm_report(
+            state,
+            result.parsed,
+        )
         self.last_stats = {
             "fallback": False,
             "invalid_references": invalid_reference_count,
+            "missing_reference_backfills": missing_reference_backfills,
             "repair_attempts": result.repair_attempts,
         }
         return report
 
-    def _render_llm_report(self, state: ResearchState, draft: ReportDraft) -> tuple[str, int]:
+    def _render_llm_report(self, state: ResearchState, draft: ReportDraft) -> tuple[str, int, int]:
         evidence = state.evidence_store
         footnotes = build_footnote_maps(evidence)
         ref_map = footnotes.evidence_id_to_footnote
         evidence_ids = set(ref_map)
         invalid_references = 0
+        missing_reference_backfills = 0
 
         lines: list[str] = [
             f"# {state.topic}",
@@ -152,8 +158,9 @@ class ReporterAgent:
             "## 关键发现",
         ]
         for claim in draft.key_findings[:6]:
-            rendered, invalid = self._render_claim(claim, ref_map, evidence_ids)
+            rendered, invalid, backfilled = self._render_claim(claim, ref_map, evidence_ids, evidence)
             invalid_references += invalid
+            missing_reference_backfills += backfilled
             lines.append(f"- {rendered}")
 
         by_section = {section.sub_question_id: section for section in draft.detailed_analysis}
@@ -167,8 +174,9 @@ class ReporterAgent:
                 lines.append("当前没有足够证据，需要二次检索补齐。")
                 continue
             for claim in section.claims[:3]:
-                rendered, invalid = self._render_claim(claim, ref_map, evidence_ids)
+                rendered, invalid, backfilled = self._render_claim(claim, ref_map, evidence_ids, evidence)
                 invalid_references += invalid
+                missing_reference_backfills += backfilled
                 lines.append(f"- {rendered}")
 
         lines.extend(["", "## 风险与限制"])
@@ -185,8 +193,9 @@ class ReporterAgent:
         lines.extend(["", "## 未验证假设"])
         if draft.unverified_assumptions:
             for claim in draft.unverified_assumptions[:4]:
-                rendered, invalid = self._render_claim(claim, ref_map, evidence_ids)
+                rendered, invalid, backfilled = self._render_claim(claim, ref_map, evidence_ids, evidence)
                 invalid_references += invalid
+                missing_reference_backfills += backfilled
                 lines.append(f"- {rendered}")
         else:
             lines.append("- 本轮报告未单独引入低置信度预测性结论。")
@@ -197,14 +206,15 @@ class ReporterAgent:
                 f"[^{ref_map[item.id]}]: {item.source_title}. {item.source_url} "
                 f"({item.source_pub_date.isoformat()})"
             )
-        return "\n".join(lines), invalid_references
+        return "\n".join(lines), invalid_references, missing_reference_backfills
 
     def _render_claim(
         self,
         claim: ReportClaim,
         ref_map: dict[str, int],
         evidence_ids: set[str],
-    ) -> tuple[str, int]:
+        evidence: list[Evidence],
+    ) -> tuple[str, int, int]:
         valid_ids: list[str] = []
         invalid_count = 0
         for evidence_id in claim.evidence_ids:
@@ -212,9 +222,53 @@ class ReporterAgent:
                 valid_ids.append(evidence_id)
             else:
                 invalid_count += 1
+        backfilled = 0
+        if not valid_ids:
+            fallback_id = self._best_evidence_id(claim.text, evidence, evidence_ids)
+            if fallback_id:
+                valid_ids.append(fallback_id)
+                backfilled = 1
         citations = " ".join(f"[^{ref_map[evidence_id]}]" for evidence_id in valid_ids)
         text = claim.text.strip()
-        return f"{text} {citations}".strip(), invalid_count
+        return f"{text} {citations}".strip(), invalid_count, backfilled
+
+    def _best_evidence_id(
+        self,
+        claim_text: str,
+        evidence: list[Evidence],
+        evidence_ids: set[str],
+    ) -> str | None:
+        claim_tokens = self._citation_tokens(claim_text)
+        if not claim_tokens:
+            return next((item.id for item in evidence if item.id in evidence_ids), None)
+
+        best_id: str | None = None
+        best_score = 0.0
+        for item in evidence:
+            if item.id not in evidence_ids:
+                continue
+            support_text = " ".join([item.claim, item.extract_text, item.source_title])
+            support_tokens = self._citation_tokens(support_text)
+            if not support_tokens:
+                continue
+            overlap = claim_tokens & support_tokens
+            score = len(overlap) / max(len(claim_tokens), 1)
+            if score > best_score:
+                best_score = score
+                best_id = item.id
+        return best_id or next((item.id for item in evidence if item.id in evidence_ids), None)
+
+    def _citation_tokens(self, text: str) -> set[str]:
+        tokens: set[str] = set()
+        for match in re.findall(r"[a-zA-Z0-9]+|[\u4e00-\u9fff]+", text.lower()):
+            if re.fullmatch(r"[\u4e00-\u9fff]+", match):
+                if len(match) == 1:
+                    tokens.add(match)
+                else:
+                    tokens.update(match[index : index + 2] for index in range(len(match) - 1))
+            elif len(match) > 1 or match.isdigit():
+                tokens.add(match)
+        return tokens
 
     def _summary(self, state: ResearchState, evidence: list[Evidence], ref_map: dict[str, int]) -> str:
         if not evidence:
