@@ -31,7 +31,7 @@ Frozen assets:
 - `data/golden_set/v1/results/round1.json`: first full judge round.
 - `data/golden_set/v1/results/round2.json`: second full judge round.
 - `data/golden_set/v1/results/round_diff.json`: round two minus round one metrics.
-- `data/golden_set/v1/results/judge_calibration.json`: qwen-plus vs qwen-max calibration sample.
+- `data/golden_set/v1/results/judge_calibration.json`: archived judge-model calibration sample.
 
 Golden Set v1 evaluation `as_of` is `2026-07-09`. The frozen corpus contains
 486 canonical recording files, 694 source rows, 510 unique source URLs, and
@@ -57,6 +57,17 @@ Planner, Extractor, Reporter, or search. Omit it to run the full LLM pipeline
 over frozen-corpus replay; that path is significantly slower for evidence-heavy
 cases.
 
+Generation passes and judge passes are separate units:
+
+- A generation pass reruns Planner, Researcher replay, Extractor, Reporter, and
+  Evaluator to produce new `ResearchState` and report artifacts.
+- A judge pass scores an existing or newly generated report with the configured
+  judge model and citation-support verifier.
+- The historical `round1` and `round2` assets are two judge passes over the same
+  generation pass. They are therefore a test-retest reliability check, not a
+  repair-loop before/after comparison. The observed composite movement was
+  `+0.0043`, which is treated as test-retest noise within the `±0.01` band.
+
 ## Judge
 
 Golden Set judge calls use the unified `LLMClient` with role `judge`; citation
@@ -75,16 +86,19 @@ and weights are:
 Prompt file: `prompts/judge.md`. Current prompt hash:
 `2e87f85cb54673ab6f84e0f0fc4b8c108441757e20ecd9ec4c3416df5d893533`.
 
-The historical qwen-plus vs qwen-max calibration sample over Q01-Q10 produced
-dimension agreement rate <=0.1 of `0.4`, average dimension absolute difference
-`0.3299`, and average weighted-score absolute difference `0.3362`. This is a
-material judge-model sensitivity signal. Current operational judge calls use the
-explicit `qwen3.7-plus` model name; PM review is still required before treating
-Golden Set scores as stable product benchmarks.
+The archived judge-model calibration sample over Q01-Q10 produced dimension
+agreement rate <=0.1 of `0.4`, average dimension absolute difference `0.3299`,
+and average weighted-score absolute difference `0.3362`. This is a material
+judge-model sensitivity signal. Current operational judge and citation_support
+calls use the explicit `qwen3.7-plus` model name through DashScope; archived JSON
+field names are historical labels, not the current routing contract. PM review is
+still required before treating Golden Set scores as stable product benchmarks.
 
 ## Golden Set v1 Results
 
-| Metric | Round 1 | Round 2 | Delta |
+`round1` and `round2` are same-generation test-retest judge passes:
+
+| Metric | G1 judge pass 1 | G1 judge pass 2 | Delta |
 | --- | ---: | ---: | ---: |
 | avg weighted score | 0.6134 | 0.6177 | +0.0043 |
 | avg fact coverage | 0.6806 | 0.6749 | -0.0057 |
@@ -95,9 +109,37 @@ Golden Set scores as stable product benchmarks.
 | avg citation resolution rate | 0.6000 | 0.6000 | +0.0000 |
 
 Both false-premise cases, Q08 and Q16, were classified as refuted in both rounds.
-No code repair was applied between rounds because the round-one bad cases were
-dominated by saved report quality and citation-support limitations rather than a
-small, isolated mechanical defect.
+No generation repair was applied between these two judge passes.
+
+The repaired second generation is stored at
+`data/golden_set/v1/results/gen2_judge1.json`:
+
+| Metric | G1 judge pass 1 | G2 judge pass 1 | Delta |
+| --- | ---: | ---: | ---: |
+| avg weighted score | 0.6134 | 0.7414 | +0.1280 |
+| avg fact coverage | 0.6806 | 0.6207 | -0.0599 |
+| avg fact accuracy | 0.5950 | 0.8273 | +0.2323 |
+| avg citation support | 0.5589 | 0.8483 | +0.2894 |
+| avg synthesis balance | 0.5783 | 0.7017 | +0.1234 |
+| avg citation support rate | 0.8104 | 0.7496 | -0.0608 |
+| avg citation resolution rate | 0.6000 | 1.0000 | +0.4000 |
+
+Bad-case category counts moved from G1 to G2 as follows:
+
+| Category | G1 count | G2 count | Delta |
+| --- | ---: | ---: | ---: |
+| 事实错误 | 16 | 10 | -6 |
+| 引用不支持 | 21 | 16 | -5 |
+| 检索不全 | 15 | 18 | +3 |
+| 结构或平衡缺失 | 17 | 13 | -4 |
+
+The G1 citation-resolution anomaly was a pipeline defect: LLM Reporter drafts
+could omit `evidence_ids` for `ReportClaim` objects, and the renderer previously
+allowed uncited bullet claims to reach the final report. The G2 fix enforces
+reporter citation discipline and backfills missing claim citations from the best
+available Evidence row at render time. This changes mechanical citation
+resolution only; it does not alter gold values, judge prompts, scoring weights,
+or graph architecture.
 
 ## Golden Recording Controls
 
