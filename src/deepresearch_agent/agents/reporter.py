@@ -1,13 +1,26 @@
 from __future__ import annotations
 
 import json
-import re
 from collections import defaultdict
+from dataclasses import dataclass
 
 from deepresearch_agent.citations import build_footnote_maps
 from deepresearch_agent.llm import LLMClient, LLMClientError, StructuredOutputError
 from deepresearch_agent.schemas import Evidence, ReportClaim, ReportDraft, ResearchState
 from deepresearch_agent.settings import project_root
+
+
+@dataclass(frozen=True)
+class _ClaimPath:
+    section: str
+    index: int
+    sub_question_id: str | None = None
+
+    @property
+    def key(self) -> str:
+        if self.sub_question_id:
+            return f"{self.section}:{self.sub_question_id}:{self.index}"
+        return f"{self.section}:{self.index}"
 
 
 class ReporterAgent:
@@ -125,25 +138,135 @@ class ReporterAgent:
         )
         if not isinstance(result.parsed, ReportDraft):
             raise ValueError("Reporter did not return ReportDraft.")
+        draft, repair_stats = self._repair_missing_evidence_ids(
+            state=state,
+            prompt=prompt,
+            original_draft=result.parsed,
+        )
         report, invalid_reference_count, missing_reference_backfills = self._render_llm_report(
             state,
-            result.parsed,
+            draft,
+            repaired_claim_keys=set(repair_stats["repaired_claim_keys"]),
         )
         self.last_stats = {
             "fallback": False,
             "invalid_references": invalid_reference_count,
             "missing_reference_backfills": missing_reference_backfills,
+            "citation_repair_retries": repair_stats["citation_repair_retries"],
+            "citation_repair_candidate_claims": repair_stats["citation_repair_candidate_claims"],
+            "citation_repaired_claims": repair_stats["citation_repaired_claims"],
+            "claim_count": repair_stats["claim_count"],
+            "uncited_claims": repair_stats["uncited_claims"],
+            "claim_provenance": self.last_stats.get("claim_provenance", []),
             "repair_attempts": result.repair_attempts,
         }
         return report
 
-    def _render_llm_report(self, state: ResearchState, draft: ReportDraft) -> tuple[str, int, int]:
+    def _repair_missing_evidence_ids(
+        self,
+        *,
+        state: ResearchState,
+        prompt: str,
+        original_draft: ReportDraft,
+    ) -> tuple[ReportDraft, dict[str, int | list[str]]]:
+        assert self.llm_client is not None
+        evidence_ids = {item.id for item in state.evidence_store}
+        original_claims = self._draft_claims(original_draft)
+        repair_candidates = [
+            {"path": path.key, "text": claim.text, "evidence_ids": claim.evidence_ids}
+            for path, claim in original_claims
+            if not self._valid_evidence_ids(claim, evidence_ids)
+        ]
+        stats: dict[str, int | list[str]] = {
+            "citation_repair_retries": 0,
+            "citation_repair_candidate_claims": len(repair_candidates),
+            "citation_repaired_claims": 0,
+            "claim_count": len(original_claims),
+            "uncited_claims": len(repair_candidates),
+            "repaired_claim_keys": [],
+        }
+        if not repair_candidates:
+            return original_draft, stats
+
+        try:
+            repair_result = self.llm_client.complete(
+                role="reporter",
+                run_id=state.research_id,
+                schema=ReportDraft,
+                messages=[
+                    {"role": "system", "content": prompt},
+                    {
+                        "role": "user",
+                        "content": json.dumps(
+                            {
+                                "task": "repair_missing_evidence_ids",
+                                "instructions": [
+                                    "Return the same ReportDraft content with evidence_ids repaired.",
+                                    "Only use evidence ids from evidence_catalog.",
+                                    "Do not invent evidence ids.",
+                                    "Do not delete key conclusions just to avoid citations.",
+                                    "If no evidence directly supports a claim, leave evidence_ids empty.",
+                                ],
+                                "missing_or_invalid_claims": repair_candidates,
+                                "original_draft": original_draft.model_dump(mode="json"),
+                                "evidence_catalog": [
+                                    {
+                                        "id": item.id,
+                                        "claim": item.claim,
+                                        "extract_text": item.extract_text,
+                                        "source_title": item.source_title,
+                                        "source_url": item.source_url,
+                                    }
+                                    for item in state.evidence_store
+                                ],
+                            },
+                            ensure_ascii=False,
+                        ),
+                    },
+                ],
+            )
+        except (LLMClientError, StructuredOutputError, ValueError):
+            return original_draft, stats
+
+        if not isinstance(repair_result.parsed, ReportDraft):
+            return original_draft, stats
+
+        repaired_draft = repair_result.parsed
+        repaired_claims = {path.key: claim for path, claim in self._draft_claims(repaired_draft)}
+        repaired_keys: list[str] = []
+        for item in repair_candidates:
+            key = str(item["path"])
+            claim = repaired_claims.get(key)
+            if claim and self._valid_evidence_ids(claim, evidence_ids):
+                repaired_keys.append(key)
+        post_repair_uncited = sum(
+            1 for _, claim in self._draft_claims(repaired_draft) if not self._valid_evidence_ids(claim, evidence_ids)
+        )
+        stats.update(
+            {
+                "citation_repair_retries": 1,
+                "citation_repaired_claims": len(repaired_keys),
+                "claim_count": len(self._draft_claims(repaired_draft)),
+                "uncited_claims": post_repair_uncited,
+                "repaired_claim_keys": repaired_keys,
+            }
+        )
+        return repaired_draft, stats
+
+    def _render_llm_report(
+        self,
+        state: ResearchState,
+        draft: ReportDraft,
+        repaired_claim_keys: set[str] | None = None,
+    ) -> tuple[str, int, int]:
         evidence = state.evidence_store
         footnotes = build_footnote_maps(evidence)
         ref_map = footnotes.evidence_id_to_footnote
         evidence_ids = set(ref_map)
         invalid_references = 0
         missing_reference_backfills = 0
+        claim_provenance: list[dict[str, object]] = []
+        repaired_claim_keys = repaired_claim_keys or set()
 
         lines: list[str] = [
             f"# {state.topic}",
@@ -157,10 +280,18 @@ class ReporterAgent:
             "",
             "## 关键发现",
         ]
-        for claim in draft.key_findings[:6]:
-            rendered, invalid, backfilled = self._render_claim(claim, ref_map, evidence_ids, evidence)
+        for index, claim in enumerate(draft.key_findings[:6]):
+            path = _ClaimPath("key_findings", index)
+            rendered, invalid, backfilled, provenance = self._render_claim(
+                claim,
+                ref_map,
+                evidence_ids,
+                path=path,
+                repaired_claim_keys=repaired_claim_keys,
+            )
             invalid_references += invalid
             missing_reference_backfills += backfilled
+            claim_provenance.append(provenance)
             lines.append(f"- {rendered}")
 
         by_section = {section.sub_question_id: section for section in draft.detailed_analysis}
@@ -173,10 +304,18 @@ class ReporterAgent:
             if not section or not section.claims:
                 lines.append("当前没有足够证据，需要二次检索补齐。")
                 continue
-            for claim in section.claims[:3]:
-                rendered, invalid, backfilled = self._render_claim(claim, ref_map, evidence_ids, evidence)
+            for index, claim in enumerate(section.claims[:3]):
+                path = _ClaimPath("detailed_analysis", index, sub_question.id)
+                rendered, invalid, backfilled, provenance = self._render_claim(
+                    claim,
+                    ref_map,
+                    evidence_ids,
+                    path=path,
+                    repaired_claim_keys=repaired_claim_keys,
+                )
                 invalid_references += invalid
                 missing_reference_backfills += backfilled
+                claim_provenance.append(provenance)
                 lines.append(f"- {rendered}")
 
         lines.extend(["", "## 风险与限制"])
@@ -192,10 +331,18 @@ class ReporterAgent:
 
         lines.extend(["", "## 未验证假设"])
         if draft.unverified_assumptions:
-            for claim in draft.unverified_assumptions[:4]:
-                rendered, invalid, backfilled = self._render_claim(claim, ref_map, evidence_ids, evidence)
+            for index, claim in enumerate(draft.unverified_assumptions[:4]):
+                path = _ClaimPath("unverified_assumptions", index)
+                rendered, invalid, backfilled, provenance = self._render_claim(
+                    claim,
+                    ref_map,
+                    evidence_ids,
+                    path=path,
+                    repaired_claim_keys=repaired_claim_keys,
+                )
                 invalid_references += invalid
                 missing_reference_backfills += backfilled
+                claim_provenance.append(provenance)
                 lines.append(f"- {rendered}")
         else:
             lines.append("- 本轮报告未单独引入低置信度预测性结论。")
@@ -206,6 +353,7 @@ class ReporterAgent:
                 f"[^{ref_map[item.id]}]: {item.source_title}. {item.source_url} "
                 f"({item.source_pub_date.isoformat()})"
             )
+        self.last_stats["claim_provenance"] = claim_provenance
         return "\n".join(lines), invalid_references, missing_reference_backfills
 
     def _render_claim(
@@ -213,8 +361,10 @@ class ReporterAgent:
         claim: ReportClaim,
         ref_map: dict[str, int],
         evidence_ids: set[str],
-        evidence: list[Evidence],
-    ) -> tuple[str, int, int]:
+        *,
+        path: _ClaimPath,
+        repaired_claim_keys: set[str],
+    ) -> tuple[str, int, int, dict[str, object]]:
         valid_ids: list[str] = []
         invalid_count = 0
         for evidence_id in claim.evidence_ids:
@@ -223,52 +373,31 @@ class ReporterAgent:
             else:
                 invalid_count += 1
         backfilled = 0
-        if not valid_ids:
-            fallback_id = self._best_evidence_id(claim.text, evidence, evidence_ids)
-            if fallback_id:
-                valid_ids.append(fallback_id)
-                backfilled = 1
         citations = " ".join(f"[^{ref_map[evidence_id]}]" for evidence_id in valid_ids)
         text = claim.text.strip()
-        return f"{text} {citations}".strip(), invalid_count, backfilled
+        provenance = {
+            "path": path.key,
+            "text": text,
+            "provenance": "repaired" if path.key in repaired_claim_keys else "first_pass",
+            "evidence_ids": valid_ids,
+            "has_citation": bool(valid_ids),
+            "invalid_reference_count": invalid_count,
+        }
+        return f"{text} {citations}".strip(), invalid_count, backfilled, provenance
 
-    def _best_evidence_id(
-        self,
-        claim_text: str,
-        evidence: list[Evidence],
-        evidence_ids: set[str],
-    ) -> str | None:
-        claim_tokens = self._citation_tokens(claim_text)
-        if not claim_tokens:
-            return next((item.id for item in evidence if item.id in evidence_ids), None)
+    def _draft_claims(self, draft: ReportDraft) -> list[tuple[_ClaimPath, ReportClaim]]:
+        claims: list[tuple[_ClaimPath, ReportClaim]] = []
+        for index, claim in enumerate(draft.key_findings[:6]):
+            claims.append((_ClaimPath("key_findings", index), claim))
+        for section in draft.detailed_analysis:
+            for index, claim in enumerate(section.claims[:3]):
+                claims.append((_ClaimPath("detailed_analysis", index, section.sub_question_id), claim))
+        for index, claim in enumerate(draft.unverified_assumptions[:4]):
+            claims.append((_ClaimPath("unverified_assumptions", index), claim))
+        return claims
 
-        best_id: str | None = None
-        best_score = 0.0
-        for item in evidence:
-            if item.id not in evidence_ids:
-                continue
-            support_text = " ".join([item.claim, item.extract_text, item.source_title])
-            support_tokens = self._citation_tokens(support_text)
-            if not support_tokens:
-                continue
-            overlap = claim_tokens & support_tokens
-            score = len(overlap) / max(len(claim_tokens), 1)
-            if score > best_score:
-                best_score = score
-                best_id = item.id
-        return best_id or next((item.id for item in evidence if item.id in evidence_ids), None)
-
-    def _citation_tokens(self, text: str) -> set[str]:
-        tokens: set[str] = set()
-        for match in re.findall(r"[a-zA-Z0-9]+|[\u4e00-\u9fff]+", text.lower()):
-            if re.fullmatch(r"[\u4e00-\u9fff]+", match):
-                if len(match) == 1:
-                    tokens.add(match)
-                else:
-                    tokens.update(match[index : index + 2] for index in range(len(match) - 1))
-            elif len(match) > 1 or match.isdigit():
-                tokens.add(match)
-        return tokens
+    def _valid_evidence_ids(self, claim: ReportClaim, evidence_ids: set[str]) -> list[str]:
+        return [evidence_id for evidence_id in claim.evidence_ids if evidence_id in evidence_ids]
 
     def _summary(self, state: ResearchState, evidence: list[Evidence], ref_map: dict[str, int]) -> str:
         if not evidence:

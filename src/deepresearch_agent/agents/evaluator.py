@@ -63,6 +63,15 @@ class Evaluator:
         invalid_references = int(reporter_stats.get("invalid_references", 0))
         if invalid_references:
             bad_case_categories["citation_reference_error"] += invalid_references
+        citation_repair_retry_rate = 1.0 if int(reporter_stats.get("citation_repair_retries", 0) or 0) else 0.0
+        claim_provenance = reporter_stats.get("claim_provenance", [])
+        if isinstance(claim_provenance, list) and claim_provenance:
+            uncited_claims = sum(1 for item in claim_provenance if not item.get("has_citation"))
+            uncited_claim_rate = uncited_claims / len(claim_provenance)
+        else:
+            uncited_claims = int(reporter_stats.get("uncited_claims", 0) or 0)
+            claim_count = int(reporter_stats.get("claim_count", 0) or 0)
+            uncited_claim_rate = uncited_claims / claim_count if claim_count else 0.0
         critic_catch_rate = min(1.0, len(issues) / 3) if issues else 1.0
         latency_seconds = 0.0 if started_at is None else max(0.0, time.perf_counter() - started_at)
         llm_usage = state.metadata.get("llm_usage", {})
@@ -80,6 +89,8 @@ class Evaluator:
             citation_accuracy=round(citation_accuracy, 3) if citation_accuracy is not None else None,
             citation_accuracy_reason=citation_accuracy_reason,
             citation_resolution_rate=round(citation_resolution_rate, 3),
+            citation_repair_retry_rate=round(citation_repair_retry_rate, 3),
+            uncited_claim_rate=round(uncited_claim_rate, 3),
             critic_catch_rate=round(critic_catch_rate, 3),
             answer_relevance=answer_relevance,
             answer_relevance_reason=answer_relevance_reason,
