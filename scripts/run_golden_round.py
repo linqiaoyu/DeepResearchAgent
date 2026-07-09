@@ -27,6 +27,7 @@ def main() -> None:
     questions = json.loads(Path(args.questions).read_text(encoding="utf-8"))["questions"]
     if args.limit:
         questions = questions[: args.limit]
+    state_path_map = _load_state_path_map(Path(args.state_path_map)) if args.state_path_map else {}
 
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -61,7 +62,10 @@ def main() -> None:
         case_dir.mkdir(parents=True, exist_ok=True)
         os.environ["DEEPRESEARCH_STORAGE_PATH"] = str(case_dir / "research.db")
         try:
-            state = DeepResearchEngine().run(topic=case["topic"], depth_level=args.depth)
+            if state_path := state_path_map.get(qid):
+                state = ResearchState.model_validate_json(Path(state_path).read_text(encoding="utf-8"))
+            else:
+                state = DeepResearchEngine().run(topic=case["topic"], depth_level=args.depth)
             (case_dir / "state.json").write_text(
                 state.model_dump_json(indent=2),
                 encoding="utf-8",
@@ -218,6 +222,13 @@ def _load_env(path: Path) -> None:
         os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
 
 
+def _load_state_path_map(path: Path) -> dict[str, str]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError("--state-path-map must be a JSON object keyed by question id.")
+    return {str(key): str(value) for key, value in payload.items()}
+
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run Golden Set v1 evaluation round.")
     parser.add_argument("--questions", default="data/golden_set/v1/questions.json")
@@ -230,6 +241,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--as-of", required=True)
     parser.add_argument("--depth", type=int, default=1)
     parser.add_argument("--limit", type=int, default=0)
+    parser.add_argument("--state-path-map", default="")
     parser.add_argument("--judge-samples", type=int, default=3)
     parser.add_argument("--run-budget-cny", type=float, default=3.0)
     parser.add_argument("--judge-budget-cny", type=float, default=3.0)
