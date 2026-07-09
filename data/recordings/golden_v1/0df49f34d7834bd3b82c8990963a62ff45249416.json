@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"比亚迪 2024 年 业务 收入 对比 汽车 手机\",\"source_type\":\"company_report\",\"top_k\":1}",
+    "query": "比亚迪 2024 年 业务 收入 对比 汽车 手机",
+    "top_k": 1,
+    "source_type": "company_report",
+    "as_of": "2026-07-08",
+    "recorded_at": "2026-07-08T22:37:11Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-bfb217545600",
+      "title": "比亚迪年度营收首次突破7000亿元：汽车、手机业务双增",
+      "url": "https://www.eet-china.com/mp/a391713.html",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "2024年，比亚迪汽车、汽车相关产品及其他产品业务的收入约6173.82亿元 ... 2024年，比亚迪手机部件、组装及其他产品业务的收入约1596.09亿元",
+      "credibility": 0.908
+    }
+  ]
+}

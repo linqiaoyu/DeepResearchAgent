@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"美的 格力 多元化对比 2024\",\"source_type\":\"company_report\",\"top_k\":1}",
+    "query": "美的 格力 多元化对比 2024",
+    "top_k": 1,
+    "source_type": "company_report",
+    "as_of": "2026-07-08",
+    "recorded_at": "2026-07-08T22:23:53Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-cbc15118c1fc",
+      "title": "美的、格力、海尔2024财报对比：生态、守成与高端的三岔路口",
+      "url": "https://post.smzdm.com/p/ad7xv7rk",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "美的、格力、海尔2024财报对比：生态、守成与高端的三岔路口 ; 美的, 4091, 385, 多元化生态，B端业务支撑 ; 格力, 1891, 322, 营收下滑，利润靠成本管控.",
+      "credibility": 0.835
+    }
+  ]
+}

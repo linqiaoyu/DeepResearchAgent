@@ -75,9 +75,14 @@ class FakeTavilyClient:
 class TavilyProviderWorkflowTests(unittest.TestCase):
     def test_engine_runs_with_tavily_adapter_and_fake_http_client(self) -> None:
         client = FakeTavilyClient()
-        provider = TavilySearchProvider("test-key", client=client, timeout_seconds=2.0)
 
         with tempfile.TemporaryDirectory() as tmp:
+            provider = TavilySearchProvider(
+                "test-key",
+                client=client,
+                timeout_seconds=2.0,
+                ledger_path=Path(tmp) / "search_ledger.jsonl",
+            )
             settings = Settings(storage_path=Path(tmp) / "research.db", max_critic_iter=1)
             engine = DeepResearchEngine(
                 settings=settings,

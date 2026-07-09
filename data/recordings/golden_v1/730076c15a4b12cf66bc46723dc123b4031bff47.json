@@ -1,0 +1,32 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"五粮液 归母净利润 2024年\",\"source_type\":\"official\",\"top_k\":2}",
+    "query": "五粮液 归母净利润 2024年",
+    "top_k": 2,
+    "source_type": "official",
+    "as_of": "2026-07-08",
+    "recorded_at": "2026-07-08T22:18:57Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-23c41b212832",
+      "title": "2024年及2025Q1五粮液业绩简评",
+      "url": "https://xueqiu.com/8011603435/333215308",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "2024年五粮液实现营收891.75亿，同比+7.09%；归母净利润318.53亿，同比+5.44%；扣非净利润317.42亿，同比+5.4%，对比3Q 增速分别-1.51/-3.75/-3.79PCT 。",
+      "credibility": 0.957
+    },
+    {
+      "id": "tavily-52a6f63cbeea",
+      "title": "五粮液：2024年年度报告网页链接",
+      "url": "https://xueqiu.com/0/333138849",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "【五粮液:2024年净利润同比增长5.44% 拟每10股派发红利31.69元】 归母净利率35.7%(-0.6pct)。 管理费率5.3%(+0.9pct),归母净利率32.6%",
+      "credibility": 0.948
+    }
+  ]
+}

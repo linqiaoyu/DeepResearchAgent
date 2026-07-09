@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"招商银行 2024 年 年报 营业收入 同比\",\"source_type\":\"company_report\",\"top_k\":1}",
+    "query": "招商银行 2024 年 年报 营业收入 同比",
+    "top_k": 1,
+    "source_type": "company_report",
+    "as_of": "2026-07-08",
+    "recorded_at": "2026-07-08T22:12:58Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-8d1622e4569b",
+      "title": "零售客户资产同比增12%，招商银行2024年报“找回增长感觉”",
+      "url": "https://wallstreetcn.com/articles/3743844",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "最新年报显示，招商银行2024年全年实现营业收入3374.88亿元，同比下降0.48%；实现归属于该行股东的净利润1483.91亿元，同比增长1.22%。 作为总资产",
+      "credibility": 0.954
+    }
+  ]
+}

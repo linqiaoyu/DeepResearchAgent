@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"catl 2024 annual report revenue net profit yoy\",\"source_type\":\"company_report\",\"top_k\":1}",
+    "query": "CATL 2024 annual report revenue net profit YoY",
+    "top_k": 1,
+    "source_type": "company_report",
+    "as_of": "2026-07-08",
+    "recorded_at": "2026-07-08T21:55:40Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-12c1274c71cb",
+      "title": "Jason on X: \"CATL 2024 Financial Report Summary Revenue & Profit: Total revenue: 362.013 billion RMB, a 9.70% decline YoY Net profit: 50.745 billion RMB, a 15.01% increase YoY Segment Breakdown: EV Battery Systems: 253.041 billion RMB (69.90% of revenue), down 11.29% Energy Storage Battery\" / X",
+      "url": "https://x.com/Jas0nYu/status/1900593739497959452",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "## Post\n\n[Log in](/i/jf/onboarding/web?mode=login)[Sign up](/i/jf/onboarding/web?mode=signup)\n\n## Post\n\n[![user avatar](https://pbs.twimg.com/profile_images/1617874047584567297/zTMDv0Zm_normal.jpg)](https://x.com/Jas0nYu)\n\n[Jason](https://x.com/Jas0nYu)\n\n[@Jas0nYu](https://x.com/Jas0nYu)\n\nCATL 2024 Financial Report Summary Revenue & Profit: Total revenue: 362.013 billion RMB, a 9.70% decline YoY Net profit: 50.745 billion RMB, a 15.01% increase YoY Segment Breakdown: EV Battery Systems: 253.041 billion RMB (69.90% of revenue), down 11.29% Energy Storage Battery Systems: 57.290 billion RMB (15.83% of revenue), down 4.36% Battery Materials & Recycling: 28.7 billion RMB (7.93% of revenue), down 14.59% [#CATL](https://x.com/hashtag/CATL)\n\n[5:03 PM · Mar 14, 2025](/Jas0nYu/status/1900593739497959452)[1.7KViews](https://x.com/Jas0nYu/status/1900593739497959452)\n\nDon't miss what's happening\n\nPeople on X are the first to know.\n\n[Log in](/i/jf/onboarding/web?mode=login)[Sign up](/i/jf/onboarding/web?mode=signup)",
+      "credibility": 0.953
+    }
+  ]
+}

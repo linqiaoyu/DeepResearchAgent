@@ -1,0 +1,32 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"长江电力 总发电量 2024年\",\"source_type\":\"official\",\"top_k\":2}",
+    "query": "长江电力 总发电量 2024年",
+    "top_k": 2,
+    "source_type": "official",
+    "as_of": "2026-07-08",
+    "recorded_at": "2026-07-08T21:46:45Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-0c7ce7688b9b",
+      "title": "长江电力：2024年公司境内所属六座梯级电站总发电量约2959.04亿千瓦时",
+      "url": "https://www.cls.cn/detail/1910977",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "[关于我们](/our?nav=our)[网站声明](/our?nav=copyright)[联系方式](/our?nav=contact)[用户反馈](/our?nav=feedBack)[网站地图](/our?nav=map)[帮助](/our?nav=tips)\n\n[## 首页](/)[## 电报](/telegraph)[## 话题](/subject)[## 盯盘](/finance)[## VIP](/vip)[## FM](/fm)[## 投研](/investpro)[## 下载](/download)\n\n### [全部](/telegraph)\n\n### [加红](/telegraph?type=red&topic=0)\n\n### [公司](/telegraph?type=announcement&topic=0)\n\n### [看盘](/telegraph?type=watch&topic=0)\n\n### [港美股](/telegraph?type=hk_us&topic=0)\n\n### [基金](/telegraph?type=fund&topic=0)\n\n### [提醒](/telegraph?type=remind&topic=0)\n\n![logo](https://cdnjs.cls.cn/www/20200601/image/telegraph-logo.png)2025年01月07日 15:41:07\n\n长江电力：2024年公司境内所属六座梯级电站总发电量约2959.04亿千瓦时\n\n财联社1月7日电，长江电力公告，2024年，乌东德水库来水总量约1123.69亿立方米，较上年同期偏丰9.19%；三峡水库来水总量约3740.95亿立方米，较上年同期偏丰9.11%。2024年，公司境内所属六座梯级电站总发电量约2959.04亿千瓦时，较上年同期增长7.11%。其中，第四季度总发电量约600.90亿千瓦时，较上年同期减少17.60%。\n\n关联个股\n\n[长江电力+0.37%](/stock?code=sh600900)\n\n阅262.97W\n\n关联话题\n\n[A股公告速递](/subject/1555)\n\n22.44W人关注\n\n![](https://cdnjs.cls.cn/images/site/cailianWeb/kefu.png)![](https://cdnjs.cls.cn/www/20180717/images/rightSide/kfCodeSlider.png)\n\n![](https://cdnjs.cls.cn/images/site/cailianWeb/xlCode.png)![](https://cdnjs.cls.cn/www/20180717/images/rightSide/xlCodeSlider.png)\n\n![](https://cdnjs.cls.cn/images/site/cailianWeb/wxCode.png)![](https://cdnjs.cls.cn/www/20180717/images/rightSide/wxCodeSlider.png)\n\n![](https://cdnjs.cls.cn/images/site/cailianWeb/appLogo.png)![](https://cdnjs.cls.cn/www/20180717/images/rightSide/downloadCodeSlider.png)\n\n![](https://cdnjs.cls.cn/images/site/cailianWeb/toTop.png)\n\n[关于我们](/our?nav=our)|[网站声明](/our?nav=copyright)|[联系方式](/our?nav=contact)|[用户反馈](/our?nav=feedBack)|[网站地图](/our?nav=map)|[友情链接](/our?nav=friend)|举报电话：021-54679377转617举报邮箱：editor@cls.cn[![财联社举报](https://cdnjs.cls.cn/images/site/cailianWeb/jubaologo1.png)](http://www.shjbzx.cn)\n\n[财联社](/ \"财联社\") ©2018-2026上海界面财联社科技股份有限公司 版权所有[沪ICP备14040942号-9](http://beian.miit.gov.cn)[沪公网安备31010402006047号](http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=31010402006047)互联网新闻信息服务许可证：31120170007[沪金信备 [2021] 2号](https://fisbaobei.ifcert.cn/Home/homeIindex)",
+      "credibility": 0.953
+    },
+    {
+      "id": "tavily-3c894d911097",
+      "title": "长江电力，发电量与电价十年分析笔记总结",
+      "url": "https://xueqiu.com/5891570433/335500734",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "长江电力2015 - 2024年发电量阶梯式增长，2024年总发电量达2,959.04亿千瓦时，较2015年增长约63%；2024年上网电价285.52元/兆瓦时，较2015年上涨约4.3%。需",
+      "credibility": 0.951
+    }
+  ]
+}

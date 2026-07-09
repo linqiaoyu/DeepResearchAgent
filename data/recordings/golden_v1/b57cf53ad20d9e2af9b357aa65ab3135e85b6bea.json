@@ -1,0 +1,32 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"招商银行 不良贷款率 2024年\",\"source_type\":\"official\",\"top_k\":2}",
+    "query": "招商银行 不良贷款率 2024年",
+    "top_k": 2,
+    "source_type": "official",
+    "as_of": "2026-07-08",
+    "recorded_at": "2026-07-08T22:13:54Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-dd746eab5062",
+      "title": "招商银行：2024年不良贷款率0.95%，与上年末持平_新浪财经_新浪网",
+      "url": "https://finance.sina.com.cn/jryx/bank/2025-03-25/doc-ineqwnhk5674260.shtml",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "![](//beacon.sina.com.cn/a.gif?noScript)\n![](//i.sso.sina.com.cn/images/login/thumb_default.png)\n![](//n.sinaimg.cn/finance/c30320b4/20190809/cj_sinafinance_app2x.png)\n\n# 招商银行：2024年不良贷款率0.95%，与上年末持平\n\n　　3月25日金融一线消息，[招商银行](https://finance.sina.com.cn/realstock/company/sh600036/nc.shtml)发布2024年度报告。报告显示，报告期内，集团实现营业收入3，374.88 亿元，同比下降0.48% ；实现归属于本行股东的净利润1，483.91 亿元，同比增长1.22% ；实现净利息收入2，112.77 亿元，同比下降1.58% ；实现非利息净收入1，262.11 亿元，同比增长1.41% ；归属于本行股东的平均总资产收益率（ROAA）和归属于本行普通股股东的平均净资产收益率（ROAE）分别为1.28%和14.49%，同比分别下降0.11和1.73个百分点。\n\n　　截至报告期末，集团资产总额121，520.36亿元，较上年末增长10.19% ；贷款和垫款总额68，883.15亿元，较上年末增长5.83% ；负债总额109，185.61亿元，较上年末增长9.81% ；客户存款总额90，965.87亿元，较上年末增长11.54%。\n\n　　截至报告期末，集团不良贷款余额656.10亿元，较上年末增加40.31亿元 ；不良贷款率0.95%，与上年末持平 ；拨备覆盖率411.98%，较上年末下降25.72个百分点 ；贷款拨备率3.92%，较上年末下降0.22个百分点。\n\n![](https://n.sinaimg.cn/finance/667/w875h592/20250325/27d3-f3258943797b2723586d79bf7975474a.jpg)\n![](//n.sinaimg.cn/finance/cece9e13/20240627/655959900_20240627.png)\n\n责任编辑：曹睿潼\n\n![](//n.sinaimg.cn/finance/transform/260/w880h180/20180326/zi4T-fysqfnf9377213.png)\n\n## VIP课程推荐\n\n## APP专享直播\n\n## 热门推荐\n\n![新浪财经公众号](//n.sinaimg.cn/finance/72219a70/20180103/_thumb_23666.png \"新浪财经公众号\")\n\n24小时滚动播报最新的财经资讯和视频，更多粉丝福利扫描二维码关注（sinafinance）\n\n## [股市直播](http://live.finance.sina.com.cn)\n\n## [7X24小时](http://live.sina.com.cn/zt/f/v/finance/globalnews1)\n\n![杨伟民](https://n.sinaimg.cn/zhuanlan/transform/170/w85h85/20221230/f01f-b20f33f6583ea1f69aefeedf1b86f051.jpg)\n![董明珠还能为格力奋战多久？|《至少一个小时》](//n.sinaimg.cn/finance/transform/525/w300h225/20201030/ecb0-kcaeqzy3436531.jpg)\n![梁建章：中国人口衰竭的速度前所未有](//n.sinaimg.cn/finance/transform/525/w300h225/20201030/75b9-kcaeqzy3438114.jpg)\n![冷友斌回应网友质疑：说价格高 对飞鹤不公平！](//n.sinaimg.cn/finance/transform/525/w300h225/20201030/c485-kcaeqzy3442305.jpg)\n![王中军：我喜欢比较“江湖”一点的人](//n.sinaimg.cn/finance/transform/525/w300h225/20201030/a563-kcaeqzy3444360.jpg)\n\n[新浪财经意见反馈留言板](http://news.sina.com.cn/feedback/post.html)\n\n[新浪简介](http://ir.sina.com.cn/index.shtml)|[广告服务](http://emarketing.sina.com.cn/)|[About Sina](http://corp.sina.com.cn/eng/)\n  \n[联系我们](http://www.sina.com.cn/contactus.html)|[招聘信息](http://corp.sina.com.cn/chn/sina_job.html)|[通行证注册](https://login.sina.com.cn/signup/signup.php)\n  \n[产品答疑](http://help.sina.com.cn/)|[网站律师](http://www.sina.com.cn/intro/lawfirm.shtml)|[SINA English](http://english.sina.com)\n\nCopyright © 1996-2025 SINA Corporation\n\nAll Rights Reserved 新浪公司 [版权所有](http://www.sina.com.cn/intro/copyright.shtml)",
+      "credibility": 0.958
+    },
+    {
+      "id": "tavily-651848ae234b",
+      "title": "最近形势，很严重，大家做好准备吧！",
+      "url": "https://zhuanlan.zhihu.com/p/1890998730800485699",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "截至2024年末，招行的不良贷款余额是656.1亿。和上年比，不良贷款余额增加了40.31亿，不良贷款率0.95%，与上年末持平。增加的40亿，到底",
+      "credibility": 0.936
+    }
+  ]
+}

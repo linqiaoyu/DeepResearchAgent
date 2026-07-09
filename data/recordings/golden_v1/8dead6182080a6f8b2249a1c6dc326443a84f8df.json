@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"晶科能源 2024 年度业绩快报 出货量 口径\",\"source_type\":\"news\",\"top_k\":1}",
+    "query": "晶科能源 2024 年度业绩快报 出货量 口径",
+    "top_k": 1,
+    "source_type": "news",
+    "as_of": "2026-07-08",
+    "recorded_at": "2026-07-08T22:32:11Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-53bf30bb23b9",
+      "title": "CG Power Commences Commercial Production at Gujarat OSAT Facility - Whalesbook",
+      "url": "https://www.whalesbook.com/corporate-news/English/technology/CG-Power-Commences-Commercial-Production-at-Gujarat-OSAT-Facility/6a491f49adc106bd16f3d88e",
+      "source_type": "news",
+      "published_at": "1970-01-01",
+      "content": "[Whalesbook](https://www.whalesbook.com)\n\n[Login](https://www.whalesbook.com/login) [Sign Up](https://www.whalesbook.com/signup)\n\n[Home](https://www.whalesbook.com) [Market News](https://www.whalesbook.com/latest-news/English/All) [Corporate News](https://www.whalesbook.com/corporate-latest-news/English/All) [Pricing](https://www.whalesbook.com/pricing) [Contact Us](https://www.whalesbook.com/contact-us)\n\n# CG Power Commences Commercial Production at Gujarat OSAT Facility\n\nTECHNOLOGY\n\nAuthor[Ananya Iyer](https://www.whalesbook.com/authors/ananya-iyer)|Published at:\n\n[Add as a PreferredSource on Google](https://www.google.com/preferences/source?q=whalesbook.com)\n\nCG Power announced its G1 OSAT facility in Sanand, Gujarat, has begun commercial production. The facility has a peak capacity of 300 million units annually. This marks a significant milestone in the company's ₹7,600 crore semiconductor investment plan.\n\n# CG Power Commences Commercial Production at Gujarat OSAT Facility\n\nCG Power and Industrial Solutions Ltd has started commercial production at its G1 OSAT facility in Sanand, Gujarat.  \nThe facility has a peak production capacity of 300 million units annually.\n\nReader Takeaway: Successful operational start de-risks expansion; monitors G2 facility progress.\n\n## What just happened\n\nCG Power's subsidiary, CG Semi, has successfully begun commercial production at its G1 Out-of-Package Semiconductor (OSAT) facility in Sanand, Gujarat. This follows the completion of equipment installation, process stabilization, workforce training, and customer qualification.\n\n## Why this matters\n\nThis marks a significant execution milestone for CG Power's ambitious semiconductor manufacturing strategy. It moves the project from the development phase to active revenue generation, validating the company's capabilities in the high-tech OSAT sector and its joint venture partnerships.\n\n## The backstory\n\nCG Power is investing ₹7,600 crore over five years to build two semiconductor facilities, G1 and G2. The G1 facility is now operational, while the G2 facility is under development.\n\n## What changes now\n\nWith commercial production underway, CG Power can now focus on ramping up output at the G1 facility and bringing the G2 facility online. This shift from project execution to operational scaling is crucial for realizing the investment's potential.\n\n## Risks to watch\n\nInvestors should monitor the pace of production ramp-up at G1 and the development timeline for G2. Execution risks in complex high-tech manufacturing and market demand fluctuations are key considerations.\n\n## Peer comparison\n\nCG Power's entry into the OSAT space with its joint venture partners (Renesas Electronics Corporation and Stars Microelectronics) positions it among global players. Success hinges on efficient operations and technological integration, similar to other semiconductor manufacturing ventures.\n\n## Context metrics (time-bound)\n\nThe G1 facility was slated for inauguration in August 2025, but has achieved commercial production earlier, indicating strong project execution.\n\n## What to track next\n\nInvestors should closely watch the production ramp-up figures for the G1 facility and updates on the construction and commissioning of the G2 facility.\n\n**Disclaimer:**This article is published for informational purposes only. While reasonable efforts are made to ensure accuracy, completeness, and timeliness, readers are encouraged to independently verify information before making any decisions based on the content. The views and information presented are subject to editorial review and may be updated without notice.",
+      "credibility": 0.084
+    }
+  ]
+}

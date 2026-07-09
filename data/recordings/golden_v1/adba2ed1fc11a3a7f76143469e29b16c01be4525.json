@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"长江电力 2024 年发电量 同比\",\"source_type\":\"company_report\",\"top_k\":1}",
+    "query": "长江电力 2024 年发电量 同比",
+    "top_k": 1,
+    "source_type": "company_report",
+    "as_of": "2026-07-08",
+    "recorded_at": "2026-07-08T21:45:37Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-df6fe252a1fe",
+      "title": "长江电力：2024年公司境内所属六座梯级电站总发电量同比增长7.11%|界面新闻 · 快讯",
+      "url": "https://www.jiemian.com/article/12217409.html",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "![界面新闻logo](https://res.jiemian.com/assets/pc/common/img/jiemian_logo.svg \"界面新闻logo\")\n![]()\n\n#### 历史搜索 [全部删除](javascript:void(0);)\n\n#### 热门搜索\n\n# 长江电力：2024年公司境内所属六座梯级电站总发电量同比增长7.11%\n\n[界面快报](https://a.jiemian.com/index.php?m=user&a=center&id=118348920) *·* 来源：界面新闻\n\n长江电力1月7日公告，2024年，乌东德水库来水总量约1123.69亿立方米，较上年同期偏丰9.19%；三峡水库来水总量约3740.95亿立方米，较上年同期偏丰9.11%。2024年，公司境内所属六座梯级电站总发电量约2959.04亿千瓦时，较上年同期增长7.11%。其中，第四季度总发电量约600.90亿千瓦时，较上年同期减少17.60%。\n\n#### 长江电力\n\n### 评论\n\n评论\n\n上海界面财联社科技股份有限公司 版权所有 © 2014-2026 JIEMIAN.COM",
+      "credibility": 0.942
+    }
+  ]
+}

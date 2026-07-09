@@ -28,6 +28,26 @@ run stops issuing additional searches after `DEEPRESEARCH_MAX_SEARCHES_PER_RUN`
 `DEEPRESEARCH_TAVILY_RAW_CONTENT_CHAR_LIMIT` (default `40000` characters) before
 extraction.
 
+## Frozen Corpus Replay
+
+Exact-key replay was retired for Golden Set evaluation. The prior design keyed
+recordings by the literal LLM-generated query, `top_k`, and `source_type`, but
+temperature-zero LLM planning still produced byte-level query drift across runs.
+That made otherwise valid recorded corpora fail replay with exact-key misses.
+
+Replay mode now treats `data/recordings/golden_v1/` as a frozen corpus. It loads
+all recorded sources with non-empty content, excludes zero-source recordings,
+and ranks sources for any incoming query with deterministic lexical overlap over
+title and body. `source_type` is respected first; if the filtered set has no
+candidate, replay falls back to all source types. Replay mode does not call
+external search services and does not write the recording directory.
+
+This is a deterministic evaluation mechanism, not a claim that Tavily would
+return the same ordering live. Frozen-corpus results are bounded by corpus
+coverage and lexical ranking quality. Each freeze records the runtime `as_of`
+date and a directory content hash so score changes can be tied to a specific
+corpus snapshot.
+
 ## Golden Questions
 
 `data/eval_set_deterministic.jsonl` contains 50 deterministic CI regression cases covering financial AI, wealth management, citation verification, Evidence Store design, Critic loops, checkpointing, Docker deployment, and interview packaging.

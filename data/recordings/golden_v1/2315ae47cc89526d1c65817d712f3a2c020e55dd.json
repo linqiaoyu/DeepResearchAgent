@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"招商银行 2024 年 归母净利润 同比 增长率\",\"source_type\":\"company_report\",\"top_k\":1}",
+    "query": "招商银行 2024 年 归母净利润 同比 增长率",
+    "top_k": 1,
+    "source_type": "company_report",
+    "as_of": "2026-07-08",
+    "recorded_at": "2026-07-08T22:12:58Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-cc0e2f848eef",
+      "title": "招商银行：2024年归母净利润1483.91亿元，同比增长1.22%",
+      "url": "http://www.cb.com.cn/index/show/kx/cv/cv135355492329",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "招商银行：2024年归母净利润1483.91亿元，同比增长1.22%",
+      "credibility": 0.959
+    }
+  ]
+}

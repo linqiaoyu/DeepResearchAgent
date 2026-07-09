@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"比亚迪 2024 年 手机部件 组装 收入 同比\",\"source_type\":\"company_report\",\"top_k\":1}",
+    "query": "比亚迪 2024 年 手机部件 组装 收入 同比",
+    "top_k": 1,
+    "source_type": "company_report",
+    "as_of": "2026-07-08",
+    "recorded_at": "2026-07-08T21:51:18Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-c093affc9acf",
+      "title": "日均入账21亿！比亚迪交出最强年报，全年研发投入超500亿",
+      "url": "https://zhuanlan.zhihu.com/p/32612547930",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "手机部件、组装及其他产品营收为1597.1亿元，占2024年总营收的20.54%，较2023年增长了411.33亿元，同比增长约34.69%；其他业务营收0.78亿元，占2024年总营收的",
+      "credibility": 0.926
+    }
+  ]
+}

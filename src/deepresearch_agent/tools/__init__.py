@@ -9,6 +9,7 @@ from deepresearch_agent.tools.recording_search import (
     RecordingReplayMiss,
     RecordingSearchProvider,
     normalize_query_key,
+    recording_corpus_fingerprint,
 )
 from deepresearch_agent.tools.search_factory import ConfiguredSearchProvider, build_search_provider
 from deepresearch_agent.tools.structured_data_factory import build_structured_data_provider
@@ -30,4 +31,5 @@ __all__ = [
     "build_search_provider",
     "build_structured_data_provider",
     "normalize_query_key",
+    "recording_corpus_fingerprint",
 ]

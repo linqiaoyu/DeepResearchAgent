@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"比亚迪 2024年 手机部件 及 组装 业务 收入\",\"source_type\":\"company_report\",\"top_k\":1}",
+    "query": "比亚迪 2024年 手机部件 及 组装 业务 收入",
+    "top_k": 1,
+    "source_type": "company_report",
+    "as_of": "2026-07-08",
+    "recorded_at": "2026-07-08T22:37:07Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-8885206af08e",
+      "title": "比亚迪2024年营收7771亿元，今年加速推出新产品",
+      "url": "https://www.moomoo.com/hans/news/post/50751385",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "比亚迪共有两大业务：其中汽车、汽车相关产品及其他产品业务的收入约人民币6173.82 亿元，同比增长27.70%；手机部件、组装及其他产品业务的收入约",
+      "credibility": 0.93
+    }
+  ]
+}

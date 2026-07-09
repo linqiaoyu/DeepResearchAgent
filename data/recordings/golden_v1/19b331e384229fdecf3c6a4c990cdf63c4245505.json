@@ -1,0 +1,32 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"格力电器 净利润 2024年\",\"source_type\":\"official\",\"top_k\":2}",
+    "query": "格力电器 净利润 2024年",
+    "top_k": 2,
+    "source_type": "official",
+    "as_of": "2026-07-08",
+    "recorded_at": "2026-07-08T22:24:57Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-8cc58a31519e",
+      "title": "格力电器：2024年净利润同比增长10.91% 拟每10股派发现金红利20元",
+      "url": "https://www.cls.cn/detail/2016685",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "# \n\n## 首页\n\n## 电报\n\n## 话题\n\n## 盯盘\n\n## VIP\n\n## FM\n\n## 投研\n\n## 下载\n\n### [全部](/telegraph)\n\n### [加红](/telegraph?type=red&topic=0)\n\n### [公司](/telegraph?type=announcement&topic=0)\n\n### [看盘](/telegraph?type=watch&topic=0)\n\n### [港美股](/telegraph?type=hk_us&topic=0)\n\n### [基金](/telegraph?type=fund&topic=0)\n\n### [提醒](/telegraph?type=remind&topic=0)\n\n![logo](https://cdnjs.cls.cn/www/20200601/image/telegraph-logo.png)\n![](https://cdnjs.cls.cn/www/20200601/image/link-icon.png)\n![](https://cdnjs.cls.cn/images/site/cailianWeb/kefu.png)\n![](https://cdnjs.cls.cn/www/20180717/images/rightSide/kfCodeSlider.png)\n![](https://cdnjs.cls.cn/images/site/cailianWeb/xlCode.png)\n![](https://cdnjs.cls.cn/www/20180717/images/rightSide/xlCodeSlider.png)\n![](https://cdnjs.cls.cn/images/site/cailianWeb/wxCode.png)\n![](https://cdnjs.cls.cn/www/20180717/images/rightSide/wxCodeSlider.png)\n![](https://cdnjs.cls.cn/images/site/cailianWeb/appLogo.png)\n![](https://cdnjs.cls.cn/www/20180717/images/rightSide/downloadCodeSlider.png)\n![](https://cdnjs.cls.cn/images/site/cailianWeb/toTop.png)\n![财联社举报](https://cdnjs.cls.cn/images/site/cailianWeb/jubaologo1.png)",
+      "credibility": 0.952
+    },
+    {
+      "id": "tavily-1f9a116cf9d6",
+      "title": "以下是对2024年格力、 美的、 海尔净利润率的详细解读 - 雪球",
+      "url": "https://xueqiu.com/4765559699/333289918",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "格力电器2024年净利润率约为17.02%。其在空调领域具有强大的市场地位和技术优势，空调业务占比较高且毛利率较高，这为其高净利润",
+      "credibility": 0.951
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"600900 2024 发电量 年度\",\"source_type\":\"official\",\"top_k\":1}",
+    "query": "600900 2024 发电量 年度",
+    "top_k": 1,
+    "source_type": "official",
+    "as_of": "2026-07-08",
+    "recorded_at": "2026-07-08T21:45:41Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-a72799f68f23",
+      "title": "东方财富资讯",
+      "url": "https://wap.eastmoney.com/a/202407043122056793.html",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "[点击阅读全文](javascript:;)\n\n前往东方财富APP阅读全文\n\n[取消](javascript:;) [前往](javascript:;)\n\n分享成功\n\n#### 热门推荐\n\n即将前往东方财富APP查看原文\n\n[取消](javascript:;) [确定](javascript:;)\n\n* 分享至：\n* 微信\n* 朋友圈\n* 微博\n\n**郑重声明：**东方财富发布此内容旨在传播更多信息，与本站立场无关，不构成投资建议。据此操作，风险自担。\n\n热点阅读\n:   [定了！长鑫科技7月16日新股申购\n\n    上海证券报 269评论](/a/202607093798840043.html)\n:   [全球市场：美股三大指数收盘涨跌不一 半导体、存储概念股反弹 英伟达涨超3%\n\n    东方财富Choice数据](/a/202607093798854668.html)\n:   [俄罗斯宣布柴油出口禁令 纽约柴油期货飙升超10%\n\n    财联社 7评论](/a/202607093798823039.html)\n:   [超20家A股公司上半年业绩预喜！最高预增1167%\n\n    21世纪经济报道 20评论](/a/202607083798650259.html)\n\n打开东方财富APP查看更多内容\n\n24小时点击排行\n:   [操作：半导体强势领涨，强者恒强，继续抓住主线机会。](https://mguba.eastmoney.com/mguba/article/0/1740096754)\n:   [深夜6个龙头业绩暴雷，京东方业绩大超预期，23股利润翻倍](https://mguba.eastmoney.com/mguba/article/0/1740301167)\n:   [突发3大利空！国瓷材料跌10%，天华新能跌16%，24个固态电池跌停](https://mguba.eastmoney.com/mguba/article/0/1740135627)\n:   [港股疯了！恒科暴拉超4%！半导体也醒了！这波踏空比套牢还难受！](https://mguba.eastmoney.com/mguba/article/0/1739985417)\n:   [操作：半导体强势领涨，强者恒强，继续加仓速速发车！](https://mguba.eastmoney.com/mguba/article/0/1740056085)\n\n写评论 ...\n\n* 点赞\n* 举报\n\n[打开APP 读海量资讯](javascript:;)",
+      "credibility": 0.908
+    }
+  ]
+}

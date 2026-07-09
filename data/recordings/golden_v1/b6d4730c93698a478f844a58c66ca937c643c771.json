@@ -1,0 +1,32 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"京东方a 归母净利润 2024q1\",\"source_type\":\"official\",\"top_k\":2}",
+    "query": "京东方A 归母净利润 2024Q1",
+    "top_k": 2,
+    "source_type": "official",
+    "as_of": "2026-07-08",
+    "recorded_at": "2026-07-08T22:00:45Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-4cdc0f478a17",
+      "title": "京东方A年报摘要：2024年归母净利润同比增长108.97% - 雷达财经",
+      "url": "http://www.leidacj.com/article/69231",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "归母净利润分别为258.31亿元、75.51亿元和25.47亿元，归母净利润同比增长分别为412.96%、-70.91%和-66.22%。同期，公司资产负债率分别为51.78%、51.96%和",
+      "credibility": 0.945
+    },
+    {
+      "id": "tavily-ad16146cd941",
+      "title": "京东方A预计2024年归母净利润52亿元至55亿元_腾讯新闻",
+      "url": "https://news.qq.com/rain/a/20250120A07YS800",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "# 京东方A预计2024年归母净利润52亿元至55亿元\n\n![头像](https://inews.gtimg.com/om_ls/OrAvnfrtoryiQV5bbsK1mU2ZqEasuyHBTzhHkcUyQqjGIAA_200200/0)\n\n财中社\n\n2025-01-20 18:59发布于北京",
+      "credibility": 0.929
+    }
+  ]
+}
