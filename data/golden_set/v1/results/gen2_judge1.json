@@ -182,6 +182,9 @@
       },
       "mechanical": {
         "citation_resolution_rate": 1.0,
+        "backfilled_citation_rate": 0.0667,
+        "backfilled_citation_count": 1,
+        "citation_marker_count": 15,
         "critic_catch_rate": 1.0,
         "token_used": 299034,
         "price_source": "v4flash_console_calibrated_20260612"
@@ -370,6 +373,9 @@
       },
       "mechanical": {
         "citation_resolution_rate": 1.0,
+        "backfilled_citation_rate": 1.0,
+        "backfilled_citation_count": 13,
+        "citation_marker_count": 13,
         "critic_catch_rate": 1.0,
         "token_used": 144298,
         "price_source": "v4flash_console_calibrated_20260612"
@@ -555,6 +561,9 @@
       },
       "mechanical": {
         "citation_resolution_rate": 1.0,
+        "backfilled_citation_rate": 1.0,
+        "backfilled_citation_count": 11,
+        "citation_marker_count": 11,
         "critic_catch_rate": 1.0,
         "token_used": 127157,
         "price_source": "v4flash_console_calibrated_20260612"
@@ -738,6 +747,9 @@
       },
       "mechanical": {
         "citation_resolution_rate": 1.0,
+        "backfilled_citation_rate": 0.8889,
+        "backfilled_citation_count": 16,
+        "citation_marker_count": 18,
         "critic_catch_rate": 1.0,
         "token_used": 176111,
         "price_source": "v4flash_console_calibrated_20260612"
@@ -931,6 +943,9 @@
       },
       "mechanical": {
         "citation_resolution_rate": 1.0,
+        "backfilled_citation_rate": 0.04,
+        "backfilled_citation_count": 1,
+        "citation_marker_count": 25,
         "critic_catch_rate": 1.0,
         "token_used": 77044,
         "price_source": "v4flash_console_calibrated_20260612"
@@ -1117,6 +1132,9 @@
       },
       "mechanical": {
         "citation_resolution_rate": 1.0,
+        "backfilled_citation_rate": 1.0,
+        "backfilled_citation_count": 17,
+        "citation_marker_count": 17,
         "critic_catch_rate": 1.0,
         "token_used": 162255,
         "price_source": "v4flash_console_calibrated_20260612"
@@ -1300,6 +1318,9 @@
       },
       "mechanical": {
         "citation_resolution_rate": 1.0,
+        "backfilled_citation_rate": 1.0,
+        "backfilled_citation_count": 15,
+        "citation_marker_count": 15,
         "critic_catch_rate": 1.0,
         "token_used": 162226,
         "price_source": "v4flash_console_calibrated_20260612"
@@ -1496,6 +1517,9 @@
       },
       "mechanical": {
         "citation_resolution_rate": 1.0,
+        "backfilled_citation_rate": 0.0,
+        "backfilled_citation_count": 0,
+        "citation_marker_count": 31,
         "critic_catch_rate": 1.0,
         "token_used": 169737,
         "price_source": "v4flash_console_calibrated_20260612"
@@ -1698,6 +1722,9 @@
       },
       "mechanical": {
         "citation_resolution_rate": 1.0,
+        "backfilled_citation_rate": 0.0,
+        "backfilled_citation_count": 0,
+        "citation_marker_count": 31,
         "critic_catch_rate": 1.0,
         "token_used": 143164,
         "price_source": "v4flash_console_calibrated_20260612"
@@ -1886,6 +1913,9 @@
       },
       "mechanical": {
         "citation_resolution_rate": 1.0,
+        "backfilled_citation_rate": 0.0,
+        "backfilled_citation_count": 0,
+        "citation_marker_count": 18,
         "critic_catch_rate": 1.0,
         "token_used": 251988,
         "price_source": "v4flash_console_calibrated_20260612"
@@ -2070,6 +2100,9 @@
       },
       "mechanical": {
         "citation_resolution_rate": 1.0,
+        "backfilled_citation_rate": 1.0,
+        "backfilled_citation_count": 16,
+        "citation_marker_count": 16,
         "critic_catch_rate": 1.0,
         "token_used": 199410,
         "price_source": "v4flash_console_calibrated_20260612"
@@ -2251,6 +2284,9 @@
       },
       "mechanical": {
         "citation_resolution_rate": 1.0,
+        "backfilled_citation_rate": 1.0,
+        "backfilled_citation_count": 17,
+        "citation_marker_count": 17,
         "critic_catch_rate": 1.0,
         "token_used": 192165,
         "price_source": "v4flash_console_calibrated_20260612"
@@ -2448,6 +2484,9 @@
       },
       "mechanical": {
         "citation_resolution_rate": 1.0,
+        "backfilled_citation_rate": 0.0938,
+        "backfilled_citation_count": 3,
+        "citation_marker_count": 32,
         "critic_catch_rate": 1.0,
         "token_used": 135689,
         "price_source": "v4flash_console_calibrated_20260612"
@@ -2643,6 +2682,9 @@
       },
       "mechanical": {
         "citation_resolution_rate": 1.0,
+        "backfilled_citation_rate": 0.0,
+        "backfilled_citation_count": 0,
+        "citation_marker_count": 27,
         "critic_catch_rate": 1.0,
         "token_used": 206141,
         "price_source": "v4flash_console_calibrated_20260612"
@@ -2839,6 +2881,9 @@
       },
       "mechanical": {
         "citation_resolution_rate": 1.0,
+        "backfilled_citation_rate": 0.0,
+        "backfilled_citation_count": 0,
+        "citation_marker_count": 18,
         "critic_catch_rate": 1.0,
         "token_used": 134341,
         "price_source": "v4flash_console_calibrated_20260612"
@@ -3027,6 +3072,9 @@
       },
       "mechanical": {
         "citation_resolution_rate": 1.0,
+        "backfilled_citation_rate": 1.0,
+        "backfilled_citation_count": 17,
+        "citation_marker_count": 17,
         "critic_catch_rate": 1.0,
         "token_used": 161712,
         "price_source": "v4flash_console_calibrated_20260612"
@@ -3231,6 +3279,9 @@
       },
       "mechanical": {
         "citation_resolution_rate": 1.0,
+        "backfilled_citation_rate": 0.0,
+        "backfilled_citation_count": 0,
+        "citation_marker_count": 43,
         "critic_catch_rate": 1.0,
         "token_used": 189942,
         "price_source": "v4flash_console_calibrated_20260612"
@@ -3415,6 +3466,9 @@
       },
       "mechanical": {
         "citation_resolution_rate": 1.0,
+        "backfilled_citation_rate": 1.0,
+        "backfilled_citation_count": 19,
+        "citation_marker_count": 19,
         "critic_catch_rate": 1.0,
         "token_used": 176148,
         "price_source": "v4flash_console_calibrated_20260612"
@@ -3623,6 +3677,9 @@
       },
       "mechanical": {
         "citation_resolution_rate": 1.0,
+        "backfilled_citation_rate": 0.0,
+        "backfilled_citation_count": 0,
+        "citation_marker_count": 39,
         "critic_catch_rate": 1.0,
         "token_used": 369920,
         "price_source": "v4flash_console_calibrated_20260612"
@@ -3807,6 +3864,9 @@
       },
       "mechanical": {
         "citation_resolution_rate": 1.0,
+        "backfilled_citation_rate": 1.0,
+        "backfilled_citation_count": 15,
+        "citation_marker_count": 15,
         "critic_catch_rate": 1.0,
         "token_used": 265233,
         "price_source": "v4flash_console_calibrated_20260612"
@@ -4009,6 +4069,9 @@
       },
       "mechanical": {
         "citation_resolution_rate": 1.0,
+        "backfilled_citation_rate": 0.0,
+        "backfilled_citation_count": 0,
+        "citation_marker_count": 33,
         "critic_catch_rate": 1.0,
         "token_used": 242632,
         "price_source": "v4flash_console_calibrated_20260612"
@@ -4203,6 +4266,9 @@
       },
       "mechanical": {
         "citation_resolution_rate": 1.0,
+        "backfilled_citation_rate": 1.0,
+        "backfilled_citation_count": 18,
+        "citation_marker_count": 18,
         "critic_catch_rate": 1.0,
         "token_used": 221298,
         "price_source": "v4flash_console_calibrated_20260612"
@@ -4392,6 +4458,9 @@
       },
       "mechanical": {
         "citation_resolution_rate": 1.0,
+        "backfilled_citation_rate": 0.0,
+        "backfilled_citation_count": 0,
+        "citation_marker_count": 22,
         "critic_catch_rate": 1.0,
         "token_used": 172775,
         "price_source": "v4flash_console_calibrated_20260612"
@@ -4573,6 +4642,9 @@
       },
       "mechanical": {
         "citation_resolution_rate": 1.0,
+        "backfilled_citation_rate": 1.0,
+        "backfilled_citation_count": 13,
+        "citation_marker_count": 13,
         "critic_catch_rate": 1.0,
         "token_used": 148854,
         "price_source": "v4flash_console_calibrated_20260612"
@@ -4727,6 +4799,9 @@
       },
       "mechanical": {
         "citation_resolution_rate": 1.0,
+        "backfilled_citation_rate": 1.0,
+        "backfilled_citation_count": 5,
+        "citation_marker_count": 5,
         "critic_catch_rate": 0.333,
         "token_used": 55914,
         "price_source": "v4flash_console_calibrated_20260612"
@@ -4918,6 +4993,9 @@
       },
       "mechanical": {
         "citation_resolution_rate": 1.0,
+        "backfilled_citation_rate": 0.0,
+        "backfilled_citation_count": 0,
+        "citation_marker_count": 24,
         "critic_catch_rate": 1.0,
         "token_used": 168543,
         "price_source": "v4flash_console_calibrated_20260612"
@@ -5119,6 +5197,9 @@
       },
       "mechanical": {
         "citation_resolution_rate": 1.0,
+        "backfilled_citation_rate": 0.0,
+        "backfilled_citation_count": 0,
+        "citation_marker_count": 37,
         "critic_catch_rate": 1.0,
         "token_used": 208447,
         "price_source": "v4flash_console_calibrated_20260612"
@@ -5298,6 +5379,9 @@
       },
       "mechanical": {
         "citation_resolution_rate": 1.0,
+        "backfilled_citation_rate": 0.0,
+        "backfilled_citation_count": 0,
+        "citation_marker_count": 11,
         "critic_catch_rate": 0.667,
         "token_used": 139486,
         "price_source": "v4flash_console_calibrated_20260612"
@@ -5491,6 +5575,9 @@
       },
       "mechanical": {
         "citation_resolution_rate": 1.0,
+        "backfilled_citation_rate": 0.0,
+        "backfilled_citation_count": 0,
+        "citation_marker_count": 20,
         "critic_catch_rate": 1.0,
         "token_used": 136135,
         "price_source": "v4flash_console_calibrated_20260612"
@@ -5677,6 +5764,9 @@
       },
       "mechanical": {
         "citation_resolution_rate": 1.0,
+        "backfilled_citation_rate": 1.0,
+        "backfilled_citation_count": 16,
+        "citation_marker_count": 16,
         "critic_catch_rate": 1.0,
         "token_used": 126745,
         "price_source": "v4flash_console_calibrated_20260612"
@@ -5697,6 +5787,7 @@
     "avg_synthesis_balance": 0.7017,
     "avg_citation_support_rate": 0.7496,
     "avg_citation_resolution_rate": 1.0,
+    "avg_backfilled_citation_rate": 0.4696,
     "total_cost_cny": 4.873361,
     "total_latency_seconds": 20496.845,
     "bad_case_categories": {
