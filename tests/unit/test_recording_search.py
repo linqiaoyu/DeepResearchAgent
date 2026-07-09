@@ -128,7 +128,7 @@ class RecordingSearchTests(unittest.TestCase):
             recording_dir = Path(tmp)
             _write_recording(
                 recording_dir,
-                "first.json",
+                "1" * 40 + ".json",
                 Source(
                     id="news-1",
                     title="CATL profit news",
@@ -140,7 +140,7 @@ class RecordingSearchTests(unittest.TestCase):
             )
             _write_recording(
                 recording_dir,
-                "second.json",
+                "2" * 40 + ".json",
                 Source(
                     id="web-1",
                     title="BYD production report",
@@ -164,7 +164,7 @@ class RecordingSearchTests(unittest.TestCase):
             before = recording_corpus_fingerprint(recording_dir)
             _write_recording(
                 recording_dir,
-                "source.json",
+                "3" * 40 + ".json",
                 Source(
                     id="source-1",
                     title="Source title",
@@ -177,6 +177,47 @@ class RecordingSearchTests(unittest.TestCase):
             after = recording_corpus_fingerprint(recording_dir)
 
         self.assertNotEqual(before, after)
+
+    def test_replay_ignores_noncanonical_recording_copy_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            recording_dir = Path(tmp)
+            source = Source(
+                id="source-1",
+                title="Canonical CATL source",
+                url="https://example.com/canonical",
+                source_type="web",
+                published_at=date(2026, 1, 1),
+                content="CATL canonical content.",
+            )
+            _write_recording(
+                recording_dir,
+                "0" * 40 + ".json",
+                source,
+            )
+            _write_recording(
+                recording_dir,
+                "1" * 40 + " 2.json",
+                Source(
+                    id="copy-1",
+                    title="Copied BYD source",
+                    url="https://example.com/copy",
+                    source_type="web",
+                    published_at=date(2026, 1, 1),
+                    content="BYD copied content.",
+                ),
+            )
+            before = recording_corpus_fingerprint(recording_dir)
+            (recording_dir / ("2" * 40 + " 2.json")).write_text(
+                (recording_dir / ("1" * 40 + " 2.json")).read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+            after = recording_corpus_fingerprint(recording_dir)
+            replay = RecordingSearchProvider(mode="replay", recording_dir=recording_dir)
+
+            results = replay.search("BYD copied", top_k=1)
+
+        self.assertEqual(before, after)
+        self.assertEqual([item.url for item in results], ["https://example.com/canonical"])
 
     def test_factory_replay_mode_does_not_require_live_key(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
