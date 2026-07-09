@@ -4,7 +4,7 @@
 
 DeepResearchAgent 是一个多 Agent 深度研究框架，金融投研为首个落地场景。
 
-当前仓库处于 MVP 阶段：已实现确定性的 Planner、Researcher、Extractor、Critic、Reporter、Evaluator 工作流；默认使用本地 fixture 检索数据与录制结构化金融数据；编排层已迁移为 LangGraph `StateGraph`，Researcher 按子问题 fan-out，Critic 通过条件边回流 retry queue；checkpoint 由官方 `SqliteSaver` 写入 SQLite，Evidence 和 evaluation 结果由 `SQLiteStore` 写入 SQLite；LLM 模式通过统一 LiteLLM 层覆盖 Planner、Extractor、Reporter，Researcher 与 Critic 当前仍保持确定性；已接入 AKShare 白名单结构化数据边界、五元素数字 claim 口径体系、金融化 Critic；006R3 已冻结 Golden Set v1，并完成 qwen-plus judge 两轮评测与 qwen-plus/qwen-max 校准实验；当前 judge 与 citation_support 默认显式调用 qwen3.7-plus；CLI demo、LLM smoke、Golden Set runner 和 unittest 套件已在本地 `.venv` 验证过相应路径。
+当前仓库处于 MVP 阶段：已实现确定性的 Planner、Researcher、Extractor、Critic、Reporter、Evaluator 工作流；默认使用本地 fixture 检索数据与录制结构化金融数据；编排层已迁移为 LangGraph `StateGraph`，Researcher 按子问题 fan-out，Critic 通过条件边回流 retry queue；checkpoint 由官方 `SqliteSaver` 写入 SQLite，Evidence 和 evaluation 结果由 `SQLiteStore` 写入 SQLite；LLM 模式通过统一 LiteLLM 层覆盖 Planner、Extractor、Reporter，Researcher 与 Critic 当前仍保持确定性；已接入 AKShare 白名单结构化数据边界、五元素数字 claim 口径体系、金融化 Critic；006R3 已冻结 Golden Set v1，并完成 qwen3.7-plus judge 两轮评测与 judge 模型校准实验；当前 judge 与 citation_support 默认显式调用 qwen3.7-plus；CLI demo、LLM smoke、Golden Set runner 和 unittest 套件已在本地 `.venv` 验证过相应路径。
 
 本项目是作品集和演示导向项目，但实现选择仍应能解释为生产化工程决策。
 

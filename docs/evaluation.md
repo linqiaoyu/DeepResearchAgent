@@ -31,7 +31,7 @@ Frozen assets:
 - `data/golden_set/v1/results/round1.json`: first full judge round.
 - `data/golden_set/v1/results/round2.json`: second full judge round.
 - `data/golden_set/v1/results/round_diff.json`: round two minus round one metrics.
-- `data/golden_set/v1/results/judge_calibration.json`: qwen-plus vs qwen-max calibration sample.
+- `data/golden_set/v1/results/judge_calibration.json`: archived judge-model calibration sample.
 
 Golden Set v1 evaluation `as_of` is `2026-07-09`. The frozen corpus contains
 486 canonical recording files, 694 source rows, 510 unique source URLs, and
@@ -75,12 +75,13 @@ and weights are:
 Prompt file: `prompts/judge.md`. Current prompt hash:
 `2e87f85cb54673ab6f84e0f0fc4b8c108441757e20ecd9ec4c3416df5d893533`.
 
-The historical qwen-plus vs qwen-max calibration sample over Q01-Q10 produced
-dimension agreement rate <=0.1 of `0.4`, average dimension absolute difference
-`0.3299`, and average weighted-score absolute difference `0.3362`. This is a
-material judge-model sensitivity signal. Current operational judge calls use the
-explicit `qwen3.7-plus` model name; PM review is still required before treating
-Golden Set scores as stable product benchmarks.
+The archived judge-model calibration sample over Q01-Q10 produced dimension
+agreement rate <=0.1 of `0.4`, average dimension absolute difference `0.3299`,
+and average weighted-score absolute difference `0.3362`. This is a material
+judge-model sensitivity signal. Current operational judge and citation_support
+calls use the explicit `qwen3.7-plus` model name through DashScope; archived JSON
+field names are historical labels, not the current routing contract. PM review is
+still required before treating Golden Set scores as stable product benchmarks.
 
 ## Golden Set v1 Results
 
