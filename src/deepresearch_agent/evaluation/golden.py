@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -24,6 +25,7 @@ REQUIRED_QUESTION_FIELDS = {
     "recording_notes",
 }
 REQUIRED_GOLD_FIELDS = {"must_include", "must_not_assert", "behavioral"}
+JUDGE_DIMENSIONS = ("fact_coverage", "fact_accuracy", "citation_support", "synthesis_balance")
 
 
 def load_yaml_design(path: Path) -> dict[str, Any]:
@@ -111,3 +113,96 @@ def classify_bad_case(
     if score.synthesis_balance < 0.8:
         categories.append("结构或平衡缺失")
     return categories
+
+
+def judge_sample_spread(samples: list[JudgeScore]) -> dict[str, float]:
+    if not samples:
+        return {key: 0.0 for key in JUDGE_DIMENSIONS}
+    return {
+        key: round(max(getattr(item, key) for item in samples) - min(getattr(item, key) for item in samples), 4)
+        for key in JUDGE_DIMENSIONS
+    }
+
+
+def extract_report_claims(report: str, *, limit: int = 12) -> list[dict[str, Any]]:
+    claims: list[dict[str, Any]] = []
+    reference_section = False
+    for line in report.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if stripped.startswith("## 参考来源"):
+            reference_section = True
+            continue
+        if reference_section:
+            continue
+        if stripped.startswith("#"):
+            continue
+        if stripped.startswith("- "):
+            claim_text = stripped[2:].strip()
+        elif stripped.startswith(("比", "据", "202", "报告", "公司", "行业", "宁", "贵", "美", "中")):
+            claim_text = stripped
+        else:
+            continue
+        if len(claim_text) < 10:
+            continue
+        evidence_ids = re.findall(r"\[\^([^\]]+)\]", claim_text)
+        claims.append(
+            {
+                "claim": re.sub(r"\[\^[^\]]+\]", "", claim_text).strip(),
+                "evidence_ids": evidence_ids,
+            }
+        )
+        if len(claims) >= limit:
+            break
+    return claims
+
+
+def aggregate_round_results(results: list[dict[str, Any]]) -> dict[str, Any]:
+    completed = [item for item in results if item.get("status") == "done"]
+    if not completed:
+        return {"cases": 0}
+
+    def _avg(path: tuple[str, ...]) -> float:
+        values: list[float] = []
+        for item in completed:
+            current: Any = item
+            for key in path:
+                current = current.get(key, {}) if isinstance(current, dict) else {}
+            if isinstance(current, int | float):
+                values.append(float(current))
+        return round(sum(values) / len(values), 4) if values else 0.0
+
+    category_counts = Counter()
+    false_premise = {"passed": 0, "failed": 0}
+    for item in completed:
+        category_counts.update(item.get("bad_case_categories", []))
+        if item.get("false_premise") is True:
+            if item.get("false_premise_failed") is True:
+                false_premise["failed"] += 1
+            else:
+                false_premise["passed"] += 1
+
+    return {
+        "cases": len(completed),
+        "avg_weighted_score": _avg(("judge", "median", "weighted_score")),
+        "avg_fact_coverage": _avg(("judge", "median", "fact_coverage")),
+        "avg_fact_accuracy": _avg(("judge", "median", "fact_accuracy")),
+        "avg_citation_support": _avg(("judge", "median", "citation_support")),
+        "avg_synthesis_balance": _avg(("judge", "median", "synthesis_balance")),
+        "avg_citation_support_rate": _avg(("citation_support", "support_rate")),
+        "avg_citation_resolution_rate": _avg(("mechanical", "citation_resolution_rate")),
+        "total_cost_cny": round(sum(float(item.get("cost_cny", 0.0)) for item in completed), 6),
+        "total_latency_seconds": round(
+            sum(float(item.get("latency_seconds", 0.0)) for item in completed), 3
+        ),
+        "bad_case_categories": dict(category_counts),
+        "false_premise": false_premise,
+    }
+
+
+def false_premise_failed(report: str, must_not_assert: list[str]) -> bool:
+    text = report.replace(" ", "")
+    if "假前提" in text or "前提不成立" in text or "并未" in text or "未被" in text:
+        return False
+    return any(item.replace(" ", "") in text for item in must_not_assert)
