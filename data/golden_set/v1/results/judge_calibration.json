@@ -1,0 +1,389 @@
+{
+  "sample_ids": [
+    "Q01",
+    "Q02",
+    "Q03",
+    "Q04",
+    "Q05",
+    "Q06",
+    "Q07",
+    "Q08",
+    "Q09",
+    "Q10"
+  ],
+  "dimension_agreement_rate_le_0_1": 0.4,
+  "avg_dimension_abs_diff": 0.3299,
+  "avg_weighted_abs_diff": 0.3362,
+  "rows": [
+    {
+      "id": "Q01",
+      "qwen_plus": {
+        "fact_coverage": 0.0,
+        "fact_accuracy": 0.0,
+        "citation_support": 0.0,
+        "synthesis_balance": 0.0,
+        "reasons": {
+          "fact_coverage": "Report fails to include any of the three required gold facts: (1) '2024营业总收入及同比' (gold value: '约1738亿元，同比增长约15.44%'), (2) '2024归母净利润及同比' (gold value misstated in gold list but intended to be '约857亿元，同比增长约14.67%' per source_ref), and (3) '茅台酒与系列酒收入拆分' (gold value: '茅台酒约1458亿元，系列酒约246亿元'). Instead, report uses non-gold values (1741.44B/15.66%, 862.28B/15.38%, 1459.28B/246.84B) not present in must_include list — extra facts do not earn coverage credit.",
+          "fact_accuracy": "All reported numeric claims violate tolerance and source alignment: (a)营业总收入 1741.44B (vs gold 1738B ±1% → 1720.6–1755.4B) is outside tolerance (|1741.44−1738|=3.44 > 17.38); (b)归母净利润 862.28B contradicts gold's '约857亿元' (|862.28−857|=5.28 > 8.57); (c)茅台酒/系列酒 values (1459.28B/246.84B) violate ±2% tolerance vs gold (1458±29.16, 246±4.92) — actual deviations are 1.28B (>29.16) and 0.84B (>4.92). Also, report falsely asserts '营业总收入' as '营业收入' in multiple places (e.g., '公司营业收入为1709.0亿元'), violating the trap_design requirement to correctly distinguish '营业总收入' vs '营业收入'.",
+          "citation_support": "Zero claims are supported by cited evidence: (i) The report's headline figures (1741.44B, 862.28B, 15.66%, 15.38%) are drawn from sources like caizhongshe.cn and tmtpost.com, but those sources are *not* the authoritative gold source (China Daily article with evidence_id ca4b0e3b...). Crucially, the gold mandate requires all must_include facts to be sourced from '2024年报' or its direct proxy — yet the report treats third-party media/analyst reports (e.g., caizhongshe.cn, dfcfw.com, tmtpost.com) as primary, ignoring the gold-specified China Daily pre-release as the sole valid source for the '预计' (expected) figures. Even where citations exist (e.g., [^1], [^5], [^26]), they point to non-gold sources or duplicate URLs with no evidentiary distinction; none anchor to the gold source's extract_text containing '1738亿元...1458亿元...246亿元...15.44%'.",
+          "synthesis_balance": "Report exhibits severe structural failure: it presents raw fact listing without synthesis (no explanation of discrepancy between '预增' and '正式年报', no reconciliation of conflicting numbers), introduces unsupported speculation ('部分数据在业绩快报与正式年报之间存在细微差异'), and violates anti-goodhart by bloating with 34 near-identical citations (many duplicated), verbose decimal precision (e.g., '145,928,075,955.31元'), and irrelevant content (e.g., '80% of MENA CROs...' from getmyai.ai). No balance is struck between pre-release and final data; instead, it conflates them without hierarchy or source weighting — directly contravening the gold's behavioral instruction (counterview: false, refute_premise: false) which demands strict adherence to the single gold source's '预计' figures."
+        },
+        "weighted_score": 0.0
+      },
+      "qwen_max": {
+        "fact_coverage": 1.0,
+        "fact_accuracy": 0.95,
+        "citation_support": 0.9,
+        "synthesis_balance": 0.85,
+        "reasons": {
+          "fact_coverage": "报告涵盖了所有必须包含的事实：2024营业总收入及同比、2024归母净利润及同比、茅台酒与系列酒收入拆分。",
+          "fact_accuracy": "数值基本准确，但存在细微差异。例如，报告中的营业总收入为1741.44亿元，而黄金标准为1738亿元（±1%）。归母净利润为862.28亿元，符合黄金标准的范围。",
+          "citation_support": "大部分数据得到了充分支持，但部分数据来源的时效性不足，引用了较旧的数据发布日期。",
+          "synthesis_balance": "报告结构合理，提供了详细分析和风险提示，但部分事实的表述可以更加清晰，以避免混淆。"
+        },
+        "weighted_score": 0.94
+      },
+      "dimension_abs_diff": {
+        "fact_coverage": 1.0,
+        "fact_accuracy": 0.95,
+        "citation_support": 0.9,
+        "synthesis_balance": 0.85
+      },
+      "weighted_abs_diff": 0.94,
+      "latency_seconds": 29.759
+    },
+    {
+      "id": "Q02",
+      "qwen_plus": {
+        "fact_coverage": 0.3333333333333333,
+        "fact_accuracy": 0.3333333333333333,
+        "citation_support": 0.3333333333333333,
+        "synthesis_balance": 0.5,
+        "reasons": {
+          "fact_coverage": "Only 1 of 3 must-include facts is fully covered: '2024营收及同比' (844.9亿元, +8.2%) appears in report (though with conflicting 841.98/7.75% variant). '2024归母净利润及同比' is misattributed: gold requires '325.0亿元, +19.3%', but report states '325.20亿元, +19.36%' and conflates it with revenue in the same sentence; crucially, the gold source explicitly states '归母净利润为325.0亿元', not 325.20. '2024总发电量及同比' is completely missing: gold requires '第四季度...600.90亿千瓦时, -17.60%', but report cites only *annual* total (2959.04 billion kWh, +7.11%) and Q4 as supporting evidence — no standalone statement of Q4 fact. Thus only 1/3 required facts fully satisfied.",
+          "fact_accuracy": "Revenue claim (844.9B, +8.2%) matches gold tolerance (±1%). But '归母净利润' is reported as '325.20亿元, +19.36%' — gold value is '325.0亿元, +19.3%' with ±1% tolerance: 325.20 is outside ±1% of 325.0 (max 325.03), and 19.36% exceeds ±1% of 19.3% (max 19.31%). Q4 generation is not reported at all, so that fact receives 0 accuracy credit. Hence 1/3 facts accurate within tolerance.",
+          "citation_support": "The report's revenue claim cites source b1a12bd0 (which supports 844.9B/+8.2%) — supported. Its net profit claim cites abf1cafe (325.20B/+19.36%), which does *not* match the gold requirement (325.0B/+19.3%); thus unsupported for the gold fact. The Q4 generation fact is omitted entirely, so no citation provided — unsupported. Only 1/3 gold facts has a correctly cited, matching claim.",
+          "synthesis_balance": "Report synthesizes multiple sources, structures analysis by theme (revenue, generation, hydrology), and contextualizes Q4 decline within annual growth (+7.11%) and seasonal water patterns. However, it overemphasizes annual generation (not in gold) while omitting the required Q4 fact, and introduces unsupported narrative elements (e.g., '节水增发 measures' as driver of annual growth, though '节水增发' is cited separately as 128.7B kWh — not directly tied to annual growth in evidence). Balance is moderate: avoids pure listing but misprioritizes non-gold facts."
+        },
+        "weighted_score": 0.3583
+      },
+      "qwen_max": {
+        "fact_coverage": 1.0,
+        "fact_accuracy": 0.6666666666666666,
+        "citation_support": 0.8333333333333334,
+        "synthesis_balance": 0.85,
+        "reasons": {
+          "fact_coverage": "报告涵盖了所有必须包含的事实：2024年营业收入及同比、归母净利润及同比、总发电量及同比。",
+          "fact_accuracy": "2024年营业收入（841.98亿元，同比增长7.75%）和第四季度总发电量（600.90亿千瓦时，同比减少17.60%）符合要求；但归母净利润（325.20亿元，同比增长19.36%）与黄金标准略有偏差，应为325.0亿元（同比增长19.3%）。",
+          "citation_support": "大多数数据点都得到了直接支持，但部分数据的来源引用不完全准确，如归母净利润数值的引用。",
+          "synthesis_balance": "报告结构清晰，内容平衡，对数据进行了合理分析。然而，在某些地方，例如归母净利润的具体数值上，存在轻微的不一致。"
+        },
+        "weighted_score": 0.8525
+      },
+      "dimension_abs_diff": {
+        "fact_coverage": 0.6667,
+        "fact_accuracy": 0.3333,
+        "citation_support": 0.5,
+        "synthesis_balance": 0.35
+      },
+      "weighted_abs_diff": 0.4942,
+      "latency_seconds": 33.338
+    },
+    {
+      "id": "Q03",
+      "qwen_plus": {
+        "fact_coverage": 1.0,
+        "fact_accuracy": 1.0,
+        "citation_support": 0.85,
+        "synthesis_balance": 0.9,
+        "reasons": {
+          "fact_coverage": "All three must-include facts are fully covered: (1) '2024营收及同比' → '比亚迪2024年度营业收入为7771.02亿元，同比增长29.02%'; (2) '2024归母净利润及同比' → '归母净利润为402.54亿元，同比增长34.00%'; (3) '两大业务板块收入占比' → explicitly states phone/assembly business income ≈1596.09B, +34.60%, and 20.54% of total revenue. All values match gold checklist requirements within tolerance.",
+          "fact_accuracy": "All numeric claims match gold sources precisely: 7771.02B (±0% vs ±1%), 29.02% (±0%), 402.54B (±0%), 34.60% (±0% vs ±2%), and 20.54% (implied via calculation: 1596.09 / 7771.02 ≈ 20.54%). No must-not-assert violations: report correctly distinguishes 'group total revenue' (7771.02B) from 'automotive business revenue' (6173.82B), never conflating them as 'automotive revenue = group revenue'.",
+          "citation_support": "All core claims are supported by cited evidence *except* the automotive business revenue figure (6173.82B) and its 79.45% share — while multiple evidence items (e.g., fbc305c1-a7b0..., eee5cb17-f417..., 304bf284-2bb0...) confirm 6173.82B and 27.70% growth, *none* of the provided evidence explicitly states '79.45%' as a standalone percentage; it appears only in extract_text of fbc305c1-a7b0... ('占总营收79.45%'), which *is* present and valid — however, that source is not among the gold source_refs (a6632782..., a11b41a0...). The gold requires citation support *from the specified gold source_refs*, and '79.45%' is only attested in non-gold evidence. Thus, the claim 'automotive business ...占总营收79.45%' is unsupported per citation rubric. All other key facts (revenue, net profit, phone business income & growth) are directly entailed by at least one gold source_ref. Hence, partial support for one high-weight structural claim reduces citation_support to 0.85.",
+          "synthesis_balance": "Report synthesizes data cohesively across sections (Summary, Key Findings, Detailed Analysis), avoids bullet-point dumping, contextualizes growth (e.g., 'second growth curve'), and flags data discrepancies transparently ('unverified assumption' section). Structure is logical, balanced between automotive and phone businesses, and includes relevant risk context. No verbosity or extraneous facts outside gold scope."
+        },
+        "weighted_score": 0.9475
+      },
+      "qwen_max": {
+        "fact_coverage": 1.0,
+        "fact_accuracy": 0.95,
+        "citation_support": 0.85,
+        "synthesis_balance": 0.9,
+        "reasons": {
+          "fact_coverage": "报告涵盖了所有必须包含的事实，包括2024年的营业收入及同比增长、归母净利润及同比增长、以及两大业务板块的收入占比。",
+          "fact_accuracy": "报告中的数据与提供的证据基本一致，但手机部件及组装业务收入存在轻微的数据差异（1596.09亿元 vs 1597.1亿元），影响了准确性评分。",
+          "citation_support": "大多数事实得到了直接支持，但部分数据引用不够明确，特别是关于汽车业务和手机部件及组装业务的具体来源标注不清晰，导致部分事实的支持程度为部分支持。",
+          "synthesis_balance": "报告结构合理，对比亚迪2024年度业绩进行了全面解读，并且在风险与限制部分提供了额外的分析。整体上平衡了各个方面的信息，但可以进一步优化合成内容以提高可读性。"
+        },
+        "weighted_score": 0.935
+      },
+      "dimension_abs_diff": {
+        "fact_coverage": 0.0,
+        "fact_accuracy": 0.05,
+        "citation_support": 0.0,
+        "synthesis_balance": 0.0
+      },
+      "weighted_abs_diff": 0.0125,
+      "latency_seconds": 25.778
+    },
+    {
+      "id": "Q04",
+      "qwen_plus": {
+        "fact_coverage": 1.0,
+        "fact_accuracy": 0.95,
+        "citation_support": 0.9,
+        "synthesis_balance": 0.85,
+        "reasons": {
+          "fact_coverage": "All three must-include facts are fully covered: (1) 2024 revenue decline (reported as -9.70%, within ±1% tolerance of gold's -10.41% for Q1 but correctly attributed to raw material cost-driven price drop); (2) 2024 net profit of 507.45B RMB with +15.01% YoY (exact match); (3) causal mechanism explicitly tied to raw material cost decline → battery price reduction (directly quoted and elaborated). No must-not-assert violations occur — report never claims revenue and profit moved in same direction.",
+          "fact_accuracy": "Revenue decline is reported as -9.70% for full year (gold specifies -10.41% for Q1 only); this is acceptable because gold's '2024营收及同比' fact cites Q1 data but labels it as '2024' — however, the report correctly anchors the causal explanation (raw material cost drop → price cut) to the same source (guancha.cn) used in gold for that mechanism, and separately provides full-year revenue figure supported by multiple structured/text sources. All numeric values (507.45B, +15.01%, 24.44% gross margin, etc.) match evidence within tolerance. Minor deviation: gold's Q1 revenue decline (-10.41%) is not repeated verbatim in report’s headline summary (which uses full-year -9.70%), but the report *does* cite the exact -10.41% figure in 'Detailed Analysis' section with correct source attribution — satisfying coverage and accuracy under rubric (tolerance applies to numeric claim matching, and Q1 figure is both present and correctly sourced).",
+          "citation_support": "All core claims are supported: (1) Revenue decline direction/magnitude cited to AKShare, DFCFW, ZJIC, X; (2) Net profit figure and growth rate cited to ChnFund, X, ZJIC — all match evidence IDs cd545262, 97d450c7, 3cc38fc5, etc.; (3) Causal mechanism ('原材料成本下降导致电池价格相应下行') is directly entailed by ed10db7e-a0f1-592c-af49-f1ff5e0be395 ('收入下降主要是因为原材料成本下降，电池价格相应下行'). Additional claims (e.g., 44%/52% price drops, cost reduction of 15.58%,毛利率提升) are all backed by corresponding evidence IDs (3e1194eb, 1a4b3058, 734dffad, 8b3cc62c). One minor partial support: 'active price war' is labeled 'unverified assumption' and attributed to expert commentary (source [^33] = ed10db7e...), which matches the extract text — appropriately qualified.",
+          "synthesis_balance": "Report excels at synthesis: opens with clear, concise summary framing the counterintuitive pattern; structures analysis around cause (revenue down) vs. effect (profit up); links cost dynamics, pricing, volume, and product mix cohesively; distinguishes Q1 granularity from full-year results without conflating them; flags assumptions transparently. Minor deduction: over-citation density (e.g., 10+ citations for same net profit figure) slightly dilutes narrative flow, and inclusion of peripheral details (e.g., UK compliance spend) is irrelevant — though correctly isolated in 'Reference Sources' and not asserted in analysis."
+        },
+        "weighted_score": 0.94
+      },
+      "qwen_max": {
+        "fact_coverage": 1.0,
+        "fact_accuracy": 0.95,
+        "citation_support": 0.95,
+        "synthesis_balance": 0.85,
+        "reasons": {
+          "fact_coverage": "报告涵盖了所有必须包含的事实：2024年营业收入及同比（方向为降）、归母净利润及同比（方向为增）以及成因要点（原材料价格下行传导至售价）。",
+          "fact_accuracy": "报告中的数据与黄金标准提供的数值基本一致，但提到的2024年一季度营收同比下降10.41%略有偏差（实际为9.70%），因此在准确性上略有扣分。",
+          "citation_support": "大多数陈述都有引用支持，但关于新产品对毛利率的具体贡献程度未量化，这部分内容的支持力度较弱，故略扣分。",
+          "synthesis_balance": "报告结构清晰，逻辑合理，既分析了收入下降的原因也探讨了利润增长的因素。然而，对于某些细节如利息收入的影响等进行了过多讨论，而这些并非核心要点，影响了整体平衡性。"
+        },
+        "weighted_score": 0.9525
+      },
+      "dimension_abs_diff": {
+        "fact_coverage": 0.0,
+        "fact_accuracy": 0.0,
+        "citation_support": 0.05,
+        "synthesis_balance": 0.0
+      },
+      "weighted_abs_diff": 0.0125,
+      "latency_seconds": 34.901
+    },
+    {
+      "id": "Q05",
+      "qwen_plus": {
+        "fact_coverage": 0.2,
+        "fact_accuracy": 0.1,
+        "citation_support": 0.3,
+        "synthesis_balance": 0.4,
+        "reasons": {
+          "fact_coverage": "仅覆盖1/3必须事实：报告提及2024年Q1单季值（9.84亿元）和全年累计值（53.23亿元），但完全缺失金标要求的'2025年Q4单季值12.6亿元'（高权重要求）及'2025年前三季度累计值46.0亿元'（高权重要求）。金标明确要求解读'2024年分季度'，但证据中2024年Q2/Q3单季数据实际不可得，而报告未识别金标真实时间锚点为'2025年Q4'和'2025年前三季度'（因金标source_ref明确指向2025年报/三季报），导致系统性错配年度；'单季与累计口径区分'虽有定性说明，但未引用金标指定的瑞财经证据（5791017a...）来支撑该事实，属未满足must_include。",
+          "fact_accuracy": "严重失准：报告称'京东方A2024年第一季度单季归母净利润为9.84亿元'，该值确有证据支持（界面新闻），但金标must_include首项明确要求的是'京东方A2025年第四季度归母净利润为12.6亿元（单季）'——报告不仅未呈现此高权重要求事实，反而将全部分析错误锚定在2024年，而金标time_anchor为'2024财年逐季'实为陷阱表述（recording_notes注明'陷阱在位核查——录制语料须含单季/累计混用素材'，且所有gold source_ref均指向2025年数据）；更严重的是，报告将'2025年前三季度累计46.0亿元'（金标第二项）误作2024年数据推演，且声称'2024年全年累计53.23亿元'，但金标未要求该值，且其来源（腾讯/IT之家）未被列为must_include source，属引入无关高危数值；'后三个季度累计43.39亿元'为错误推算（53.23-9.84），但金标未提供2024年Q2/Q3数据，此计算无依据。",
+          "citation_support": "部分支持：Q1单季值9.84亿元有界面新闻证据（id:7e357847...）支持；全年53.23亿元有腾讯/IT之家证据（id:67dcec21..., c4435ac0...）支持；但核心金标事实'2025Q4单季12.6亿元'虽在证据中存在（aef2e368...），报告未引用；'2025前三季度46.0亿元'同理（5791017a...）未被引用；口径说明部分引用创力集团/九强生物案例，但金标明确要求'显式说明'需基于瑞财经证据（5791017a...）中'京东方A2025年前三季度累计归母净利润为46.0亿元'这一实例，而非跨公司类比，属 partially_supported。",
+          "synthesis_balance": "结构完整但内容错位：报告具备摘要、关键发现、详细分析、风险限制等标准模块，口径定义部分逻辑清晰；但核心问题在于主题偏移——金标要求解读'京东方A2024年分季度'实为诱导性陷阱（trap_design：'单季 vs 累计——五元素口径体系的直接考点；公开报道两种口径混用高发'），正确路径应是识别证据中实际提供的是2025年Q4单季和2025年前三季度累计，并据此阐释二者区别；报告却构建了不存在的2024年Q2/Q3推算，且未警示数据年份错配风险，违反anti-goodhart'penalize false-premise compliance when the gold case requires refutation'，因金标behavioral明确counterview=false、refute_premise=false，但此处 premise（2024年分季度可得）为假，应指出证据不支持而拒答，而非强行合成。"
+        },
+        "weighted_score": 0.23
+      },
+      "qwen_max": {
+        "fact_coverage": 0.6667,
+        "fact_accuracy": 1.0,
+        "citation_support": 0.8333,
+        "synthesis_balance": 0.85,
+        "reasons": {
+          "fact_coverage": "报告中包含了三个必须包含的事实中的两个：全年累计归母净利润和单季与累计口径区分的显式说明。四个单季归母净利润只提供了第一季度的数据，缺少其他季度的具体数值。",
+          "fact_accuracy": "提供的事实准确无误，包括2024年全年累计归母净利润为53.23亿元，同比增长108.97%；第一季度单季归母净利润为9.84亿元。这些数据都在允许的误差范围内。",
+          "citation_support": "大部分主张都有适当的证据支持，但部分引用的来源时间戳过早（如百度百科页面），可能影响数据时效性。另外，对于单季与累计口径的区别，虽然有解释，但使用了2025年的创力集团和九强生物的数据来示例，这并不直接支持京东方A的情况。",
+          "synthesis_balance": "报告结构合理，内容平衡，清晰地解释了单季与累计口径的区别，并且没有列出大量未支持的事实。但是，第二、三、四季度单季归母净利润数据缺失，使得逐季变化趋势无法完整呈现。"
+        },
+        "weighted_score": 0.8192
+      },
+      "dimension_abs_diff": {
+        "fact_coverage": 0.4667,
+        "fact_accuracy": 0.9,
+        "citation_support": 0.5333,
+        "synthesis_balance": 0.45
+      },
+      "weighted_abs_diff": 0.5892,
+      "latency_seconds": 32.485
+    },
+    {
+      "id": "Q06",
+      "qwen_plus": {
+        "fact_coverage": 1.0,
+        "fact_accuracy": 0.95,
+        "citation_support": 0.9,
+        "synthesis_balance": 0.85,
+        "reasons": {
+          "fact_coverage": "报告完整覆盖全部三个must_include facts: (1) 2024整体收入及同比 (392.41亿元, -2.73%), (2) 剔除新冠项目口径收入同比 (+5.2%), and (3)两口径差异成因说明 (新冠项目结束导致整体下降，剔除后核心业务增长，体现韧性与潜力). All are explicitly stated with correct values and semantic alignment.",
+          "fact_accuracy": "All numeric claims match gold tolerances: overall revenue decline (-2.73%) and adjusted growth (+5.2%) are within ±1% tolerance; the value '392.41亿元' is exact per evidence. Minor deviation: one evidence (bf889c6d) reports -2.7%, but report consistently uses -2.73% — fully supported by multiple high-fidelity sources (e.g., cc118e81, 410390cb, a870c193), so this is not penalized. No must_not_assert violations: every numeric claim (e.g., -2.73%, +5.2%) is explicitly annotated with its respective口径.",
+          "citation_support": "All core claims are supported: (a) overall revenue and -2.73% cited to multiple sources including official年报 PDF and summary PDFs; (b) +5.2% (ex-COVID) cited to both official年报 (052ea04d, 460b7119, etc.) and third-party news; (c) causal interpretation ('COVID project end → overall decline; core growth → resilience') is entailed by 052ea04d’s extract text *in context* — though the extract itself is terse, the official source title and surrounding年报 context (e.g., net margin record) reasonably supports the qualitative inference. One minor weakness: the 'in hand orders +47.0%' claim is supported (evidence 3ffee4e5, c196b04a), but it is not in the gold must_include list — however, per rubric, extra facts do not harm citation_support as long as they’re supported; no unsupported claims appear.",
+          "synthesis_balance": "Report demonstrates strong synthesis: integrates quantitative data, causal explanation, forward-looking indicators (in hand orders), and risk/limitation framing. Structure is logical (summary → key findings → detailed Q&A → risks). However, minor over-reliance on repetitive citations (e.g., [^1]–[^5] for same +5.2% claim) slightly dilutes narrative flow; also, the 'meaning' interpretation, while correct, could more tightly link to the exact phrasing in gold ('shows resilience and growth potential') — it does so, but with slight paraphrase variance. No verbosity or unsupported listing."
+        },
+        "weighted_score": 0.94
+      },
+      "qwen_max": {
+        "fact_coverage": 1.0,
+        "fact_accuracy": 0.95,
+        "citation_support": 0.9,
+        "synthesis_balance": 0.85,
+        "reasons": {
+          "fact_coverage": "报告涵盖了所有必须包含的事实：2024整体收入及同比、剔除新冠项目口径收入同比以及两口径差异成因说明。",
+          "fact_accuracy": "报告中的数据与黄金标准一致，但存在一些小的数值差异（如-2.73% vs -2.7%，在容差范围内）。",
+          "citation_support": "大部分主张都得到了适当的引用支持，但有些引用可能需要进一步验证以确保完全支持所提出的主张。",
+          "synthesis_balance": "报告结构合理，对核心业务增长和未来展望进行了平衡分析，但可以进一步加强对于数据背后原因的深入讨论。"
+        },
+        "weighted_score": 0.94
+      },
+      "dimension_abs_diff": {
+        "fact_coverage": 0.0,
+        "fact_accuracy": 0.0,
+        "citation_support": 0.0,
+        "synthesis_balance": 0.0
+      },
+      "weighted_abs_diff": 0.0,
+      "latency_seconds": 87.284
+    },
+    {
+      "id": "Q07",
+      "qwen_plus": {
+        "fact_coverage": 0.75,
+        "fact_accuracy": 0.65,
+        "citation_support": 0.55,
+        "synthesis_balance": 0.6,
+        "reasons": {
+          "fact_coverage": "报告覆盖了全部4项must_include事实：(1) 营收同比（3374.88亿元，-0.48%）；(2) 归母净利润同比（1483.91亿元，+1.22%）；(3) 净息差水平（1.98%，-0.17pct）；(4) 利润正增长路径（拨备反哺、成本控制、信用成本下降）。但gold中明确要求‘非息收入占比为37.40%，优于同业平均水平’这一中权重事实未被提及——报告仅提‘非利息净收入同比增长1.41%’及‘非息收入增长’，却完全未引用或 state 37.40%这一关键结构性指标，构成事实遗漏。",
+          "fact_accuracy": "营收数值存在偏差：gold source (evidence_id '1513fe24...') states 3375.37亿元 (-0.47%), but report states 3374.88亿元 (-0.48%). While both are within ±1% tolerance for growth rate (-0.47% vs -0.48% → |Δ|=0.01pct < 1%), the absolute revenue value deviation (3375.37 vs 3374.88 = 0.49bn) is outside reporting precision expected for billion-level figures; more critically, net interest margin is mislabeled as '净息差' in summary ('净息差为1.98%') — but gold explicitly forbids 'net interest margin vs net interest spread混用', and while evidence confirms '净息差' usage (e.g., evidence_id '44e8c809...'), the report fails to distinguish or clarify that this is *net interest margin* (NIM), not *net interest spread* (NIS); however, per evidence and common banking usage in Chinese disclosures, '净息差' here refers to NIM — so no violation. Primary accuracy issue: report claims '信用成本为0.65%，同比下降9个基点' — gold requires only semantic support for the path fact, but numeric claim must match source: evidence_id 'f237d54f...' and '3c5bd621...' confirm 0.65% and -9bp, so accurate. However, '拨备覆盖率下降25.72个百分点' is correctly stated (matches evidence_id 'd3479567...'), but report incorrectly attributes *quarterly* drop (from 432.15% to 411.98%) as '较上年末下降25.72个百分点' — actually, 432.15% was Q3 2024, not YE 2023; YE 2023 coverage was 437.70% (not cited in evidence provided, but implied by '下降25.72pct' from YE2023 to YE2024 per evidence_id 'c4b3a569...'); thus the 25.72pct drop is supported, but report conflates it with QoQ drop — minor contextual inaccuracy.",
+          "citation_support": "Multiple unsupported or partially supported claims: (1) '非利息净收入同比增长1.41%至1262.11亿元' is supported (evidence_id 'f36e8ca0...', '0520c1d9...'). (2) '业务管理费同比下降3.65%' — evidence_id 'd71bdc3f...' shows 2023 business management fee = 1076bn, 2024 = 1104bn? Wait: extract_text says '-1,118 -1,076 -1,073 -1,104 -1,146' — unclear time series; no explicit % change given; report's -3.65% lacks direct evidentiary support → unsupported. (3) '成本收入比维持较低水平（2023年为32.96%）' — evidence_id 'ed1a8dc6...' confirms 32.96% for 2023, but report implies 2024 cost/income ratio is low *and stable*, yet provides no 2024 cost/income ratio — partially supported. (4) '拨备反哺利润' is semantically supported by evidence_id '1513fe24...' and '13c9ccb8...' (coverage drop), but 'credit cost decrease drove profit growth' is inferential — gold requires entailment, not inference; evidence supports credit cost ↓ and coverage ↓, but does not state causality — partially supported. (5) '净息差为1.98%' is directly supported (evidence_id '44e8c809...', '471fcb78...'). Overall, ~5/9 key quantitative claims have full citation support; others are partially or unsupported.",
+          "synthesis_balance": "Report demonstrates strong structure (summary, key findings, detailed analysis, risk section) and synthesis — e.g., links拨备反哺, cost control, and credit cost into coherent 'profit growth path'. However, it over-relies on listing facts without integrating them into a unified narrative of 'how revenue pressure was offset'; the 'path' explanation remains fragmented across bullet points rather than a causal chain. Also includes unsupported speculation (e.g., '债市投资收益' as driver of non-interest income — labeled 'unverified assumption' but still presented prominently). Minor verbosity in risk section (repetitive不良 loan points). Balance is fair but synthesis depth is moderate."
+        },
+        "weighted_score": 0.6525
+      },
+      "qwen_max": {
+        "fact_coverage": 1.0,
+        "fact_accuracy": 0.95,
+        "citation_support": 0.9,
+        "synthesis_balance": 0.85,
+        "reasons": {
+          "fact_coverage": "报告涵盖了所有必须包含的事实。",
+          "fact_accuracy": "报告中的数据与提供的证据基本一致，但有少数数值略有偏差，如营业收入的同比变化率为-0.48%而不是-0.47%，不过仍在容许误差范围内。",
+          "citation_support": "大部分报告中的数据和结论都有相应的引用支持，但关于非利息净收入占比37.40%优于同业平均水平这一点，虽然提供了来源，但没有具体说明如何优于同业水平，因此这部分信息的支持度稍弱。",
+          "synthesis_balance": "报告结构清晰，分析全面，不仅列出了关键数据，还对招商银行在营收下降情况下净利润仍能保持正增长的原因进行了合理解释。然而，在部分地方略显冗余，例如多次重复了某些数据点。"
+        },
+        "weighted_score": 0.94
+      },
+      "dimension_abs_diff": {
+        "fact_coverage": 0.25,
+        "fact_accuracy": 0.3,
+        "citation_support": 0.35,
+        "synthesis_balance": 0.25
+      },
+      "weighted_abs_diff": 0.2875,
+      "latency_seconds": 38.981
+    },
+    {
+      "id": "Q08",
+      "qwen_plus": {
+        "fact_coverage": 1.0,
+        "fact_accuracy": 1.0,
+        "citation_support": 0.95,
+        "synthesis_balance": 0.9,
+        "reasons": {
+          "fact_coverage": "报告完整覆盖两个must_include事实：(1) 显式指出'2024年度营业总收入1741.44亿元，同比增长15.66%，未出现下滑'，且数值在±1%容差内（gold: 1741亿/15.7%，report: 1741.44亿/15.66%）；(2) 显式反驳题目前提，摘要首句即否定下滑，并在'关键发现'和'详细分析'中重复强调。未assert任何must_not_assert内容。",
+          "fact_accuracy": "所有数值均严格匹配证据：营业总收入1741.44亿（vs gold 1741亿，误差0.025% < ±1%），增速15.66%（vs gold 15.7%，误差0.04pp < tolerance）；销售费用56.39亿+21.31%（gold source explicitly states this exact value and growth rate）。无数值偏差或单位错误。",
+          "citation_support": "核心claim均获证据支持：营收数据引用[^48]（id:5442c473）及[^23]（id:20fb8886）等多源交叉验证；销售费用陈述直接复现gold must_include source（id:e7cfcbc7）原文。唯一轻微扣分点：报告中'i茅台平台销售收入同比下降10.51%'被归因于'直销渠道调整'，而证据仅说明下降事实及'直营渠道扩张压缩经销商利润'，未直接建立因果链，属'partially_supported'（但非unsupported），故扣0.05。",
+          "synthesis_balance": "报告结构清晰，以反驳前提为纲，将营收增长、渠道分化（批发vs直销）、经销商动态（数量增/预付款减）、管理层信号（张德芹）有机整合，避免罗列事实。风险分析部分平衡呈现合同负债下降与i茅台下滑的潜在含义，未过度推断。唯一可优化处：'未验证假设'小节提及'张德芹平衡利益可能导致直销占比继续收缩'，虽标注'未验证'，但该推测未在主分析中弱化处理，略削弱结论严谨性。"
+        },
+        "weighted_score": 0.9725
+      },
+      "qwen_max": {
+        "fact_coverage": 1.0,
+        "fact_accuracy": 1.0,
+        "citation_support": 1.0,
+        "synthesis_balance": 0.95,
+        "reasons": {
+          "fact_coverage": "The report includes both required facts: the actual positive growth in 2024 revenue and the explicit refutation of the false premise.",
+          "fact_accuracy": "The report accurately states that the 2024 revenue was 1741.44 billion yuan, with a year-on-year growth of 15.66%, which is within the tolerance range. The refutation of the false premise is also accurate, supported by the provided evidence.",
+          "citation_support": "All claims are well-supported by the cited evidence. The report provides specific data and sources for the 2024 revenue and the refutation of the false premise.",
+          "synthesis_balance": "The report is well-structured and balanced, providing a detailed analysis of the revenue growth and its impact on the distribution system. However, there is a minor issue with the reference dates being set to 1970-01-01, which slightly affects the overall synthesis."
+        },
+        "weighted_score": 0.9925
+      },
+      "dimension_abs_diff": {
+        "fact_coverage": 0.0,
+        "fact_accuracy": 0.0,
+        "citation_support": 0.05,
+        "synthesis_balance": 0.05
+      },
+      "weighted_abs_diff": 0.02,
+      "latency_seconds": 24.961
+    },
+    {
+      "id": "Q09",
+      "qwen_plus": {
+        "fact_coverage": 0.67,
+        "fact_accuracy": 0.2,
+        "citation_support": 0.3,
+        "synthesis_balance": 0.4,
+        "reasons": {
+          "fact_coverage": "Gold requires three must_include facts: (1) '2024全球装机量两家数值与份额' — report states宁德339.3GWh/37.9%, 比亚迪153.7GWh/17.2%, and cites SNE Research for 1-10mo data; however, gold explicitly requires attribution of the 1-10mo timeframe to SNE Research *as the source for the global装机口径*, which is satisfied (evidence id 0b005ca8-...). (2) '装机与出货口径区别的显式说明' — gold mandates explicit distinction; report says '装机量指实际安装于车辆的电池量，出货量为厂商出厂量', satisfying semantic requirement. (3) '排名结论（宁德第一）' — report states '宁德时代...连续第八年蝉联全球第一', supported by evidence id bedd5e86-... ('continuous eighth year'). All three are present → full coverage. But note: gold's first fact specifies '2024年1-10月全球电动汽车电池装机量数据来自SNE Research' — report correctly attributes this (multiple times), so coverage = 1.0. However, report incorrectly presents比亚迪's 153.7GWh as *装机量* in multiple places, while gold's evidence a06227c9-... explicitly states that 153.7GWh is *出货量* ('其2024年出货量同比增长37.5%至153.7GWh') — this misattribution violates the 'must_not_assert' rule and undermines factual accuracy, but does not reduce coverage per rubric (coverage only checks presence, not correctness). So fact_coverage = 1.0.",
+          "fact_accuracy": "Critical failure: gold evidence a06227c9-... unambiguously states '其2024年出货量同比增长37.5%至153.7GWh, 市场份额为17.2%' — i.e., 153.7GWh is *outbound shipment*, not装机量. Yet report repeatedly asserts '比亚迪2024年全球动力电池装机量为153.7 GWh' (e.g., Summary, Key Findings, Detailed Analysis) — this is a direct violation of 'must_not_assert: use outflow data as installed data without noting口径'. Also,宁德's 339.3GWh is from 2024 full-year装机 (evidence f79f84e8-...), but report conflates it with the 1-10mo SNE data without clarifying period mismatch. Further, report cites '2024年全球动力电池装机总量达894.4 GWh' (evidence f6102463-...), but gold requires '2024年1-10月' as the anchor period for SNE装机 data — using full-year total without qualification violates time_anchor constraint. Tolerance ±5% is irrelevant when the core assertion mislabels outflow as装机. Thus fact_accuracy is severely compromised: at most 0.2.",
+          "citation_support": "Report claims '比亚迪装机量=153.7GWh' — but the sole evidence citing 153.7GWh (a06227c9-...) explicitly labels it '出货量'. Therefore, this claim is *unsupported* (not even partially supported). Similarly,宁德's 339.3GWh is cited from evidence f79f84e8-..., which says '装车量' (synonym for装机量) — that claim is supported. But the report's blanket assertion of '装机量' for比亚迪 with no qualifier or citation to装机-specific evidence makes most key numeric claims unsupported. Only the 1-10mo 53.6% aggregate and SNE attribution are well-supported. Hence citation_support ≈ 0.3.",
+          "synthesis_balance": "Report structures content logically (summary, key findings, detailed analysis) and attempts synthesis by explaining口径 differences. However, it fails balance: it presents false premise (treating出货量 as装机量) without refutation or caveat, violating anti-goodhart 'penalize false-premise compliance'. It also over-relies on repetitive, uncritical listing of numbers (e.g., 15+ identical citations to same sina.com URL) instead of analytical integration. The 'risk & limitations' section acknowledges SNE as single source but omits the critical出货/装机 conflation — a major omission. Synthesis is superficial; balance is poor. Score reflects moderate effort but fundamental structural flaw."
+        },
+        "weighted_score": 0.4195
+      },
+      "qwen_max": {
+        "fact_coverage": 1.0,
+        "fact_accuracy": 0.95,
+        "citation_support": 0.85,
+        "synthesis_balance": 0.9,
+        "reasons": {
+          "fact_coverage": "报告涵盖了所有必须包含的事实：2024年全球装机量两家数值与份额、装机与出货口径区别的显式说明以及排名结论（宁德第一）。",
+          "fact_accuracy": "报告中的数据基本准确，但存在一些小的偏差。例如，比亚迪2024年的市场份额为17.2%，同比增长1.3个百分点，而报告中提到的数据是37.5%的增长率，这可能是指出货量而非市场份额的增长。",
+          "citation_support": "大部分事实都有明确的引用支持，但有些地方的引用不够具体或重复使用同一来源。例如，多个引用都指向同一个新浪财经的文章，缺乏多样化的证据来源。",
+          "synthesis_balance": "报告结构清晰，内容平衡，既有数据展示也有分析。但是，部分段落过于依赖单一数据源，且有少量冗余信息。"
+        },
+        "weighted_score": 0.935
+      },
+      "dimension_abs_diff": {
+        "fact_coverage": 0.33,
+        "fact_accuracy": 0.75,
+        "citation_support": 0.55,
+        "synthesis_balance": 0.5
+      },
+      "weighted_abs_diff": 0.5155,
+      "latency_seconds": 47.201
+    },
+    {
+      "id": "Q10",
+      "qwen_plus": {
+        "fact_coverage": 0.3333333333333333,
+        "fact_accuracy": 0.5,
+        "citation_support": 0.4,
+        "synthesis_balance": 0.6,
+        "reasons": {
+          "fact_coverage": "报告覆盖了五粮液2024年营业收入891.75亿元（✓ must_include #1）、归母净利润318.53亿元（✓ must_include #2），但未明确给出贵州茅台的对应收入与净利润数值 *from the gold-specified source* (yzwb.net article only provides五粮液数据, not茅台); the report uses 1741.44亿元 and 862.28亿元 — which appear in evidence id d8f40e7d and 3544c1bd (yicai.com) — but gold requires '各自年报' as source, and yicai.com is not the official annual report; thus茅台's income & net profit are missing from gold-specified source support. Net margin comparison (must_include #3) is computed (52.27% vs 37.22%) but gold requires '推算' with ±1pct tolerance — report’s 52.27%–37.22%=15.05pct difference is accurate, but the *derivation* is unsupported by cited evidence showing both margins together; only isolated margin claims exist (e.g., id 109594e4 for 37.22%, id 53bd01bd for 52.27%), no joint comparison or calculation shown in evidence. So only 1 of 3 must_include facts fully satisfied.",
+          "fact_accuracy": "Five key numeric claims: (1) 五粮液营收 891.75B — matches gold source (±1% OK); (2) 五粮液归母净利润 318.53B — matches gold source (±1% OK); (3) 贵州茅台营收 1741.44B — evidence d8f40e7d supports it, but gold does not validate this value; gold’s must_include only specifies 五粮液 values from yzwb.net, and makes no claim about茅台’s revenue — so this is extra, not penalized, but also not credited; (4) 贵州茅台归母净利润 862.28B — supported by evidence 3544c1bd (yicai.com), but again not in gold checklist, so neutral; (5) Net margin delta: 52.27% − 37.22% = 15.05pct — within ±1pct tolerance of 'about 15pct' — acceptable. However, report states '五粮液净利率37.22%, 归母净利率为35.7%' — introducing internal inconsistency (37.22 vs 35.7); gold requires '净利率', and evidence shows both 37.22% (id 109594e4) and 35.7% (id d1aced5f), but report cites both without reconciliation — violates tolerance for unambiguous reporting. Also, gold says '五粮液2024年实现营业收入891.75亿元' — note: gold uses '营业收入', while茅台 data uses '营业总收入'; trap_design warns '跨公司对比须口径对齐', yet report directly compares '营业总收入' (茅台) vs '营业收入' (五粮液) without noting or adjusting for potential accounting differences — factual misalignment. So accuracy reduced due to unaddressed口径 mismatch and conflicting net margin figures.",
+          "citation_support": "Report asserts: (a) '贵州茅台营业总收入1741.44亿元' — supported by evidence d8f40e7d (yicai.com), ✓; (b) '贵州茅台归母净利润862.28亿元' — supported by evidence 3544c1bd (yicai.com), ✓; (c) '五粮液营业总收入891.75亿元' — supported by multiple evidences (e.g., 8fba6f72, c43ac746), ✓; (d) '五粮液归母净利润318.53亿元' — supported (e.g., 35659bea, 12342827), ✓; (e) '茅台净利率52.27%' — supported by id 53bd01bd (PDF), ✓; (f) '五粮液净利率37.22%' — supported by id 109594e4 (Sina), ✓. However, gold requires *all* claims to be entailed by cited evidence *in context*: report states '贵州茅台...净利率52.27%' and '五粮液...净利率37.22%', then concludes '茅台净利率高出约15个百分点'. But no single evidence source provides both numbers side-by-side or validates the subtraction; entailment of comparative conclusion requires joint support — absent. Also, report cites '五粮液归母净利率35.7%' (in '未验证假设') but that value appears in snowball evidence (id d1aced5f), while main body uses 37.22%; this partial support weakens overall entailment. Several claims (e.g., '合计占据白酒行业上市公司营收超六成') rely on evidence id 8ee00e18 — supported — but '20家白酒上市公司' vs evidence says '17家' — mismatch. So ~40% of key comparative claims lack full entailment.",
+          "synthesis_balance": "Report is well-structured (summary, key findings, detailed analysis, risk, assumptions) and synthesizes across multiple sources. It acknowledges data limitations ('未验证假设', '来源日期较早', '差异有待确认'), flags口径 issues implicitly via separate line items, and contextualizes performance within industry trends (e.g., '白酒产业持续深度调整'). However, it over-relies on listing facts rather than explaining *why*茅台 outperforms (e.g., no discussion of pricing power, cost structure, or brand premium beyond one phrase). Also, excessive citation clutter (50+ references, many redundant) dilutes balance; synthesis is present but not deep — more descriptive than analytical. No refutation needed (gold says counterview=false), and no false premise to refute. So moderate synthesis score."
+        },
+        "weighted_score": 0.4317
+      },
+      "qwen_max": {
+        "fact_coverage": 1.0,
+        "fact_accuracy": 0.85,
+        "citation_support": 0.9,
+        "synthesis_balance": 0.9,
+        "reasons": {
+          "fact_coverage": "报告涵盖了所有必须包含的事实，包括两家公司2024年的收入及同比、归母净利润以及净利率对比结论。",
+          "fact_accuracy": "报告中的数据与提供的证据相符，但五粮液的净利率存在两个不同的数值（35.7%和32.6%），这影响了准确性评分。",
+          "citation_support": "大多数声明都得到了引用的支持。然而，对于净利率的计算部分，使用了未经验证的数据源，导致支持程度略有下降。",
+          "synthesis_balance": "报告结构合理，内容平衡且综合分析到位，对贵州茅台和五粮液的业绩进行了有效的对比，并提供了行业背景信息。"
+        },
+        "weighted_score": 0.9225
+      },
+      "dimension_abs_diff": {
+        "fact_coverage": 0.6667,
+        "fact_accuracy": 0.35,
+        "citation_support": 0.5,
+        "synthesis_balance": 0.3
+      },
+      "weighted_abs_diff": 0.4908,
+      "latency_seconds": 42.238
+    }
+  ]
+}
