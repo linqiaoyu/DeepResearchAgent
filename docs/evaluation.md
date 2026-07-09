@@ -60,7 +60,7 @@ cases.
 ## Judge
 
 Golden Set judge calls use the unified `LLMClient` with role `judge`; citation
-support uses role `citation_support`. Both default to `openai/qwen-plus` through
+support uses role `citation_support`. Both default to `openai/qwen3.7-plus` through
 DashScope's OpenAI-compatible endpoint. Each full round uses three judge samples
 per question and aggregates dimensions by median. The locked scoring dimensions
 and weights are:
@@ -75,12 +75,12 @@ and weights are:
 Prompt file: `prompts/judge.md`. Current prompt hash:
 `2e87f85cb54673ab6f84e0f0fc4b8c108441757e20ecd9ec4c3416df5d893533`.
 
-The qwen-plus vs qwen-max calibration sample over Q01-Q10 produced dimension
-agreement rate <=0.1 of `0.4`, average dimension absolute difference `0.3299`,
-and average weighted-score absolute difference `0.3362`. This is a material
-judge-model sensitivity signal; qwen-plus remains the operational default, but
-PM review is required before treating Golden Set scores as stable product
-benchmarks.
+The historical qwen-plus vs qwen-max calibration sample over Q01-Q10 produced
+dimension agreement rate <=0.1 of `0.4`, average dimension absolute difference
+`0.3299`, and average weighted-score absolute difference `0.3362`. This is a
+material judge-model sensitivity signal. Current operational judge calls use the
+explicit `qwen3.7-plus` model name; PM review is still required before treating
+Golden Set scores as stable product benchmarks.
 
 ## Golden Set v1 Results
 

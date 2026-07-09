@@ -75,7 +75,7 @@ Compare evaluation metrics against the deterministic baseline:
 PYTHONPATH=src DEEPRESEARCH_SEARCH_PROVIDER=fixture .venv/bin/python scripts/run_eval.py --limit 5 --compare-baseline
 ```
 
-LLM-mode metrics use real LiteLLM token and cost accounting from `data/runtime/llm_ledger.jsonl`. In LLM mode, `citation_accuracy` is `null` with a reason because the current scorer is extractive-only; `citation_resolution_rate` and `critic_catch_rate` remain programmatic. Golden Set rounds use a separate qwen-plus judge for four-dimensional scoring and semantic citation support.
+LLM-mode metrics use real LiteLLM token and cost accounting from `data/runtime/llm_ledger.jsonl`. In LLM mode, `citation_accuracy` is `null` with a reason because the current scorer is extractive-only; `citation_resolution_rate` and `critic_catch_rate` remain programmatic. Golden Set rounds use a separate qwen3.7-plus judge for four-dimensional scoring and semantic citation support.
 
 Run the checkpoint resume demo:
 
@@ -201,7 +201,7 @@ The Streamlit UI runs the local deterministic engine directly. Under Docker Comp
 - Critic checks for missing citations, finance-aware numeric conflicts, temporal conflicts, outdated sources, missing counterarguments, and unverified projections
 - Deterministic fixture search by default, with optional Tavily search behind the `SearchProvider` contract
 - 50-case deterministic CI regression set in `data/eval_set_deterministic.jsonl`
-- Golden Set v1 under `data/golden_set/v1/` with 30 finance questions, frozen-corpus replay methodology, qwen-plus judge rounds, and round diff assets
+- Golden Set v1 under `data/golden_set/v1/` with 30 finance questions, frozen-corpus replay methodology, qwen3.7-plus judge rounds, and round diff assets
 - Streamlit dashboard for report, evidence, and Critic JSON
 - Docker Compose for API/UI, with a Postgres profile reserved for production hardening
 

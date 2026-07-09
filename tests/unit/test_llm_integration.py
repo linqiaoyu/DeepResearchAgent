@@ -197,7 +197,7 @@ class LLMIntegrationTests(unittest.TestCase):
                 messages=[{"role": "user", "content": "score"}],
             )
 
-        self.assertEqual(result.model, "openai/qwen-plus")
+        self.assertEqual(result.model, "openai/qwen3.7-plus")
         self.assertEqual(observed["api_base"], "https://dashscope.aliyuncs.com/compatible-mode/v1")
         self.assertEqual(observed["api_key"], "test-key")
 
