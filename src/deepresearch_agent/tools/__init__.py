@@ -6,7 +6,6 @@ from deepresearch_agent.tools.fixture_search import FixtureSearchTool
 from deepresearch_agent.tools.fixture_structured_data import FixtureStructuredDataProvider
 from deepresearch_agent.tools.provider import FetchProvider, SearchProvider, StructuredDataProvider
 from deepresearch_agent.tools.recording_search import (
-    RecordingReplayMiss,
     RecordingSearchProvider,
     normalize_query_key,
     recording_corpus_fingerprint,
@@ -22,7 +21,6 @@ __all__ = [
     "FetchProvider",
     "FixtureSearchTool",
     "FixtureStructuredDataProvider",
-    "RecordingReplayMiss",
     "RecordingSearchProvider",
     "SearchProvider",
     "StructuredDataProvider",

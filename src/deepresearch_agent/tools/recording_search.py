@@ -13,10 +13,6 @@ from deepresearch_agent.settings import project_root
 from deepresearch_agent.tools.provider import SearchProvider
 
 
-class RecordingReplayMiss(RuntimeError):
-    """Raised when replay mode cannot find an exact recorded query key."""
-
-
 def normalize_query_key(query: str, top_k: int = 3, source_type: str | None = None) -> str:
     normalized_query = re.sub(r"\s+", " ", query.strip().lower())
     payload = {

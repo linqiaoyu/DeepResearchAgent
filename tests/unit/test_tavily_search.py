@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import unittest
+import json
 import tempfile
+import unittest
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -229,6 +230,105 @@ class TavilySearchProviderTests(unittest.TestCase):
             sources = provider.search("large source", top_k=1)
 
         self.assertEqual(sources[0].content, "abc")
+
+    def test_warning_threshold_marks_live_call_without_refusing(self) -> None:
+        response = FakeResponse(
+            {
+                "results": [
+                    {
+                        "title": "Threshold source",
+                        "url": "https://example.com/threshold",
+                        "content": "Threshold content.",
+                    }
+                ]
+            }
+        )
+        client = FakeHttpClient(response)
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger_path = Path(tmp) / "search_ledger.jsonl"
+            ledger_path.write_text(
+                json.dumps({"credit_estimate": 449, "refused": False}) + "\n",
+                encoding="utf-8",
+            )
+            provider = TavilySearchProvider(
+                "test-key",
+                client=client,
+                ledger_path=ledger_path,
+                credit_warning_threshold=450,
+                credit_hard_threshold=520,
+            )
+
+            sources = provider.search("threshold", top_k=1)
+            rows = [json.loads(line) for line in ledger_path.read_text(encoding="utf-8").splitlines()]
+
+        self.assertEqual(len(sources), 1)
+        self.assertEqual(len(client.calls), 1)
+        self.assertEqual(rows[-1]["credit_estimate"], 1)
+        self.assertFalse(rows[-1]["refused"])
+        self.assertTrue(rows[-1]["guardrail_warning"])
+
+    def test_hard_threshold_refuses_without_credit_or_client_call(self) -> None:
+        client = FakeHttpClient(FakeResponse({"results": []}))
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger_path = Path(tmp) / "search_ledger.jsonl"
+            ledger_path.write_text(
+                json.dumps({"credit_estimate": 520, "refused": False}) + "\n",
+                encoding="utf-8",
+            )
+            provider = TavilySearchProvider(
+                "test-key",
+                client=client,
+                ledger_path=ledger_path,
+                credit_warning_threshold=450,
+                credit_hard_threshold=520,
+            )
+
+            with self.assertRaisesRegex(RuntimeError, "hard threshold"):
+                provider.search("blocked", top_k=1)
+            rows = [json.loads(line) for line in ledger_path.read_text(encoding="utf-8").splitlines()]
+
+        self.assertEqual(client.calls, [])
+        self.assertEqual(rows[-1]["credit_estimate"], 0)
+        self.assertTrue(rows[-1]["refused"])
+        self.assertEqual(rows[-1]["error_type"], "credit_hard_threshold")
+
+    def test_refused_rows_do_not_count_toward_guardrail_total(self) -> None:
+        response = FakeResponse(
+            {
+                "results": [
+                    {
+                        "title": "Clean source",
+                        "url": "https://example.com/clean",
+                        "content": "Clean content.",
+                    }
+                ]
+            }
+        )
+        client = FakeHttpClient(response)
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger_path = Path(tmp) / "search_ledger.jsonl"
+            ledger_path.write_text(
+                "\n".join(
+                    [
+                        json.dumps({"credit_estimate": 520, "refused": True}),
+                        json.dumps({"credit_estimate": 1, "refused": False}),
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            provider = TavilySearchProvider(
+                "test-key",
+                client=client,
+                ledger_path=ledger_path,
+                credit_warning_threshold=450,
+                credit_hard_threshold=520,
+            )
+
+            sources = provider.search("clean", top_k=1)
+
+        self.assertEqual(len(sources), 1)
+        self.assertEqual(len(client.calls), 1)
 
 
 if __name__ == "__main__":

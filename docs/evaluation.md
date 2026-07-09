@@ -28,6 +28,22 @@ run stops issuing additional searches after `DEEPRESEARCH_MAX_SEARCHES_PER_RUN`
 `DEEPRESEARCH_TAVILY_RAW_CONTENT_CHAR_LIMIT` (default `40000` characters) before
 extraction.
 
+Before a new live recording round, rotate `data/runtime/search_ledger.jsonl` to
+the task collaboration directory and start a fresh runtime ledger. Tavily credit
+guardrails are scoped to the current ledger file, not to all historical runs.
+Only rows that actually attempted a Tavily API call count toward credit usage.
+Rows refused by the guardrail are written with `refused=true` and
+`credit_estimate=0`. The warning and hard-stop thresholds are configurable via
+`DEEPRESEARCH_TAVILY_CREDIT_WARNING_THRESHOLD` and
+`DEEPRESEARCH_TAVILY_CREDIT_HARD_THRESHOLD`; evaluation recording currently uses
+450 and 520.
+
+Recording `as_of` and evaluation `as_of` are separate facts. Recording `as_of`
+is provenance metadata for when a source key was collected and may have multiple
+values inside one frozen corpus. Evaluation `as_of` is a single run-level date
+injected through `DEEPRESEARCH_AS_OF`; for Golden Set v1 it is the latest
+recording date in the frozen corpus and controls freshness-sensitive rules.
+
 ## Frozen Corpus Replay
 
 Exact-key replay was retired for Golden Set evaluation. The prior design keyed

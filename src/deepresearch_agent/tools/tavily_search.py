@@ -56,6 +56,7 @@ class TavilySearchProvider:
         raw_content_char_limit: int = 40_000,
         ledger_path: Path | None = None,
         credit_warning_threshold: int = 450,
+        credit_hard_threshold: int = 520,
         sleep_func: Any = time.sleep,
     ) -> None:
         api_key = api_key.strip()
@@ -71,6 +72,7 @@ class TavilySearchProvider:
         self.raw_content_char_limit = raw_content_char_limit
         self.ledger_path = ledger_path or project_root() / "data" / "runtime" / "search_ledger.jsonl"
         self.credit_warning_threshold = credit_warning_threshold
+        self.credit_hard_threshold = credit_hard_threshold
         self._sleep = sleep_func
         self.last_error_type: str | None = None
         self.search_counts_toward_budget = True
@@ -83,17 +85,22 @@ class TavilySearchProvider:
 
         max_results = min(top_k, 20)
         credit_estimate = 2 if self.search_depth == "advanced" else 1
-        if self._ledger_credit_total() + credit_estimate >= self.credit_warning_threshold:
+        projected_credit_total = self._ledger_credit_total() + credit_estimate
+        guardrail_warning = projected_credit_total >= self.credit_warning_threshold
+        if projected_credit_total > self.credit_hard_threshold:
+            self.last_error_type = "credit_hard_threshold"
             self._record_ledger(
                 query=query,
                 search_depth=self.search_depth,
-                credit_estimate=credit_estimate,
+                credit_estimate=0,
                 latency_seconds=0.0,
                 success=False,
                 result_count=0,
-                error_type="credit_warning_threshold",
+                error_type="credit_hard_threshold",
+                refused=True,
+                guardrail_warning=True,
             )
-            raise TavilySearchError("Tavily credit warning threshold reached; stop live recording.")
+            raise TavilySearchError("Tavily credit hard threshold reached; stop live recording.")
 
         payload: dict[str, Any] = {
             "query": query,
@@ -128,6 +135,8 @@ class TavilySearchProvider:
                     success=True,
                     result_count=len(sources),
                     error_type=None,
+                    refused=False,
+                    guardrail_warning=guardrail_warning,
                 )
                 return sources
             except Exception as exc:
@@ -143,6 +152,8 @@ class TavilySearchProvider:
             success=False,
             result_count=0,
             error_type=type(last_error).__name__ if last_error else "unknown",
+            refused=False,
+            guardrail_warning=guardrail_warning,
         )
         self.last_error_type = type(last_error).__name__ if last_error else "unknown"
         return []
@@ -239,6 +250,8 @@ class TavilySearchProvider:
         success: bool,
         result_count: int,
         error_type: str | None,
+        refused: bool,
+        guardrail_warning: bool,
     ) -> None:
         row = {
             "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -246,6 +259,8 @@ class TavilySearchProvider:
             "query": query,
             "search_depth": search_depth,
             "credit_estimate": credit_estimate,
+            "refused": refused,
+            "guardrail_warning": guardrail_warning,
             "latency_seconds": round(latency_seconds, 3),
             "success": success,
             "result_count": result_count,
@@ -262,7 +277,13 @@ class TavilySearchProvider:
             if not line.strip():
                 continue
             try:
-                total += int(json.loads(line).get("credit_estimate", 0) or 0)
+                row = json.loads(line)
             except (json.JSONDecodeError, ValueError):
+                continue
+            if row.get("refused"):
+                continue
+            try:
+                total += int(row.get("credit_estimate", 0) or 0)
+            except (TypeError, ValueError):
                 continue
         return total
