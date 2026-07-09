@@ -1,0 +1,281 @@
+{
+  "baseline": "g1_rejudge_qwen37",
+  "candidate": "gen2_judge1",
+  "judge_model": "openai/qwen3.7-plus",
+  "noise_band": 0.01,
+  "comparison": [
+    {
+      "metric": "composite",
+      "g1_rejudge_qwen37": 0.7999,
+      "g2_qwen37": 0.7414,
+      "delta": -0.0585,
+      "verdict": "declined"
+    },
+    {
+      "metric": "fact_coverage",
+      "g1_rejudge_qwen37": 0.7577,
+      "g2_qwen37": 0.6207,
+      "delta": -0.137,
+      "verdict": "declined"
+    },
+    {
+      "metric": "fact_accuracy",
+      "g1_rejudge_qwen37": 0.84,
+      "g2_qwen37": 0.8273,
+      "delta": -0.0127,
+      "verdict": "declined"
+    },
+    {
+      "metric": "citation_support",
+      "g1_rejudge_qwen37": 0.825,
+      "g2_qwen37": 0.8483,
+      "delta": 0.0233,
+      "verdict": "improved"
+    },
+    {
+      "metric": "synthesis_balance",
+      "g1_rejudge_qwen37": 0.79,
+      "g2_qwen37": 0.7017,
+      "delta": -0.0883,
+      "verdict": "declined"
+    },
+    {
+      "metric": "citation_support_rate",
+      "g1_rejudge_qwen37": 0.8062,
+      "g2_qwen37": 0.7496,
+      "delta": -0.0566,
+      "verdict": "declined"
+    },
+    {
+      "metric": "citation_resolution_rate",
+      "g1_rejudge_qwen37": 0.6,
+      "g2_qwen37": 1.0,
+      "delta": 0.4,
+      "verdict": "improved"
+    },
+    {
+      "metric": "backfilled_citation_rate",
+      "g1_rejudge_qwen37": 0.0,
+      "g2_qwen37": 0.4696,
+      "delta": 0.4696,
+      "verdict": "improved"
+    }
+  ],
+  "per_question": [
+    {
+      "id": "Q01",
+      "g1_weighted": 0.8575,
+      "g2_weighted": 0.5945,
+      "delta": -0.263
+    },
+    {
+      "id": "Q02",
+      "g1_weighted": 0.985,
+      "g2_weighted": 0.727,
+      "delta": -0.258
+    },
+    {
+      "id": "Q03",
+      "g1_weighted": 0.985,
+      "g2_weighted": 0.9925,
+      "delta": 0.0075
+    },
+    {
+      "id": "Q04",
+      "g1_weighted": 0.9925,
+      "g2_weighted": 0.98,
+      "delta": -0.0125
+    },
+    {
+      "id": "Q05",
+      "g1_weighted": 0.355,
+      "g2_weighted": 0.673,
+      "delta": 0.318
+    },
+    {
+      "id": "Q06",
+      "g1_weighted": 1.0,
+      "g2_weighted": 1.0,
+      "delta": 0.0
+    },
+    {
+      "id": "Q07",
+      "g1_weighted": 0.7825,
+      "g2_weighted": 0.985,
+      "delta": 0.2025
+    },
+    {
+      "id": "Q08",
+      "g1_weighted": 0.725,
+      "g2_weighted": 0.71,
+      "delta": -0.015
+    },
+    {
+      "id": "Q09",
+      "g1_weighted": 0.695,
+      "g2_weighted": 0.805,
+      "delta": 0.11
+    },
+    {
+      "id": "Q10",
+      "g1_weighted": 0.885,
+      "g2_weighted": 0.53,
+      "delta": -0.355
+    },
+    {
+      "id": "Q11",
+      "g1_weighted": 1.0,
+      "g2_weighted": 0.9725,
+      "delta": -0.0275
+    },
+    {
+      "id": "Q12",
+      "g1_weighted": 0.8325,
+      "g2_weighted": 0.792,
+      "delta": -0.0405
+    },
+    {
+      "id": "Q13",
+      "g1_weighted": 0.9075,
+      "g2_weighted": 0.415,
+      "delta": -0.4925
+    },
+    {
+      "id": "Q14",
+      "g1_weighted": 0.5975,
+      "g2_weighted": 0.3375,
+      "delta": -0.26
+    },
+    {
+      "id": "Q15",
+      "g1_weighted": 0.985,
+      "g2_weighted": 0.985,
+      "delta": 0.0
+    },
+    {
+      "id": "Q16",
+      "g1_weighted": 0.9725,
+      "g2_weighted": 0.98,
+      "delta": 0.0075
+    },
+    {
+      "id": "Q17",
+      "g1_weighted": 0.7525,
+      "g2_weighted": 0.7825,
+      "delta": 0.03
+    },
+    {
+      "id": "Q18",
+      "g1_weighted": 0.88,
+      "g2_weighted": 0.6325,
+      "delta": -0.2475
+    },
+    {
+      "id": "Q19",
+      "g1_weighted": 0.5905,
+      "g2_weighted": 0.6105,
+      "delta": 0.02
+    },
+    {
+      "id": "Q20",
+      "g1_weighted": 0.5605,
+      "g2_weighted": 0.47,
+      "delta": -0.0905
+    },
+    {
+      "id": "Q21",
+      "g1_weighted": 0.7575,
+      "g2_weighted": 0.86,
+      "delta": 0.1025
+    },
+    {
+      "id": "Q22",
+      "g1_weighted": 0.7345,
+      "g2_weighted": 0.555,
+      "delta": -0.1795
+    },
+    {
+      "id": "Q23",
+      "g1_weighted": 0.9725,
+      "g2_weighted": 0.96,
+      "delta": -0.0125
+    },
+    {
+      "id": "Q24",
+      "g1_weighted": 0.97,
+      "g2_weighted": 0.81,
+      "delta": -0.16
+    },
+    {
+      "id": "Q25",
+      "g1_weighted": 0.5225,
+      "g2_weighted": 0.585,
+      "delta": 0.0625
+    },
+    {
+      "id": "Q26",
+      "g1_weighted": 1.0,
+      "g2_weighted": 0.9475,
+      "delta": -0.0525
+    },
+    {
+      "id": "Q27",
+      "g1_weighted": 0.7125,
+      "g2_weighted": 0.7275,
+      "delta": 0.015
+    },
+    {
+      "id": "Q28",
+      "g1_weighted": 0.695,
+      "g2_weighted": 0.405,
+      "delta": -0.29
+    },
+    {
+      "id": "Q29",
+      "g1_weighted": 0.32,
+      "g2_weighted": 0.5625,
+      "delta": 0.2425
+    },
+    {
+      "id": "Q30",
+      "g1_weighted": 0.9725,
+      "g2_weighted": 0.855,
+      "delta": -0.1175
+    }
+  ],
+  "zero_original_rows": [
+    {
+      "id": "Q01",
+      "old_round1_weighted": 0.0,
+      "g1_rejudge_weighted": 0.8575,
+      "g2_weighted": 0.5945
+    },
+    {
+      "id": "Q14",
+      "old_round1_weighted": 0.0,
+      "g1_rejudge_weighted": 0.5975,
+      "g2_weighted": 0.3375
+    },
+    {
+      "id": "Q25",
+      "old_round1_weighted": 0.0,
+      "g1_rejudge_weighted": 0.5225,
+      "g2_weighted": 0.585
+    },
+    {
+      "id": "Q29",
+      "old_round1_weighted": 0.0,
+      "g1_rejudge_weighted": 0.32,
+      "g2_weighted": 0.5625
+    }
+  ],
+  "support_split": {
+    "status": "not_separable",
+    "reason": "Saved states and citation_support verdicts retain aggregate missing_reference_backfills but do not retain per-claim provenance identifying which rendered claims were backfilled versus model self-cited."
+  },
+  "unsupported_section_distribution": {
+    "正文结论": 107,
+    "风险提示": 10,
+    "其他": 2
+  }
+}
