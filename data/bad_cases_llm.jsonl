@@ -20,3 +20,24 @@
 {"id": "Q28", "round": "round1", "categories": ["检索不全", "事实错误", "引用不支持", "结构或平衡缺失"], "weighted_score": 0.63, "citation_support_rate": 0.75, "false_premise_failed": false}
 {"id": "Q29", "round": "round1", "categories": ["检索不全", "事实错误", "引用不支持", "结构或平衡缺失"], "weighted_score": 0.0, "citation_support_rate": 0.417, "false_premise_failed": false}
 {"id": "Q30", "round": "round1", "categories": ["检索不全", "事实错误", "引用不支持", "结构或平衡缺失"], "weighted_score": 0.23, "citation_support_rate": 1.0, "false_premise_failed": false}
+{"id": "Q01", "round": "gen2_judge1", "categories": ["检索不全", "事实错误", "引用不支持", "结构或平衡缺失"], "weighted_score": 0.5945, "citation_support_rate": 1.0, "citation_resolution_rate": 1.0, "false_premise_failed": false}
+{"id": "Q02", "round": "gen2_judge1", "categories": ["检索不全", "事实错误", "结构或平衡缺失"], "weighted_score": 0.727, "citation_support_rate": 0.833, "citation_resolution_rate": 1.0, "false_premise_failed": false}
+{"id": "Q03", "round": "gen2_judge1", "categories": ["引用不支持"], "weighted_score": 0.9925, "citation_support_rate": 0.375, "citation_resolution_rate": 1.0, "false_premise_failed": false}
+{"id": "Q05", "round": "gen2_judge1", "categories": ["检索不全", "引用不支持"], "weighted_score": 0.673, "citation_support_rate": 0.375, "citation_resolution_rate": 1.0, "false_premise_failed": false}
+{"id": "Q08", "round": "gen2_judge1", "categories": ["检索不全", "事实错误", "引用不支持", "结构或平衡缺失"], "weighted_score": 0.71, "citation_support_rate": 0.667, "citation_resolution_rate": 1.0, "false_premise_failed": false}
+{"id": "Q09", "round": "gen2_judge1", "categories": ["事实错误", "引用不支持"], "weighted_score": 0.805, "citation_support_rate": 0.708, "citation_resolution_rate": 1.0, "false_premise_failed": false}
+{"id": "Q10", "round": "gen2_judge1", "categories": ["检索不全", "结构或平衡缺失"], "weighted_score": 0.53, "citation_support_rate": 1.0, "citation_resolution_rate": 1.0, "false_premise_failed": false}
+{"id": "Q12", "round": "gen2_judge1", "categories": ["检索不全", "引用不支持"], "weighted_score": 0.792, "citation_support_rate": 0.125, "citation_resolution_rate": 1.0, "false_premise_failed": false}
+{"id": "Q13", "round": "gen2_judge1", "categories": ["检索不全", "事实错误", "引用不支持", "结构或平衡缺失"], "weighted_score": 0.415, "citation_support_rate": 1.0, "citation_resolution_rate": 1.0, "false_premise_failed": false}
+{"id": "Q14", "round": "gen2_judge1", "categories": ["检索不全", "事实错误", "引用不支持", "结构或平衡缺失"], "weighted_score": 0.3375, "citation_support_rate": 0.792, "citation_resolution_rate": 1.0, "false_premise_failed": false}
+{"id": "Q17", "round": "gen2_judge1", "categories": ["检索不全", "引用不支持"], "weighted_score": 0.7825, "citation_support_rate": 0.917, "citation_resolution_rate": 1.0, "false_premise_failed": false}
+{"id": "Q18", "round": "gen2_judge1", "categories": ["检索不全", "事实错误", "引用不支持", "结构或平衡缺失"], "weighted_score": 0.6325, "citation_support_rate": 0.583, "citation_resolution_rate": 1.0, "false_premise_failed": false}
+{"id": "Q19", "round": "gen2_judge1", "categories": ["检索不全", "结构或平衡缺失"], "weighted_score": 0.6105, "citation_support_rate": 0.917, "citation_resolution_rate": 1.0, "false_premise_failed": false}
+{"id": "Q20", "round": "gen2_judge1", "categories": ["检索不全", "事实错误", "引用不支持", "结构或平衡缺失"], "weighted_score": 0.47, "citation_support_rate": 0.542, "citation_resolution_rate": 1.0, "false_premise_failed": false}
+{"id": "Q22", "round": "gen2_judge1", "categories": ["检索不全", "结构或平衡缺失"], "weighted_score": 0.555, "citation_support_rate": 0.833, "citation_resolution_rate": 1.0, "false_premise_failed": false}
+{"id": "Q24", "round": "gen2_judge1", "categories": ["检索不全", "引用不支持"], "weighted_score": 0.81, "citation_support_rate": 0.667, "citation_resolution_rate": 1.0, "false_premise_failed": false}
+{"id": "Q25", "round": "gen2_judge1", "categories": ["检索不全", "引用不支持", "结构或平衡缺失"], "weighted_score": 0.585, "citation_support_rate": 0.444, "citation_resolution_rate": 1.0, "false_premise_failed": false}
+{"id": "Q27", "round": "gen2_judge1", "categories": ["检索不全"], "weighted_score": 0.7275, "citation_support_rate": 0.833, "citation_resolution_rate": 1.0, "false_premise_failed": false}
+{"id": "Q28", "round": "gen2_judge1", "categories": ["检索不全", "事实错误", "引用不支持", "结构或平衡缺失"], "weighted_score": 0.405, "citation_support_rate": 0.542, "citation_resolution_rate": 1.0, "false_premise_failed": false}
+{"id": "Q29", "round": "gen2_judge1", "categories": ["检索不全", "事实错误", "引用不支持", "结构或平衡缺失"], "weighted_score": 0.5625, "citation_support_rate": 0.292, "citation_resolution_rate": 1.0, "false_premise_failed": false}
+{"id": "Q30", "round": "gen2_judge1", "categories": ["引用不支持"], "weighted_score": 0.855, "citation_support_rate": 0.708, "citation_resolution_rate": 1.0, "false_premise_failed": false}

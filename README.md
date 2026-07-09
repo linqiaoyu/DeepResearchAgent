@@ -159,12 +159,10 @@ report=/.../artifacts/demo_report.md
 Evaluation with baseline diff:
 
 ```text
-"cases": 5
-"avg_citation_accuracy": 1.0
-"avg_critic_catch_rate": 0.8
-"avg_faithfulness": 0.923
 Baseline comparison:
 - status: pass
+- quality metrics emitted
+- operational metrics emitted
 ```
 
 Checkpoint resume demo:

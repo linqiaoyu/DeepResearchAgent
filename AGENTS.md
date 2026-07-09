@@ -125,6 +125,7 @@ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_golden_rou
 ## 10. 自治模式禁止清单
 
 Goal 或自治模式下绝对禁止 push、force push、历史改写、批量文件删除、对外网络写操作。
+任何 commit 的 `amend` 与 `rebase` 均属于历史改写，即使该 commit 尚未推送；修正既有提交中的问题必须以新的 conventional commit 追加。
 
 ## 11. Review Gates
 
