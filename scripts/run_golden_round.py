@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -19,6 +20,8 @@ from deepresearch_agent.evaluation import (
 from deepresearch_agent.llm import LLMClient
 from deepresearch_agent.schemas import ResearchState
 from deepresearch_agent.workflow import DeepResearchEngine
+
+CITATION_RE = re.compile(r"\[\^([^\]]+)\]")
 
 
 def main() -> None:
@@ -190,12 +193,36 @@ def _judge_score_payload(score: Any) -> dict[str, Any]:
 def _mechanical_metrics(state: ResearchState) -> dict[str, Any]:
     if not state.evaluation:
         return {}
+    reporter_stats = state.metadata.get("llm_stats", {}).get("reporter", {})
+    if not isinstance(reporter_stats, dict):
+        reporter_stats = {}
+    backfilled_count = int(reporter_stats.get("missing_reference_backfills", 0) or 0)
+    citation_marker_count = _citation_marker_count(state.final_report or "")
     return {
         "citation_resolution_rate": state.evaluation.citation_resolution_rate,
+        "backfilled_citation_rate": round(backfilled_count / citation_marker_count, 4)
+        if citation_marker_count
+        else 0.0,
+        "backfilled_citation_count": backfilled_count,
+        "citation_marker_count": citation_marker_count,
         "critic_catch_rate": state.evaluation.critic_catch_rate,
         "token_used": state.evaluation.token_used,
         "price_source": state.evaluation.price_source,
     }
+
+
+def _citation_marker_count(report: str) -> int:
+    in_references = False
+    count = 0
+    for line in report.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("## 参考来源"):
+            in_references = True
+            continue
+        if in_references:
+            continue
+        count += len(CITATION_RE.findall(line))
+    return count
 
 
 def _slim_evidence(item: dict[str, Any]) -> dict[str, Any]:

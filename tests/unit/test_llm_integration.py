@@ -9,6 +9,7 @@ from pathlib import Path
 
 from deepresearch_agent.agents import ExtractorAgent, PlannerAgent, ReporterAgent
 from deepresearch_agent.llm import BudgetExceededError, LLMClient
+from deepresearch_agent.llm_config import DEFAULT_LLM_CONFIG, RoleModelConfig
 from deepresearch_agent.schemas import (
     Evidence,
     ReportClaim,
@@ -153,6 +154,16 @@ class LLMIntegrationTests(unittest.TestCase):
             client = LLMClient(
                 ledger_path=ledger_path,
                 budget_cny=3.0,
+                config=DEFAULT_LLM_CONFIG.__class__(
+                    roles={
+                        **DEFAULT_LLM_CONFIG.roles,
+                        "planner": RoleModelConfig(
+                            model="openai/deepseek-v4-flash",
+                            fallback_model="openai/deepseek-v4-flash-backup",
+                            api_base="https://api.deepseek.com",
+                        ),
+                    }
+                ),
                 completion_func=completion,
                 sleep_func=lambda _: None,
                 env_path=env_path,
@@ -166,8 +177,8 @@ class LLMIntegrationTests(unittest.TestCase):
             )
             row = json.loads(ledger_path.read_text(encoding="utf-8").splitlines()[0])
 
-            self.assertEqual(result.model, "openai/deepseek-chat")
-            self.assertEqual(row["model"], "openai/deepseek-chat")
+            self.assertEqual(result.model, "openai/deepseek-v4-flash-backup")
+            self.assertEqual(row["model"], "openai/deepseek-v4-flash-backup")
 
     def test_judge_role_uses_dashscope_key(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

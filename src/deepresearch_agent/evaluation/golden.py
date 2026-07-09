@@ -192,6 +192,7 @@ def aggregate_round_results(results: list[dict[str, Any]]) -> dict[str, Any]:
         "avg_synthesis_balance": _avg(("judge", "median", "synthesis_balance")),
         "avg_citation_support_rate": _avg(("citation_support", "support_rate")),
         "avg_citation_resolution_rate": _avg(("mechanical", "citation_resolution_rate")),
+        "avg_backfilled_citation_rate": _avg(("mechanical", "backfilled_citation_rate")),
         "total_cost_cny": round(sum(float(item.get("cost_cny", 0.0)) for item in completed), 6),
         "total_latency_seconds": round(
             sum(float(item.get("latency_seconds", 0.0)) for item in completed), 3

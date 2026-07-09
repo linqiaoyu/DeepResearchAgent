@@ -23,24 +23,19 @@ class LLMConfig:
     input_cache_hit_cny_per_million: float = 0.02
     output_cny_per_million: float = 2.0
     display_cny_to_usd_rate: float = 0.14
-    # Primary model is explicit deepseek-v4-flash via the OpenAI-compatible API.
-    # If the provider rejects that name, the client falls back to deepseek-chat;
-    # DeepSeek currently routes that alias to v4-flash billing per console calibration.
+    # Model names are explicit and centralized here; do not rely on provider aliases.
     roles: dict[str, RoleModelConfig] = field(
         default_factory=lambda: {
             "planner": RoleModelConfig(
                 model="openai/deepseek-v4-flash",
-                fallback_model="openai/deepseek-chat",
                 api_base="https://api.deepseek.com",
             ),
             "extractor": RoleModelConfig(
                 model="openai/deepseek-v4-flash",
-                fallback_model="openai/deepseek-chat",
                 api_base="https://api.deepseek.com",
             ),
             "reporter": RoleModelConfig(
                 model="openai/deepseek-v4-flash",
-                fallback_model="openai/deepseek-chat",
                 api_base="https://api.deepseek.com",
             ),
             "judge": RoleModelConfig(

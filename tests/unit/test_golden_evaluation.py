@@ -139,7 +139,7 @@ class GoldenEvaluationTests(unittest.TestCase):
                     }
                 },
                 "citation_support": {"support_rate": 0.5},
-                "mechanical": {"citation_resolution_rate": 0.75},
+                "mechanical": {"citation_resolution_rate": 0.75, "backfilled_citation_rate": 0.1},
                 "cost_cny": 0.1,
                 "latency_seconds": 1.5,
                 "bad_case_categories": ["引用不支持"],
@@ -158,7 +158,7 @@ class GoldenEvaluationTests(unittest.TestCase):
                     }
                 },
                 "citation_support": {"support_rate": 1.0},
-                "mechanical": {"citation_resolution_rate": 0.25},
+                "mechanical": {"citation_resolution_rate": 0.25, "backfilled_citation_rate": 0.3},
                 "cost_cny": 0.2,
                 "latency_seconds": 2.5,
                 "bad_case_categories": ["引用不支持", "事实错误"],
@@ -170,6 +170,7 @@ class GoldenEvaluationTests(unittest.TestCase):
         self.assertEqual(summary["cases"], 2)
         self.assertEqual(summary["avg_weighted_score"], 0.7)
         self.assertEqual(summary["avg_citation_support_rate"], 0.75)
+        self.assertEqual(summary["avg_backfilled_citation_rate"], 0.2)
         self.assertEqual(summary["bad_case_categories"], {"引用不支持": 2, "事实错误": 1})
         self.assertEqual(summary["false_premise"], {"passed": 1, "failed": 0})
 
