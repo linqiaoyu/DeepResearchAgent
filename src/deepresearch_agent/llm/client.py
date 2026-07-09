@@ -112,6 +112,7 @@ class LLMClient:
             fallback_model=role_config.fallback_model,
             api_base=role_config.api_base,
             api_key=api_key,
+            timeout_seconds=role_config.timeout_seconds or self.config.timeout_seconds,
             messages=prompt_messages,
         )
         content = raw_result.content
@@ -150,6 +151,7 @@ class LLMClient:
                     fallback_model=role_config.fallback_model,
                     api_base=role_config.api_base,
                     api_key=api_key,
+                    timeout_seconds=role_config.timeout_seconds or self.config.timeout_seconds,
                     messages=repair_messages,
                     is_repair=True,
                 )
@@ -242,6 +244,7 @@ class LLMClient:
         fallback_model: str | None,
         api_base: str | None,
         api_key: str,
+        timeout_seconds: int,
         messages: list[dict[str, str]],
         is_repair: bool = False,
     ) -> LLMCallResult:
@@ -257,7 +260,7 @@ class LLMClient:
                         model=candidate_model,
                         messages=messages,
                         temperature=self.config.temperature,
-                        timeout=self.config.timeout_seconds,
+                        timeout=timeout_seconds,
                         api_key=api_key,
                         api_base=api_base,
                     )

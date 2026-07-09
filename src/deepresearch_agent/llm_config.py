@@ -9,6 +9,7 @@ class RoleModelConfig:
     fallback_model: str | None = None
     api_base: str | None = None
     api_key_env: str = "DEEPSEEK_API_KEY"
+    timeout_seconds: int | None = None
 
 
 @dataclass(frozen=True)
@@ -46,11 +47,13 @@ class LLMConfig:
                 model="openai/qwen3.7-plus",
                 api_base="https://dashscope.aliyuncs.com/compatible-mode/v1",
                 api_key_env="DASHSCOPE_API_KEY",
+                timeout_seconds=300,
             ),
             "citation_support": RoleModelConfig(
                 model="openai/qwen3.7-plus",
                 api_base="https://dashscope.aliyuncs.com/compatible-mode/v1",
                 api_key_env="DASHSCOPE_API_KEY",
+                timeout_seconds=300,
             ),
         }
     )

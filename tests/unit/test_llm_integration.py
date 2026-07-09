@@ -200,6 +200,7 @@ class LLMIntegrationTests(unittest.TestCase):
         self.assertEqual(result.model, "openai/qwen3.7-plus")
         self.assertEqual(observed["api_base"], "https://dashscope.aliyuncs.com/compatible-mode/v1")
         self.assertEqual(observed["api_key"], "test-key")
+        self.assertEqual(observed["timeout"], 300)
 
     def test_structured_parse_failure_repairs_and_records_two_calls(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
