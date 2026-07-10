@@ -7,7 +7,8 @@ The harness treats evaluation as a first-class subsystem, not a screenshot.
 - `task_success_rate`: report generated with at least one evidence record
 - `citation_accuracy`: in deterministic mode, citation markers in bullet claims map to Evidence rows and the cited claim has deterministic text overlap with `Evidence.claim` or `Evidence.extract_text`; in LLM mode this is `null` with a reason because paraphrase-aware judging is not implemented yet
 - `citation_resolution_rate`: citation markers that resolve to real Evidence rows, computed in both deterministic and LLM modes
-- `backfilled_citation_rate`: Golden Set mechanical metric equal to renderer-added citation markers divided by all non-reference-section citation markers; this measures citation repair volume, not semantic support
+- `citation_repair_retry_rate`: Golden Set mechanical metric equal to the share of runs where Reporter performed one structured evidence-id repair retry before rendering
+- `uncited_claim_rate`: Golden Set mechanical metric equal to uncited rendered ReportClaims divided by all rendered ReportClaims
 - `critic_catch_rate`: MVP heuristic/proxy for whether the Critic exposed quality issues. Current deterministic logic scores visible issue coverage, using `min(1.0, len(issues) / 3)` when issues are present and `1.0` when no issues are found. It is not true seeded issue recall or human-labeled Critic recall.
 - `answer_relevance`: topic terms appear in the final report
 - `faithfulness`: bullet claims in the report carry citations
@@ -36,6 +37,7 @@ Frozen assets:
 - `data/golden_set/v1/results/g1_rejudge_qwen37.json`: G1 saved-state rejudge with the current locked judge.
 - `data/golden_set/v1/results/gen2_judge1.json`: G2 judge round with the current locked judge.
 - `data/golden_set/v1/results/g1_qwen37_vs_gen2.json`: formal same-judge G1/G2 comparison.
+- `data/golden_set/v1/results/gen3_judge1.json`: G3 judge round after citation repair retry replaced renderer backfill.
 - `data/golden_set/v1/results/judge_calibration_qwen37_vs_qwenmax.json`: current 10-case judge calibration sample.
 
 Golden Set v1 evaluation `as_of` is `2026-07-09`. The frozen corpus contains
@@ -130,37 +132,54 @@ from the pre-006V judge identity. They are retained as historical assets only:
 Both false-premise cases, Q08 and Q16, were classified as refuted in both rounds.
 No generation repair was applied between these two judge passes.
 
-006V rejudged the G1 saved states with the current locked judge. The formal
-same-judge comparison is now `data/golden_set/v1/results/g1_rejudge_qwen37.json`
-against `data/golden_set/v1/results/gen2_judge1.json`:
+006V rejudged the G1 saved states with the current locked judge. That exposed
+the G2 regression: the apparent historical improvement was a judge-identity
+artifact. A useful decomposition is:
 
-| Metric | G1 qwen3.7-plus rejudge | G2 qwen3.7-plus | Delta |
+```text
+0.6134 + 0.1865 - 0.0585 = 0.7414
+```
+
+Here `0.6134` is the historical G1 score under the earlier judge, `+0.1865` is
+the judge-identity uplift observed by rejudging G1 as `0.7999`, and `-0.0585`
+is the same-judge G2 regression. This is the canonical judge-effect example for
+why Golden Set scores must be paired by judge identity.
+
+006F2 then removed renderer lexical backfill and replaced it with one structured
+Reporter repair retry that asks the model to add real `evidence_ids` before
+rendering. The formal same-judge sequence is now:
+
+| Metric | G1 rejudge | G2 backfill | G3 repair retry |
 | --- | ---: | ---: | ---: |
-| avg weighted score | 0.7999 | 0.7414 | -0.0585 |
-| avg fact coverage | 0.7577 | 0.6207 | -0.1370 |
-| avg fact accuracy | 0.8400 | 0.8273 | -0.0127 |
-| avg citation support | 0.8250 | 0.8483 | +0.0233 |
-| avg synthesis balance | 0.7900 | 0.7017 | -0.0883 |
-| avg citation support rate | 0.8062 | 0.7496 | -0.0566 |
-| avg citation resolution rate | 0.6000 | 1.0000 | +0.4000 |
-| avg backfilled citation rate | 0.0000 | 0.4696 | +0.4696 |
+| avg weighted score | 0.7999 | 0.7414 | 0.7803 |
+| avg fact coverage | 0.7577 | 0.6207 | 0.6827 |
+| avg fact accuracy | 0.8400 | 0.8273 | 0.8423 |
+| avg citation support | 0.8250 | 0.8483 | 0.8670 |
+| avg synthesis balance | 0.7900 | 0.7017 | 0.7600 |
+| avg citation support rate | 0.8062 | 0.7496 | 0.7761 |
+| avg citation resolution rate | 0.6000 | 1.0000 | 0.9333 |
+| avg citation repair retry rate | n/a | n/a | 0.5333 |
+| avg uncited claim rate | n/a | n/a | 0.0779 |
 
-Bad-case category counts moved from G1 to G2 as follows:
+Bad-case category counts across the same-judge sequence:
 
-| Category | G1 count | G2 count | Delta |
+| Category | G1 | G2 | G3 |
 | --- | ---: | ---: | ---: |
-| 事实错误 | 6 | 10 | +4 |
-| 引用不支持 | 15 | 16 | +1 |
-| 检索不全 | 14 | 18 | +4 |
-| 结构或平衡缺失 | 9 | 13 | +4 |
+| 事实错误 | 6 | 10 | 8 |
+| 引用不支持 | 15 | 16 | 17 |
+| 检索不全 | 14 | 18 | 17 |
+| 结构或平衡缺失 | 9 | 13 | 11 |
 
 The G1 citation-resolution anomaly was a pipeline defect: LLM Reporter drafts
 could omit `evidence_ids` for `ReportClaim` objects, and the renderer previously
-allowed uncited bullet claims to reach the final report. The G2 fix enforces
-reporter citation discipline and backfills missing claim citations from the best
-available Evidence row at render time. This changes mechanical citation
-resolution only; it does not alter gold values, judge prompts, scoring weights,
-or graph architecture.
+allowed uncited bullet claims to reach the final report. The G2 fix correctly
+strengthened Reporter prompt discipline but incorrectly used renderer lexical
+backfill, producing a misleading mechanical resolution rate and a high
+`backfilled_citation_rate`. G3 removes lexical backfill: claims still lacking
+valid evidence ids after the repair retry render uncited, so
+`citation_resolution_rate` is again a real measurement rather than a renderer
+artifact. No gold values, judge prompts, scoring weights, or graph architecture
+were changed.
 
 ## Golden Recording Controls
 
