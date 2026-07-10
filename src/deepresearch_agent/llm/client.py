@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 from dataclasses import dataclass
 from importlib import import_module
@@ -292,16 +293,18 @@ class LLMClient:
         raise LLMClientError(f"LLM call failed for role={role}: {last_error}")
 
     def _api_key(self, key_name: str) -> str:
-        if not self._env_path.exists():
-            raise LLMClientError(f"Missing .env with {key_name}.")
-        for line in self._env_path.read_text(encoding="utf-8").splitlines():
-            stripped = line.strip()
-            if not stripped or stripped.startswith("#") or "=" not in stripped:
-                continue
-            key, value = stripped.split("=", 1)
-            if key.strip() == key_name and value.strip():
-                return value.strip().strip('"').strip("'")
-        raise LLMClientError(f"Missing {key_name} in .env.")
+        if self._env_path.exists():
+            for line in self._env_path.read_text(encoding="utf-8").splitlines():
+                stripped = line.strip()
+                if not stripped or stripped.startswith("#") or "=" not in stripped:
+                    continue
+                key, value = stripped.split("=", 1)
+                if key.strip() == key_name and value.strip():
+                    return value.strip().strip('"').strip("'")
+        env_value = os.getenv(key_name, "").strip()
+        if env_value:
+            return env_value
+        raise LLMClientError(f"Missing {key_name} in .env or container environment.")
 
     def _parse_schema(self, content: str, schema: type[SchemaT]) -> SchemaT:
         try:
