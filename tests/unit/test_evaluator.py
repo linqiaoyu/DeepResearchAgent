@@ -124,6 +124,24 @@ class EvaluatorTests(unittest.TestCase):
         self.assertEqual(result.cost_cny, 0.000123)
         self.assertEqual(result.price_source, "v4flash_console_calibrated_20260612")
 
+    def test_llm_mode_reports_citation_repair_and_uncited_claim_rates(self) -> None:
+        state = self._state_with_supported_report()
+        state.metadata["execution_mode"] = "llm"
+        state.metadata["llm_stats"] = {
+            "reporter": {
+                "citation_repair_retries": 1,
+                "claim_provenance": [
+                    {"has_citation": True},
+                    {"has_citation": False},
+                ],
+            }
+        }
+
+        result = Evaluator().evaluate(state)
+
+        self.assertEqual(result.citation_repair_retry_rate, 1.0)
+        self.assertEqual(result.uncited_claim_rate, 0.5)
+
     def test_critic_issue_types_are_propagated_to_bad_case_categories(self) -> None:
         state = ResearchState(topic="wealth AI")
         state.evidence_store = [

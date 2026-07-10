@@ -185,6 +185,8 @@ class EvaluationResult(StrictModel):
     citation_accuracy: float | None = Field(default=None, ge=0, le=1)
     citation_accuracy_reason: str | None = None
     citation_resolution_rate: float = Field(default=0.0, ge=0, le=1)
+    citation_repair_retry_rate: float = Field(default=0.0, ge=0, le=1)
+    uncited_claim_rate: float = Field(default=0.0, ge=0, le=1)
     critic_catch_rate: float = Field(ge=0, le=1)
     answer_relevance: float | None = Field(default=None, ge=0, le=1)
     answer_relevance_reason: str | None = None

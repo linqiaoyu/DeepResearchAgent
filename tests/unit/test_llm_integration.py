@@ -417,7 +417,7 @@ class LLMIntegrationTests(unittest.TestCase):
         self.assertIn("[^1]", report)
         self.assertNotIn("missing", report)
 
-    def test_reporter_backfills_missing_evidence_ids_with_best_available_citation(self) -> None:
+    def test_reporter_renders_uncited_claim_when_evidence_ids_are_missing(self) -> None:
         state = ResearchState(topic="wealth AI")
         state.plan = ResearchPlan(
             topic=state.topic,
@@ -455,8 +455,74 @@ class LLMIntegrationTests(unittest.TestCase):
         report, invalid, backfilled = ReporterAgent()._render_llm_report(state, draft)
 
         self.assertEqual(invalid, 0)
-        self.assertEqual(backfilled, 1)
+        self.assertEqual(backfilled, 0)
+        self.assertIn("- Advisor productivity improved 18% after AI triage.", report)
+        self.assertNotIn("- Advisor productivity improved 18% after AI triage. [^1]", report)
+
+    def test_reporter_repairs_missing_evidence_ids_before_rendering(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            env_path = Path(tmp) / ".env"
+            env_path.write_text("DEEPSEEK_API_KEY=test-key\n", encoding="utf-8")
+            state = ResearchState(topic="wealth AI")
+            state.plan = ResearchPlan(
+                topic=state.topic,
+                sub_questions=[SubQuestion(id="sq", question="q", search_queries=["q"])],
+            )
+            state.evidence_store = [
+                Evidence(
+                    id="productivity",
+                    research_id=state.research_id,
+                    sub_question_id="sq",
+                    claim="Advisor productivity improved 18% after AI triage.",
+                    claim_type="data",
+                    source_url="https://a.example",
+                    source_title="A",
+                    source_pub_date=date(2026, 1, 1),
+                    extract_text="Advisor productivity improved 18% after AI triage.",
+                )
+            ]
+            first_pass = {
+                "summary": "Summary",
+                "key_findings": [
+                    {"text": "Advisor productivity improved 18% after AI triage.", "evidence_ids": []}
+                ],
+                "detailed_analysis": [],
+                "risks": [],
+                "unverified_assumptions": [],
+            }
+            repaired = {
+                "summary": "Summary",
+                "key_findings": [
+                    {
+                        "text": "Advisor productivity improved 18% after AI triage.",
+                        "evidence_ids": ["productivity"],
+                    }
+                ],
+                "detailed_analysis": [],
+                "risks": [],
+                "unverified_assumptions": [],
+            }
+            client = LLMClient(
+                ledger_path=Path(tmp) / "ledger.jsonl",
+                budget_cny=3.0,
+                completion_func=MockCompletion(
+                    [json.dumps(first_pass), json.dumps(repaired)],
+                    prompt_tokens=10,
+                    completion_tokens=5,
+                ),
+                sleep_func=lambda _: None,
+                env_path=env_path,
+                global_ledger_path=Path(tmp) / "global_ledger.jsonl",
+            )
+
+            agent = ReporterAgent(llm_client=client)
+            report = agent.report(state)
+
         self.assertIn("- Advisor productivity improved 18% after AI triage. [^1]", report)
+        self.assertEqual(agent.last_stats["citation_repair_retries"], 1)
+        self.assertEqual(agent.last_stats["citation_repaired_claims"], 1)
+        self.assertEqual(agent.last_stats["uncited_claims"], 0)
+        self.assertEqual(agent.last_stats["claim_provenance"][0]["provenance"], "repaired")
 
 
 if __name__ == "__main__":
