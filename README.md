@@ -78,7 +78,7 @@ Compare evaluation metrics against the deterministic baseline:
 PYTHONPATH=src DEEPRESEARCH_SEARCH_PROVIDER=fixture .venv/bin/python scripts/run_eval.py --limit 5 --compare-baseline
 ```
 
-LLM-mode metrics use real LiteLLM token and cost accounting from `data/runtime/llm_ledger.jsonl`. In LLM mode, `citation_accuracy` is `null` with a reason because the current scorer is extractive-only; `citation_resolution_rate`, `backfilled_citation_rate`, and `critic_catch_rate` remain programmatic. Golden Set rounds use a separate qwen3.7-plus judge for four-dimensional scoring and semantic citation support.
+LLM-mode metrics use real LiteLLM token and cost accounting from `data/runtime/llm_ledger.jsonl`. In LLM mode, `citation_accuracy` is `null` with a reason because the current scorer is extractive-only; `citation_resolution_rate`, `citation_repair_retry_rate`, `uncited_claim_rate`, and `critic_catch_rate` remain programmatic. Golden Set rounds use a separate qwen3.7-plus judge for four-dimensional scoring and semantic citation support.
 
 Run the checkpoint resume demo:
 
@@ -127,6 +127,23 @@ Or use Docker:
 ```bash
 docker compose up --build
 ```
+
+## Public Demo Architecture
+
+The deployable demo has three layers:
+
+- Showcase layer: precomputed G3 reports and Golden Set methodology from `data/demo/g3_showcase.json`; no LLM or search calls.
+- Golden rerun layer: selected Golden Set questions rerun through LLM mode with frozen-corpus replay and recorded structured-data fixtures; Tavily credit usage is zero.
+- Owner live layer: free-form topic plus live Tavily search, available only when `X-Demo-Owner-Token` matches `DEMO_OWNER_TOKEN`.
+
+Both paid layers share a persistent daily LLM spend guard. The default limit is
+`DEEPRESEARCH_DEMO_DAILY_LLM_LIMIT_CNY=5.0`; once reached, rerun and live calls
+return HTTP 429 while the showcase layer remains available. LangSmith tracing is
+enabled only when `LANGSMITH_API_KEY` exists.
+
+The current branch-B deployment state has no public URL because server
+deployment credentials are absent from `.env`. Self-deployment instructions are
+in [docs/deployment.md](docs/deployment.md).
 
 For public URL smoke checks and the recording checklist, see [docs/deployment.md](docs/deployment.md).
 
@@ -187,7 +204,9 @@ report=/.../artifacts/checkpoint_demo/report.md
 
 FastAPI is the primary API demo surface. `scripts/dev_server.py` is a no-dependency fallback implemented with Python's standard library; it exposes the same JSON routes for local smoke demos and adds a small browser form at `/`. Both surfaces execute the deterministic MVP synchronously today; there is no background job queue or async run orchestration yet.
 
-The Streamlit UI runs the local deterministic engine directly. Under Docker Compose, the API and UI use the same local storage path for the MVP. A future hardening step can wire the UI to the API via `API_BASE_URL` or a similar setting.
+The Streamlit UI calls the FastAPI demo API. Under Docker Compose, the API and
+UI share `data/runtime` for local SQLite, LLM ledgers, and the persistent demo
+guard.
 
 ## What Is Implemented
 
