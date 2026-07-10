@@ -21,6 +21,9 @@ class Settings:
     as_of: date | None = None
     max_searches_per_run: int = 20
     tavily_raw_content_char_limit: int = 40_000
+    demo_daily_llm_limit_cny: float = 5.0
+    demo_guard_path: Path = Path("data/runtime/demo_guard.json")
+    demo_as_of: date = date(2026, 7, 9)
 
 
 def project_root() -> Path:
@@ -35,6 +38,9 @@ def load_settings() -> Settings:
     ledger = Path(os.getenv("DEEPRESEARCH_LLM_LEDGER_PATH", "data/runtime/llm_ledger.jsonl"))
     if not ledger.is_absolute():
         ledger = root / ledger
+    demo_guard = Path(os.getenv("DEEPRESEARCH_DEMO_GUARD_PATH", "data/runtime/demo_guard.json"))
+    if not demo_guard.is_absolute():
+        demo_guard = root / demo_guard
     mode = os.getenv("DEEPRESEARCH_MODE", "deterministic")
     if mode not in {"deterministic", "llm"}:
         mode = "deterministic"
@@ -54,4 +60,16 @@ def load_settings() -> Settings:
         as_of=as_of,
         max_searches_per_run=int(os.getenv("DEEPRESEARCH_MAX_SEARCHES_PER_RUN", "20")),
         tavily_raw_content_char_limit=int(os.getenv("DEEPRESEARCH_TAVILY_RAW_CONTENT_CHAR_LIMIT", "40000")),
+        demo_daily_llm_limit_cny=float(os.getenv("DEEPRESEARCH_DEMO_DAILY_LLM_LIMIT_CNY", "5.0")),
+        demo_guard_path=demo_guard,
+        demo_as_of=date.fromisoformat(os.getenv("DEEPRESEARCH_DEMO_AS_OF", "2026-07-09")),
     )
+
+
+def configure_langsmith_from_env() -> bool:
+    """Enable LangSmith tracing only when credentials are explicitly present."""
+    if not os.getenv("LANGSMITH_API_KEY"):
+        return False
+    os.environ.setdefault("LANGSMITH_TRACING", "true")
+    os.environ.setdefault("LANGCHAIN_TRACING_V2", "true")
+    return True

@@ -1,7 +1,26 @@
 # Deployment
 
-Status: Public deployment is not yet completed. The steps below describe the
-expected release path and verification checks after a public host is provisioned.
+Status: 007 branch-B local release package. The public deployment step is
+blocked until `.env` contains `DEPLOY_SSH_HOST`, `DEPLOY_SSH_KEY_PATH`,
+`DEPLOY_PUBLIC_HOST`, and `DEMO_OWNER_TOKEN`. The local API/UI, demo assets,
+daily spend guard, and runbook are ready for server execution.
+
+## Demo Layers
+
+- Showcase: `GET /demo`, `GET /demo/reports`, and the Streamlit Showcase tab
+  serve curated G3 reports from `data/demo/g3_showcase.json`. This layer has no
+  LLM, Tavily, AKShare, or judge calls.
+- Golden rerun: `POST /demo/rerun/{question_id}` runs LLM mode over Golden Set
+  frozen-corpus replay plus recorded structured-data fixtures. It uses
+  `DEEPRESEARCH_AS_OF=2026-07-09` and consumes no Tavily credit.
+- Owner live: `POST /demo/live` requires `X-Demo-Owner-Token` matching
+  `DEMO_OWNER_TOKEN`, then runs free-form LLM mode with live Tavily search.
+
+The paid layers share `DailyCostGuard`, persisted at
+`DEEPRESEARCH_DEMO_GUARD_PATH` and capped by
+`DEEPRESEARCH_DEMO_DAILY_LLM_LIMIT_CNY` (default `5.0`). When the cap is hit,
+rerun and live endpoints return HTTP 429; the showcase remains available.
+LangSmith tracing is enabled only when `LANGSMITH_API_KEY` exists.
 
 ## Local
 
@@ -38,16 +57,79 @@ Expected services:
 - API: `http://localhost:8000`
 - UI: `http://localhost:8501`
 
-## Public URL Checklist
+The image excludes `.env`, `_collab`, `artifacts`, local virtualenvs, runtime
+databases, and caches through `.dockerignore`. Compose reads real secrets only
+from an optional `.env`; `.env.example` is documentation, not a runtime secret
+source.
 
-- Provision a small ECS or equivalent VM.
-- Install Docker and Docker Compose.
-- Copy repository and configure `.env`.
-- Run `docker compose up -d --build`.
-- Put Caddy/Nginx in front for HTTPS.
-- Point `deepresearch.yulinqiao.com` to the host.
-- Run the public smoke checklist below before sharing the URL.
-- Record a 1-2 minute demo with the recording checklist below.
+Local smoke:
+
+```bash
+curl -fsS http://localhost:8000/health
+curl -fsS http://localhost:8000/demo
+curl -fsS http://localhost:8000/demo/reports/Q16
+curl -i -X POST http://localhost:8000/demo/live \
+  -H "Content-Type: application/json" \
+  -d '{"topic":"demo","depth_level":1}'
+```
+
+The unauthenticated live call should return HTTP 403 without printing any key
+names or values.
+
+## Public Runbook
+
+All commands below must target only the host named by `DEPLOY_SSH_HOST`.
+
+1. Provision a small ECS or equivalent VM. Security group inbound ports: `22`,
+   `80`, `443` only.
+2. Install Docker and Compose.
+
+```bash
+sudo timedatectl set-timezone UTC
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl gnupg
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
+sudo apt-get update
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+```
+
+3. Copy the repository to `/opt/deepresearch-agent` and create server-side
+   `.env`. Do not echo secrets in logs.
+4. Start the stack:
+
+```bash
+docker compose up -d --build
+docker compose ps
+docker compose logs --tail=100 api
+docker compose logs --tail=100 ui
+```
+
+5. Configure reverse proxy. If `DEPLOY_PUBLIC_HOST` is a domain, use automatic
+   HTTPS, for example Caddy:
+
+```text
+DEPLOY_PUBLIC_HOST {
+  reverse_proxy ui:8501
+}
+```
+
+If only a bare IP exists, serve HTTP and keep the page labeled as a demo.
+
+6. Verify restart policy and recovery:
+
+```bash
+docker compose restart
+docker compose ps
+docker kill deepresearchagent-api-1
+sleep 10
+docker compose ps
+```
+
+7. Configure log rotation through Docker daemon or host journald before sharing
+   the URL.
 
 ## Public Smoke Checklist
 
@@ -59,20 +141,40 @@ export BASE_URL=https://deepresearch.yulinqiao.com
 export UI_URL=https://deepresearch-ui.yulinqiao.com
 
 curl -fsS "$BASE_URL/health"
-curl -fsS "$BASE_URL/metrics"
-curl -fsS -X POST "$BASE_URL/research" \
+curl -fsS "$BASE_URL/demo"
+curl -fsS "$BASE_URL/demo/reports/Q16"
+curl -i -X POST "$BASE_URL/demo/live" \
   -H "Content-Type: application/json" \
-  -d '{"topic":"AI Agent 在财富管理行业的落地机会研究","depth_level":2}'
+  -d '{"topic":"demo","depth_level":1}'
 ```
 
 Expected public smoke signals:
 
 - `/health` returns `{"status":"ok"}`.
-- `/metrics` returns JSON, even when no recent metrics exist.
-- `POST /research` returns `status=done`, `current_phase=done`, a `research_id`, a `report_url`, and metrics.
-- `GET /research/{id}` returns checkpointed state with non-empty `evidence_store`.
-- `GET /research/{id}/report` returns Markdown with footnote-style citations.
-- The Streamlit root opens and can run the same deterministic topic.
+- `/demo` returns the G3 summary and guard state.
+- `/demo/reports/Q16` returns the false-premise showcase report.
+- Unauthenticated `/demo/live` returns HTTP 403 without sensitive values.
+- The Streamlit root opens, shows the curated reports, and can call the API.
+
+Guardrail verification before making the URL public:
+
+1. Set `DEEPRESEARCH_DEMO_DAILY_LLM_LIMIT_CNY=0` in server `.env`.
+2. Restart Compose.
+3. `POST /demo/rerun/Q01` must return HTTP 429.
+4. `GET /demo/reports/Q01` must still return HTTP 200.
+5. Restore the intended limit and restart.
+
+AKShare server probe:
+
+```bash
+docker compose exec api python scripts/record_structured_data_fixture.py --help
+```
+
+Then run the three 005 capabilities against a disposable output path and compare
+symbol resolve, financial indicators, and price history with
+`data/mock_data/structured_finance.json`. If live AKShare is unstable, keep
+`DEEPRESEARCH_STRUCTURED_DATA_PROVIDER=fixture` for the public demo and record
+the difference in the deployment log.
 
 If the public smoke fails, keep the README/demo wording local-only until the
 host is fixed. Do not present the public URL as live.
@@ -104,8 +206,25 @@ Recording acceptance criteria:
 After deployment, verify these public endpoints before marking the release live:
 
 - API health: `/health`
-- API metrics: `/metrics`
+- Demo overview: `/demo`
+- Showcase report: `/demo/reports/Q01`
+- Guarded rerun: `/demo/rerun/Q01`
+- Owner live search: `/demo/live`
 - UI: Streamlit app root
+
+## Rollback
+
+```bash
+git log --oneline -5
+git checkout <previous-known-good-commit>
+docker compose up -d --build
+docker compose ps
+curl -fsS "$BASE_URL/health"
+```
+
+Do not delete runtime ledgers during rollback. If a bad release consumed budget,
+lower `DEEPRESEARCH_DEMO_DAILY_LLM_LIMIT_CNY` or set the guard file spent value
+to the limit to disable paid layers while leaving the showcase online.
 
 ## Postgres Path
 

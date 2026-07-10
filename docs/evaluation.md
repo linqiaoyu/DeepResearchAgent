@@ -75,6 +75,17 @@ Generation passes and judge passes are separate units:
   repair-loop before/after comparison. The observed composite movement was
   `+0.0043`, which is treated as test-retest noise within the `±0.01` band.
 
+Golden Set score interpretation uses two separate noise bands:
+
+- Judge test-retest noise: use `±0.01` as the operating band. The observed
+  same-generation retest movement was `±0.004`, so smaller composite changes
+  must not be described as product improvement or regression.
+- Cross-generation noise: with `n=30`, the composite-score standard error is
+  approximately `0.037`, and individual questions can move by up to about
+  `±0.4`. G1/G2/G3 generation comparisons are useful directional diagnostics,
+  but composite deltas at this scale are statistically hard to separate from
+  generation variance without more samples or paired human review.
+
 ## Judge
 
 Golden Set judge calls use the unified `LLMClient` with role `judge`; citation
@@ -160,6 +171,12 @@ rendering. The formal same-judge sequence is now:
 | avg citation resolution rate | 0.6000 | 1.0000 | 0.9333 |
 | avg citation repair retry rate | n/a | n/a | 0.5333 |
 | avg uncited claim rate | n/a | n/a | 0.0779 |
+
+Under the cross-generation noise band, G3's composite score is statistically
+not distinguishable from the G1 rejudge baseline. The reliable conclusion is
+narrower: G3 restored true citation-resolution measurement, removed renderer
+backfill, and recovered most of the G2 regression without changing gold values,
+judge prompts, scoring weights, or graph architecture.
 
 Bad-case category counts across the same-judge sequence:
 

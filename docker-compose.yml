@@ -5,11 +5,17 @@ services:
     ports:
       - "8000:8000"
     env_file:
-      - .env.example
+      - path: .env
+        required: false
     environment:
       DEEPRESEARCH_STORAGE_PATH: /app/data/runtime/research.db
+      DEEPRESEARCH_LLM_LEDGER_PATH: /app/data/runtime/llm_ledger.jsonl
+      DEEPRESEARCH_DEMO_GUARD_PATH: /app/data/runtime/demo_guard.json
+      DEEPRESEARCH_SEARCH_PROVIDER: fixture
+      DEEPRESEARCH_STRUCTURED_DATA_PROVIDER: fixture
     volumes:
       - ./data/runtime:/app/data/runtime
+    restart: unless-stopped
 
   ui:
     build: .
@@ -17,13 +23,16 @@ services:
     ports:
       - "8501:8501"
     env_file:
-      - .env.example
+      - path: .env
+        required: false
     environment:
       DEEPRESEARCH_STORAGE_PATH: /app/data/runtime/research.db
+      DEEPRESEARCH_API_BASE_URL: http://api:8000
     volumes:
       - ./data/runtime:/app/data/runtime
     depends_on:
       - api
+    restart: unless-stopped
 
   postgres:
     image: postgres:15
@@ -39,4 +48,3 @@ services:
 
 volumes:
   deepresearch_pg:
-
