@@ -4,6 +4,7 @@ import json
 import os
 import threading
 import time
+from uuid import uuid4
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -21,6 +22,10 @@ class DemoLimitExceeded(RuntimeError):
 
 
 class DemoNotAuthorized(RuntimeError):
+    pass
+
+
+class DemoQueueFull(RuntimeError):
     pass
 
 
@@ -93,6 +98,185 @@ class DailyCostGuard:
         }
 
 
+class DemoJobStore:
+    ACTIVE_STATUSES = {"queued", "running"}
+
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self._lock = threading.Lock()
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._interrupt_unfinished_jobs()
+
+    def create(self, *, question_id: str, topic: str) -> dict[str, Any]:
+        now = _utc_timestamp()
+        job = {
+            "job_id": str(uuid4()),
+            "question_id": question_id,
+            "topic": topic,
+            "status": "queued",
+            "created_at": now,
+            "updated_at": now,
+            "started_at": None,
+            "finished_at": None,
+            "error": None,
+            "result": None,
+        }
+        with self._lock:
+            state = self._read_state()
+            state["jobs"].append(job)
+            self._write_state(state)
+        return self.get(job["job_id"])
+
+    def get(self, job_id: str) -> dict[str, Any]:
+        with self._lock:
+            for job in self._read_state()["jobs"]:
+                if job["job_id"] == job_id:
+                    return self._with_position(job)
+        raise KeyError(job_id)
+
+    def queued_count(self) -> int:
+        with self._lock:
+            return sum(1 for job in self._read_state()["jobs"] if job["status"] == "queued")
+
+    def next_queued(self) -> dict[str, Any] | None:
+        with self._lock:
+            for job in self._read_state()["jobs"]:
+                if job["status"] == "queued":
+                    return dict(job)
+        return None
+
+    def mark_running(self, job_id: str) -> dict[str, Any]:
+        return self._update(
+            job_id,
+            {
+                "status": "running",
+                "started_at": _utc_timestamp(),
+                "updated_at": _utc_timestamp(),
+                "error": None,
+            },
+        )
+
+    def mark_done(self, job_id: str, result: DemoRunResult) -> dict[str, Any]:
+        return self._update(
+            job_id,
+            {
+                "status": "done",
+                "finished_at": _utc_timestamp(),
+                "updated_at": _utc_timestamp(),
+                "result": {
+                    "research_id": result.research_id,
+                    "status": result.status,
+                    "report": result.report,
+                    "metrics": result.metrics,
+                    "cost_cny": result.cost_cny,
+                    "guard": result.guard,
+                },
+            },
+        )
+
+    def mark_failed(self, job_id: str, error: str) -> dict[str, Any]:
+        return self._update(
+            job_id,
+            {
+                "status": "failed",
+                "finished_at": _utc_timestamp(),
+                "updated_at": _utc_timestamp(),
+                "error": error,
+            },
+        )
+
+    def _update(self, job_id: str, values: dict[str, Any]) -> dict[str, Any]:
+        with self._lock:
+            state = self._read_state()
+            for job in state["jobs"]:
+                if job["job_id"] == job_id:
+                    job.update(values)
+                    self._write_state(state)
+                    return self._with_position(job)
+        raise KeyError(job_id)
+
+    def _interrupt_unfinished_jobs(self) -> None:
+        with self._lock:
+            state = self._read_state()
+            changed = False
+            now = _utc_timestamp()
+            for job in state["jobs"]:
+                if job.get("status") in self.ACTIVE_STATUSES:
+                    job["status"] = "interrupted"
+                    job["updated_at"] = now
+                    job["finished_at"] = now
+                    job["error"] = "Process restarted before job completion."
+                    changed = True
+            if changed:
+                self._write_state(state)
+
+    def _with_position(self, job: dict[str, Any]) -> dict[str, Any]:
+        state = self._read_state()
+        queued = [item["job_id"] for item in state["jobs"] if item["status"] == "queued"]
+        payload = dict(job)
+        payload["queue_position"] = queued.index(job["job_id"]) + 1 if job["job_id"] in queued else 0
+        return payload
+
+    def _read_state(self) -> dict[str, Any]:
+        if not self.path.exists():
+            return {"jobs": []}
+        try:
+            payload = json.loads(self.path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            return {"jobs": []}
+        if not isinstance(payload, dict) or not isinstance(payload.get("jobs"), list):
+            return {"jobs": []}
+        return payload
+
+    def _write_state(self, state: dict[str, Any]) -> None:
+        self.path.write_text(json.dumps(state, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+class DemoJobManager:
+    def __init__(
+        self,
+        *,
+        store: DemoJobStore,
+        queue_limit: int,
+        run_func: Any,
+    ) -> None:
+        self.store = store
+        self.queue_limit = queue_limit
+        self._run_func = run_func
+        self._worker_lock = threading.Lock()
+        self._worker: threading.Thread | None = None
+
+    def enqueue(self, *, question_id: str, topic: str) -> dict[str, Any]:
+        if self.store.queued_count() >= self.queue_limit:
+            raise DemoQueueFull("Demo rerun queue is full. Try again later.")
+        job = self.store.create(question_id=question_id, topic=topic)
+        self._ensure_worker()
+        return job
+
+    def get(self, job_id: str) -> dict[str, Any]:
+        return self.store.get(job_id)
+
+    def _ensure_worker(self) -> None:
+        with self._worker_lock:
+            if self._worker and self._worker.is_alive():
+                return
+            self._worker = threading.Thread(target=self._work_loop, name="demo-rerun-worker", daemon=True)
+            self._worker.start()
+
+    def _work_loop(self) -> None:
+        while True:
+            job = self.store.next_queued()
+            if not job:
+                return
+            self.store.mark_running(job["job_id"])
+            try:
+                result = self._run_func(job["question_id"], job["topic"])
+            except Exception as exc:  # pragma: no cover - exact provider errors are environment-specific.
+                self.store.mark_failed(job["job_id"], f"{type(exc).__name__}: {exc}")
+            else:
+                self.store.mark_done(job["job_id"], result)
+
+
 class DemoService:
     def __init__(
         self,
@@ -100,6 +284,8 @@ class DemoService:
         settings: Settings | None = None,
         root: Path | None = None,
         guard: DailyCostGuard | None = None,
+        job_store: DemoJobStore | None = None,
+        runner_func: Any | None = None,
     ) -> None:
         self.root = root or project_root()
         self.settings = settings or load_settings()
@@ -112,6 +298,12 @@ class DemoService:
             limit_cny=self.settings.demo_daily_llm_limit_cny,
         )
         self._run_lock = threading.Lock()
+        self._runner_func = runner_func or self._run_golden_question
+        self.jobs = DemoJobManager(
+            store=job_store or DemoJobStore(self.settings.demo_job_path),
+            queue_limit=self.settings.demo_queue_limit,
+            run_func=self._runner_func,
+        )
 
     def overview(self) -> dict[str, Any]:
         assets = self._assets()
@@ -163,10 +355,17 @@ class DemoService:
             for item in questions
         ]
 
-    def rerun_golden(self, question_id: str) -> DemoRunResult:
+    def rerun_golden(self, question_id: str) -> dict[str, Any]:
         question = self._question(question_id)
+        self.guard.assert_can_start()
+        return self.jobs.enqueue(question_id=question_id, topic=question["topic"])
+
+    def job(self, job_id: str) -> dict[str, Any]:
+        return self.jobs.get(job_id)
+
+    def _run_golden_question(self, question_id: str, topic: str) -> DemoRunResult:
         return self._run_llm_pipeline(
-            topic=question["topic"],
+            topic=topic,
             depth_level=1,
             search_recording_mode="replay",
             search_provider="tavily",
@@ -241,6 +440,10 @@ def _state_cost_cny(state: ResearchState) -> float:
     if isinstance(usage, dict):
         return float(usage.get("total_cost_cny", 0.0) or 0.0)
     return 0.0
+
+
+def _utc_timestamp() -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 
 @contextmanager
