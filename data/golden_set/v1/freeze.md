@@ -7,7 +7,7 @@ corpus_fingerprint: ef2d1fd2c414502140162508ef32838aaf8e4a56a6ab3678f9f57ed04f86
 
 ## Freeze Decision
 
-- 命中预登记分支 A：全量审计零 `DEFECT`，隔离题 0（不超过 5），进入三代保存态重评。
+- 命中预登记分支 A：全量审计零 `DEFECT`，隔离题 0（不超过 5），三代保存态重评完成。
 - 有效集为 Q01-Q30 全部 30 题；无隔离题。
 - `scripts/audit_gold.py` 对 v1.1 的 79 个 `must_include` 槽位给出 76 `PASS`、0 `DEFECT`、3 `UNCERTAIN`。
 - 三条 `UNCERTAIN` 仅为 PM 明确裁决并携带注记的 Q04s3、Q13s3、Q20s1。
@@ -88,3 +88,11 @@ corpus_fingerprint: ef2d1fd2c414502140162508ef32838aaf8e4a56a6ab3678f9f57ed04f86
 `scripts/audit_gold.py` 常驻检查每个 `must_include` 的实体、归一指标、报告期、口径/单位，并要求合同声明的候选数字逐字存在于来源摘录。`scripts/refill_gold.py` 调用同一检查函数；候选值在任何一键失败时拒绝写入，同时校验授权槽位集合、旧值防陈旧和共享事实同值同源。
 
 v1.0曾让“候选摘录存在”替代“候选值与槽位定义一致”，使来源筛选、抽取回填和冻结审查三道防线被同一假设穿透。v1.1把槽位定义变成可执行合同，并以v1.0精确复现19个DEFECT作为阳性对照，防止审计器只对修订后数据有效。
+
+## Release Rejudge
+
+- G1/G2/G3保存态各30题可用，未命中分支C；每代均以judge 3采样中位数和同一citation_support验证器重评。
+- v1.1发布综合分序列：G1 `0.8337`、G2 `0.7714`、G3 `0.7982`。
+- 三代均为0结构化失败，Q08、Q16均成功反驳假前提。
+- 实际重评成本：G1 `1.65913960`元、G2 `1.67774040`元、G3 `1.65709656`元，合计`4.99397656`元。
+- 逐维、逐题、v1.0历史对照与验证声明见`data/golden_set/v1/results/v11_three_point_comparison.md`。

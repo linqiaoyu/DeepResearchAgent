@@ -218,6 +218,27 @@ class GoldenEvaluationTests(unittest.TestCase):
             )
         )
 
+    def test_golden_v11_release_results_use_complete_same_state_rounds(self) -> None:
+        base = project_root() / "data" / "golden_set" / "v1" / "results"
+        for generation in ("g1", "g2", "g3"):
+            payload = json.loads(
+                (base / f"{generation}_judge_v11.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(payload["gold_version"], "v1.1")
+            self.assertEqual(payload["judge_samples"], 3)
+            self.assertEqual(payload["structured_failures"], 0)
+            self.assertEqual(payload["summary"]["cases"], 30)
+
+        comparison = json.loads(
+            (base / "v11_three_point_comparison.json").read_text(encoding="utf-8")
+        )
+        self.assertTrue(
+            all(
+                item["research_ids_identical"]
+                for item in comparison["validation"].values()
+            )
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
