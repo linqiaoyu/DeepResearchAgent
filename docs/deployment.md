@@ -1,18 +1,18 @@
 # Deployment
 
-Status: 007 branch-B local release package. The public deployment step is
-blocked until `.env` contains `DEPLOY_SSH_HOST`, `DEPLOY_SSH_KEY_PATH`,
-`DEPLOY_PUBLIC_HOST`, and `DEMO_OWNER_TOKEN`. The local API/UI, demo assets,
-daily spend guard, and runbook are ready for server execution.
+Current public shape: static demo site. PM cancelled the always-on public
+server; `site/dist/` is built locally and manually uploaded to Cloudflare Pages.
+This document is now a self-deployment guide for the retained API/UI assets.
 
 ## Demo Layers
 
 - Showcase: `GET /demo`, `GET /demo/reports`, and the Streamlit Showcase tab
   serve curated G3 reports from `data/demo/g3_showcase.json`. This layer has no
   LLM, Tavily, AKShare, or judge calls.
-- Golden rerun: `POST /demo/rerun/{question_id}` runs LLM mode over Golden Set
-  frozen-corpus replay plus recorded structured-data fixtures. It uses
-  `DEEPRESEARCH_AS_OF=2026-07-09` and consumes no Tavily credit.
+- Golden rerun: `POST /demo/rerun/{question_id}` enqueues an asynchronous job
+  and `GET /demo/jobs/{job_id}` polls status and results. The job runs LLM mode
+  over Golden Set frozen-corpus replay plus recorded structured-data fixtures.
+  It uses `DEEPRESEARCH_AS_OF=2026-07-09` and consumes no Tavily credit.
 - Owner live: `POST /demo/live` requires `X-Demo-Owner-Token` matching
   `DEMO_OWNER_TOKEN`, then runs free-form LLM mode with live Tavily search.
 
@@ -76,7 +76,7 @@ curl -i -X POST http://localhost:8000/demo/live \
 The unauthenticated live call should return HTTP 403 without printing any key
 names or values.
 
-## Public Runbook
+## Self-Deployment Runbook
 
 All commands below must target only the host named by `DEPLOY_SSH_HOST`.
 
@@ -129,12 +129,12 @@ docker compose ps
 ```
 
 7. Configure log rotation through Docker daemon or host journald before sharing
-   the URL.
+   a self-hosted URL.
 
-## Public Smoke Checklist
+## Self-Hosted Smoke Checklist
 
-Use this after a public host is provisioned. Replace `BASE_URL` with the public
-API origin and `UI_URL` with the Streamlit URL.
+Use this after a host is provisioned. Replace `BASE_URL` with the API origin and
+`UI_URL` with the Streamlit URL.
 
 ```bash
 export BASE_URL=https://deepresearch.yulinqiao.com
@@ -156,7 +156,7 @@ Expected public smoke signals:
 - Unauthenticated `/demo/live` returns HTTP 403 without sensitive values.
 - The Streamlit root opens, shows the curated reports, and can call the API.
 
-Guardrail verification before making the URL public:
+Guardrail verification before sharing a self-hosted URL:
 
 1. Set `DEEPRESEARCH_DEMO_DAILY_LLM_LIMIT_CNY=0` in server `.env`.
 2. Restart Compose.
@@ -176,34 +176,11 @@ symbol resolve, financial indicators, and price history with
 `DEEPRESEARCH_STRUCTURED_DATA_PROVIDER=fixture` for the public demo and record
 the difference in the deployment log.
 
-If the public smoke fails, keep the README/demo wording local-only until the
-host is fixed. Do not present the public URL as live.
-
-## Recording Checklist
-
-Target length: 1-2 minutes. Show concrete outputs rather than explaining the
-architecture verbally for too long.
-
-1. Open README and point to the "not a generic RAG demo" differentiators.
-2. Run `PYTHONPATH=src .venv/bin/python scripts/run_demo.py`.
-3. Open the generated report and show footnote citations.
-4. Run `PYTHONPATH=src .venv/bin/python scripts/run_eval.py --limit 5 --compare-baseline`.
-5. Point to `Baseline comparison:` and `status: pass`.
-6. Run `PYTHONPATH=src .venv/bin/python scripts/run_checkpoint_demo.py`.
-7. Point to `paused_phase=critiquing paused_status=paused` and `resumed_phase=done resumed_status=done`.
-8. If a public host is live, show `/health`, `/metrics`, and one `/research/{id}/report` response.
-
-Recording acceptance criteria:
-
-- Report shows source-backed citation markers such as `[^1]`.
-- Evaluation shows citation accuracy, faithfulness, Critic catch rate, bad-case categories, cost, latency, and tokens.
-- Checkpoint demo shows pause and resume in one command.
-- No API keys or secrets appear on screen.
-- Any production gaps are stated honestly: deterministic fixture search by default, Tavily opt-in, SQLite MVP storage, synchronous API, and optional provider backlog.
+If the smoke fails, keep the API/UI assets local-only until the host is fixed.
 
 ## Expected Verification Endpoints
 
-After deployment, verify these public endpoints before marking the release live:
+After self-deployment, verify these endpoints before sharing the host:
 
 - API health: `/health`
 - Demo overview: `/demo`

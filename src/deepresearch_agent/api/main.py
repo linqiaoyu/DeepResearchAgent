@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from deepresearch_agent.api.demo import DemoLimitExceeded, DemoNotAuthorized, DemoService
+from deepresearch_agent.api.demo import DemoLimitExceeded, DemoNotAuthorized, DemoQueueFull, DemoService
 from deepresearch_agent.schemas import ResearchRequest, ResearchResponse
 from deepresearch_agent.settings import configure_langsmith_from_env
 from deepresearch_agent.workflow import DeepResearchEngine
@@ -95,19 +95,18 @@ if FastAPI is not None:
     @app.post("/demo/rerun/{question_id}")
     def demo_rerun(question_id: str) -> dict:
         try:
-            result = demo_service.rerun_golden(question_id)
+            return demo_service.rerun_golden(question_id)
         except KeyError:
             raise HTTPException(status_code=404, detail="golden question not found") from None
-        except DemoLimitExceeded as exc:
+        except (DemoLimitExceeded, DemoQueueFull) as exc:
             raise HTTPException(status_code=429, detail=str(exc)) from None
-        return {
-            "research_id": result.research_id,
-            "status": result.status,
-            "report": result.report,
-            "metrics": result.metrics,
-            "cost_cny": result.cost_cny,
-            "guard": result.guard,
-        }
+
+    @app.get("/demo/jobs/{job_id}")
+    def demo_job(job_id: str) -> dict:
+        try:
+            return demo_service.job(job_id)
+        except KeyError:
+            raise HTTPException(status_code=404, detail="demo job not found") from None
 
     @app.post("/demo/live")
     def demo_live(

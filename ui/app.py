@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -143,13 +144,34 @@ with tab_rerun:
     selected_question = st.selectbox("Golden question", list(labels))
     st.json(overview.get("guard", {}))
     if st.button("Run selected Golden case", type="primary"):
-        with st.spinner("Running LLM pipeline over frozen-corpus replay"):
-            result = api_post(f"/demo/rerun/{labels[selected_question]}")
+        result = api_post(f"/demo/rerun/{labels[selected_question]}")
         if "error" in result:
             st.error(result["error"])
         else:
-            st.json({key: result.get(key) for key in ("research_id", "status", "cost_cny", "guard")})
-            st.markdown(result.get("report", ""))
+            st.session_state["demo_job_id"] = result["job_id"]
+            st.rerun()
+    job_id = st.session_state.get("demo_job_id")
+    if job_id:
+        job = api_get(f"/demo/jobs/{job_id}")
+        if not job:
+            st.warning("Job status is unavailable.")
+        else:
+            st.json(
+                {
+                    key: job.get(key)
+                    for key in ("job_id", "question_id", "status", "queue_position", "error")
+                }
+            )
+            if job.get("status") in {"queued", "running"}:
+                with st.spinner("Golden rerun is queued or running"):
+                    time.sleep(2)
+                st.rerun()
+            elif job.get("status") == "done":
+                result = job.get("result", {})
+                st.json({key: result.get(key) for key in ("research_id", "status", "cost_cny", "guard")})
+                st.markdown(result.get("report", ""))
+            elif job.get("error"):
+                st.error(job["error"])
 
 with tab_live:
     topic = st.text_area("Live topic", "宁德时代 2024 年业绩与欧洲工厂扩张研究")

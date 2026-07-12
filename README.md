@@ -128,12 +128,25 @@ Or use Docker:
 docker compose up --build
 ```
 
-## Public Demo Architecture
+## Static Demo And Deployable Assets
 
-The deployable demo has three layers:
+Public touchpoint: static demo site, to be built locally and manually uploaded
+by PM to Cloudflare Pages. URL placeholder: `TBD by PM`.
+
+Build the static site:
+
+```bash
+PYTHONPATH=src .venv/bin/python scripts/build_site.py
+```
+
+The generated `site/dist/` directory is ignored by git and can be uploaded as a
+Cloudflare Pages artifact. It contains the project overview, five selected G3
+reports, methodology, and reproduction notes with no backend dependency.
+
+The repository also keeps deployable API/UI assets with three layers:
 
 - Showcase layer: precomputed G3 reports and Golden Set methodology from `data/demo/g3_showcase.json`; no LLM or search calls.
-- Golden rerun layer: selected Golden Set questions rerun through LLM mode with frozen-corpus replay and recorded structured-data fixtures; Tavily credit usage is zero.
+- Golden rerun layer: selected Golden Set questions run as asynchronous jobs through LLM mode with frozen-corpus replay and recorded structured-data fixtures; Tavily credit usage is zero.
 - Owner live layer: free-form topic plus live Tavily search, available only when `X-Demo-Owner-Token` matches `DEMO_OWNER_TOKEN`.
 
 Both paid layers share a persistent daily LLM spend guard. The default limit is
@@ -141,11 +154,8 @@ Both paid layers share a persistent daily LLM spend guard. The default limit is
 return HTTP 429 while the showcase layer remains available. LangSmith tracing is
 enabled only when `LANGSMITH_API_KEY` exists.
 
-The current branch-B deployment state has no public URL because server
-deployment credentials are absent from `.env`. Self-deployment instructions are
-in [docs/deployment.md](docs/deployment.md).
-
-For public URL smoke checks and the recording checklist, see [docs/deployment.md](docs/deployment.md).
+Self-deployment instructions for the API/UI assets are in
+[docs/deployment.md](docs/deployment.md).
 
 ## Optional Tavily Search
 

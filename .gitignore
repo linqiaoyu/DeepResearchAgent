@@ -13,3 +13,4 @@ data/runtime/
 .DS_Store
 .agent_handoff/
 _collab/
+site/dist/

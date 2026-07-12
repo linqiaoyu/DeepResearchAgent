@@ -23,6 +23,8 @@ class Settings:
     tavily_raw_content_char_limit: int = 40_000
     demo_daily_llm_limit_cny: float = 5.0
     demo_guard_path: Path = Path("data/runtime/demo_guard.json")
+    demo_job_path: Path = Path("data/runtime/demo_jobs.json")
+    demo_queue_limit: int = 3
     demo_as_of: date = date(2026, 7, 9)
 
 
@@ -41,6 +43,9 @@ def load_settings() -> Settings:
     demo_guard = Path(os.getenv("DEEPRESEARCH_DEMO_GUARD_PATH", "data/runtime/demo_guard.json"))
     if not demo_guard.is_absolute():
         demo_guard = root / demo_guard
+    demo_jobs = Path(os.getenv("DEEPRESEARCH_DEMO_JOB_PATH", "data/runtime/demo_jobs.json"))
+    if not demo_jobs.is_absolute():
+        demo_jobs = root / demo_jobs
     mode = os.getenv("DEEPRESEARCH_MODE", "deterministic")
     if mode not in {"deterministic", "llm"}:
         mode = "deterministic"
@@ -62,6 +67,8 @@ def load_settings() -> Settings:
         tavily_raw_content_char_limit=int(os.getenv("DEEPRESEARCH_TAVILY_RAW_CONTENT_CHAR_LIMIT", "40000")),
         demo_daily_llm_limit_cny=float(os.getenv("DEEPRESEARCH_DEMO_DAILY_LLM_LIMIT_CNY", "5.0")),
         demo_guard_path=demo_guard,
+        demo_job_path=demo_jobs,
+        demo_queue_limit=int(os.getenv("DEEPRESEARCH_DEMO_QUEUE_LIMIT", "3")),
         demo_as_of=date.fromisoformat(os.getenv("DEEPRESEARCH_DEMO_AS_OF", "2026-07-09")),
     )
 
