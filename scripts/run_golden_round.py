@@ -20,13 +20,40 @@ from deepresearch_agent.llm import LLMClient
 from deepresearch_agent.schemas import ResearchState
 from deepresearch_agent.workflow import DeepResearchEngine
 
+
 def main() -> None:
     args = _parse_args()
     _load_env(Path(args.env_path))
-    questions = json.loads(Path(args.questions).read_text(encoding="utf-8"))["questions"]
+    question_payload = json.loads(Path(args.questions).read_text(encoding="utf-8"))
+    questions = _effective_questions(question_payload)
+    if args.question_ids:
+        requested = [item.strip() for item in args.question_ids.split(",") if item.strip()]
+        requested_set = set(requested)
+        available = {str(item["id"]) for item in questions}
+        unknown = sorted(requested_set - available)
+        if unknown:
+            raise ValueError(f"--question-ids contains unavailable questions: {unknown}")
+        questions = [item for item in questions if str(item["id"]) in requested_set]
     if args.limit:
         questions = questions[: args.limit]
     state_path_map = _load_state_path_map(Path(args.state_path_map)) if args.state_path_map else {}
+    if state_path_map:
+        _validate_saved_states(questions, state_path_map)
+    if args.validate_only:
+        print(
+            json.dumps(
+                {
+                    "generation": args.generation,
+                    "gold_version": question_payload.get("meta", {}).get("version"),
+                    "effective_cases": len(questions),
+                    "state_map": args.state_path_map,
+                    "status": "available",
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return
 
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -52,6 +79,17 @@ def main() -> None:
             budget_cny=args.judge_budget_cny,
         )
     )
+    ledger_path = Path(args.ledger_path)
+    round_ledger_start = _ledger_cost_cny(ledger_path)
+    run_metadata = {
+        "generation": args.generation,
+        "gold_version": question_payload.get("meta", {}).get("version"),
+        "evaluation_as_of": args.as_of,
+        "judge_samples": args.judge_samples,
+        "effective_question_ids": [str(item["id"]) for item in questions],
+        "quarantined_question_ids": sorted(_quarantined_ids(question_payload)),
+        "state_path_map": args.state_path_map or None,
+    }
     results: list[dict[str, Any]] = []
     structured_failures = 0
     for index, case in enumerate(questions, 1):
@@ -60,7 +98,17 @@ def main() -> None:
         case_dir = work_dir / qid
         case_dir.mkdir(parents=True, exist_ok=True)
         os.environ["DEEPRESEARCH_STORAGE_PATH"] = str(case_dir / "research.db")
+        case_ledger_start = _ledger_cost_cny(ledger_path)
         try:
+            if (
+                args.combined_budget_cny > 0
+                and case_ledger_start + args.case_cost_reserve_cny > args.combined_budget_cny
+            ):
+                raise RuntimeError(
+                    "combined judge ledger budget reserve would be exceeded: "
+                    f"spent={case_ledger_start:.6f}, reserve={args.case_cost_reserve_cny:.6f}, "
+                    f"budget={args.combined_budget_cny:.6f}"
+                )
             if state_path := state_path_map.get(qid):
                 state = ResearchState.model_validate_json(Path(state_path).read_text(encoding="utf-8"))
             else:
@@ -88,11 +136,29 @@ def main() -> None:
                 "error": str(exc),
                 "latency_seconds": round(time.perf_counter() - started, 3),
             }
+        result["judge_cost_cny"] = round(
+            _ledger_cost_for_prefix(ledger_path, f"{args.round_id}-{qid}-"),
+            8,
+        )
         results.append(result)
-        _write_round(output_path, args.round_id, results, structured_failures)
+        _write_round(
+            output_path,
+            args.round_id,
+            results,
+            structured_failures,
+            run_metadata=run_metadata,
+            round_judge_cost_cny=_ledger_cost_cny(ledger_path) - round_ledger_start,
+        )
         print(f"{qid}: {result['status']}", flush=True)
 
-    _write_round(output_path, args.round_id, results, structured_failures)
+    _write_round(
+        output_path,
+        args.round_id,
+        results,
+        structured_failures,
+        run_metadata=run_metadata,
+        round_judge_cost_cny=_ledger_cost_cny(ledger_path) - round_ledger_start,
+    )
 
 
 def _score_case(
@@ -168,14 +234,24 @@ def _write_round(
     round_id: str,
     results: list[dict[str, Any]],
     structured_failures: int,
+    *,
+    run_metadata: dict[str, Any],
+    round_judge_cost_cny: float,
 ) -> None:
+    summary = aggregate_round_results(results)
+    summary["total_judge_cost_cny"] = round(
+        sum(float(item.get("judge_cost_cny", 0.0)) for item in results),
+        8,
+    )
+    summary["round_ledger_cost_cny"] = round(round_judge_cost_cny, 8)
     payload = {
         "round_id": round_id,
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        **run_metadata,
         "structured_failures": structured_failures,
         "structured_failure_rate": round(structured_failures / len(results), 4) if results else 0.0,
         "results": results,
-        "summary": aggregate_round_results(results),
+        "summary": summary,
     }
     output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -244,6 +320,77 @@ def _load_state_path_map(path: Path) -> dict[str, str]:
     return {str(key): str(value) for key, value in payload.items()}
 
 
+def _quarantined_ids(payload: dict[str, Any]) -> set[str]:
+    meta = payload.get("meta", {})
+    quarantined = {str(item) for item in meta.get("quarantined_question_ids", [])}
+    for item in meta.get("quarantine", []):
+        if isinstance(item, dict) and item.get("id"):
+            quarantined.add(str(item["id"]))
+        elif isinstance(item, str):
+            quarantined.add(item)
+    for question in payload.get("questions", []):
+        if question.get("freeze_status") == "quarantine":
+            quarantined.add(str(question["id"]))
+    return quarantined
+
+
+def _effective_questions(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    quarantined = _quarantined_ids(payload)
+    return [
+        question
+        for question in payload.get("questions", [])
+        if str(question.get("id")) not in quarantined
+    ]
+
+
+def _validate_saved_states(
+    questions: list[dict[str, Any]],
+    state_path_map: dict[str, str],
+) -> None:
+    required = [str(item["id"]) for item in questions]
+    missing_keys = [qid for qid in required if qid not in state_path_map]
+    if missing_keys:
+        raise ValueError(f"saved-state map missing effective questions: {missing_keys}")
+    for qid in required:
+        path = Path(state_path_map[qid])
+        if not path.is_file():
+            raise FileNotFoundError(f"{qid} saved state unavailable: {path}")
+        try:
+            ResearchState.model_validate_json(path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            raise ValueError(f"{qid} saved state is invalid: {path}: {exc}") from exc
+
+
+def _ledger_cost_cny(path: Path) -> float:
+    if not path.exists():
+        return 0.0
+    total = 0.0
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            total += float(json.loads(line).get("cost_cny", 0.0))
+        except json.JSONDecodeError:
+            continue
+    return total
+
+
+def _ledger_cost_for_prefix(path: Path, run_id_prefix: str) -> float:
+    if not path.exists():
+        return 0.0
+    total = 0.0
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if str(row.get("run_id", "")).startswith(run_id_prefix):
+            total += float(row.get("cost_cny", 0.0))
+    return total
+
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run Golden Set v1 evaluation round.")
     parser.add_argument("--questions", default="data/golden_set/v1/questions.json")
@@ -256,10 +403,15 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--as-of", required=True)
     parser.add_argument("--depth", type=int, default=1)
     parser.add_argument("--limit", type=int, default=0)
+    parser.add_argument("--question-ids", default="")
     parser.add_argument("--state-path-map", default="")
+    parser.add_argument("--generation", default="")
+    parser.add_argument("--validate-only", action="store_true")
     parser.add_argument("--judge-samples", type=int, default=3)
     parser.add_argument("--run-budget-cny", type=float, default=3.0)
     parser.add_argument("--judge-budget-cny", type=float, default=3.0)
+    parser.add_argument("--combined-budget-cny", type=float, default=0.0)
+    parser.add_argument("--case-cost-reserve-cny", type=float, default=0.12)
     return parser.parse_args()
 
 

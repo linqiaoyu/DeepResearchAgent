@@ -2,9 +2,9 @@
   "summary": {
     "slots": 79,
     "counts": {
+      "PASS": 76,
       "DEFECT": 0,
-      "UNCERTAIN": 3,
-      "PASS": 76
+      "UNCERTAIN": 3
     },
     "defect_slots": [],
     "uncertain_slots": [

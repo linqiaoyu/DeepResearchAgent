@@ -6,7 +6,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
-AUDIT_STATUSES = {"PASS", "DEFECT", "UNCERTAIN"}
+AUDIT_STATUSES = ("PASS", "DEFECT", "UNCERTAIN")
 PM_UNCERTAIN_SLOTS = {("Q04", 3), ("Q13", 3), ("Q20", 1)}
 PM_PROMOTED_DEFECTS = {
     ("Q26", 1): "PM 将无公告/开工日期、却回填规划产能的槽位升格为 DEFECT。",
