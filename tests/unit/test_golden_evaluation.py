@@ -191,8 +191,23 @@ class GoldenEvaluationTests(unittest.TestCase):
         path = project_root() / "data" / "golden_set" / "v1" / "questions.json"
         payload = json.loads(path.read_text(encoding="utf-8"))
 
-        self.assertEqual(payload["meta"]["version"], "v1.0")
-        self.assertLessEqual(payload["meta"]["quarantine_count"], 3)
+        self.assertEqual(payload["meta"]["version"], "v1.1")
+        self.assertEqual(payload["meta"]["status"], "frozen")
+        self.assertLessEqual(payload["meta"]["quarantine_count"], 5)
+        self.assertEqual(payload["meta"]["gold_audit"]["defect"], 0)
+        audit = json.loads(
+            (project_root() / "data" / "golden_set" / "v1" / "audit_v11.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertEqual(
+            audit["summary"]["counts"],
+            {"DEFECT": 0, "UNCERTAIN": 3, "PASS": 76},
+        )
+        self.assertEqual(
+            audit["summary"]["uncertain_slots"],
+            ["Q04s3", "Q13s3", "Q20s1"],
+        )
         self.assertEqual(validate_golden_design(payload), [])
         self.assertEqual(len(payload["questions"]), 30)
         self.assertTrue(

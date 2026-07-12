@@ -1,0 +1,2151 @@
+{
+  "summary": {
+    "slots": 79,
+    "counts": {
+      "DEFECT": 0,
+      "UNCERTAIN": 3,
+      "PASS": 76
+    },
+    "defect_slots": [],
+    "uncertain_slots": [
+      "Q04s3",
+      "Q13s3",
+      "Q20s1"
+    ]
+  },
+  "rows": [
+    {
+      "question_id": "Q01",
+      "slot": 1,
+      "fact": "2024营业总收入及同比",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：贵州茅台"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "归一指标匹配：['营业收入']"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期匹配：2024年度"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "口径/单位匹配：累计 / ['亿元', '%']"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "候选数字均在摘录内：1741.44, 15.66"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q01",
+      "slot": 2,
+      "fact": "2024归母净利润及同比",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：贵州茅台"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "归一指标匹配：['归母净利润']"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期匹配：2024年度"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "口径/单位匹配：累计 / ['亿元', '%']"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "候选数字均在摘录内：862.28, 15.38"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q01",
+      "slot": 3,
+      "fact": "茅台酒与系列酒收入拆分",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：贵州茅台"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024财年（年度报告）"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：1738, 15.44"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q02",
+      "slot": 1,
+      "fact": "2024营收及同比",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：长江电力"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "归一指标匹配：['营业收入']"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024财年"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：844.9, 8.2"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q02",
+      "slot": 2,
+      "fact": "2024归母净利润及同比",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：长江电力"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "归一指标匹配：['归母净利润']"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期匹配：2024年度"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "口径/单位匹配：累计 / ['亿元', '%']"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "候选数字均在摘录内：325.0, 19.3"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q02",
+      "slot": 3,
+      "fact": "2024总发电量及同比",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：长江电力"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "归一指标匹配：['发电量']"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期匹配：2024年度"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "口径/单位匹配：累计 / ['亿千瓦时', '%']"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "候选数字均在摘录内：2959.04, 7.11"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q03",
+      "slot": 1,
+      "fact": "2024营收及同比",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：比亚迪"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "归一指标匹配：['营业收入']"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期匹配：2024年度"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "口径/单位匹配：累计 / ['亿元', '%']"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "候选数字均在摘录内：7771.02, 29.02"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q03",
+      "slot": 2,
+      "fact": "2024归母净利润及同比",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：比亚迪"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "归一指标匹配：['归母净利润']"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期匹配：2024年度"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "口径/单位匹配：累计 / ['亿元', '%']"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "候选数字均在摘录内：402.54, 34.00"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q03",
+      "slot": 3,
+      "fact": "两大业务板块收入占比",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：比亚迪"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024财年"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：34.60"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q04",
+      "slot": 1,
+      "fact": "2024营收及同比（方向为降）",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：宁德时代"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "归一指标匹配：['营业收入']"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期匹配：2024年度"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "口径/单位匹配：累计 / ['亿元', '%']"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "候选数字均在摘录内：3620.13, 9.70"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q04",
+      "slot": 2,
+      "fact": "2024归母净利润及同比（方向为增）",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：宁德时代"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "归一指标匹配：['归母净利润']"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024财年"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：507.45, 15.01"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q04",
+      "slot": 3,
+      "fact": "成因要点（原材料价格下行传导至售价）",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：宁德时代"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "UNCERTAIN",
+        "detail": "Q04s3保留2024Q1机制证据，仅说明原材料价格下行向售价传导；不把Q1数值当作2024全年成因的数值结论。"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "口径/单位匹配：机制性证据 / ['语义']"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "候选数字均在摘录内：无数值"
+      },
+      "verdict": "UNCERTAIN",
+      "note": "Q04s3保留2024Q1机制证据，仅说明原材料价格下行向售价传导；不把Q1数值当作2024全年成因的数值结论。"
+    },
+    {
+      "question_id": "Q05",
+      "slot": 1,
+      "fact": "四个单季归母净利润",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：京东方A"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "归一指标匹配：['归母净利润']"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期匹配：2024四个单季"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "口径/单位匹配：单季 / ['元']"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "候选数字均在摘录内：983,812,692, 1,300,238,662, 1,025,714,296, 2,013,483,324"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q05",
+      "slot": 2,
+      "fact": "全年累计归母净利润",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：京东方A"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "归一指标匹配：['归母净利润']"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期匹配：2024全年"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "口径/单位匹配：累计 / ['元']"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "候选数字均在摘录内：5,323,248,974"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q05",
+      "slot": 3,
+      "fact": "单季与累计口径区分的显式说明",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：京东方A"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "归一指标匹配：['归母净利润']"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期匹配：2024单季与全年累计"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "口径/单位匹配：单季与累计 / ['元']"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "候选数字均在摘录内：无数值"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q06",
+      "slot": 1,
+      "fact": "2024整体收入及同比",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：药明康德"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024财年"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：无强制数值"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q06",
+      "slot": 2,
+      "fact": "剔除新冠项目口径收入同比",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：药明康德"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024财年"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：无强制数值"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q06",
+      "slot": 3,
+      "fact": "两口径差异成因说明",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：药明康德"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024财年"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：无强制数值"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q07",
+      "slot": 1,
+      "fact": "2024营收及同比",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：招商银行"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "归一指标匹配：['营业收入']"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024财年"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：1483.91, 1.22"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q07",
+      "slot": 2,
+      "fact": "2024归母净利润及同比",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：招商银行"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "归一指标匹配：['归母净利润']"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024财年"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：1483.91, 1.22"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q07",
+      "slot": 3,
+      "fact": "2024净息差",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：招商银行"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "归一指标匹配：['净息差']"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期匹配：2024年度"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "口径/单位匹配：年度 / ['%', '个百分点']"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "候选数字均在摘录内：1.98, 0.17"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q07",
+      "slot": 4,
+      "fact": "利润正增长路径（拨备/减值相关）",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：招商银行"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024财年"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：1483.91, 1.22"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q08",
+      "slot": 1,
+      "fact": "2024营业总收入实际同比（正增长）",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：贵州茅台"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "归一指标匹配：['营业收入']"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期匹配：2024年度"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "口径/单位匹配：累计 / ['亿元', '%']"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "候选数字均在摘录内：1741.44, 15.66"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q08",
+      "slot": 2,
+      "fact": "对题目前提的显式反驳",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：贵州茅台"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024财年"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：21.31, 56.39"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q09",
+      "slot": 1,
+      "fact": "2024全球装机量两家数值与份额",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：宁德时代, 比亚迪"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "归一指标匹配：['装机量']"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期匹配：SNE Research 2024年度"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "口径/单位匹配：累计 / ['GWh', '%']"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "候选数字均在摘录内：339.3, 37.9, 153.7, 17.2"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q09",
+      "slot": 2,
+      "fact": "装机与出货口径区别的显式说明",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：比亚迪"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024自然年（全球装机口径以SNE Research年度统计为准）"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：17.2, 1.3"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q09",
+      "slot": 3,
+      "fact": "排名结论（宁德第一）",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：宁德时代"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "归一指标匹配：['装机量']"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期匹配：SNE Research 2024年度"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "口径/单位匹配：累计 / ['GWh', '%']"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "候选数字均在摘录内：339.3, 37.9"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q10",
+      "slot": 1,
+      "fact": "两家2024收入及同比",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：贵州茅台, 五粮液"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024财年"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：891.75"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q10",
+      "slot": 2,
+      "fact": "两家2024归母净利润",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：贵州茅台, 五粮液"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "归一指标匹配：['归母净利润']"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024财年"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：891.75"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q10",
+      "slot": 3,
+      "fact": "净利率对比结论",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：贵州茅台, 五粮液"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024财年"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：891.75"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q11",
+      "slot": 1,
+      "fact": "两家2024营收及归母净利润",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：美的集团, 格力电器"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "归一指标匹配：['归母净利润', '营业收入']"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期匹配：2024年度"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "口径/单位匹配：年度累计 / ['亿元']"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "候选数字均在摘录内：4071.50, 385.37, 1900.38, 321.85"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q11",
+      "slot": 2,
+      "fact": "多元化程度差异（美的ToB占比vs格力空调主导）",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：美的集团"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024财年"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：385"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q12",
+      "slot": 1,
+      "fact": "两家2024产能（8英寸约当）",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：中芯国际"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024财年（分季度产能利用率可引用）"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：无强制数值"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q12",
+      "slot": 2,
+      "fact": "两家2024产能利用率区间",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：中芯国际"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024财年（分季度产能利用率可引用）"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：无强制数值"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q12",
+      "slot": 3,
+      "fact": "8英寸约当口径解释",
+      "entity": {
+        "status": "PASS",
+        "detail": "摘录未显式写出实体；未发现与题目实体冲突"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024财年（分季度产能利用率可引用）"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：无强制数值"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q13",
+      "slot": 1,
+      "fact": "两家2024组件出货量",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：隆基绿能"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "归一指标匹配：['出货量']"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024财年"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：100"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q13",
+      "slot": 2,
+      "fact": "两家2024归母净利润（含盈亏方向）",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：隆基绿能, 晶科能源"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "归一指标匹配：['归母净利润']"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期匹配：2024年度"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "口径/单位匹配：年度累计 / ['元', '亿元']"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "候选数字均在摘录内：-8,617,528,506.44, 0.99"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q13",
+      "slot": 3,
+      "fact": "出货口径标注",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：晶科能源, 隆基绿能"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "归一指标匹配：['出货量']"
+      },
+      "period": {
+        "status": "UNCERTAIN",
+        "detail": "Q13s3保留2023口径结构证据，仅说明披露结构延续；不计入2024组件出货量或利润数值。"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "口径/单位匹配：口径结构 / ['语义']"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "候选数字均在摘录内：无数值"
+      },
+      "verdict": "UNCERTAIN",
+      "note": "Q13s3保留2023口径结构证据，仅说明披露结构延续；不计入2024组件出货量或利润数值。"
+    },
+    {
+      "question_id": "Q14",
+      "slot": 1,
+      "fact": "两板块2024收入",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：比亚迪"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "归一指标匹配：['营业收入']"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期匹配：2024年度"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "口径/单位匹配：年度累计 / ['亿元', '%']"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "候选数字均在摘录内：6173.82, 27.70, 1596.09, 34.60"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q14",
+      "slot": 2,
+      "fact": "两板块毛利率",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：比亚迪"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "归一指标匹配：['毛利率']"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期匹配：2024年度"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "口径/单位匹配：年度 / ['%']"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "候选数字均在摘录内：22.31, 8.34"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q15",
+      "slot": 1,
+      "fact": "两板块2024收入及同比",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：宁德时代"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024财年"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：572.90"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q15",
+      "slot": 2,
+      "fact": "两板块毛利率",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：宁德时代"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "归一指标匹配：['毛利率']"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024财年"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：572.90"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q16",
+      "slot": 1,
+      "fact": "2024装机份额实际排序（宁德>比亚迪）",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：宁德时代, 比亚迪"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "归一指标匹配：['装机量']"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期匹配：SNE Research 2024年度"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "口径/单位匹配：累计 / ['GWh', '%']"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "候选数字均在摘录内：339.3, 37.9, 153.7, 17.2"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q16",
+      "slot": 2,
+      "fact": "对\"反超\"前提的显式反驳",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：比亚迪"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024自然年"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：无强制数值"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q17",
+      "slot": 1,
+      "fact": "主要技术路线清单（硫化物/氧化物/聚合物等）",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：不适用"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024-01至2025-12公开信息"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：无强制数值"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q17",
+      "slot": 2,
+      "fact": "至少三家厂商公开时间表及口径",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：不适用"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024-01至2025-12公开信息"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：无强制数值"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q17",
+      "slot": 3,
+      "fact": "核心瓶颈（成本/界面/工艺）",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：不适用"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024-01至2025-12公开信息"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：无强制数值"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q18",
+      "slot": 1,
+      "fact": "主产业链环节2024价格走势方向",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：不适用"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024自然年（自律进展可延至2025上半年）"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：65, 39, 40"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q18",
+      "slot": 2,
+      "fact": "行业亏损面概况",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：不适用"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024自然年（自律进展可延至2025上半年）"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：无强制数值"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q18",
+      "slot": 3,
+      "fact": "自律/政策关键节点",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：不适用"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024自然年（自律进展可延至2025上半年）"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：无强制数值"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q19",
+      "slot": 1,
+      "fact": "趋势方向及规模量级",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：不适用"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024-01至2025-12"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：500"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q19",
+      "slot": 2,
+      "fact": "两笔代表性交易（双方/标的/金额结构）",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：不适用"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024-01至2025-12"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：40"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q19",
+      "slot": 3,
+      "fact": "总金额与首付款口径区分",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：恒瑞医药"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期匹配：2024年交易"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "口径/单位匹配：潜在总额与首付款 / ['亿美元', '万美元']"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "候选数字均在摘录内：60, 1, 1000"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q20",
+      "slot": 1,
+      "fact": "关键政策节点",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：深圳"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "UNCERTAIN",
+        "detail": "Q20s1仅以2024年深圳条例节点计分；原2020年以来安徽政策降级为背景注记，不再作为计分值。"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "口径/单位匹配：政策节点 / ['语义']"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "候选数字均在摘录内：无数值"
+      },
+      "verdict": "UNCERTAIN",
+      "note": "Q20s1仅以2024年深圳条例节点计分；原2020年以来安徽政策降级为背景注记，不再作为计分值。"
+    },
+    {
+      "question_id": "Q20",
+      "slot": 2,
+      "fact": "已落地进展实例",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：不适用"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024-01至2025-12"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：无强制数值"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q20",
+      "slot": 3,
+      "fact": "愿景与现状的显式区分",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：不适用"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024-01至2025-12"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：无强制数值"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q21",
+      "slot": 1,
+      "fact": "2024行业净息差水平及走势",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：不适用"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "归一指标匹配：['净息差']"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024自然年（监管披露口径）"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：无强制数值"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q21",
+      "slot": 2,
+      "fact": "成因（LPR下行/存量按揭调整/负债成本）",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：不适用"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024自然年（监管披露口径）"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：无强制数值"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q21",
+      "slot": 3,
+      "fact": "应对方式要点",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：不适用"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024自然年（监管披露口径）"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：无强制数值"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q22",
+      "slot": 1,
+      "fact": "需求驱动要点",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：不适用"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024-01至2025-12"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：无强制数值"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q22",
+      "slot": 2,
+      "fact": "至少两家代表公司业绩印证",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：不适用"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024-01至2025-12"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：无强制数值"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q22",
+      "slot": 3,
+      "fact": "口径差异说明",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：不适用"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024-01至2025-12"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：无强制数值"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q23",
+      "slot": 1,
+      "fact": "政策关键内容与出台时间",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：不适用"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024自然年"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：无强制数值"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q23",
+      "slot": 2,
+      "fact": "官方口径拉动效果数据",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：不适用"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024自然年"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：2700"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q24",
+      "slot": 1,
+      "fact": "关键变动节点（日期/人物/职务）",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：贵州茅台"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024自然年"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：无强制数值"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q25",
+      "slot": 1,
+      "fact": "递表/聆讯/定价/挂牌日期",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：美的集团"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024自然年"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：54.80"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q25",
+      "slot": 2,
+      "fact": "发行规模量级",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：美的集团"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024自然年"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：54.8"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q26",
+      "slot": 1,
+      "fact": "项目公告与开工关键日期",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：宁德时代"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期匹配：公告与启动/施工节点"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "口径/单位匹配：公告、启动与施工 / ['语义']"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "候选数字均在摘录内：无数值"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q26",
+      "slot": 2,
+      "fact": "规划产能与投资额",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：宁德时代"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：项目公告日至2025-12-31"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：100"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q26",
+      "slot": 3,
+      "fact": "规划vs已建成的显式区分",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：宁德时代"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：项目公告日至2025-12-31"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：73.4, 100"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q27",
+      "slot": 1,
+      "fact": "泰国工厂投产节点",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：比亚迪"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024自然年"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：无强制数值"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q27",
+      "slot": 2,
+      "fact": "滚装船关键事件及正确事件类型标注",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：比亚迪"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024自然年"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：无强制数值"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q28",
+      "slot": 1,
+      "fact": "协会倡议与重点会议节点",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：不适用"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024自然年（可延至2025上半年）"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：无强制数值"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q28",
+      "slot": 2,
+      "fact": "倡议与执行的显式区分",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：不适用"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024自然年（可延至2025上半年）"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：无强制数值"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q29",
+      "slot": 1,
+      "fact": "全年资本开支及币种口径",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：中芯国际"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "归一指标匹配：['资本开支']"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024财年逐季"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：73.3"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q29",
+      "slot": 2,
+      "fact": "指引调整节点",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：中芯国际"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "归一指标匹配：['资本开支']"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期匹配：2024年初指引与全年实际"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "口径/单位匹配：指引与实际 / ['亿美元']"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "候选数字均在摘录内：7.47, 73.3"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q30",
+      "slot": 1,
+      "fact": "关键立法节点及正确阶段标注",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：药明康德"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024-01-01至2024-12-31"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：无强制数值"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q30",
+      "slot": 2,
+      "fact": "公司主要回应节点",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：药明康德"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024-01-01至2024-12-31"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：无强制数值"
+      },
+      "verdict": "PASS",
+      "note": ""
+    },
+    {
+      "question_id": "Q30",
+      "slot": 3,
+      "fact": "2024年内法案未成为法律的明确结论",
+      "entity": {
+        "status": "PASS",
+        "detail": "实体匹配：药明康德"
+      },
+      "metric": {
+        "status": "PASS",
+        "detail": "非归一表数值指标/定性槽位"
+      },
+      "period": {
+        "status": "PASS",
+        "detail": "报告期与 time_anchor 匹配或无显式冲突：2024-01-01至2024-12-31"
+      },
+      "scope_unit": {
+        "status": "PASS",
+        "detail": "未发现累计/单季、范围或单位的显式冲突"
+      },
+      "numeric_excerpt": {
+        "status": "PASS",
+        "detail": "数值在摘录内：无强制数值"
+      },
+      "verdict": "PASS",
+      "note": ""
+    }
+  ]
+}

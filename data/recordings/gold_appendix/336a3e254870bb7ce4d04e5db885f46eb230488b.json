@@ -1,0 +1,59 @@
+{
+  "metadata": {
+    "key": "{\"query\":\"中芯国际 2024q1 2024q2 2024q3 业绩 资本开支 亿美元\",\"source_type\":\"official\",\"top_k\":5}",
+    "query": "中芯国际 2024Q1 2024Q2 2024Q3 业绩 资本开支 亿美元",
+    "top_k": 5,
+    "source_type": "official",
+    "as_of": "2026-07-12",
+    "recorded_at": "2026-07-12T15:50:46Z",
+    "status": "complete",
+    "error_type": null
+  },
+  "sources": [
+    {
+      "id": "tavily-b6647876c02d",
+      "title": "中芯国际：平均销售单价环比上升6% 今年资本开支75亿美元 ...",
+      "url": "/goto?url=CAESfQHuR6pNz55uA2QIcXumVm5vhujagnNOnnOE4VLUes1qYJTi8QaPYsuEGejDknFKJ6IuFLbdwzFaRvUHG0V2hdqKgx6mH1M8T-GYaoCESaBaDPtaBqcEtQHLtm3md9HQZ5BzciCet6Xu5aspkzfAXCcSiBOdCh351RXuo7r-",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "Feb 14, 2025 — 中芯国际2024年第四季度业绩如下：. 销售收入为22.07亿美元, 环比增长1.7%。 毛利率为22.6%，环比上升，环比上升2.1个百分点。Read more",
+      "credibility": 0.867
+    },
+    {
+      "id": "tavily-8a1b72971447",
+      "title": "2024 年度业绩解读：中芯国际，不止全球第二这么简单！",
+      "url": "/goto?url=CAESbwHuR6pNp9MgiUskHAkmJ4PLlSq-bowArLymvViUutZxbwAfdg-_jsNQsDQmVTGJxC8oqCnMgIduq65twyeGhVIDl-PKvvdBxO30IkUmsp7l9NIZ3kDMzUJ1p-Vb20hBSPTBj2bkhCOZzuRmSfWS5g%3D%3D",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "Feb 11, 2025 — 业绩快报中披露，2024 年中芯国际的资本开支约73.3 亿美元，换算为人民币后. 同样超过500 亿，与2023 年基本持平。 对于2025 年的资本开支水平，此前 ...Read more10 pages",
+      "credibility": 0.859
+    },
+    {
+      "id": "tavily-9b8244224f4b",
+      "title": "超80亿美元！中芯国际2024年营收创历史新高，净利润减两成",
+      "url": "/goto?url=CAESZwHuR6pNSmhQFAq0hDQ2WCpsSFR8vrwvWpdbzPV10SlUumTCqo3uGXCeN3Ux2I08WRNnRIp0NV21fa0km9X4NT2QTd2f2rvMyTsTbuHQ-HOy_HHIP0j9ygahZIJWyr4E4AoLlubkBok%3D",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "2024年中芯国际的资本开支，与2023年基本持平，不过仍然维持在高位，近73.3亿美元 ... 台积电董事长魏哲家表示，2024年台积电资本开支为297.6亿美元，同比上涨0.7%。Read more",
+      "credibility": 0.859
+    },
+    {
+      "id": "tavily-07fe622c790b",
+      "title": "指引暴雷，基金减持，股价大跌，中芯国际怎么了？",
+      "url": "/goto?url=CAESXQHuR6pNKHUHXwz-N7YTInCh7A7xjBmV1R8pHaP31sX5--TBwFeI3ouvdRBdNWoSlUoc4Wy2zcTvz6WThYKpmyqJ4mttjlzCsHJfIoNEl90d0cGQ1C13jbVnJ-Vg0w%3D%3D",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "May 9, 2025 — ... 业绩正在加速对象高昂的估值溢价。 现在中芯国际的先进制程量产又在加速，公司2024全年资本开支73.3亿美元，折旧摊销费用同比增长23.3%达32.2亿美元。Read more",
+      "credibility": 0.84
+    },
+    {
+      "id": "tavily-774e4ae2844e",
+      "title": "中芯國際Q1營收創高利潤飆127倍但Q2財測大砍專家",
+      "url": "/goto?url=CAEShAMB7keqTYjr2dGz5sndN-v6uGuHrJ2wVhi5or6SP9aFZ1t9MmQgxWDIlrNSZdgWUgWqeQh-e6GngSuBloiu1_XKjH0WtL0PSpMijKOrun54JQxTAmu5svT_NQdd-zCoLEH-vWqgFZVqpYG5SggJTsNKWGqQA_afYL_iTLQMy80halzhWe42v2jrQjONl39GNEIS63w0Nmdf8yDnQTNPW4Z54N8EZ0idCHumU76BFs1RuDOkCsC2jqRz9Xd0TucFQY8_R-93-YtR7ujMp6k06Pdrr3BTq1rdboQRnoyL2I_pn3EBDADoLNa-2xMUUw9GQPeUCS1mNpS2BR_OsWcoqV1j89HIT8inOu5CllnYamt2eAEB-UuK81FkIJjIZrLOWD3ivyWhvOUE84sllSujDE0_fwfaH8nNS6XyuaEHc5LPa26TqaPz7p7LBSfwlZJuA9K-O5sFtAWf7hi3h0oOQVr1TMrX1uGw9UlD8EPOjvOXTOhJkIwt5QIth84326KUX5mEHHmS",
+      "source_type": "web",
+      "published_at": "1970-01-01",
+      "content": "May 9, 2025 — 產能方面，月產能從94.7 萬片8 吋晶圓增至97.3 萬片，但資本開支維持14.155 億美元，顯示擴產腳步趨謹慎。 值得關注的是， ...Read more",
+      "credibility": 0.733
+    }
+  ]
+}
