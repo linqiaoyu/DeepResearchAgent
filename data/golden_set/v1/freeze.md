@@ -1,8 +1,8 @@
 # Golden Set v1.1 Freeze Note
 
-version: v1.1  
-status: frozen  
-evaluation_as_of: 2026-07-12  
+version: v1.1
+status: frozen
+evaluation_as_of: 2026-07-12
 corpus_fingerprint: ef2d1fd2c414502140162508ef32838aaf8e4a56a6ab3678f9f57ed04f86960e
 
 ## Freeze Decision
