@@ -398,7 +398,7 @@ class DemoService:
             self.guard.assert_can_start()
             run_stamp = f"{run_label}-{int(time.time() * 1000)}"
             storage_path = self.runtime_dir / f"{run_stamp}.db"
-            ledger_path = self.runtime_dir / "llm_ledger.jsonl"
+            ledger_path = self.settings.llm_ledger_path
             env = {
                 "DEEPRESEARCH_MODE": "llm",
                 "DEEPRESEARCH_SEARCH_PROVIDER": search_provider,
@@ -407,7 +407,7 @@ class DemoService:
                 "DEEPRESEARCH_STRUCTURED_DATA_PROVIDER": "fixture",
                 "DEEPRESEARCH_STORAGE_PATH": str(storage_path),
                 "DEEPRESEARCH_LLM_LEDGER_PATH": str(ledger_path),
-                "DEEPRESEARCH_LLM_BUDGET_CNY": "3.0",
+                "DEEPRESEARCH_LLM_BUDGET_CNY": str(self.settings.llm_budget_cny),
                 "DEEPRESEARCH_AS_OF": self.settings.demo_as_of.isoformat(),
             }
             with _temporary_environ(env):
