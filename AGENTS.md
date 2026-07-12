@@ -4,7 +4,7 @@
 
 DeepResearchAgent 是一个多 Agent 深度研究框架，金融投研为首个落地场景。
 
-当前仓库处于 MVP 阶段：已实现确定性的 Planner、Researcher、Extractor、Critic、Reporter、Evaluator 工作流；默认使用本地 fixture 检索数据与录制结构化金融数据；编排层已迁移为 LangGraph `StateGraph`，Researcher 按子问题 fan-out，Critic 通过条件边回流 retry queue；checkpoint 由官方 `SqliteSaver` 写入 SQLite，Evidence 和 evaluation 结果由 `SQLiteStore` 写入 SQLite；LLM 模式通过统一 LiteLLM 层覆盖 Planner、Extractor、Reporter，Researcher 与 Critic 当前仍保持确定性；已接入 AKShare 白名单结构化数据边界、五元素数字 claim 口径体系、金融化 Critic；006R3 已冻结 Golden Set v1，006V 已用 qwen3.7-plus 重评 G1，006F2 已移除 reporter 词法回填并以 evidence_ids 修复重试完成 G3 同判官闭环；007 已加入三层公网演示实现（G3 展示层、Golden replay 重跑层、owner-token live 层）与持久化日消耗护栏，当前因本地缺 Docker 命令且 `.env` 缺部署服务器凭据而未完成公网部署；当前主推理模型锁定 deepseek-v4-flash，judge 与 citation_support 锁定 qwen3.7-plus；CLI demo、LLM smoke、Golden Set runner、FastAPI demo endpoints 和 unittest 套件已在本地 `.venv` 验证过相应路径。
+当前仓库处于 MVP 阶段：已实现确定性的 Planner、Researcher、Extractor、Critic、Reporter、Evaluator 工作流；默认使用本地 fixture 检索数据与录制结构化金融数据；编排层已迁移为 LangGraph `StateGraph`，Researcher 按子问题 fan-out，Critic 通过条件边回流 retry queue；checkpoint 由官方 `SqliteSaver` 写入 SQLite，Evidence 和 evaluation 结果由 `SQLiteStore` 写入 SQLite；LLM 模式通过统一 LiteLLM 层覆盖 Planner、Extractor、Reporter，Researcher 与 Critic 当前仍保持确定性；已接入 AKShare 白名单结构化数据边界、五元素数字 claim 口径体系、金融化 Critic；006R3 已冻结 Golden Set v1，006V 已用 qwen3.7-plus 重评 G1，006F2 已移除 reporter 词法回填并以 evidence_ids 修复重试完成 G3 同判官闭环；007/007S 已加入三层演示资产（G3 展示层、异步 Golden replay 重跑层、owner-token live 层）与持久化日消耗护栏，公开触达形态改为静态演示站，由 `scripts/build_site.py` 生成 `site/dist/` 后手工上传；007S gold 只读审计发现 7 条 REVIEW 项且 AKShare live 全部失败，待 PM 决定是否递增 v1.1；当前主推理模型锁定 deepseek-v4-flash，judge 与 citation_support 锁定 qwen3.7-plus；CLI demo、LLM smoke、Golden Set runner、FastAPI demo endpoints、静态站构建和 unittest 套件已在本地 `.venv` 验证过相应路径。
 
 本项目是作品集和演示导向项目，但实现选择仍应能解释为生产化工程决策。
 
@@ -74,7 +74,7 @@ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 DEEPRESEARCH_SEARCH_PROVIDER=fixture DE
 PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_golden_round.py --questions data/golden_set/v1/questions.json --output data/golden_set/v1/results/round1.json --work-dir _collab/006r3_recording-completion/round1 --round-id round1 --as-of 2026-07-09 --ledger-path _collab/006r3_recording-completion/round_llm_ledger.jsonl --judge-samples 3 --state-path-map _collab/006r3_recording-completion/state_path_map.json
 ```
 
-007 已验证 FastAPI/Uvicorn demo endpoints（展示层、方法论、报告读取、owner live 无令牌 403、护栏触顶 429）。本机未安装 `docker`/`podman`，因此 Docker/Compose 构建运行仍未在本地验证；Streamlit 入口未做浏览器级验证。
+007 已验证 FastAPI/Uvicorn demo endpoints（展示层、方法论、报告读取、owner live 无令牌 403、护栏触顶 429）。007S 已验证异步 demo rerun 的 mock 队列/轮询/重启恢复/护栏测试和 `scripts/build_site.py` 静态站构建；本机未安装 `docker`/`podman`，因此 Docker/Compose 构建运行仍未在本地验证；Streamlit 入口未做浏览器级验证。
 
 ## 5. 编码规范
 
