@@ -30,6 +30,9 @@ class StaticSiteBuildTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             reports = Path(tmp) / "reports"
             reports.mkdir()
+            (Path(tmp) / "methodology.html").write_text(
+                "0.6134 + 0.1865 - 0.0585 = 0.7414", encoding="utf-8"
+            )
             (reports / "Q01.html").write_text(
                 "<h2>参考来源</h2>" + "".join(f'<li id="ref-{index}">x</li>' for index in range(1, 8)),
                 encoding="utf-8",
@@ -39,4 +42,24 @@ class StaticSiteBuildTests(unittest.TestCase):
                     (reports / "Q01.html").read_text(encoding="utf-8") + "0.7803",
                     encoding="utf-8",
                 )
+                _assert_site(Path(tmp))
+
+    def test_historical_judge_decomposition_is_limited_to_methodology(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            reports = Path(tmp) / "reports"
+            reports.mkdir()
+            (Path(tmp) / "methodology.html").write_text(
+                "0.6134 + 0.1865 - 0.0585 = 0.7414", encoding="utf-8"
+            )
+            (reports / "Q01.html").write_text(
+                "<h2>参考来源</h2>" + "".join(f'<li id="ref-{index}">x</li>' for index in range(1, 8)),
+                encoding="utf-8",
+            )
+            _assert_site(Path(tmp))
+
+            (reports / "Q01.html").write_text(
+                (reports / "Q01.html").read_text(encoding="utf-8") + "0.7414",
+                encoding="utf-8",
+            )
+            with self.assertRaises(SystemExit):
                 _assert_site(Path(tmp))
