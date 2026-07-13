@@ -4,7 +4,7 @@
 
 DeepResearchAgent 是一个多 Agent 深度研究框架，金融投研为首个落地场景。
 
-当前仓库处于 MVP 阶段：已实现确定性的 Planner、Researcher、Extractor、Critic、Reporter、Evaluator 工作流；默认使用本地 fixture 检索数据与录制结构化金融数据；编排层已迁移为 LangGraph `StateGraph`，Researcher 按子问题 fan-out，Critic 通过条件边回流 retry queue；checkpoint 由官方 `SqliteSaver` 写入 SQLite，Evidence 和 evaluation 结果由 `SQLiteStore` 写入 SQLite；LLM 模式通过统一 LiteLLM 层覆盖 Planner、Extractor、Reporter，Researcher 与 Critic 当前仍保持确定性；已接入 AKShare 白名单结构化数据边界、五元素数字 claim 口径体系、金融化 Critic；006R3 已冻结 Golden Set v1，006V 已用 qwen3.7-plus 重评 G1，006F2 已移除 reporter 词法回填并以 evidence_ids 修复重试完成 G3 同判官闭环；007/007S 已加入三层演示资产（G3 展示层、异步 Golden replay 重跑层、owner-token live 层）与持久化日消耗护栏，公开触达形态改为静态演示站，由 `scripts/build_site.py` 生成 `site/dist/` 后手工上传；007S gold 只读审计发现 7 条 REVIEW 项且 AKShare live 全部失败，待 PM 决定是否递增 v1.1；当前主推理模型锁定 deepseek-v4-flash，judge 与 citation_support 锁定 qwen3.7-plus；CLI demo、LLM smoke、Golden Set runner、FastAPI demo endpoints、静态站构建和 unittest 套件已在本地 `.venv` 验证过相应路径。
+当前仓库处于 MVP 阶段：已实现确定性的 Planner、Researcher、Extractor、Critic、Reporter、Evaluator 工作流；默认使用本地 fixture 检索数据与录制结构化金融数据；编排层已迁移为 LangGraph `StateGraph`，Researcher 按子问题 fan-out，Critic 通过条件边回流 retry queue；checkpoint 由官方 `SqliteSaver` 写入 SQLite，Evidence 和 evaluation 结果由 `SQLiteStore` 写入 SQLite；LLM 模式通过统一 LiteLLM 层覆盖 Planner、Extractor、Reporter，Researcher 与 Critic 当前仍保持确定性；已接入 AKShare 白名单结构化数据边界、五元素数字 claim 口径体系、金融化 Critic；Golden Set v1.1 已以四键审计闸冻结（76 PASS、0 DEFECT、3 条 PM 注记 UNCERTAIN），并完成 G1/G2/G3 保存态三采样重评；007/007S 已加入三层演示资产（G3 展示层、异步 Golden replay 重跑层、owner-token live 层）与持久化日消耗护栏，公开触达形态为静态演示站，由 `scripts/build_site.py` 生成 `site/dist/` 后手工上传；当前主推理模型锁定 deepseek-v4-flash，judge 与 citation_support 锁定 qwen3.7-plus；CLI demo、LLM smoke、Golden Set runner、FastAPI demo endpoints、静态站构建和 unittest 套件已在本地 `.venv` 验证过相应路径。
 
 本项目是作品集和演示导向项目，但实现选择仍应能解释为生产化工程决策。
 
@@ -108,6 +108,7 @@ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_golden_rou
 - 执行的第一个动作是把提示词逐字存入 `_collab/编号_短名/prompt.md`。
 - 执行的最后一个动作是把执行报告存入同目录 `report.md` 并完整打印到终端。
 - 执行报告必须包含 `git log --oneline main..HEAD` 与 `git diff main --stat` 的原始输出。
+- 冻结资产的任何元数据变更必须在执行报告中单列申报，说明字段、原因、影响边界和是否触及评分契约。
 - 只执行提示词明确列出的事项。
 - 发现提示词与仓库现实冲突时，停止该项、在报告中说明，不得自行扩大范围或自行决策。
 - 一个 Codex 执行者负责每轮任务端到端闭环；不要使用 `.agent_handoff` 式交接，不要拆分为 Architect/Executor 多 Codex 角色，不要把任务扩展到无关模块。

@@ -46,7 +46,10 @@ Frozen assets:
 - `data/golden_set/v1/results/gen3_judge1.json`: G3 judge round after citation repair retry replaced renderer backfill.
 - `data/golden_set/v1/results/judge_calibration_qwen37_vs_qwenmax.json`: current 10-case judge calibration sample.
 
-Golden Set v1.1 evaluation `as_of` is `2026-07-12`. The frozen corpus contains
+Golden Set v1.1 uses the retrieval-corpus evaluation clock
+`retrieval_corpus_as_of=2026-07-09`, the last frozen-corpus recording date. The
+separate gold-appendix provenance clock is `gold_appendix_captured=2026-07-12`;
+the appendix is isolated from retrieval and does not change evaluation time. The frozen corpus contains
 486 canonical recording files, 694 source rows, 510 unique source URLs, and
 fingerprint `ef2d1fd2c414502140162508ef32838aaf8e4a56a6ab3678f9f57ed04f86960e`.
 No cases are quarantined. The independent `data/recordings/gold_appendix/`
@@ -64,7 +67,7 @@ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_golden_rou
   --work-dir _collab/008a_gold-v11/g1_rejudge \
   --round-id g1-judge-v11 \
   --generation G1 \
-  --as-of 2026-07-12 \
+  --as-of 2026-07-09 \
   --ledger-path _collab/008a_gold-v11/judge_v11_ledger.jsonl \
   --judge-samples 3 \
   --state-path-map _collab/006v_judge-verdict/g1_state_path_map.json
@@ -175,7 +178,7 @@ the gold revision manifest. Judge sampling remains a test-retest noise source.
 | avg fact accuracy | 0.8817 | 0.8700 | 0.8867 |
 | avg citation support | 0.8720 | 0.8487 | 0.8667 |
 | avg synthesis balance | 0.8000 | 0.7133 | 0.7450 |
-| avg citation support rate | 0.8883 | 0.7227 | 0.7640 |
+| avg citation support rate | 0.8883 | 0.7227 | 0.7376 |
 | avg citation resolution rate | 0.6000 | 1.0000 | 0.9333 |
 | avg citation repair retry rate | 0.0000 | 0.0000 | 0.5333 |
 | avg uncited claim rate | 0.0000 | 0.0000 | 0.0779 |
@@ -199,6 +202,11 @@ The three v1.1 judge rounds cost CNY `1.65913960`, `1.67774040`, and
 `1.65709656`, respectively, for a combined CNY `4.99397656`. The shared task
 ledger contains 271 judge rows and 91 citation_support rows; two additional
 rows beyond the nominal 360 calls are recorded structured-repair attempts.
+
+For the v1.1 release, G3 `citation_support_rate` is upgraded from the archived
+single-sample `0.7640` to `0.7376`: three verifier calls per question, with a
+per-claim majority vote and ordinal-median tie break for a three-way split. The
+change is `-0.0264`; historical single-sample values remain labelled as such.
 
 ## Golden Set v1.0 Historical Results
 
@@ -297,12 +305,20 @@ Rows refused by the guardrail are written with `refused=true` and
 `DEEPRESEARCH_TAVILY_CREDIT_HARD_THRESHOLD`; evaluation recording currently uses
 450 and 520.
 
-Recording `as_of` and evaluation `as_of` are separate facts. Recording `as_of`
-is provenance metadata for when a source key was collected and may have multiple
-values inside one frozen corpus. Evaluation `as_of` is a single run-level date
-injected through `DEEPRESEARCH_AS_OF`; for Golden Set v1.1 it is `2026-07-12`
-and controls freshness-sensitive rules. The unchanged frozen corpus separately
-retains recording dates `2026-07-08` and `2026-07-09`.
+### Golden v1.1 Dual Clocks
+
+Recording `as_of` is source provenance and may have multiple values inside a
+frozen corpus. The release evaluation clock is instead
+`retrieval_corpus_as_of=2026-07-09`, the final recording date of the unchanged
+retrieval corpus; it controls freshness-sensitive replay rules. The corpus
+retains source recording dates `2026-07-08` and `2026-07-09`.
+
+`gold_appendix_captured=2026-07-12` is a separate provenance timestamp for the
+isolated gold appendix. It is not a retrieval input, does not change the corpus
+fingerprint, and does not enter judge or citation_support prompts or scoring.
+The v1.1 freeze note records the correction from the previously conflated
+`evaluation_as_of` field; saved result JSON timestamps remain historically
+unchanged.
 
 ## Frozen Corpus Replay
 

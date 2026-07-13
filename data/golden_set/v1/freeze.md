@@ -2,8 +2,16 @@
 
 version: v1.1
 status: frozen
-evaluation_as_of: 2026-07-12
+retrieval_corpus_as_of: 2026-07-09
+gold_appendix_captured: 2026-07-12
 corpus_fingerprint: ef2d1fd2c414502140162508ef32838aaf8e4a56a6ab3678f9f57ed04f86960e
+
+## Metadata Erratum (2026-07-13)
+
+- 更正字段：`retrieval_corpus_as_of: 2026-07-09` 是评测时钟，定义为冻结检索语料最后录制日；v1.1 三代保存态均在这一时钟下生成。
+- 独立溯源字段：`gold_appendix_captured: 2026-07-12` 仅记录 gold 附录证据采集日。附录与检索语料隔离，且语料指纹在008A前后未变，因此不改变评测时钟。
+- 原 `evaluation_as_of: 2026-07-12` 为两种时钟混淆，现撤销；本勘误不追溯修改 `questions.json` 或任何 G1/G2/G3 v1.1 结果 JSON。结果文件内的 `2026-07-12` 戳记是按当时冻结说明写入，语义以本勘误为准。
+- 铁律适用性：本次未触碰评分契约（gold 值、权重、judge、题集均未变）。时钟惰性验证确认 `as_of` 不进入 judge 或 citation_support prompt，也不进入评分逻辑；因此无需版本递增或基线重跑。
 
 ## Freeze Decision
 
