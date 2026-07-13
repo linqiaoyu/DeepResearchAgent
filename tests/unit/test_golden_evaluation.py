@@ -191,8 +191,23 @@ class GoldenEvaluationTests(unittest.TestCase):
         path = project_root() / "data" / "golden_set" / "v1" / "questions.json"
         payload = json.loads(path.read_text(encoding="utf-8"))
 
-        self.assertEqual(payload["meta"]["version"], "v1.0")
-        self.assertLessEqual(payload["meta"]["quarantine_count"], 3)
+        self.assertEqual(payload["meta"]["version"], "v1.1")
+        self.assertEqual(payload["meta"]["status"], "frozen")
+        self.assertLessEqual(payload["meta"]["quarantine_count"], 5)
+        self.assertEqual(payload["meta"]["gold_audit"]["defect"], 0)
+        audit = json.loads(
+            (project_root() / "data" / "golden_set" / "v1" / "audit_v11.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertEqual(
+            audit["summary"]["counts"],
+            {"DEFECT": 0, "UNCERTAIN": 3, "PASS": 76},
+        )
+        self.assertEqual(
+            audit["summary"]["uncertain_slots"],
+            ["Q04s3", "Q13s3", "Q20s1"],
+        )
         self.assertEqual(validate_golden_design(payload), [])
         self.assertEqual(len(payload["questions"]), 30)
         self.assertTrue(
@@ -200,6 +215,27 @@ class GoldenEvaluationTests(unittest.TestCase):
                 "source_ref" in item
                 for question in payload["questions"]
                 for item in question["gold"]["must_include"]
+            )
+        )
+
+    def test_golden_v11_release_results_use_complete_same_state_rounds(self) -> None:
+        base = project_root() / "data" / "golden_set" / "v1" / "results"
+        for generation in ("g1", "g2", "g3"):
+            payload = json.loads(
+                (base / f"{generation}_judge_v11.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(payload["gold_version"], "v1.1")
+            self.assertEqual(payload["judge_samples"], 3)
+            self.assertEqual(payload["structured_failures"], 0)
+            self.assertEqual(payload["summary"]["cases"], 30)
+
+        comparison = json.loads(
+            (base / "v11_three_point_comparison.json").read_text(encoding="utf-8")
+        )
+        self.assertTrue(
+            all(
+                item["research_ids_identical"]
+                for item in comparison["validation"].values()
             )
         )
 

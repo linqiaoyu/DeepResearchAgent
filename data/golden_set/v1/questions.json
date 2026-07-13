@@ -1,9 +1,9 @@
 {
   "meta": {
-    "version": "v1.0",
+    "version": "v1.1",
     "created": "2026-06-16",
     "status": "frozen",
-    "as_of": "RECORDING_DATE",
+    "as_of": "2026-07-12",
     "scope": "A股 only",
     "question_count": 30,
     "type_distribution": {
@@ -31,7 +31,7 @@
     "high_risk": [
       "Q07"
     ],
-    "evaluation_as_of": "2026-07-09",
+    "evaluation_as_of": "2026-07-12",
     "recording_as_of_distribution": {
       "2026-07-08": 263,
       "2026-07-09": 223
@@ -40,29 +40,26 @@
     "frozen_count": 30,
     "quarantine_count": 0,
     "quarantine": [],
-    "micro_adjustments": [
-      {
-        "id": "Q13",
-        "note": "录制证据支持组件出货口径核查；隆基绿能2024归母净利润方向未由当前机械筛选稳定闭合，题面不改，审查表保留来源化回填供PM确认。",
-        "review_slots": [
-          {
-            "slot": 1,
-            "filled_value": "隆基绿能2024年电池组件出货量目标为90-100GW",
-            "source_title": "隆基绿能一季度亏损23.5亿 主营业务面临行业挑战_电池_组件_同比"
-          },
-          {
-            "slot": 2,
-            "filled_value": "隆基绿能2024年第一季度归母净利润为-23.50亿元",
-            "source_title": "隆基绿能一季度亏损23.5亿 主营业务面临行业挑战_电池_组件_同比"
-          },
-          {
-            "slot": 3,
-            "filled_value": "晶科能源出货量口径包含组件、硅片和电池片，隆基绿能则分开列示单晶硅片、电池、组件对外销售和自用数据。",
-            "source_title": "出货量重回全球第一！晶科能源预计2023年组件出货超过75GW"
-          }
-        ]
-      }
+    "gold_audit": {
+      "slots": 79,
+      "pass": 76,
+      "defect": 0,
+      "uncertain": 3,
+      "uncertain_slots": ["Q04s3", "Q13s3", "Q20s1"],
+      "report": "data/golden_set/v1/audit_v11.md"
+    },
+    "appendix_recording": {
+      "directory": "data/recordings/gold_appendix",
+      "search_depth": "basic",
+      "queries": 8,
+      "credits_used": 8
+    },
+    "validation_sources": [
+      "frozen_corpus",
+      "recorded_structured_fixture",
+      "gold_appendix"
     ],
+    "akshare_live_review": "pending_network_geography_recheck",
     "corpus_stats": {
       "canonical_recording_files": 486,
       "source_rows": 694,
@@ -79,7 +76,11 @@
         "2026-07-09": 223
       },
       "fingerprint": "ef2d1fd2c414502140162508ef32838aaf8e4a56a6ab3678f9f57ed04f86960e"
-    }
+    },
+    "updated_at": "2026-07-12",
+    "revision_manifest": "data/golden_set/v1/revisions_v11.json",
+    "audit_tool": "scripts/audit_gold.py",
+    "quarantined_question_ids": []
   },
   "scoring": {
     "fact_coverage": {
@@ -121,34 +122,82 @@
         "must_include": [
           {
             "fact": "2024营业总收入及同比",
-            "value": "贵州茅台2024年度预计实现营业总收入约1738亿元，同比增长约15.44%",
-            "source": "2024年报",
+            "value": "贵州茅台2024年度营业总收入为1741.44亿元，同比增长15.66%。",
+            "source": "2024年年度报告摘要",
             "tol": "±1%",
             "w": "高",
             "original_value": "TBD@recording",
             "source_ref": {
-              "source_title": "贵州茅台2024年归母净利润同比预增约14.67% - China Daily",
-              "source_url": "https://qiye.chinadaily.com.cn/a/202501/03/WS67775250a310b59111dac3d7.html",
+              "source_title": "贵州茅台酒股份有限公司2024年年度报告摘要",
+              "source_url": "https://www.moutaichina.com/mtgf/articleFileDir/2025-04/08/a8931897311b4d4097b7c0b2bf3207d1.pdf",
               "source_kind": "text",
-              "extract_text": "预计实现营业总收入约1738亿元（其中茅台酒营业收入约1458亿元，系列酒营业收入约246亿元），同比增长约15.44%；",
-              "evidence_id": "ca4b0e3b-bf22-50e2-84ef-b9a0f294a154",
-              "selection_score": 73
+              "extract_text": "年度内公司实现营业总收入1,741.44亿元，同比增长15.66%；归属于上市公司股东的净利润862.28亿元，同比增长15.38%。",
+              "source_id": "tavily-603845181c6c"
+            },
+            "audit_contract": {
+              "entities": [
+                "贵州茅台"
+              ],
+              "metrics": [
+                "营业总收入"
+              ],
+              "period": {
+                "kind": "annual",
+                "year": 2024,
+                "label": "2024年度"
+              },
+              "dimension": "累计",
+              "scope_terms": [
+                "年度"
+              ],
+              "units": [
+                "亿元",
+                "%"
+              ],
+              "numeric_tokens": [
+                "1741.44",
+                "15.66"
+              ]
             }
           },
           {
             "fact": "2024归母净利润及同比",
-            "value": "贵州茅台2024年度预计实现营业总收入约1738亿元，同比增长约15.44%",
-            "source": "2024年报",
+            "value": "贵州茅台2024年度归母净利润为862.28亿元，同比增长15.38%。",
+            "source": "2024年年度报告摘要",
             "tol": "±1%",
             "w": "高",
             "original_value": "TBD@recording",
             "source_ref": {
-              "source_title": "贵州茅台2024年归母净利润同比预增约14.67% - China Daily",
-              "source_url": "https://qiye.chinadaily.com.cn/a/202501/03/WS67775250a310b59111dac3d7.html",
+              "source_title": "贵州茅台酒股份有限公司2024年年度报告摘要",
+              "source_url": "https://www.moutaichina.com/mtgf/articleFileDir/2025-04/08/a8931897311b4d4097b7c0b2bf3207d1.pdf",
               "source_kind": "text",
-              "extract_text": "预计实现营业总收入约1738亿元（其中茅台酒营业收入约1458亿元，系列酒营业收入约246亿元），同比增长约15.44%；",
-              "evidence_id": "ca4b0e3b-bf22-50e2-84ef-b9a0f294a154",
-              "selection_score": 73
+              "extract_text": "年度内公司实现营业总收入1,741.44亿元，同比增长15.66%；归属于上市公司股东的净利润862.28亿元，同比增长15.38%。",
+              "source_id": "tavily-603845181c6c"
+            },
+            "audit_contract": {
+              "entities": [
+                "贵州茅台"
+              ],
+              "metrics": [
+                "归母净利润"
+              ],
+              "period": {
+                "kind": "annual",
+                "year": 2024,
+                "label": "2024年度"
+              },
+              "dimension": "累计",
+              "scope_terms": [
+                "年度"
+              ],
+              "units": [
+                "亿元",
+                "%"
+              ],
+              "numeric_tokens": [
+                "862.28",
+                "15.38"
+              ]
             }
           },
           {
@@ -212,34 +261,83 @@
           },
           {
             "fact": "2024归母净利润及同比",
-            "value": "长江电力2024年营业收入为844.9亿元，同比增长8.2%",
-            "source": "2024年报",
+            "value": "长江电力2024年度归母净利润为325.0亿元，同比增长19.3%。",
+            "source": "2024年业绩披露",
             "tol": "±1%",
             "w": "高",
             "original_value": "TBD@recording",
             "source_ref": {
-              "source_title": "长江电力2024年归母净利润增19.3%至325亿元 - 瑞财经",
+              "source_title": "长江电力2024年归母净利润增19.3%至325亿元",
               "source_url": "https://m.rccaijing.com/news-7322968004458378539.html",
               "source_kind": "text",
-              "extract_text": "营业收入为844.9亿元，同比上升8.2%",
-              "evidence_id": "b1a12bd0-4f5f-5e09-a07e-34418792b4ca",
-              "selection_score": 67
+              "extract_text": "归母净利润为325.0亿元，同比上升19.3%",
+              "evidence_id": "c97fb653-3ee1-5552-952e-d3bde86db041"
+            },
+            "audit_contract": {
+              "entities": [
+                "长江电力"
+              ],
+              "metrics": [
+                "归母净利润"
+              ],
+              "period": {
+                "kind": "annual",
+                "year": 2024,
+                "label": "2024年度"
+              },
+              "dimension": "累计",
+              "scope_terms": [
+                "年度"
+              ],
+              "units": [
+                "亿元",
+                "%"
+              ],
+              "numeric_tokens": [
+                "325.0",
+                "19.3"
+              ]
             }
           },
           {
             "fact": "2024总发电量及同比",
-            "value": "长江电力2024年第四季度总发电量约600.90亿千瓦时，同比减少17.60%。",
-            "source": "年报/发电量公告",
+            "value": "长江电力2024年度境内六座梯级电站总发电量约2959.04亿千瓦时，同比增长7.11%。",
+            "source": "2024年发电量完成情况",
             "tol": "±2%",
             "w": "中",
             "original_value": "TBD@recording",
             "source_ref": {
-              "source_title": "长江电力披露2024年发电量完成情况-广东省水力和新能源发电工程学会",
+              "source_title": "长江电力披露2024年发电量完成情况",
               "source_url": "https://www.gdshe.org/article/23577.html",
               "source_kind": "text",
-              "extract_text": "第四季度公司境内所属六座梯级电站总发电量约600.90亿千瓦时，较上年同期减少17.60%",
-              "evidence_id": "d71dc5b1-3607-54e8-8a63-00d3fceac982",
-              "selection_score": 60
+              "extract_text": "2024年，长江电力境内所属六座梯级电站总发电量约2959.04亿千瓦时，较上年同期增长7.11%",
+              "evidence_id": "3045a120-0fe4-50e7-ae11-9f47825a75d3"
+            },
+            "audit_contract": {
+              "entities": [
+                "长江电力"
+              ],
+              "metrics": [
+                "总发电量"
+              ],
+              "period": {
+                "kind": "annual",
+                "year": 2024,
+                "label": "2024年度"
+              },
+              "dimension": "累计",
+              "scope_terms": [
+                "六座梯级电站",
+                "年度"
+              ],
+              "units": [
+                "亿千瓦时",
+                "%"
+              ],
+              "numeric_tokens": [
+                "2959.04",
+                "7.11"
+              ]
             }
           }
         ],
@@ -269,34 +367,82 @@
         "must_include": [
           {
             "fact": "2024营收及同比",
-            "value": "2024年比亚迪手机部件、组装及其他产品业务收入同比增长34.60%",
-            "source": "2024年报",
+            "value": "比亚迪2024年度营业收入为7771.02亿元，同比增长29.02%。",
+            "source": "2024年年度业绩",
             "tol": "±1%",
             "w": "高",
             "original_value": "TBD@recording",
             "source_ref": {
-              "source_title": "比亚迪年度营收首次突破7000亿元：汽车、手机业务双增",
-              "source_url": "https://www.eet-china.com/mp/a391713.html",
+              "source_title": "比亚迪年度营收首次突破7000亿元",
+              "source_url": "https://stcn.com/article/detail/1606383.html",
               "source_kind": "text",
-              "extract_text": "2024年，比亚迪手机部件、组装及其他产品业务的收入约1596.09亿元，同比增长34.60%；占总收入的20.54%。",
-              "evidence_id": "a6632782-6292-57e7-8afb-e36c0df6be16",
-              "selection_score": 62
+              "extract_text": "公司2024年实现营业收入7771.02亿元，同比增长29.02%",
+              "evidence_id": "428966d4-ed6c-5824-87e8-b598bdf28afd"
+            },
+            "audit_contract": {
+              "entities": [
+                "比亚迪"
+              ],
+              "metrics": [
+                "营业收入"
+              ],
+              "period": {
+                "kind": "annual",
+                "year": 2024,
+                "label": "2024年度"
+              },
+              "dimension": "累计",
+              "scope_terms": [
+                "年度"
+              ],
+              "units": [
+                "亿元",
+                "%"
+              ],
+              "numeric_tokens": [
+                "7771.02",
+                "29.02"
+              ]
             }
           },
           {
             "fact": "2024归母净利润及同比",
-            "value": "比亚迪2024年度营业收入为7771.02亿元，同比增长29.02%",
-            "source": "2024年报",
+            "value": "比亚迪2024年度归母净利润为402.54亿元，同比增长34.00%。",
+            "source": "2024年年度业绩",
             "tol": "±1%",
             "w": "高",
             "original_value": "TBD@recording",
             "source_ref": {
-              "source_title": "比亚迪：2024年归母净利润同比增长34%_车家号_发现车生活_汽车之家",
-              "source_url": "https://chejiahao.autohome.com.cn/info/19665099",
+              "source_title": "比亚迪年度营收首次突破7000亿元",
+              "source_url": "https://stcn.com/article/detail/1606383.html",
               "source_kind": "text",
-              "extract_text": "公司实现营业收入7771.02亿元，同比增长29.02%",
-              "evidence_id": "a11b41a0-b8ff-5c36-a670-fa0c95f1069a",
-              "selection_score": 68
+              "extract_text": "比亚迪2024年实现归母净利润402.54亿元，突破400亿元大关，同比增长34.00%",
+              "evidence_id": "9c05dfc0-9171-5e4d-a046-78a1441920d0"
+            },
+            "audit_contract": {
+              "entities": [
+                "比亚迪"
+              ],
+              "metrics": [
+                "归母净利润"
+              ],
+              "period": {
+                "kind": "annual",
+                "year": 2024,
+                "label": "2024年度"
+              },
+              "dimension": "累计",
+              "scope_terms": [
+                "年度"
+              ],
+              "units": [
+                "亿元",
+                "%"
+              ],
+              "numeric_tokens": [
+                "402.54",
+                "34.00"
+              ]
             }
           },
           {
@@ -344,18 +490,42 @@
         "must_include": [
           {
             "fact": "2024营收及同比（方向为降）",
-            "value": "2024年一季度宁德时代营业收入同比下降10.41%，主要因原材料成本下降导致电池价格相应下行。",
-            "source": "2024年报",
+            "value": "宁德时代2024年度营业收入为3620.13亿元，同比下降9.70%。",
+            "source": "2024年年度业绩",
             "tol": "±1%",
             "w": "高",
             "original_value": "TBD@recording",
             "source_ref": {
-              "source_title": "​收入下滑利润大涨，宁德时代卷死同行",
-              "source_url": "https://www.guancha.cn/economy/2024_04_16_731777.shtml",
+              "source_title": "宁德时代2024年净利增15.01% 营收首次出现负增长",
+              "source_url": "https://zjic.zj.gov.cn/ywdh/tzgl/202503/t20250318_23320372.shtml",
               "source_kind": "text",
-              "extract_text": "公司电池销量同比有 25%以上的增长，收入下降主要是因为原材料成本下降，电池价格相应下行，产品结构变化不大。",
-              "evidence_id": "ed10db7e-a0f1-592c-af49-f1ff5e0be395",
-              "selection_score": 69
+              "extract_text": "2024年，公司实现营业收入3620.13亿元，同比减少9.70%",
+              "evidence_id": "032f08e7-bea7-5e88-b9a1-c470df60694e"
+            },
+            "audit_contract": {
+              "entities": [
+                "宁德时代"
+              ],
+              "metrics": [
+                "营业收入"
+              ],
+              "period": {
+                "kind": "annual",
+                "year": 2024,
+                "label": "2024年度"
+              },
+              "dimension": "累计",
+              "scope_terms": [
+                "年度"
+              ],
+              "units": [
+                "亿元",
+                "%"
+              ],
+              "numeric_tokens": [
+                "3620.13",
+                "9.70"
+              ]
             }
           },
           {
@@ -377,7 +547,7 @@
           {
             "fact": "成因要点（原材料价格下行传导至售价）",
             "value": "2024年一季度宁德时代营业收入同比下降10.41%，主要因原材料成本下降导致电池价格相应下行。",
-            "source": "年报/业绩说明",
+            "source": "2024Q1业绩说明；仅作跨期机制证据",
             "tol": "语义",
             "w": "中",
             "original_value": "定性",
@@ -388,6 +558,26 @@
               "extract_text": "公司电池销量同比有 25%以上的增长，收入下降主要是因为原材料成本下降，电池价格相应下行，产品结构变化不大。",
               "evidence_id": "ed10db7e-a0f1-592c-af49-f1ff5e0be395",
               "selection_score": 96
+            },
+            "audit_contract": {
+              "entities": [
+                "宁德时代"
+              ],
+              "metrics": [],
+              "period": {
+                "kind": "mechanism_context",
+                "year": 2024,
+                "label": "2024Q1跨期机制证据"
+              },
+              "dimension": "机制性证据",
+              "scope_terms": [
+                "原材料成本下降",
+                "电池价格相应下行"
+              ],
+              "units": [],
+              "numeric_tokens": [],
+              "decision": "PM_UNCERTAIN",
+              "decision_note": "Q04s3保留2024Q1机制证据，仅说明原材料价格下行向售价传导；不把Q1数值当作2024全年成因的数值结论。"
             }
           }
         ],
@@ -419,50 +609,135 @@
         "must_include": [
           {
             "fact": "四个单季归母净利润",
-            "value": "京东方A2025年第四季度归母净利润为12.6亿元（单季）",
-            "source": "各季报",
+            "value": "京东方A 2024年第一至第四季度单季归母净利润分别为983,812,692元、1,300,238,662元、1,025,714,296元和2,013,483,324元。",
+            "source": "2024年年度报告摘要（附录补录）",
             "tol": "±2%",
             "w": "高",
             "original_value": "TBD@recording",
             "source_ref": {
-              "source_title": "京东方A2025年归母净利润58.6亿元 增长10% _ 东方财富网",
-              "source_url": "https://finance.eastmoney.com/a/202604013691406129.html",
-              "source_kind": "text",
-              "extract_text": "其中第四季度，公司营业收入为500.4亿元，同比下降8.4%；归母净利润为12.6亿元",
-              "evidence_id": "aef2e368-e922-5449-87d0-57944c815c4f",
-              "selection_score": 63
+              "source_title": "京东方科技集团股份有限公司2024年年度报告摘要",
+              "source_url": "https://convergencemedia.boe.com.cn/pdf/E2N2cZaUzASLhthL3nDl7YRfmMAWWq/%E4%BA%AC%E4%B8%9C%E6%96%B9%E7%A7%91%E6%8A%80%E9%9B%86%E5%9B%A2%E8%82%A1%E4%BB%BD%E6%9C%89%E9%99%90%E5%85%AC%E5%8F%B82024%E5%B9%B4%E5%B9%B4%E5%BA%A6%E6%8A%A5%E5%91%8A%E6%91%98%E8%A6%81.pdf",
+              "source_kind": "gold_appendix",
+              "extract_text": "京东方科技集团股份有限公司2024年年度报告摘要（2）分季度主要会计数据 单位：元 项目 第一季度 第二季度 第三季度 第四季度 归属于上市公司股东的净利润 983,812,692.00 1,300,238,662.00 1,025,714,296.00 2,013,483,324.00",
+              "source_id": "tavily-682d69406ddc",
+              "recording_file": "80983b1451283951062877a6fbd67031aeef2893.json"
+            },
+            "audit_contract": {
+              "entities": [
+                "京东方A"
+              ],
+              "metrics": [
+                "归母净利润"
+              ],
+              "period": {
+                "kind": "quarters",
+                "year": 2024,
+                "label": "2024四个单季",
+                "quarter_tokens": [
+                  "第一季度",
+                  "第二季度",
+                  "第三季度",
+                  "第四季度"
+                ]
+              },
+              "dimension": "单季",
+              "scope_terms": [
+                "分季度主要会计数据",
+                "单季"
+              ],
+              "units": [
+                "元"
+              ],
+              "numeric_tokens": [
+                "983,812,692",
+                "1,300,238,662",
+                "1,025,714,296",
+                "2,013,483,324"
+              ]
             }
           },
           {
             "fact": "全年累计归母净利润",
-            "value": "京东方A2025年前三季度累计归母净利润为46.0亿元",
-            "source": "2024年报",
+            "value": "京东方A 2024年全年累计归母净利润为5,323,248,974元。",
+            "source": "2024年年度报告摘要（附录补录）",
             "tol": "±1%",
             "w": "高",
             "original_value": "TBD@recording",
             "source_ref": {
-              "source_title": "京东方A第三季度归母净利润为13.5亿元，同比上升32.1% - 瑞财经",
-              "source_url": "https://m.rccaijing.com/news-7389835553866971134.html",
-              "source_kind": "text",
-              "extract_text": "京东方A(000725)公布2025年三季报，公司营业收入为1545.5亿元，同比上升7.5%；归母净利润为46.0亿元",
-              "evidence_id": "5791017a-ba95-50f0-bf56-846483976346",
-              "selection_score": 64
+              "source_title": "京东方科技集团股份有限公司2024年年度报告摘要",
+              "source_url": "https://convergencemedia.boe.com.cn/pdf/E2N2cZaUzASLhthL3nDl7YRfmMAWWq/%E4%BA%AC%E4%B8%9C%E6%96%B9%E7%A7%91%E6%8A%80%E9%9B%86%E5%9B%A2%E8%82%A1%E4%BB%BD%E6%9C%89%E9%99%90%E5%85%AC%E5%8F%B82024%E5%B9%B4%E5%B9%B4%E5%BA%A6%E6%8A%A5%E5%91%8A%E6%91%98%E8%A6%81.pdf",
+              "source_kind": "gold_appendix",
+              "extract_text": "项目 2024年 归属于上市公司股东的净利润（元）5,323,248,974.00",
+              "source_id": "tavily-682d69406ddc",
+              "recording_file": "80983b1451283951062877a6fbd67031aeef2893.json"
+            },
+            "audit_contract": {
+              "entities": [
+                "京东方A"
+              ],
+              "metrics": [
+                "归母净利润"
+              ],
+              "period": {
+                "kind": "annual",
+                "year": 2024,
+                "label": "2024全年"
+              },
+              "dimension": "累计",
+              "scope_terms": [
+                "全年",
+                "累计"
+              ],
+              "units": [
+                "元"
+              ],
+              "numeric_tokens": [
+                "5,323,248,974"
+              ]
             }
           },
           {
             "fact": "单季与累计口径区分的显式说明",
-            "value": "京东方A2025年前三季度累计归母净利润为46.0亿元",
-            "source": "—",
+            "value": "京东方A年报的“分季度主要会计数据”列示2024年四个单季值；“2024年”主表列示全年累计值，二者不得混用。",
+            "source": "2024年年度报告摘要（附录补录）",
             "tol": "语义",
             "w": "中",
             "original_value": "定性",
             "source_ref": {
-              "source_title": "京东方A第三季度归母净利润为13.5亿元，同比上升32.1% - 瑞财经",
-              "source_url": "https://m.rccaijing.com/news-7389835553866971134.html",
-              "source_kind": "text",
-              "extract_text": "京东方A(000725)公布2025年三季报，公司营业收入为1545.5亿元，同比上升7.5%；归母净利润为46.0亿元",
-              "evidence_id": "5791017a-ba95-50f0-bf56-846483976346",
-              "selection_score": 39
+              "source_title": "京东方科技集团股份有限公司2024年年度报告摘要",
+              "source_url": "https://convergencemedia.boe.com.cn/pdf/E2N2cZaUzASLhthL3nDl7YRfmMAWWq/%E4%BA%AC%E4%B8%9C%E6%96%B9%E7%A7%91%E6%8A%80%E9%9B%86%E5%9B%A2%E8%82%A1%E4%BB%BD%E6%9C%89%E9%99%90%E5%85%AC%E5%8F%B82024%E5%B9%B4%E5%B9%B4%E5%BA%A6%E6%8A%A5%E5%91%8A%E6%91%98%E8%A6%81.pdf",
+              "source_kind": "gold_appendix",
+              "extract_text": "项目 2024年 归属于上市公司股东的净利润（元）5,323,248,974.00；（2）分季度主要会计数据 单位：元 项目 第一季度 第二季度 第三季度 第四季度 归属于上市公司股东的净利润 983,812,692.00 1,300,238,662.00 1,025,714,296.00 2,013,483,324.00",
+              "source_id": "tavily-682d69406ddc",
+              "recording_file": "80983b1451283951062877a6fbd67031aeef2893.json"
+            },
+            "audit_contract": {
+              "entities": [
+                "京东方A"
+              ],
+              "metrics": [
+                "归母净利润"
+              ],
+              "period": {
+                "kind": "quarters",
+                "year": 2024,
+                "label": "2024单季与全年累计",
+                "quarter_tokens": [
+                  "第一季度",
+                  "第二季度",
+                  "第三季度",
+                  "第四季度"
+                ]
+              },
+              "dimension": "单季与累计",
+              "scope_terms": [
+                "分季度主要会计数据",
+                "全年累计"
+              ],
+              "units": [
+                "元"
+              ],
+              "numeric_tokens": []
             }
           }
         ],
@@ -601,18 +876,42 @@
           },
           {
             "fact": "2024净息差",
-            "value": "非息收入占比为37.40%，优于同业平均水平",
-            "source": "2024年报",
+            "value": "招商银行2024年度净息差为1.98%，较上年下降0.17个百分点。",
+            "source": "2024年年度业绩",
             "tol": "±0.05pct",
             "w": "中",
             "original_value": "TBD@recording",
             "source_ref": {
-              "source_title": "招商银行2024年净利润同比增长1.22%至1483.91亿元 - 中国金融信息网",
-              "source_url": "https://www.cnfin.com/hb-lb/detail/20250325/4205920_1.html",
+              "source_title": "招商银行2024年净利润增长1.22% 拟现金分红超500亿元",
+              "source_url": "https://www.stcn.com/article/detail/1613554.html",
               "source_kind": "text",
-              "extract_text": "收入结构方面，持续保持招行特色，非息收入占比为37.40%，优于同业平均水平",
-              "evidence_id": "7a50da72-95ea-5846-8d62-8554b7631a50",
-              "selection_score": 46
+              "extract_text": "2024年招商银行净息差为1.98%，较上年下降0.17个百分点",
+              "evidence_id": "44e8c809-9b01-555f-84a5-ecd5677e1aa7"
+            },
+            "audit_contract": {
+              "entities": [
+                "招商银行"
+              ],
+              "metrics": [
+                "净息差"
+              ],
+              "period": {
+                "kind": "annual",
+                "year": 2024,
+                "label": "2024年度"
+              },
+              "dimension": "年度",
+              "scope_terms": [
+                "年度"
+              ],
+              "units": [
+                "%",
+                "个百分点"
+              ],
+              "numeric_tokens": [
+                "1.98",
+                "0.17"
+              ]
             }
           },
           {
@@ -661,18 +960,42 @@
         "must_include": [
           {
             "fact": "2024营业总收入实际同比（正增长）",
-            "value": "贵州茅台2024年度营业总收入1741亿元，同比增长15.7%，未出现下滑。",
-            "source": "2024年报",
+            "value": "贵州茅台2024年度营业总收入为1741.44亿元，同比增长15.66%。",
+            "source": "2024年年度报告摘要",
             "tol": "±1%",
             "w": "高",
             "original_value": "TBD@recording",
             "source_ref": {
-              "source_title": "贵州茅台（600519） 2024 年报点评：平稳兑现，目标积极",
-              "source_url": "https://pdf.dfcfw.com/pdf/H3_AP202504031650850404_1.pdf",
+              "source_title": "贵州茅台酒股份有限公司2024年年度报告摘要",
+              "source_url": "https://www.moutaichina.com/mtgf/articleFileDir/2025-04/08/a8931897311b4d4097b7c0b2bf3207d1.pdf",
               "source_kind": "text",
-              "extract_text": "2024 年实现营业总收入1741 亿元， 同增 15.7%",
-              "evidence_id": "5442c473-90d9-5491-8df6-4f731ad11ac1",
-              "selection_score": 86
+              "extract_text": "年度内公司实现营业总收入1,741.44亿元，同比增长15.66%；归属于上市公司股东的净利润862.28亿元，同比增长15.38%。",
+              "source_id": "tavily-603845181c6c"
+            },
+            "audit_contract": {
+              "entities": [
+                "贵州茅台"
+              ],
+              "metrics": [
+                "营业总收入"
+              ],
+              "period": {
+                "kind": "annual",
+                "year": 2024,
+                "label": "2024年度"
+              },
+              "dimension": "累计",
+              "scope_terms": [
+                "年度"
+              ],
+              "units": [
+                "亿元",
+                "%"
+              ],
+              "numeric_tokens": [
+                "1741.44",
+                "15.66"
+              ]
             }
           },
           {
@@ -721,18 +1044,48 @@
         "must_include": [
           {
             "fact": "2024全球装机量两家数值与份额",
-            "value": "2024年1-10月全球电动汽车电池装机量数据来自SNE Research",
-            "source": "SNE年度统计转引",
+            "value": "SNE Research 2024年度统计：宁德时代全球动力电池装车量339.3GWh、份额37.9%，比亚迪153.7GWh、份额17.2%；宁德时代第一、比亚迪第二。",
+            "source": "SNE Research 2024年度统计转述",
             "tol": "±5%",
             "w": "高",
             "original_value": "TBD@recording",
             "source_ref": {
-              "source_title": "宁德时代、比亚迪占全球市场份额53.6%！2024年1月-10月全球动力电池排名出炉|宁德时代_新浪财经_新浪网",
-              "source_url": "https://finance.sina.com.cn/stock/relnews/cn/2024-12-17/doc-inczuerr1607391.shtml",
+              "source_title": "2024年全球电池装车量：宁德时代第一、比亚迪第二、中创新航跃居第四",
+              "source_url": "https://mp.ofweek.com/libattery/a656714502537",
               "source_kind": "text",
-              "extract_text": "根据市场研究机构SNE Research12月5日数据",
-              "evidence_id": "0b005ca8-52a2-557a-97eb-5d6e416f08ed",
-              "selection_score": 82
+              "extract_text": "2月11日，韩国研究机构SNE Research发布了2024年全球动力电池统计数据。2024年全年，全球动力电池装车总量约894.4GWh。宁德时代以339.3GWh的装车量占据全球37.9%的市场份额，连续第八年稳居全球第一。比亚迪在2024年动力电池装车量达153.7GWh，市占率17.2%，位列全球第二位。",
+              "source_id": "tavily-79f5e61ebecf"
+            },
+            "audit_contract": {
+              "entities": [
+                "宁德时代",
+                "比亚迪"
+              ],
+              "metrics": [
+                "装机量"
+              ],
+              "period": {
+                "kind": "annual",
+                "year": 2024,
+                "label": "SNE Research 2024年度"
+              },
+              "dimension": "累计",
+              "scope_terms": [
+                "SNE Research",
+                "全球",
+                "第一",
+                "第二"
+              ],
+              "units": [
+                "GWh",
+                "%"
+              ],
+              "numeric_tokens": [
+                "339.3",
+                "37.9",
+                "153.7",
+                "17.2"
+              ]
             }
           },
           {
@@ -753,18 +1106,44 @@
           },
           {
             "fact": "排名结论（宁德第一）",
-            "value": "2024年1-10月全球电动汽车电池装机量数据来自SNE Research",
-            "source": "SNE",
+            "value": "SNE Research 2024年度全球动力电池装车量排名中，宁德时代以339.3GWh、37.9%位列第一。",
+            "source": "SNE Research 2024年度统计转述",
             "tol": "精确",
             "w": "中",
             "original_value": "TBD@recording确认",
             "source_ref": {
-              "source_title": "宁德时代、比亚迪占全球市场份额53.6%！2024年1月-10月全球动力电池排名出炉|宁德时代_新浪财经_新浪网",
-              "source_url": "https://finance.sina.com.cn/stock/relnews/cn/2024-12-17/doc-inczuerr1607391.shtml",
+              "source_title": "2024年全球电池装车量：宁德时代第一、比亚迪第二、中创新航跃居第四",
+              "source_url": "https://mp.ofweek.com/libattery/a656714502537",
               "source_kind": "text",
-              "extract_text": "根据市场研究机构SNE Research12月5日数据",
-              "evidence_id": "0b005ca8-52a2-557a-97eb-5d6e416f08ed",
-              "selection_score": 59
+              "extract_text": "2月11日，韩国研究机构SNE Research发布了2024年全球动力电池统计数据。宁德时代以339.3GWh的装车量占据全球37.9%的市场份额，连续第八年稳居全球第一。",
+              "source_id": "tavily-79f5e61ebecf"
+            },
+            "audit_contract": {
+              "entities": [
+                "宁德时代"
+              ],
+              "metrics": [
+                "装机量"
+              ],
+              "period": {
+                "kind": "annual",
+                "year": 2024,
+                "label": "SNE Research 2024年度"
+              },
+              "dimension": "累计",
+              "scope_terms": [
+                "SNE Research",
+                "全球",
+                "第一"
+              ],
+              "units": [
+                "GWh",
+                "%"
+              ],
+              "numeric_tokens": [
+                "339.3",
+                "37.9"
+              ]
             }
           }
         ],
@@ -871,18 +1250,62 @@
         "must_include": [
           {
             "fact": "两家2024营收及归母净利润",
-            "value": "美的集团2024年度归母净利润为385.37亿元",
-            "source": "各自年报",
+            "value": "美的集团2024年度营业收入4071.50亿元、归母净利润385.37亿元；格力电器2024年度营业总收入1900.38亿元、归母净利润321.85亿元。",
+            "source": "两家公司2024年年度披露",
             "tol": "±1%",
             "w": "高",
             "original_value": "TBD@recording",
             "source_ref": {
-              "source_title": "中国家用电器协会-美的集团2024年营业收入突破4000亿元，再创新高",
+              "source_title": "美的集团2024年营业收入突破4000亿元，再创新高",
               "source_url": "https://www.cheaa.org/contents/20/12486.html",
               "source_kind": "text",
-              "extract_text": "归属于上市公司的净利润为385.37亿元",
-              "evidence_id": "46b11e45-9f20-5a6c-98ab-89da91ca6077",
-              "selection_score": 76
+              "extract_text": "2024年，美的集团营业收入为4071.50亿元",
+              "evidence_id": "4c423197-051d-5b22-8b7d-764434586cfd"
+            },
+            "source_refs": [
+              {
+                "source_title": "美的集团2024年营业收入突破4000亿元，再创新高",
+                "source_url": "https://www.cheaa.org/contents/20/12486.html",
+                "source_kind": "text",
+                "extract_text": "归属于上市公司的净利润为385.37亿元",
+                "evidence_id": "46b11e45-9f20-5a6c-98ab-89da91ca6077"
+              },
+              {
+                "source_title": "格力—让世界爱上中国造",
+                "source_url": "http://www.gree.com.cn/Article/view/e17f53c6bfc945e48dcba6692614e6ed",
+                "source_kind": "text",
+                "extract_text": "数据显示，2024年全年实现营业总收入1900.38亿元，同比下降7.31%；归母净利润321.85亿元，同比增长10.91%",
+                "evidence_id": "1b5e2d39-02ff-510a-9bf4-68377db7fb8e"
+              }
+            ],
+            "audit_contract": {
+              "entities": [
+                "美的集团",
+                "格力电器"
+              ],
+              "metrics": [
+                "营业收入",
+                "归母净利润"
+              ],
+              "period": {
+                "kind": "annual",
+                "year": 2024,
+                "label": "2024年度"
+              },
+              "dimension": "年度累计",
+              "scope_terms": [
+                "美的集团",
+                "格力电器"
+              ],
+              "units": [
+                "亿元"
+              ],
+              "numeric_tokens": [
+                "4071.50",
+                "385.37",
+                "1900.38",
+                "321.85"
+              ]
             }
           },
           {
@@ -1021,24 +1444,59 @@
           },
           {
             "fact": "两家2024归母净利润（含盈亏方向）",
-            "value": "隆基绿能2024年第一季度归母净利润为-23.50亿元",
-            "source": "各自年报",
+            "value": "隆基绿能2024年度归母净利润为-8,617,528,506.44元（亏损）；晶科能源2024年度归母净利润为0.99亿元（盈利）。",
+            "source": "两家公司2024年年度报告/业绩披露",
             "tol": "±2%",
             "w": "高",
             "original_value": "TBD@recording",
             "source_ref": {
-              "source_title": "隆基绿能一季度亏损23.5亿 主营业务面临行业挑战_电池_组件_同比",
-              "source_url": "https://www.sohu.com/a/778563653_120633803",
+              "source_title": "隆基绿能科技股份有限公司2024年年度报告摘要",
+              "source_url": "https://file.finance.qq.com/finance/hs/pdf/2025/04/30/1223421484.PDF",
               "source_kind": "text",
-              "extract_text": "2024年第一季度隆基绿能实现营业收入176.74亿元，同比下降37.59%；归母净利润-23.50亿元，同比下降164.61%。",
-              "evidence_id": "595adc9e-7e13-50fc-932b-75a3ef87174a",
-              "selection_score": 63
+              "extract_text": "2024年 归属于上市公司股东的净利润 -8,617,528,506.44元",
+              "source_id": "tavily-48399e3c96f2"
+            },
+            "source_refs": [
+              {
+                "source_title": "晶科能源2024年组件出货量全球第一 加速构建光储融合新格局",
+                "source_url": "http://www.zqrb.cn/gscy/gongsi/2025-04-30/A1745991233641.html",
+                "source_kind": "text",
+                "extract_text": "实现归属于上市公司股东的净利润0.99亿元",
+                "evidence_id": "15efcce7-8da3-57ee-8a16-ef5a6a7bcbab"
+              }
+            ],
+            "audit_contract": {
+              "entities": [
+                "隆基绿能",
+                "晶科能源"
+              ],
+              "metrics": [
+                "归母净利润"
+              ],
+              "period": {
+                "kind": "annual",
+                "year": 2024,
+                "label": "2024年度"
+              },
+              "dimension": "年度累计",
+              "scope_terms": [
+                "亏损",
+                "盈利"
+              ],
+              "units": [
+                "元",
+                "亿元"
+              ],
+              "numeric_tokens": [
+                "-8,617,528,506.44",
+                "0.99"
+              ]
             }
           },
           {
             "fact": "出货口径标注",
             "value": "晶科能源出货量口径包含组件、硅片和电池片，隆基绿能则分开列示单晶硅片、电池、组件对外销售和自用数据。",
-            "source": "—",
+            "source": "2023披露结构；仅作跨期口径结构证据",
             "tol": "语义",
             "w": "中",
             "original_value": "定性",
@@ -1049,6 +1507,31 @@
               "extract_text": "2023年1月至9月，晶科能源实现总出货量55.7GW，其中光伏组件出货量为52.2GW，硅片和电池片出货量为3.5GW，总出货量较去年同期增长86.91%。同期，隆基绿能实现单晶硅片对外销售37.45GW；实现单晶电池对外销售4.71GW；实现单晶组件出货量43.53GW，其中对外销售43.12GW，自用0.41GW。",
               "evidence_id": "c629aca4-1a58-562d-9171-084348f3dc3d",
               "selection_score": 51
+            },
+            "audit_contract": {
+              "entities": [
+                "晶科能源",
+                "隆基绿能"
+              ],
+              "metrics": [
+                "出货量"
+              ],
+              "period": {
+                "kind": "definition_context",
+                "label": "跨期口径结构证据"
+              },
+              "dimension": "口径结构",
+              "scope_terms": [
+                "组件",
+                "硅片",
+                "电池片",
+                "对外销售",
+                "自用"
+              ],
+              "units": [],
+              "numeric_tokens": [],
+              "decision": "PM_UNCERTAIN",
+              "decision_note": "Q13s3保留2023口径结构证据，仅说明披露结构延续；不计入2024组件出货量或利润数值。"
             }
           }
         ],
@@ -1080,34 +1563,95 @@
         "must_include": [
           {
             "fact": "两板块2024收入",
-            "value": "2024年上半年，比亚迪手机部件、组装及其他产品业务收入为727.78亿元。",
-            "source": "年报分部",
+            "value": "比亚迪2024年度汽车、汽车相关产品及其他产品业务收入6173.82亿元，同比增长27.70%；手机部件、组装及其他产品业务收入1596.09亿元，同比增长34.60%。",
+            "source": "2024年年度报告转述",
             "tol": "±2%",
             "w": "高",
             "original_value": "TBD@recording",
             "source_ref": {
-              "source_title": "上半年大赚136亿，汽车毛利率23.94%！但“迪王”仍不敌“宁王”",
-              "source_url": "https://chejiahao.autohome.com.cn/info/16577889?isfrom=m",
+              "source_title": "比亚迪公布2024年年报：营收7771亿元，全球销量427万辆",
+              "source_url": "https://www.taibo.cn/p/97151",
               "source_kind": "text",
-              "extract_text": "而手机部件、组装及其他产品业务的收入约为727.78亿元",
-              "evidence_id": "e90cbe25-6215-51bc-97c1-da807810f4b9",
-              "selection_score": 46
+              "extract_text": "比亚迪2024年汽车、汽车相关产品及其他产品业务的收入约人民币6173.82亿元，同比增长27.70%",
+              "evidence_id": "99ed2f71-2372-5e4f-b09d-61a56cb1dc95"
+            },
+            "source_refs": [
+              {
+                "source_title": "比亚迪公布2024年年报：营收7771亿元，全球销量427万辆",
+                "source_url": "https://www.taibo.cn/p/97151",
+                "source_kind": "text",
+                "extract_text": "手机部件、组装及其他产品业务的收入约人民币1596.09亿元，同比增长34.60%",
+                "evidence_id": "6919835c-ae64-55d3-9c5a-c8d476c3065e"
+              }
+            ],
+            "audit_contract": {
+              "entities": [
+                "比亚迪"
+              ],
+              "metrics": [
+                "业务收入"
+              ],
+              "period": {
+                "kind": "annual",
+                "year": 2024,
+                "label": "2024年度"
+              },
+              "dimension": "年度累计",
+              "scope_terms": [
+                "汽车、汽车相关产品及其他产品",
+                "手机部件、组装及其他产品"
+              ],
+              "units": [
+                "亿元",
+                "%"
+              ],
+              "numeric_tokens": [
+                "6173.82",
+                "27.70",
+                "1596.09",
+                "34.60"
+              ]
             }
           },
           {
             "fact": "两板块毛利率",
-            "value": "2024年上半年，比亚迪手机部件、组装及其他产品业务收入为727.78亿元。",
-            "source": "年报分部",
+            "value": "比亚迪2024年度汽车、汽车相关产品及其他产品毛利率为22.31%，手机部件、组装及其他产品毛利率为8.34%。",
+            "source": "2024年年度报告（附录补录）",
             "tol": "±1pct",
             "w": "中",
             "original_value": "TBD@recording",
             "source_ref": {
-              "source_title": "上半年大赚136亿，汽车毛利率23.94%！但“迪王”仍不敌“宁王”",
-              "source_url": "https://chejiahao.autohome.com.cn/info/16577889?isfrom=m",
-              "source_kind": "text",
-              "extract_text": "而手机部件、组装及其他产品业务的收入约为727.78亿元",
-              "evidence_id": "e90cbe25-6215-51bc-97c1-da807810f4b9",
-              "selection_score": 46
+              "source_title": "比亚迪股份有限公司2024年年度报告全文",
+              "source_url": "http://notice.10jqka.com.cn/api/pdf/3708503d0bfadfef.pdf",
+              "source_kind": "gold_appendix",
+              "extract_text": "比亚迪股份有限公司2024年年度报告全文 单位：元 分产品 手机部件、组装及其他产品 营业收入159,608,576,000.00 营业成本146,289,389,000.00 毛利率8.34%；汽车、汽车相关产品及其他产品 营业收入617,381,935,000.00 营业成本479,660,859,000.00 毛利率22.31%",
+              "source_id": "tavily-c078b230c7ec",
+              "recording_file": "290a371f8872b733b5acefc0caa91d4d68ec6620.json"
+            },
+            "audit_contract": {
+              "entities": [
+                "比亚迪"
+              ],
+              "metrics": [
+                "毛利率"
+              ],
+              "period": {
+                "kind": "annual",
+                "year": 2024,
+                "label": "2024年度"
+              },
+              "dimension": "年度",
+              "scope_terms": [
+                "汽车、汽车相关产品及其他产品",
+                "手机部件、组装及其他产品"
+              ],
+              "units": [
+                "%"
+              ],
+              "numeric_tokens": [
+                "22.31",
+                "8.34"
+              ]
             }
           }
         ],
@@ -1196,18 +1740,48 @@
         "must_include": [
           {
             "fact": "2024装机份额实际排序（宁德>比亚迪）",
-            "value": "2024年比亚迪动力电池装车量为153.7GWh，市场份额17.2%",
-            "source": "SNE转引",
+            "value": "SNE Research 2024年度统计：宁德时代全球动力电池装车量339.3GWh、份额37.9%，比亚迪153.7GWh、份额17.2%；宁德时代第一、比亚迪第二。",
+            "source": "SNE Research 2024年度统计转述",
             "tol": "精确",
             "w": "高",
             "original_value": "TBD@recording",
             "source_ref": {
-              "source_title": "2024年全球电池装车量：宁德时代第一、中创新航跃居第四",
-              "source_url": "http://www.jitstech.com/sys-nd/98.html",
+              "source_title": "2024年全球电池装车量：宁德时代第一、比亚迪第二、中创新航跃居第四",
+              "source_url": "https://mp.ofweek.com/libattery/a656714502537",
               "source_kind": "text",
-              "extract_text": "比亚迪在2024年动力电池装车量达153.7GWh，市占率较前一年提升1.3个百分点，达到了17.2%，位列全球第二位",
-              "evidence_id": "99193bdd-e520-543a-ba8d-ab3417418052",
-              "selection_score": 76
+              "extract_text": "2月11日，韩国研究机构SNE Research发布了2024年全球动力电池统计数据。2024年全年，全球动力电池装车总量约894.4GWh。宁德时代以339.3GWh的装车量占据全球37.9%的市场份额，连续第八年稳居全球第一。比亚迪在2024年动力电池装车量达153.7GWh，市占率17.2%，位列全球第二位。",
+              "source_id": "tavily-79f5e61ebecf"
+            },
+            "audit_contract": {
+              "entities": [
+                "宁德时代",
+                "比亚迪"
+              ],
+              "metrics": [
+                "装机量"
+              ],
+              "period": {
+                "kind": "annual",
+                "year": 2024,
+                "label": "SNE Research 2024年度"
+              },
+              "dimension": "累计",
+              "scope_terms": [
+                "SNE Research",
+                "全球",
+                "第一",
+                "第二"
+              ],
+              "units": [
+                "GWh",
+                "%"
+              ],
+              "numeric_tokens": [
+                "339.3",
+                "37.9",
+                "153.7",
+                "17.2"
+              ]
             }
           },
           {
@@ -1431,18 +2005,57 @@
           },
           {
             "fact": "总金额与首付款口径区分",
-            "value": "荣昌生物RC148与艾伯维的交易总额为56亿美元",
-            "source": "—",
+            "value": "2024年恒瑞医药GLP-1产品组合交易潜在总金额超过60亿美元；首付款为1亿美元，另有1000万美元技术转移后的近期里程碑款，首付款不得与潜在总额混同。",
+            "source": "2024年交易公告转述",
             "tol": "语义",
             "w": "高",
             "original_value": "定性",
             "source_ref": {
-              "source_title": "荣昌生物制药（烟台）股份有限公司_荣昌生物",
-              "source_url": "https://www.remegen.com/index.php?v=show&cid=40&id=10058",
+              "source_title": "60亿美元！恒瑞3款GLP-1授权出海",
+              "source_url": "https://bydrug.pharmcube.com/news/detail/f58f58c7c0cfc4a5ab2d4d660c1c5204",
               "source_kind": "text",
-              "extract_text": "2026年1月，荣昌生物将RC148在大中华区以外的开发、生产和商业化独家权利授予给全球头部药企艾伯维，交易总额达56亿美元，包含6.5亿美元首付款",
-              "evidence_id": "8e589492-5765-566e-bf80-211fac8c65a8",
-              "selection_score": 47
+              "extract_text": "2024年5月，恒瑞医药将其3款GLP-1产品独家权利有偿许可给美国Hercules公司，交易潜在总金额超过60亿美元。",
+              "source_id": "tavily-89465c5a7fa4",
+              "evidence_id": "2eb233ba-ef48-5532-a62a-1635c2f2c388"
+            },
+            "source_refs": [
+              {
+                "source_title": "创造出海新模式？恒瑞打包GLP-1产品组合与美企达成重磅BD交易",
+                "source_url": "https://www.cls.cn/detail/1678565",
+                "source_kind": "text",
+                "extract_text": "财联社5月16日讯：此次BD交易，恒瑞医药获得的首付款和近期里程碑总计1.1亿美元，其中包括1亿美元的首付款和完成技术转移后的1000万美元的近期里程碑付款。",
+                "source_id": "tavily-af20c0dc1158",
+                "evidence_id": "5d861e33-6042-56b2-9066-7cfa5a577588"
+              }
+            ],
+            "audit_contract": {
+              "entities": [
+                "恒瑞医药"
+              ],
+              "metrics": [],
+              "period": {
+                "kind": "events",
+                "year": 2024,
+                "label": "2024年交易",
+                "event_tokens": [
+                  "2024年"
+                ]
+              },
+              "dimension": "潜在总额与首付款",
+              "scope_terms": [
+                "潜在总金额",
+                "首付款",
+                "近期里程碑"
+              ],
+              "units": [
+                "亿美元",
+                "万美元"
+              ],
+              "numeric_tokens": [
+                "60",
+                "1",
+                "1000"
+              ]
             }
           }
         ],
@@ -1472,18 +2085,40 @@
         "must_include": [
           {
             "fact": "关键政策节点",
-            "value": "安徽省自2020年起相继发布多项低空经济省级政策，包括2024年度的低空空域航线划设方案和2024-2027年实施方案等",
-            "source": "部委/地方文件",
+            "value": "2024年初，深圳出台《深圳经济特区低空经济产业促进条例》，为全国首部低空经济立法。",
+            "source": "深圳市政府门户网站",
             "tol": "日期±7天",
             "w": "高",
             "original_value": "TBD@recording",
             "source_ref": {
-              "source_title": "【建议收藏】重磅！2024年安徽省低空经济产业链全景图谱（附产业政策、产业链现状图谱、产业资源空间布局、产业链发展规划）_新浪财经_新浪网",
-              "source_url": "https://finance.sina.com.cn/roll/2024-11-13/doc-incvwrzu5773386.shtml",
+              "source_title": "深圳低空经济加速飞向新高度",
+              "source_url": "https://www.sz.gov.cn/cn/xxgk/zfxxgj/zwdt/content/post_11479568.html",
               "source_kind": "text",
-              "extract_text": "2020年以来，安徽省相继发布《2024年度安徽省低空空域航线划设方案》《安徽省加快培育发展低空经济实施方案(2024—2027年)及若干措施》《安徽省工业级无人机产业高质量发展行动计划(2024-2027年)》(征求意见稿)等政策",
-              "evidence_id": "1fd80d4c-47e5-51e0-a9b5-5882222d397b",
-              "selection_score": 27
+              "extract_text": "2024年初，深圳更是出台全国首部低空经济立法——《深圳经济特区低空经济产业促进条例》",
+              "evidence_id": "eab2f6f5-a3ce-55b1-8195-4e1fb78d9181"
+            },
+            "audit_contract": {
+              "entities": [
+                "深圳"
+              ],
+              "metrics": [],
+              "period": {
+                "kind": "events",
+                "year": 2024,
+                "label": "2024-2025窗口内政策节点",
+                "event_tokens": [
+                  "2024年初"
+                ]
+              },
+              "dimension": "政策节点",
+              "scope_terms": [
+                "全国首部低空经济立法",
+                "条例"
+              ],
+              "units": [],
+              "numeric_tokens": [],
+              "decision": "PM_UNCERTAIN",
+              "decision_note": "Q20s1仅以2024年深圳条例节点计分；原2020年以来安徽政策降级为背景注记，不再作为计分值。"
             }
           },
           {
@@ -1846,18 +2481,51 @@
         "must_include": [
           {
             "fact": "项目公告与开工关键日期",
-            "value": "宁德时代匈牙利工厂全部建成后总产能为100吉瓦时（GWh）。",
-            "source": "公司公告/官方报道",
+            "value": "宁德时代于2022年8月12日公告在匈牙利德布勒森建设电池工厂；2022年9月5日签署预购地协议、项目正式启动，新华社同日报道工地施工，首栋厂房计划年内破土动工。",
+            "source": "宁德时代官网与新华社（附录补录）",
             "tol": "日期±7天",
             "w": "高",
             "original_value": "TBD@recording",
             "source_ref": {
-              "source_title": "宁德时代匈牙利工厂将于2025年投产考虑在欧洲开展电池回收业务",
-              "source_url": "https://m.caixin.com/m/2024-11-21/102260277.html",
-              "source_kind": "text",
-              "extract_text": "工厂项目占地221公顷，全部建成后总产能为100吉瓦时（GWh）。",
-              "evidence_id": "2bcaa1ea-18b5-5d9b-92d7-792b13a2b034",
-              "selection_score": 55
+              "source_title": "宁德时代宣布在匈牙利建设第二座欧洲工厂",
+              "source_url": "https://www.catl.com/news/6487.html",
+              "source_kind": "gold_appendix",
+              "extract_text": "2022年8月12日，宁德时代正式宣布在匈牙利东部城市德布勒森建设电池工厂。经股东大会等程序批准后，首栋厂房将于年内破土动工。",
+              "source_id": "tavily-c4a01b7a5752",
+              "recording_file": "6b7b5d685c38d942508307b14f29c7bd279b6833.json"
+            },
+            "source_refs": [
+              {
+                "source_title": "宁德时代匈牙利工厂项目正式启动",
+                "source_url": "http://www.xinhuanet.com/fortune/2022-09/06/c_1128980433.htm",
+                "source_kind": "gold_appendix",
+                "extract_text": "新华社匈牙利德布勒森9月5日电：宁德时代5日签署预购地协议，标志着宁德时代匈牙利工厂项目正式启动。9月5日，工人在宁德时代匈牙利工厂工地上施工。首栋厂房将于年内破土动工。",
+                "source_id": "tavily-d03102ab1b3a",
+                "recording_file": "6b7b5d685c38d942508307b14f29c7bd279b6833.json"
+              }
+            ],
+            "audit_contract": {
+              "entities": [
+                "宁德时代"
+              ],
+              "metrics": [],
+              "period": {
+                "kind": "events",
+                "label": "公告与启动/施工节点",
+                "event_tokens": [
+                  "2022年8月12日",
+                  "2022年9月5日"
+                ]
+              },
+              "dimension": "公告、启动与施工",
+              "scope_terms": [
+                "公告",
+                "正式启动",
+                "施工",
+                "破土动工"
+              ],
+              "units": [],
+              "numeric_tokens": []
             }
           },
           {
@@ -2053,18 +2721,57 @@
           },
           {
             "fact": "指引调整节点",
-            "value": "中芯国际资本开支披露使用美元计价。",
-            "source": "各季业绩会",
+            "value": "中芯国际2024年初指引全年资本开支与2023年的74.7亿美元（原文US$7.47 billion）基本持平；2024年实际为73.3亿美元。",
+            "source": "2024年初指引与2024全年业绩",
             "tol": "语义",
             "w": "中",
             "original_value": "TBD@recording",
             "source_ref": {
-              "source_title": "中芯国际(688981) 国产替代加速，资本开支持续高位",
-              "source_url": "https://pdf.dfcfw.com/pdf/H3_AP202512171802170753_1.pdf",
+              "source_title": "SMIC sees first sales rise in four quarters, anticipates flat Capex in 2024",
+              "source_url": "https://www.digitimes.com/news/a20240207PD209/smic-capex-2024-china-ic-manufacturing.html",
               "source_kind": "text",
-              "extract_text": "公司前三个季度资本开支合计57 亿美元",
-              "evidence_id": "d4ff7064-74ff-5a2d-8ba9-13faf656497b",
-              "selection_score": 26
+              "extract_text": "SMIC saw its capital expenditure for 2023 increased by 18% to US$7.47 billion from a year ago. However, the company expects its capital expenditure to remain flat in 2024.",
+              "source_id": "tavily-3110b5be96c0",
+              "evidence_id": "c4633289-18ef-59a8-bdaf-eb32a6b46f8e"
+            },
+            "source_refs": [
+              {
+                "source_title": "中芯国际(981 HK)",
+                "source_url": "https://pdf.dfcfw.com/pdf/H3_AP202502131643049780_1.pdf",
+                "source_kind": "text",
+                "extract_text": "2024全年资本开支73.3亿美元",
+                "source_id": "tavily-ea41362662bf",
+                "evidence_id": "1c3fcd06-ff8c-5b1b-b9fd-ba2774d66a5c"
+              }
+            ],
+            "audit_contract": {
+              "entities": [
+                "中芯国际"
+              ],
+              "metrics": [
+                "资本开支"
+              ],
+              "period": {
+                "kind": "events",
+                "year": 2024,
+                "label": "2024年初指引与全年实际",
+                "event_tokens": [
+                  "2024年初",
+                  "2024年实际"
+                ]
+              },
+              "dimension": "指引与实际",
+              "scope_terms": [
+                "基本持平",
+                "实际"
+              ],
+              "units": [
+                "亿美元"
+              ],
+              "numeric_tokens": [
+                "7.47",
+                "73.3"
+              ]
             }
           }
         ],

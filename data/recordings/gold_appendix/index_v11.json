@@ -1,0 +1,222 @@
+{
+  "version": "v1.1",
+  "as_of": "2026-07-12",
+  "search_depth": "basic",
+  "credit_cap": 120,
+  "credits_used_this_run": 2,
+  "credits_used_task_total": 8,
+  "queries": [
+    {
+      "id": "Q05-quarterly",
+      "question_id": "Q05",
+      "slots": [
+        1,
+        2,
+        3
+      ],
+      "query": "京东方A 2024 年年度报告 分季度 归属于上市公司股东的净利润 第一季度 第二季度 第三季度 第四季度",
+      "reason": "冻结语料只有 2024Q1 与全年累计值，缺 Q2-Q4 单季值及同表口径说明。",
+      "recording_file": "80983b1451283951062877a6fbd67031aeef2893.json",
+      "source_ids": [
+        "tavily-f652453d645b",
+        "tavily-682d69406ddc",
+        "tavily-b56393b6ed29",
+        "tavily-8b1441dd598d",
+        "tavily-6d4afd717c33"
+      ],
+      "source_urls": [
+        "https://q.stock.sohu.com/cn/000725/yjyg.shtml",
+        "https://convergencemedia.boe.com.cn/pdf/E2N2cZaUzASLhthL3nDl7YRfmMAWWq/%E4%BA%AC%E4%B8%9C%E6%96%B9%E7%A7%91%E6%8A%80%E9%9B%86%E5%9B%A2%E8%82%A1%E4%BB%BD%E6%9C%89%E9%99%90%E5%85%AC%E5%8F%B82024%E5%B9%B4%E5%B9%B4%E5%BA%A6%E6%8A%A5%E5%91%8A%E6%91%98%E8%A6%81.pdf",
+        "https://vip.stock.finance.sina.com.cn/corp/view/vCB_AllBulletinDetail.php?stockid=000725&id=10570227",
+        "https://www.cls.cn/detail/1664317",
+        "https://www.yicai.com/news/102062563.html"
+      ],
+      "result_count": 5,
+      "status": "complete"
+    },
+    {
+      "id": "Q05-cumulative",
+      "question_id": "Q05",
+      "slots": [
+        1,
+        2,
+        3
+      ],
+      "query": "京东方A 2024 三季报 上半年 累计 归母净利润 单季度",
+      "reason": "需要用同一年度累计披露验证相邻累计差分与单季/累计口径。",
+      "recording_file": "a501c7847bb44ceedbaad04b070815bedc28f351.json",
+      "source_ids": [
+        "tavily-fd938e4ba68e",
+        "tavily-f652453d645b",
+        "tavily-2c1ff869e698",
+        "tavily-1343fe861ce0",
+        "tavily-e757dd39cfc3"
+      ],
+      "source_urls": [
+        "https://pdf.dfcfw.com/pdf/H3_AP202411021640683746_1.pdf",
+        "https://q.stock.sohu.com/cn/000725/yjyg.shtml",
+        "https://vip.stock.finance.sina.com.cn/corp/view/vCB_AllBulletinDetail.php?stockid=000725&id=10570227",
+        "https://wap.eastmoney.com/a/202501203302325516.html",
+        "https://m.cnstock.com/commonDetail/303605"
+      ],
+      "result_count": 5,
+      "status": "complete"
+    },
+    {
+      "id": "Q14-margin",
+      "question_id": "Q14",
+      "slots": [
+        2
+      ],
+      "query": "比亚迪 2024 年年度报告 汽车相关产品 手机部件组装 毛利率",
+      "reason": "冻结语料有两板块全年收入，但手机部件板块只有半年毛利率。",
+      "recording_file": "290a371f8872b733b5acefc0caa91d4d68ec6620.json",
+      "source_ids": [
+        "tavily-e84b46f61622",
+        "tavily-12dc89d85a51",
+        "tavily-14d579c9f215",
+        "tavily-c078b230c7ec",
+        "tavily-7b28d1d33e11"
+      ],
+      "source_urls": [
+        "https://m.bjnews.com.cn/detail/1742862116168893.html",
+        "https://pdf.dfcfw.com/pdf/H3_AP202503281648746165_1.pdf?1743192066000.pdf=",
+        "https://www.donews.com/article/detail/6749/82905.html",
+        "http://notice.10jqka.com.cn/api/pdf/3708503d0bfadfef.pdf",
+        "https://www.sohu.com/a/767290699_116132"
+      ],
+      "result_count": 5,
+      "status": "complete"
+    },
+    {
+      "id": "Q29-guidance-h1",
+      "question_id": "Q29",
+      "slots": [
+        2
+      ],
+      "query": "中芯国际 2024 第一季度 第二季度 资本开支 全年指引 美元 持平",
+      "reason": "冻结语料只有年初持平指引和全年实际值，缺季度确认或调整节点。",
+      "recording_file": "ca33528cc0b4e21ff3c04b51d0d170d664c73dbe.json",
+      "source_ids": [
+        "tavily-e6c128cd8d5c",
+        "tavily-e0abad13315b",
+        "tavily-ae1fa1063015",
+        "tavily-d580f6e89190",
+        "tavily-c0917adee574"
+      ],
+      "source_urls": [
+        "https://pdf.dfcfw.com/pdf/H3_AP202502121643020595_1.pdf",
+        "https://file.iyanbao.com/pdf/19487-8c4fbc26-7a83-4c4e-bbf3-412ae76dff6c.pdf",
+        "https://xueqiu.com/5991626733/334476034",
+        "https://wallstreetcn.com/articles/3772284",
+        "https://www.tmtpost.com/7989141.html"
+      ],
+      "result_count": 5,
+      "status": "complete"
+    },
+    {
+      "id": "Q29-guidance-h2",
+      "question_id": "Q29",
+      "slots": [
+        2
+      ],
+      "query": "中芯国际 2024 第三季度 第四季度 资本开支 指引 调整 75 亿美元",
+      "reason": "补齐下半年资本开支指引节点并确认是否发生调整。",
+      "recording_file": "eb0bf966c059b8b3300a9c3a8e53b2f2de153bed.json",
+      "source_ids": [
+        "tavily-8429a9a1ba58",
+        "tavily-2329eacf3871",
+        "tavily-5ec84d854a84",
+        "tavily-9c8b68c4b2c0",
+        "tavily-c0917adee574"
+      ],
+      "source_urls": [
+        "https://m.cls.cn/detail/1985961",
+        "https://www.tfcaijing.com/article/page/754f6366436268715259635051714b596963354b44513d3d",
+        "https://wallstreetcn.com/articles/3746762",
+        "https://pdf.dfcfw.com/pdf/H3_AP202603061820345660_1.pdf?1772819209000.pdf=",
+        "https://www.tmtpost.com/7989141.html"
+      ],
+      "result_count": 5,
+      "status": "complete"
+    },
+    {
+      "id": "Q29-quarterly-disclosures-en",
+      "question_id": "Q29",
+      "slots": [
+        2
+      ],
+      "query": "SMIC 2024 Q1 Q2 Q3 capital expenditure US dollars quarterly results capex guidance",
+      "reason": "已有中文结果混入 2025 年披露，定向检索 2024 年各季度业绩稿中的美元资本开支节点。",
+      "recording_file": "9fec43ffcb26f2c8f92baa85580cb2b42140ec93.json",
+      "source_ids": [
+        "tavily-0ada5ef64881",
+        "tavily-21f7c81504d3",
+        "tavily-39938ff681f4",
+        "tavily-386937c9318f",
+        "tavily-d178bcd135c1"
+      ],
+      "source_urls": [
+        "https://ir.msci.com/news-releases/news-release-details/msci-reports-financial-results-third-quarter-and-nine-months-10",
+        "https://www.calcbench.com/blog/post/blogger4261461475953681265/More-on-Capex-Spending",
+        "https://www.sm-energy.com/investors/news-events/press-releases/detail/360/sm-energy-reports-third-quarter-2025-financial-and-operating-results-continued-operational-excellence-drives-financial-beat",
+        "https://ir.supermicro.com/financials/quarterly-results/default.aspx",
+        "https://platformonomics.com/2025/10/follow-the-capex-q3-2025-scoreboard"
+      ],
+      "result_count": 5,
+      "status": "complete"
+    },
+    {
+      "id": "Q29-quarterly-disclosures-zh",
+      "question_id": "Q29",
+      "slots": [
+        2
+      ],
+      "query": "中芯国际 2024Q1 2024Q2 2024Q3 业绩 资本开支 亿美元",
+      "reason": "交叉核对 2024 年逐季已发生资本开支及全年持平指引，排除跨年污染。",
+      "recording_file": "336a3e254870bb7ce4d04e5db885f46eb230488b.json",
+      "source_ids": [
+        "tavily-b6647876c02d",
+        "tavily-8a1b72971447",
+        "tavily-9b8244224f4b",
+        "tavily-07fe622c790b",
+        "tavily-774e4ae2844e"
+      ],
+      "source_urls": [
+        "/goto?url=CAESfQHuR6pNz55uA2QIcXumVm5vhujagnNOnnOE4VLUes1qYJTi8QaPYsuEGejDknFKJ6IuFLbdwzFaRvUHG0V2hdqKgx6mH1M8T-GYaoCESaBaDPtaBqcEtQHLtm3md9HQZ5BzciCet6Xu5aspkzfAXCcSiBOdCh351RXuo7r-",
+        "/goto?url=CAESbwHuR6pNp9MgiUskHAkmJ4PLlSq-bowArLymvViUutZxbwAfdg-_jsNQsDQmVTGJxC8oqCnMgIduq65twyeGhVIDl-PKvvdBxO30IkUmsp7l9NIZ3kDMzUJ1p-Vb20hBSPTBj2bkhCOZzuRmSfWS5g%3D%3D",
+        "/goto?url=CAESZwHuR6pNSmhQFAq0hDQ2WCpsSFR8vrwvWpdbzPV10SlUumTCqo3uGXCeN3Ux2I08WRNnRIp0NV21fa0km9X4NT2QTd2f2rvMyTsTbuHQ-HOy_HHIP0j9ygahZIJWyr4E4AoLlubkBok%3D",
+        "/goto?url=CAESXQHuR6pNKHUHXwz-N7YTInCh7A7xjBmV1R8pHaP31sX5--TBwFeI3ouvdRBdNWoSlUoc4Wy2zcTvz6WThYKpmyqJ4mttjlzCsHJfIoNEl90d0cGQ1C13jbVnJ-Vg0w%3D%3D",
+        "/goto?url=CAEShAMB7keqTYjr2dGz5sndN-v6uGuHrJ2wVhi5or6SP9aFZ1t9MmQgxWDIlrNSZdgWUgWqeQh-e6GngSuBloiu1_XKjH0WtL0PSpMijKOrun54JQxTAmu5svT_NQdd-zCoLEH-vWqgFZVqpYG5SggJTsNKWGqQA_afYL_iTLQMy80halzhWe42v2jrQjONl39GNEIS63w0Nmdf8yDnQTNPW4Z54N8EZ0idCHumU76BFs1RuDOkCsC2jqRz9Xd0TucFQY8_R-93-YtR7ujMp6k06Pdrr3BTq1rdboQRnoyL2I_pn3EBDADoLNa-2xMUUw9GQPeUCS1mNpS2BR_OsWcoqV1j89HIT8inOu5CllnYamt2eAEB-UuK81FkIJjIZrLOWD3ivyWhvOUE84sllSujDE0_fwfaH8nNS6XyuaEHc5LPa26TqaPz7p7LBSfwlZJuA9K-O5sFtAWf7hi3h0oOQVr1TMrX1uGw9UlD8EPOjvOXTOhJkIwt5QIth84326KUX5mEHHmS"
+      ],
+      "result_count": 5,
+      "status": "complete"
+    },
+    {
+      "id": "Q26-groundbreaking",
+      "question_id": "Q26",
+      "slots": [
+        1
+      ],
+      "query": "宁德时代 匈牙利 德布勒森 电池工厂 开工 奠基 日期",
+      "reason": "冻结语料有公告、购地启动和施工状态，但缺明确开工/奠基日期。",
+      "recording_file": "6b7b5d685c38d942508307b14f29c7bd279b6833.json",
+      "source_ids": [
+        "tavily-c4a01b7a5752",
+        "tavily-59f7b5911a36",
+        "tavily-d03102ab1b3a",
+        "tavily-bcc521753bd2",
+        "tavily-74eefeeb8f78"
+      ],
+      "source_urls": [
+        "https://www.catl.com/news/6487.html",
+        "https://www.stcn.com/article/detail/662517.html",
+        "http://www.xinhuanet.com/fortune/2022-09/06/c_1128980433.htm",
+        "https://www.business-humanrights.org/zh-hans/%E6%9C%80%E6%96%B0%E6%B6%88%E6%81%AF/%E5%8C%88%E7%89%99%E5%88%A9%E5%AE%81%E5%BE%B7%E6%97%B6%E4%BB%A3%E5%BE%B7%E5%B8%83%E5%8B%92%E6%A3%AE%E7%94%B5%E6%B1%A0%E5%B7%A5%E5%8E%82%E9%A1%B9%E7%9B%AE",
+        "https://cn.chinadiplomacy.org.cn/2022-09/06/content_78407431.shtml"
+      ],
+      "result_count": 5,
+      "status": "complete"
+    }
+  ]
+}

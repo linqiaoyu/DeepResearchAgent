@@ -1,0 +1,77 @@
+{
+  "version": "v1.1",
+  "queries": [
+    {
+      "id": "Q05-quarterly",
+      "question_id": "Q05",
+      "slots": [1, 2, 3],
+      "query": "京东方A 2024 年年度报告 分季度 归属于上市公司股东的净利润 第一季度 第二季度 第三季度 第四季度",
+      "reason": "冻结语料只有 2024Q1 与全年累计值，缺 Q2-Q4 单季值及同表口径说明。",
+      "top_k": 5,
+      "source_type": "official"
+    },
+    {
+      "id": "Q05-cumulative",
+      "question_id": "Q05",
+      "slots": [1, 2, 3],
+      "query": "京东方A 2024 三季报 上半年 累计 归母净利润 单季度",
+      "reason": "需要用同一年度累计披露验证相邻累计差分与单季/累计口径。",
+      "top_k": 5,
+      "source_type": "official"
+    },
+    {
+      "id": "Q14-margin",
+      "question_id": "Q14",
+      "slots": [2],
+      "query": "比亚迪 2024 年年度报告 汽车相关产品 手机部件组装 毛利率",
+      "reason": "冻结语料有两板块全年收入，但手机部件板块只有半年毛利率。",
+      "top_k": 5,
+      "source_type": "official"
+    },
+    {
+      "id": "Q29-guidance-h1",
+      "question_id": "Q29",
+      "slots": [2],
+      "query": "中芯国际 2024 第一季度 第二季度 资本开支 全年指引 美元 持平",
+      "reason": "冻结语料只有年初持平指引和全年实际值，缺季度确认或调整节点。",
+      "top_k": 5,
+      "source_type": "official"
+    },
+    {
+      "id": "Q29-guidance-h2",
+      "question_id": "Q29",
+      "slots": [2],
+      "query": "中芯国际 2024 第三季度 第四季度 资本开支 指引 调整 75 亿美元",
+      "reason": "补齐下半年资本开支指引节点并确认是否发生调整。",
+      "top_k": 5,
+      "source_type": "official"
+    },
+    {
+      "id": "Q29-quarterly-disclosures-en",
+      "question_id": "Q29",
+      "slots": [2],
+      "query": "SMIC 2024 Q1 Q2 Q3 capital expenditure US dollars quarterly results capex guidance",
+      "reason": "已有中文结果混入 2025 年披露，定向检索 2024 年各季度业绩稿中的美元资本开支节点。",
+      "top_k": 5,
+      "source_type": "official"
+    },
+    {
+      "id": "Q29-quarterly-disclosures-zh",
+      "question_id": "Q29",
+      "slots": [2],
+      "query": "中芯国际 2024Q1 2024Q2 2024Q3 业绩 资本开支 亿美元",
+      "reason": "交叉核对 2024 年逐季已发生资本开支及全年持平指引，排除跨年污染。",
+      "top_k": 5,
+      "source_type": "official"
+    },
+    {
+      "id": "Q26-groundbreaking",
+      "question_id": "Q26",
+      "slots": [1],
+      "query": "宁德时代 匈牙利 德布勒森 电池工厂 开工 奠基 日期",
+      "reason": "冻结语料有公告、购地启动和施工状态，但缺明确开工/奠基日期。",
+      "top_k": 5,
+      "source_type": "official"
+    }
+  ]
+}

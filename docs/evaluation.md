@@ -20,7 +20,7 @@ Production version: compute true critic recall from seeded issues or manually la
 
 ## Golden Set v1
 
-Golden Set v1 is frozen under `data/golden_set/v1/` with version `v1.0`.
+Golden Set v1 is frozen under `data/golden_set/v1/` with release version `v1.1`.
 It contains 30 finance-oriented cases across 财报解读, 对比研究, 行业研究,
 and 事件时间线. The frozen set records gold facts, source references, the
 quarantine list, freeze-time adjustments, the evaluation `as_of`, recording
@@ -29,7 +29,13 @@ quarantine list, freeze-time adjustments, the evaluation `as_of`, recording
 Frozen assets:
 
 - `data/golden_set/v1/questions.json`: 30 cases with source-backed gold fields.
-- `data/golden_set/v1/freeze.md`: freeze note, corpus stats, quarantine list, and adjustments.
+- `data/golden_set/v1/freeze.md`: v1.1 freeze note and complete revision log.
+- `data/golden_set/v1/revisions_v11.json`: machine-readable old/new values, source excerpts, and four-key contracts.
+- `data/golden_set/v1/audit_v11.md`: 79-slot entity/metric/period/scope-unit/numeric audit.
+- `data/golden_set/v1/results/g1_judge_v11.json`: G1 saved-state rejudge on release gold v1.1.
+- `data/golden_set/v1/results/g2_judge_v11.json`: G2 saved-state rejudge on release gold v1.1.
+- `data/golden_set/v1/results/g3_judge_v11.json`: G3 saved-state rejudge on release gold v1.1.
+- `data/golden_set/v1/results/v11_three_point_comparison.md`: official per-dimension and per-question v1.1 table with v1.0 history beside it.
 - `data/golden_set/v1/results/round1.json`: first full judge round.
 - `data/golden_set/v1/results/round2.json`: second full judge round.
 - `data/golden_set/v1/results/round_diff.json`: round two minus round one metrics.
@@ -40,23 +46,28 @@ Frozen assets:
 - `data/golden_set/v1/results/gen3_judge1.json`: G3 judge round after citation repair retry replaced renderer backfill.
 - `data/golden_set/v1/results/judge_calibration_qwen37_vs_qwenmax.json`: current 10-case judge calibration sample.
 
-Golden Set v1 evaluation `as_of` is `2026-07-09`. The frozen corpus contains
+Golden Set v1.1 evaluation `as_of` is `2026-07-12`. The frozen corpus contains
 486 canonical recording files, 694 source rows, 510 unique source URLs, and
 fingerprint `ef2d1fd2c414502140162508ef32838aaf8e4a56a6ab3678f9f57ed04f86960e`.
-No cases were quarantined in the v1.0 freeze.
+No cases are quarantined. The independent `data/recordings/gold_appendix/`
+used eight bounded Tavily basic credits and does not change the frozen-corpus
+fingerprint. AKShare live remains outside the freeze because the network and
+geography path is unavailable; recorded fixture data remains the validation
+boundary.
 
 Run the current round runner against saved states or replay search:
 
 ```bash
 PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_golden_round.py \
   --questions data/golden_set/v1/questions.json \
-  --output data/golden_set/v1/results/round1.json \
-  --work-dir _collab/006r3_recording-completion/round1 \
-  --round-id round1 \
-  --as-of 2026-07-09 \
-  --ledger-path _collab/006r3_recording-completion/round_llm_ledger.jsonl \
+  --output data/golden_set/v1/results/g1_judge_v11.json \
+  --work-dir _collab/008a_gold-v11/g1_rejudge \
+  --round-id g1-judge-v11 \
+  --generation G1 \
+  --as-of 2026-07-12 \
+  --ledger-path _collab/008a_gold-v11/judge_v11_ledger.jsonl \
   --judge-samples 3 \
-  --state-path-map _collab/006r3_recording-completion/state_path_map.json
+  --state-path-map _collab/006v_judge-verdict/g1_state_path_map.json
 ```
 
 `--state-path-map` re-scores saved `ResearchState` artifacts without rerunning
@@ -74,6 +85,28 @@ Generation passes and judge passes are separate units:
   generation pass. They are therefore a test-retest reliability check, not a
   repair-loop before/after comparison. The observed composite movement was
   `+0.0043`, which is treated as test-retest noise within the `±0.01` band.
+
+## Golden Production Four-Key Gate
+
+The v1.1 rebuild fixes a Golden production-line defect rather than a research
+workflow defect. In v1.0, source selection, extraction/refill, and freeze review
+all accepted the same unsafe premise: a plausible excerpt was treated as a
+valid slot value without proving that the value matched the slot definition.
+That shared premise penetrated all three defenses and produced 19 confirmed
+defects across entity, normalized metric, report period, and scope/unit.
+
+`scripts/audit_gold.py` is now a permanent positive and release control. It
+normalizes finance metrics with `data/finance_metric_normalization.json`, parses
+annual, quarterly, half-year, first-three-quarter, range, and event periods,
+checks entity plus scope/unit, and requires every declared numeric token to
+occur in the source excerpt. Running it on v1.0 reproduced the exact 19-defect
+007S2/PM list; v1.1 reports 76 PASS, zero DEFECT, and only the three explicitly
+annotated PM UNCERTAIN slots Q04s3, Q13s3, and Q20s1.
+
+`scripts/refill_gold.py` calls the same gate before writing. It also rejects
+stale old values, edits outside the prompt-authorized slot set, and shared facts
+whose value or source diverges. This makes the audit contract a write-time
+invariant instead of a post-freeze review convention.
 
 Golden Set score interpretation uses two separate noise bands:
 
@@ -125,9 +158,52 @@ reported as qwen3.7-plus minus qwen-max:
 On this sample, qwen3.7-plus is materially stricter than qwen-max. PM review is
 still required before treating Golden Set scores as stable product benchmarks.
 
-## Golden Set v1 Results
+## Golden Set v1.1 Release Results
 
-Historical `round1` and `round2` are same-generation test-retest judge passes
+The release series rejudges the unchanged G1, G2, and G3 saved states against
+gold v1.1. Each generation contains all 30 effective cases, uses three judge
+samples aggregated by median, reruns the citation_support verifier, and has zero
+structured failures. Per-generation research ids are identical to the v1.0
+rounds. Therefore no Planner, Researcher, Extractor, Reporter, Critic, report,
+or evidence change enters this comparison; the only intentional input change is
+the gold revision manifest. Judge sampling remains a test-retest noise source.
+
+| Metric | G1 v1.1 | G2 v1.1 | G3 v1.1 |
+| --- | ---: | ---: | ---: |
+| avg weighted score | 0.8337 | 0.7714 | 0.7982 |
+| avg fact coverage | 0.7867 | 0.6707 | 0.7090 |
+| avg fact accuracy | 0.8817 | 0.8700 | 0.8867 |
+| avg citation support | 0.8720 | 0.8487 | 0.8667 |
+| avg synthesis balance | 0.8000 | 0.7133 | 0.7450 |
+| avg citation support rate | 0.8883 | 0.7227 | 0.7640 |
+| avg citation resolution rate | 0.6000 | 1.0000 | 0.9333 |
+| avg citation repair retry rate | 0.0000 | 0.0000 | 0.5333 |
+| avg uncited claim rate | 0.0000 | 0.0000 | 0.0779 |
+
+The official side-by-side v1.0/v1.1 dimension table and all 30 per-question
+rows are generated in
+`data/golden_set/v1/results/v11_three_point_comparison.md`. Composite deltas
+versus historical v1.0 are `+0.0338`, `+0.0300`, and `+0.0179` for G1, G2, and
+G3. These are gold-version movements, not new product-generation results, and
+remain subject to the documented cross-generation and judge test-retest bands.
+
+The two false-premise cases remain correctly refuted in all three saved
+generations under v1.1 (`false_premise_failed=false`):
+
+| Case | G1 weighted / citation rate | G2 weighted / citation rate | G3 weighted / citation rate | Behavior |
+| --- | ---: | ---: | ---: | --- |
+| Q08 | 0.7525 / 1.000 | 0.7575 / 0.833 | 0.8425 / 0.667 | refuted |
+| Q16 | 0.8400 / 0.917 | 0.8875 / 1.000 | 0.8800 / 0.250 | refuted |
+
+The three v1.1 judge rounds cost CNY `1.65913960`, `1.67774040`, and
+`1.65709656`, respectively, for a combined CNY `4.99397656`. The shared task
+ledger contains 271 judge rows and 91 citation_support rows; two additional
+rows beyond the nominal 360 calls are recorded structured-repair attempts.
+
+## Golden Set v1.0 Historical Results
+
+All numbers in this section were measured on historical gold v1.0. Historical
+`round1` and `round2` are same-generation test-retest judge passes
 from the pre-006V judge identity. They are retained as historical assets only:
 
 | Metric | G1 judge pass 1 | G1 judge pass 2 | Delta |
@@ -143,7 +219,8 @@ from the pre-006V judge identity. They are retained as historical assets only:
 Both false-premise cases, Q08 and Q16, were classified as refuted in both rounds.
 No generation repair was applied between these two judge passes.
 
-006V rejudged the G1 saved states with the current locked judge. That exposed
+The following judge-effect decomposition was measured on gold v1.0. 006V
+rejudged the G1 saved states with the current locked judge. That exposed
 the G2 regression: the apparent historical improvement was a judge-identity
 artifact. A useful decomposition is:
 
@@ -156,9 +233,9 @@ the judge-identity uplift observed by rejudging G1 as `0.7999`, and `-0.0585`
 is the same-judge G2 regression. This is the canonical judge-effect example for
 why Golden Set scores must be paired by judge identity.
 
-006F2 then removed renderer lexical backfill and replaced it with one structured
-Reporter repair retry that asks the model to add real `evidence_ids` before
-rendering. The formal same-judge sequence is now:
+On historical gold v1.0, 006F2 removed renderer lexical backfill and replaced
+it with one structured Reporter repair retry that asks the model to add real
+`evidence_ids` before rendering. The historical same-judge sequence was:
 
 | Metric | G1 rejudge | G2 backfill | G3 repair retry |
 | --- | ---: | ---: | ---: |
@@ -223,8 +300,9 @@ Rows refused by the guardrail are written with `refused=true` and
 Recording `as_of` and evaluation `as_of` are separate facts. Recording `as_of`
 is provenance metadata for when a source key was collected and may have multiple
 values inside one frozen corpus. Evaluation `as_of` is a single run-level date
-injected through `DEEPRESEARCH_AS_OF`; for Golden Set v1 it is the latest
-recording date in the frozen corpus and controls freshness-sensitive rules.
+injected through `DEEPRESEARCH_AS_OF`; for Golden Set v1.1 it is `2026-07-12`
+and controls freshness-sensitive rules. The unchanged frozen corpus separately
+retains recording dates `2026-07-08` and `2026-07-09`.
 
 ## Frozen Corpus Replay
 
