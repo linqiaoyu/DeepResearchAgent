@@ -17,7 +17,8 @@ G3_PATH = ROOT / "data" / "golden_set" / "v1" / "results" / "g3_judge_v11.json"
 CITATION_PATH = ROOT / "data" / "golden_set" / "v1" / "results" / "g3_citation_support_3s.json"
 AUDIT_PATH = ROOT / "data" / "golden_set" / "v1" / "audit_v11.json"
 FREEZE_PATH = ROOT / "data" / "golden_set" / "v1" / "freeze.md"
-FORBIDDEN_V10_NUMBERS = ("0.7803", "0.7999", "0.7414")
+FORBIDDEN_V10_NUMBERS = ("0.7803", "0.7999")
+HISTORICAL_JUDGE_DECOMPOSITION = "0.6134 + 0.1865 - 0.0585 = 0.7414"
 
 
 def main() -> None:
@@ -110,9 +111,17 @@ def _assert_site(dist: Path) -> None:
     if not pages:
         raise SystemExit("site has no report pages")
     all_text = "\n".join(path.read_text(encoding="utf-8") for path in dist.rglob("*.html"))
-    forbidden = [value for value in ("1970-01-01", *FORBIDDEN_V10_NUMBERS) if value in all_text]
+    methodology = (dist / "methodology.html").read_text(encoding="utf-8")
+    other_pages = all_text.replace(HISTORICAL_JUDGE_DECOMPOSITION, "")
+    forbidden = [
+        value
+        for value in ("1970-01-01", *FORBIDDEN_V10_NUMBERS, "0.7414")
+        if value in other_pages
+    ]
     if forbidden:
         raise SystemExit(f"site contains forbidden legacy values: {forbidden}")
+    if methodology.count(HISTORICAL_JUDGE_DECOMPOSITION) != 1:
+        raise SystemExit("methodology must contain exactly one historical judge decomposition")
     for page in pages:
         text = page.read_text(encoding="utf-8")
         if text.count("<h2>参考来源</h2>") != 1:
@@ -179,7 +188,8 @@ def _methodology_page(showcase: dict[str, Any], validation: dict[str, Any]) -> s
         "方法论",
         f"""<section class="page-title"><h1>Golden Set v1.1 方法论</h1><p>Judge 与 citation_support 均锁定 qwen3.7-plus；检索语料截至 {validation['retrieval_as_of']}，gold 附录采集于 {validation['gold_appendix_captured']}。</p></section>
 <section><h2>四维量规</h2><table><thead><tr><th>维度</th><th>权重</th><th>G3 均值</th></tr></thead><tbody>{''.join(f'<tr><td>{key}</td><td>{weight}</td><td>{_fmt4(value)}</td></tr>' for key, weight, value in rows)}</tbody></table></section>
-<section><h2>审计与引用验证</h2><p>四键写入闸覆盖实体、归一指标、报告期、口径/单位和数字摘录。v1.1 审计为 {validation['audit_counts']['PASS']}/0/{validation['audit_counts']['UNCERTAIN']}；citation_support 使用 {validation['citation_samples']} 采样逐 claim 多数决。</p></section>""",
+<section><h2>审计与引用验证</h2><p>四键写入闸覆盖实体、归一指标、报告期、口径/单位和数字摘录。v1.1 审计为 {validation['audit_counts']['PASS']}/0/{validation['audit_counts']['UNCERTAIN']}；citation_support 使用 {validation['citation_samples']} 采样逐 claim 多数决。</p></section>
+<section><h2>判官效应分解（gold v1.0 历史测量）</h2><p><code>{HISTORICAL_JUDGE_DECOMPOSITION}</code></p></section>""",
     )
 
 

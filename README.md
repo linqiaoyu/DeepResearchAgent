@@ -41,7 +41,11 @@ flowchart LR
 2. Run `PYTHONPATH=src DEEPRESEARCH_SEARCH_PROVIDER=fixture .venv/bin/python -m unittest discover -s tests`.
 3. Build the static showcase with `PYTHONPATH=src .venv/bin/python scripts/build_site.py`.
 
-<!-- Screenshot placeholders: add (1) site metric cards, (2) report-page citation highlighting, and (3) methodology page. These comments render nothing. -->
+![站点核心数字卡](docs/assets/readme/site_overview.png)
+
+![Q16 假前提识破与指标条](docs/assets/readme/report_q16.png)
+
+![方法论页判官效应分解](docs/assets/readme/methodology_judge.png)
 
 ## Non-goals and boundaries
 
