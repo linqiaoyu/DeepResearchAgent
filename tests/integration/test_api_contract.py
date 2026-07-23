@@ -30,6 +30,13 @@ class FastAPIContractTests(unittest.TestCase):
 
                 client = TestClient(api_main.app)
             try:
+                healthz = client.get("/healthz")
+                self.assertEqual(healthz.status_code, 200)
+                self.assertEqual(healthz.json(), {"status": "ok"})
+                readyz = client.get("/readyz")
+                self.assertEqual(readyz.status_code, 200)
+                self.assertEqual(readyz.json(), {"status": "ready"})
+
                 create_response = client.post(
                     "/research",
                     json={"topic": "fastapi contract smoke", "depth_level": 1},

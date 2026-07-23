@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import asyncio
+import threading
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from pydantic import BaseModel, Field
 
 from deepresearch_agent.api.demo import DemoLimitExceeded, DemoNotAuthorized, DemoQueueFull, DemoService
@@ -8,16 +13,59 @@ from deepresearch_agent.settings import configure_langsmith_from_env
 from deepresearch_agent.workflow import DeepResearchEngine
 
 try:
-    from fastapi import FastAPI, Header, HTTPException
+    from fastapi import FastAPI, Header, HTTPException, Request
+    from fastapi.responses import JSONResponse
 except ModuleNotFoundError:  # Local bare runtime can still use CLI/tests.
     FastAPI = None
     Header = None
     HTTPException = None
+    Request = None
+    JSONResponse = None
 
 
 configure_langsmith_from_env()
 engine = DeepResearchEngine()
 demo_service = DemoService()
+
+
+class OperationalState:
+    def __init__(self) -> None:
+        self.accepting = True
+        self._inflight = 0
+        self._lock = threading.Lock()
+
+    @property
+    def inflight(self) -> int:
+        with self._lock:
+            return self._inflight
+
+    def enter(self) -> None:
+        with self._lock:
+            self._inflight += 1
+
+    def exit(self) -> None:
+        with self._lock:
+            self._inflight = max(0, self._inflight - 1)
+
+    def begin_shutdown(self) -> None:
+        self.accepting = False
+
+    async def wait_for_drain(self, timeout_s: float = 30.0) -> bool:
+        deadline = asyncio.get_running_loop().time() + timeout_s
+        while self.inflight and asyncio.get_running_loop().time() < deadline:
+            await asyncio.sleep(0.05)
+        return self.inflight == 0
+
+
+operational_state = OperationalState()
+
+
+@asynccontextmanager
+async def lifespan(_app: object) -> AsyncIterator[None]:
+    operational_state.accepting = True
+    yield
+    operational_state.begin_shutdown()
+    await operational_state.wait_for_drain()
 
 
 class DemoLiveRequest(BaseModel):
@@ -41,11 +89,39 @@ if FastAPI is not None:
         title="DeepResearchAgent",
         description="Multi-agent deep research with Evidence Store, Critic, checkpointing, and evaluation harness.",
         version="0.1.0",
+        lifespan=lifespan,
     )
+
+    @app.middleware("http")
+    async def track_inflight(request: Request, call_next):
+        if request.url.path not in {"/health", "/healthz", "/readyz"}:
+            if not operational_state.accepting:
+                return JSONResponse(
+                    status_code=503,
+                    content={"status": "not_ready", "reason": "shutting_down"},
+                )
+        operational_state.enter()
+        try:
+            return await call_next(request)
+        finally:
+            operational_state.exit()
 
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/healthz")
+    def healthz() -> dict[str, str]:
+        return {"status": "ok"}
+
+    @app.get("/readyz")
+    def readyz():
+        if not operational_state.accepting:
+            return JSONResponse(
+                status_code=503,
+                content={"status": "not_ready", "reason": "shutting_down"},
+            )
+        return {"status": "ready"}
 
     @app.post("/research", response_model=ResearchResponse)
     def create_research(request: ResearchRequest) -> ResearchResponse:

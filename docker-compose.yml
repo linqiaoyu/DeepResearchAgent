@@ -16,6 +16,12 @@ services:
     volumes:
       - ./data/runtime:/app/data/runtime
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
   ui:
     build: .
@@ -31,7 +37,8 @@ services:
     volumes:
       - ./data/runtime:/app/data/runtime
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     restart: unless-stopped
 
   postgres:

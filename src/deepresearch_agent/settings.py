@@ -32,6 +32,8 @@ class Settings:
     runs_root: Path = Path("runs")
     context_packer_enabled: bool = False
     reporter_context_token_budget: int = 200_000
+    structured_logging_enabled: bool = False
+    config_fail_fast_enabled: bool = False
 
 
 def project_root() -> Path:
@@ -94,6 +96,8 @@ def load_settings() -> Settings:
         reporter_context_token_budget=int(
             os.getenv("DEEPRESEARCH_REPORTER_CONTEXT_TOKEN_BUDGET", "200000")
         ),
+        structured_logging_enabled=_env_flag("STRUCTURED_LOGGING_ENABLED"),
+        config_fail_fast_enabled=_env_flag("CONFIG_FAIL_FAST_ENABLED"),
     )
 
 

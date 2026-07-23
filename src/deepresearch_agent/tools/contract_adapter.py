@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from deepresearch_agent.schemas import Source
+from deepresearch_agent.observability import JsonLogger, correlation_context
 from deepresearch_agent.tools.contracts import ToolSpec
 from deepresearch_agent.tools.provider import SearchProvider
 from deepresearch_agent.tools.reliable_execution import (
@@ -41,10 +42,12 @@ class ContractSearchProvider:
         *,
         executor: ReliableToolExecutor | None = None,
         context: RunToolContext | None = None,
+        logger: JsonLogger | None = None,
     ) -> None:
         self.provider = provider
         self.executor = executor or ReliableToolExecutor()
         self.context = context or RunToolContext(retry_budget=RetryBudget(max_retries=6))
+        self.logger = logger or JsonLogger()
 
     def search(
         self,
@@ -52,14 +55,22 @@ class ContractSearchProvider:
         top_k: int = 3,
         source_type: str | None = None,
     ) -> list[Source]:
-        result = self.executor.execute(
-            SEARCH_TOOL_SPEC,
-            lambda: self.provider.search(query, top_k=top_k, source_type=source_type),
-            self.context,
-            degrade=True,
-            degraded_value=[],
-            impact="search results unavailable; downstream evidence coverage may decrease",
-        )
+        with correlation_context(tool_call=SEARCH_TOOL_SPEC.name):
+            result = self.executor.execute(
+                SEARCH_TOOL_SPEC,
+                lambda: self.provider.search(query, top_k=top_k, source_type=source_type),
+                self.context,
+                degrade=True,
+                degraded_value=[],
+                impact="search results unavailable; downstream evidence coverage may decrease",
+            )
+            self.logger.event(
+                "tool_call",
+                ok=result.ok,
+                attempts=result.attempts,
+                elapsed_ms=result.elapsed_ms,
+                degraded=result.degraded,
+            )
         return list(result.value or [])
 
     def fetch(self, url: str) -> Source | None:

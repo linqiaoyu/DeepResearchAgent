@@ -11,6 +11,7 @@ from typing import Any, TypeVar
 from pydantic import BaseModel, ValidationError
 
 from deepresearch_agent.llm_config import DEFAULT_LLM_CONFIG, LLMConfig
+from deepresearch_agent.observability import JsonLogger, correlation_context
 from deepresearch_agent.settings import project_root
 
 SchemaT = TypeVar("SchemaT", bound=BaseModel)
@@ -63,6 +64,7 @@ class LLMClient:
         sleep_func: Any = time.sleep,
         env_path: Path | None = None,
         global_ledger_path: Path | None = None,
+        logger: JsonLogger | None = None,
     ) -> None:
         self._litellm = None if completion_func is not None else self._load_litellm()
         self.ledger_path = ledger_path
@@ -73,6 +75,7 @@ class LLMClient:
         self._sleep = sleep_func
         self._env_path = env_path or project_root() / ".env"
         self._run_costs_cny: dict[str, float] = {}
+        self.logger = logger or JsonLogger()
         self.ledger_path.parent.mkdir(parents=True, exist_ok=True)
         self.global_ledger_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -107,15 +110,16 @@ class LLMClient:
             )
 
         first_error: str | None = None
-        raw_result = self._completion_with_retries(
-            role=role,
-            model=role_config.model,
-            fallback_model=role_config.fallback_model,
-            api_base=role_config.api_base,
-            api_key=api_key,
-            timeout_seconds=role_config.timeout_seconds or self.config.timeout_seconds,
-            messages=prompt_messages,
-        )
+        with correlation_context(llm_call=role):
+            raw_result = self._completion_with_retries(
+                role=role,
+                model=role_config.model,
+                fallback_model=role_config.fallback_model,
+                api_base=role_config.api_base,
+                api_key=api_key,
+                timeout_seconds=role_config.timeout_seconds or self.config.timeout_seconds,
+                messages=prompt_messages,
+            )
         content = raw_result.content
         parsed: BaseModel | None = None
         repair_attempts = 0
@@ -185,6 +189,14 @@ class LLMClient:
         self._run_costs_cny[run_id] += result.cost_cny
         if self._run_costs_cny[run_id] > self.budget_cny:
             raise BudgetExceededError(run_id, self.budget_cny, self._run_costs_cny[run_id])
+        with correlation_context(llm_call=role):
+            self.logger.event(
+                "llm_call",
+                model=result.model,
+                total_tokens=result.total_tokens,
+                cost_cny=result.cost_cny,
+                latency_seconds=result.latency_seconds,
+            )
         return result
 
     def run_total_cny(self, run_id: str) -> float:

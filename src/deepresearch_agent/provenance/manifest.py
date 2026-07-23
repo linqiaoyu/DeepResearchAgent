@@ -106,6 +106,8 @@ def build_run_manifest(
             "INJECTION_GUARD_ENABLED": settings.injection_guard_enabled,
             "RUN_MANIFEST_ENABLED": settings.run_manifest_enabled,
             "CONTEXT_PACKER_ENABLED": settings.context_packer_enabled,
+            "STRUCTURED_LOGGING_ENABLED": settings.structured_logging_enabled,
+            "CONFIG_FAIL_FAST_ENABLED": settings.config_fail_fast_enabled,
         },
         token_total=state.token_used,
         cost_cny_total=state.cost_used,

@@ -55,6 +55,13 @@ class DevServerTests(unittest.TestCase):
             )
             client = _FallbackServerClient(dev_server.DeepResearchHandler)
             try:
+                health_status, health = client.request_json("GET", "/healthz")
+                self.assertEqual(health_status, HTTPStatus.OK)
+                self.assertEqual(health, {"status": "ok"})
+                ready_status, ready = client.request_json("GET", "/readyz")
+                self.assertEqual(ready_status, HTTPStatus.OK)
+                self.assertEqual(ready, {"status": "ready"})
+
                 post_payload = {"topic": "fallback api route smoke", "depth_level": 1}
                 post_status, post_response = client.request_json("POST", "/research", post_payload)
                 self.assertEqual(post_status, HTTPStatus.OK)
