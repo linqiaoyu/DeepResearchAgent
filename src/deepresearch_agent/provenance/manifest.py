@@ -105,6 +105,7 @@ def build_run_manifest(
             "TOOL_CONTRACT_ENABLED": settings.tool_contract_enabled,
             "INJECTION_GUARD_ENABLED": settings.injection_guard_enabled,
             "RUN_MANIFEST_ENABLED": settings.run_manifest_enabled,
+            "CONTEXT_PACKER_ENABLED": settings.context_packer_enabled,
         },
         token_total=state.token_used,
         cost_cny_total=state.cost_used,

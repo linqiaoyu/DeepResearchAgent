@@ -30,6 +30,8 @@ class Settings:
     injection_guard_enabled: bool = False
     run_manifest_enabled: bool = False
     runs_root: Path = Path("runs")
+    context_packer_enabled: bool = False
+    reporter_context_token_budget: int = 200_000
 
 
 def project_root() -> Path:
@@ -88,6 +90,10 @@ def load_settings() -> Settings:
         injection_guard_enabled=_env_flag("INJECTION_GUARD_ENABLED"),
         run_manifest_enabled=_env_flag("RUN_MANIFEST_ENABLED"),
         runs_root=runs_root,
+        context_packer_enabled=_env_flag("CONTEXT_PACKER_ENABLED"),
+        reporter_context_token_budget=int(
+            os.getenv("DEEPRESEARCH_REPORTER_CONTEXT_TOKEN_BUDGET", "200000")
+        ),
     )
 
 

@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from typing import Annotated, Any, TypedDict
 
 from deepresearch_agent.agents import CriticAgent, Evaluator, ExtractorAgent, PlannerAgent, ReporterAgent, ResearcherAgent
+from deepresearch_agent.context import pack_evidence
 from deepresearch_agent.llm import BudgetExceededError, LLMClient
 from deepresearch_agent.provenance import build_run_manifest, write_run_manifest
 from deepresearch_agent.schemas import (
@@ -436,6 +437,17 @@ class DeepResearchEngine:
     def _reporter_node(self, graph_state: ResearchGraphState) -> ResearchGraphState:
         state = self._state_from_graph_values(graph_state)
         state.evidence_store = self._sorted_evidence(state.evidence_store)
+        if self.settings.context_packer_enabled:
+            packed = pack_evidence(
+                state.evidence_store,
+                topic=state.topic,
+                budget=self.settings.reporter_context_token_budget,
+                as_of=self.settings.as_of,
+            )
+            state.evidence_store = packed.selected
+            state.metadata.setdefault("context_events", []).append(
+                packed.context_event(node="reporter")
+            )
         state.final_report = self.reporter.report(state)
         state.draft_report = state.final_report
         if self.settings.execution_mode == "llm":
