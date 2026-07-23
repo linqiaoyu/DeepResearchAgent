@@ -7,6 +7,7 @@ from typing import Annotated, Any, TypedDict
 
 from deepresearch_agent.agents import CriticAgent, Evaluator, ExtractorAgent, PlannerAgent, ReporterAgent, ResearcherAgent
 from deepresearch_agent.llm import BudgetExceededError, LLMClient
+from deepresearch_agent.provenance import build_run_manifest, write_run_manifest
 from deepresearch_agent.schemas import (
     Evidence,
     ResearchState,
@@ -107,6 +108,7 @@ class DeepResearchEngine:
         interrupt_after: Sequence[str] | None = None,
     ) -> ResearchState:
         started = time.perf_counter()
+        manifest_started_at = utc_now()
         self.researcher.reset_search_budget()
         if resume:
             if not research_id:
@@ -155,7 +157,15 @@ class DeepResearchEngine:
             state.metadata["llm_run_total_cny"] = self.llm_client.run_total_cny(research_id) if self.llm_client else 0.0
             self.graph.update_state(config, self._state_output(state))
             return state
-        return self._state_from_graph_values(result)
+        state = self._state_from_graph_values(result)
+        if self.settings.run_manifest_enabled:
+            manifest = build_run_manifest(
+                state,
+                self.settings,
+                started_at=manifest_started_at,
+            )
+            write_run_manifest(manifest, self.settings.runs_root)
+        return state
 
     def load_state(self, research_id: str) -> ResearchState | None:
         snapshot = self.graph.get_state(self._config(research_id))

@@ -28,6 +28,8 @@ class Settings:
     demo_as_of: date = date(2026, 7, 9)
     tool_contract_enabled: bool = False
     injection_guard_enabled: bool = False
+    run_manifest_enabled: bool = False
+    runs_root: Path = Path("runs")
 
 
 def project_root() -> Path:
@@ -55,6 +57,9 @@ def load_settings() -> Settings:
     demo_jobs = Path(os.getenv("DEEPRESEARCH_DEMO_JOB_PATH", "data/runtime/demo_jobs.json"))
     if not demo_jobs.is_absolute():
         demo_jobs = root / demo_jobs
+    runs_root = Path(os.getenv("DEEPRESEARCH_RUNS_ROOT", "runs"))
+    if not runs_root.is_absolute():
+        runs_root = root / runs_root
     mode = os.getenv("DEEPRESEARCH_MODE", "deterministic")
     if mode not in {"deterministic", "llm"}:
         mode = "deterministic"
@@ -81,6 +86,8 @@ def load_settings() -> Settings:
         demo_as_of=date.fromisoformat(os.getenv("DEEPRESEARCH_DEMO_AS_OF", "2026-07-09")),
         tool_contract_enabled=_env_flag("TOOL_CONTRACT_ENABLED"),
         injection_guard_enabled=_env_flag("INJECTION_GUARD_ENABLED"),
+        run_manifest_enabled=_env_flag("RUN_MANIFEST_ENABLED"),
+        runs_root=runs_root,
     )
 
 
