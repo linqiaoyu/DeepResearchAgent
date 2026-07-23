@@ -25,6 +25,7 @@ from deepresearch_agent.tools import (
     build_search_provider,
     build_structured_data_provider,
 )
+from deepresearch_agent.tools.contract_adapter import ContractSearchProvider
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Send
@@ -64,6 +65,8 @@ class DeepResearchEngine:
         self.settings = settings or load_settings()
         self.store = store or SQLiteStore(self.settings.storage_path)
         self.search_tool = search_tool or build_search_provider(as_of=self.settings.as_of)
+        if self.settings.tool_contract_enabled:
+            self.search_tool = ContractSearchProvider(self.search_tool)
         self.structured_data_provider = structured_data_provider or build_structured_data_provider()
         self.llm_client = (
             LLMClient(

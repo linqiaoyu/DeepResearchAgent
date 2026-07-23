@@ -26,10 +26,18 @@ class Settings:
     demo_job_path: Path = Path("data/runtime/demo_jobs.json")
     demo_queue_limit: int = 3
     demo_as_of: date = date(2026, 7, 9)
+    tool_contract_enabled: bool = False
 
 
 def project_root() -> Path:
     return Path(__file__).resolve().parents[2]
+
+
+def _env_flag(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def load_settings() -> Settings:
@@ -70,6 +78,7 @@ def load_settings() -> Settings:
         demo_job_path=demo_jobs,
         demo_queue_limit=int(os.getenv("DEEPRESEARCH_DEMO_QUEUE_LIMIT", "3")),
         demo_as_of=date.fromisoformat(os.getenv("DEEPRESEARCH_DEMO_AS_OF", "2026-07-09")),
+        tool_contract_enabled=_env_flag("TOOL_CONTRACT_ENABLED"),
     )
 
 
