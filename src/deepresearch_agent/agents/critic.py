@@ -29,10 +29,12 @@ class CriticAgent:
         max_source_age_days: int = 365,
         metric_table_path: Path | None = None,
         numeric_relative_tolerance: float = 0.01,
+        injection_guard_enabled: bool = False,
     ) -> None:
         self.today = today or date.today()
         self.max_source_age_days = max_source_age_days
         self.numeric_relative_tolerance = numeric_relative_tolerance
+        self.injection_guard_enabled = injection_guard_enabled
         self.metric_table = self._load_metric_table(
             metric_table_path or project_root() / "data" / "finance_metric_normalization.json"
         )
@@ -46,6 +48,8 @@ class CriticAgent:
         issues.extend(self._outdated_sources(evidence))
         issues.extend(self._missing_counterargument(state))
         issues.extend(self._unverified_projections(evidence))
+        if self.injection_guard_enabled:
+            issues.extend(self._injection_risks(evidence))
 
         retry_tasks = [issue.suggested_retry_task for issue in issues if issue.suggested_retry_task]
         high_count = sum(1 for issue in issues if issue.severity == "high")
@@ -58,6 +62,21 @@ class CriticAgent:
             retry_tasks=retry_tasks,
             iteration=state.critic_iteration + 1,
         )
+
+    def _injection_risks(self, evidence: list[Evidence]) -> list[Issue]:
+        return [
+            Issue(
+                issue_type="injection_risk",
+                severity="medium",
+                affected_claims=[item.id],
+                message=(
+                    "Claim comes from high-risk untrusted content; confidence was reduced. "
+                    f"Patterns: {', '.join(item.injection_patterns)}."
+                ),
+            )
+            for item in evidence
+            if item.injection_risk_score >= 0.5
+        ][:5]
 
     def _missing_citation_issues(self, state: ResearchState) -> list[Issue]:
         if not state.plan:

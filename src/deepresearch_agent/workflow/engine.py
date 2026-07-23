@@ -82,8 +82,14 @@ class DeepResearchEngine:
             self.structured_data_provider,
             max_searches_per_run=self.settings.max_searches_per_run,
         )
-        self.extractor = ExtractorAgent(llm_client=self.llm_client)
-        self.critic = CriticAgent(today=self.settings.as_of)
+        self.extractor = ExtractorAgent(
+            llm_client=self.llm_client,
+            injection_guard_enabled=self.settings.injection_guard_enabled,
+        )
+        self.critic = CriticAgent(
+            today=self.settings.as_of,
+            injection_guard_enabled=self.settings.injection_guard_enabled,
+        )
         self.reporter = ReporterAgent(llm_client=self.llm_client)
         self.evaluator = Evaluator()
         self._checkpoint_conn = sqlite3.connect(self.settings.storage_path, check_same_thread=False)

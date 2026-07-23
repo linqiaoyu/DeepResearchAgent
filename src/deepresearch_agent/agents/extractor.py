@@ -6,6 +6,7 @@ from uuid import uuid5, NAMESPACE_URL
 
 from deepresearch_agent.llm import LLMClient, LLMClientError, StructuredOutputError
 from deepresearch_agent.schemas import Evidence, ExtractedClaim, ExtractedClaims, Source, SubQuestion
+from deepresearch_agent.security import detect_injection, wrap_untrusted
 from deepresearch_agent.settings import project_root
 
 SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
@@ -13,8 +14,14 @@ NUMBER_RE = re.compile(r"(\$?\d+(?:\.\d+)?%?|\d+(?:\.\d+)?)")
 
 
 class ExtractorAgent:
-    def __init__(self, llm_client: LLMClient | None = None) -> None:
+    def __init__(
+        self,
+        llm_client: LLMClient | None = None,
+        *,
+        injection_guard_enabled: bool = False,
+    ) -> None:
         self.llm_client = llm_client
+        self.injection_guard_enabled = injection_guard_enabled
         self.last_stats: dict[str, int | bool | str] = {}
 
     def extract(self, research_id: str, sub_question: SubQuestion, sources: list[Source]) -> list[Evidence]:
@@ -33,6 +40,7 @@ class ExtractorAgent:
     ) -> list[Evidence]:
         evidence: list[Evidence] = []
         for source in sources:
+            finding = detect_injection(source.content) if self.injection_guard_enabled else None
             sentences = [s.strip() for s in SENTENCE_RE.split(source.content) if len(s.strip()) > 30]
             for offset, sentence in enumerate(sentences[:4]):
                 claim_type = self._classify(sentence)
@@ -49,7 +57,12 @@ class ExtractorAgent:
                         source_pub_date=source.published_at,
                         extract_text=sentence,
                         extract_offset_start=offset,
-                        confidence=self._confidence(sentence, source.credibility),
+                        confidence=self._guarded_confidence(
+                            self._confidence(sentence, source.credibility),
+                            finding.risk_score if finding else 0.0,
+                        ),
+                        injection_risk_score=finding.risk_score if finding else 0.0,
+                        injection_patterns=finding.patterns if finding else [],
                     )
                 )
         return evidence
@@ -83,7 +96,11 @@ class ExtractorAgent:
                                     "url": source.url,
                                     "source_type": source.source_type,
                                     "published_at": source.published_at.isoformat(),
-                                    "content": source.content,
+                                    "content": (
+                                        wrap_untrusted(source.content, source_url=source.url)
+                                        if self.injection_guard_enabled
+                                        else source.content
+                                    ),
                                 }
                                 for source in sources
                             ],
@@ -104,6 +121,7 @@ class ExtractorAgent:
                 invalid_extract_text += 1
                 continue
             numeric_fields_incomplete = self._numeric_fields_incomplete(claim)
+            finding = detect_injection(source.content) if self.injection_guard_enabled else None
             if numeric_fields_incomplete:
                 incomplete_numeric_fields += 1
             evidence_id = str(
@@ -124,9 +142,14 @@ class ExtractorAgent:
                     source_pub_date=source.published_at,
                     extract_text=claim.extract_text,
                     extract_offset_start=source.content.find(claim.extract_text),
-                    confidence=claim.confidence,
+                    confidence=self._guarded_confidence(
+                        claim.confidence,
+                        finding.risk_score if finding else 0.0,
+                    ),
                     numeric_fields=claim.numeric_fields,
                     numeric_fields_incomplete=numeric_fields_incomplete,
+                    injection_risk_score=finding.risk_score if finding else 0.0,
+                    injection_patterns=finding.patterns if finding else [],
                 )
             )
         self.last_stats = {
@@ -162,3 +185,8 @@ class ExtractorAgent:
     def _confidence(self, sentence: str, credibility: float) -> float:
         signal = 0.1 if NUMBER_RE.search(sentence) else 0.0
         return min(0.95, max(0.55, credibility * 0.8 + signal))
+
+    def _guarded_confidence(self, confidence: float, risk_score: float) -> float:
+        if risk_score < 0.5:
+            return confidence
+        return max(0.0, round(confidence * (1.0 - min(risk_score, 0.8) * 0.5), 3))
