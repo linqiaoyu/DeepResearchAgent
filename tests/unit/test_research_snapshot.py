@@ -5,11 +5,13 @@ from datetime import date, datetime, timezone
 
 from deepresearch_agent.provenance import RunManifest
 from deepresearch_agent.research_snapshot import (
+    DisplayClaimKey,
     MaterialityRules,
     NormalizedClaimKey,
     ResearchSnapshot,
     SnapshotClaim,
     diff_research_snapshots,
+    render_snapshot_diff_markdown,
 )
 from deepresearch_agent.schemas import (
     ComparisonTable,
@@ -56,6 +58,7 @@ def claim(
     sources: list[str] | None = None,
     confidence: float = 0.8,
     direction: str = "neutral",
+    display_key: DisplayClaimKey | None = None,
 ) -> SnapshotClaim:
     return SnapshotClaim(
         claim_id=claim_id,
@@ -65,6 +68,7 @@ def claim(
             period="2024",
             scope=scope,
         ),
+        display_key=display_key,
         text=f"{metric}-{scope}-{value}",
         value=value,
         unit="亿元" if value is not None else None,
@@ -169,6 +173,106 @@ class ResearchSnapshotDiffTests(unittest.TestCase):
         result = diff_research_snapshots(old, new)
         self.assertFalse(result.system_change_warning)
         self.assertTrue(result.comparable)
+
+    def test_display_key_preserves_writing_without_changing_normalized_key(
+        self,
+    ) -> None:
+        display = DisplayClaimKey(
+            entity="wealth management pilot",
+            metric="Advisor productivity",
+            period="未标注",
+            scope="pilot cohort",
+        )
+        old = snapshot(
+            [
+                claim(
+                    "old",
+                    metric="advisorproductivity",
+                    scope="pilotcohort",
+                    value=18.0,
+                    display_key=display,
+                )
+            ]
+        )
+        new = snapshot(
+            [
+                claim(
+                    "new",
+                    metric="advisorproductivity",
+                    scope="pilotcohort",
+                    value=20.16,
+                    display_key=display,
+                )
+            ]
+        )
+
+        result = diff_research_snapshots(old, new)
+
+        self.assertEqual(
+            result.changes[0].key.tuple(),
+            ("宁德时代", "advisorproductivity", "2024", "pilotcohort"),
+        )
+        self.assertEqual(result.changes[0].display_key, display)
+        self.assertIn("wealth management pilot", result.changes[0].detail)
+        self.assertIn("Advisor productivity", result.changes[0].detail)
+        self.assertNotIn(
+            "wealthmanagementpilot/advisorproductivity",
+            result.changes[0].detail,
+        )
+
+    def test_changes_sort_material_first_then_category(self) -> None:
+        old = snapshot(
+            [
+                claim("gone", metric="gone"),
+                claim("numeric-old", metric="revenue", value=100.0),
+            ]
+        )
+        new = snapshot(
+            [
+                claim(
+                    "added",
+                    metric="added",
+                    direction="positive",
+                ),
+                claim("numeric-new", metric="revenue", value=120.0),
+            ]
+        )
+
+        result = diff_research_snapshots(old, new)
+
+        self.assertEqual(
+            [(item.materiality, item.change_type) for item in result.changes],
+            [
+                ("material", "added_claim"),
+                ("material", "numeric_change"),
+                ("minor", "disappeared_claim"),
+            ],
+        )
+
+    def test_markdown_is_deterministic_and_keeps_all_disclosures(self) -> None:
+        old = snapshot([claim("old", metric="revenue", value=100.0)])
+        new = snapshot(
+            [claim("new", metric="revenue", value=120.0)],
+            as_of=date(2026, 7, 24),
+            run_manifest=manifest(as_of=date(2026, 7, 24), model="model-b"),
+        ).model_copy(
+            update={
+                "demo_constructed": True,
+                "demo_note": "fixture 演示数据，不代表真实市场更新。",
+            }
+        )
+        result = diff_research_snapshots(old, new)
+
+        first = render_snapshot_diff_markdown(result)
+        second = render_snapshot_diff_markdown(result)
+
+        self.assertEqual(first, second)
+        self.assertIn("🧪 演示数据声明", first)
+        self.assertIn("跨越了系统变更", first)
+        self.assertIn("跨越项", first)
+        self.assertIn("本期共识别 1 项重大变更", result.paste_summary)
+        self.assertIn("最重要的是，", result.paste_summary)
+        self.assertNotIn("；", result.paste_summary)
 
 
 if __name__ == "__main__":

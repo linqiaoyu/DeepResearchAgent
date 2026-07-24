@@ -48,9 +48,17 @@ class NormalizedClaimKey(StrictModel):
         return (self.entity, self.metric, self.period)
 
 
+class DisplayClaimKey(StrictModel):
+    entity: str
+    metric: str
+    period: str
+    scope: str
+
+
 class SnapshotClaim(StrictModel):
     claim_id: str
     key: NormalizedClaimKey
+    display_key: DisplayClaimKey | None = None
     text: str
     value: float | None = None
     unit: str | None = None
@@ -90,6 +98,7 @@ class SnapshotChange(StrictModel):
     change_type: ChangeType
     materiality: Materiality
     key: NormalizedClaimKey
+    display_key: DisplayClaimKey
     old_text: str | None = None
     new_text: str | None = None
     old_value: float | None = None
@@ -148,6 +157,12 @@ def build_research_snapshot(
             period=_normalize(row.period),
             scope=_normalize(row.scope),
         )
+        display_key = DisplayClaimKey(
+            entity=row.entity,
+            metric=row.metric,
+            period=row.period,
+            scope=row.scope,
+        )
         text = (
             f"{row.entity} {row.period} {row.scope}{row.normalized_metric} "
             f"{row.value:g}{row.unit}"
@@ -156,6 +171,7 @@ def build_research_snapshot(
             SnapshotClaim(
                 claim_id=_claim_id(key, text),
                 key=key,
+                display_key=display_key,
                 text=text,
                 value=row.value,
                 unit=row.unit,
@@ -178,6 +194,12 @@ def build_research_snapshot(
             SnapshotClaim(
                 claim_id=_claim_id(key, item.claim),
                 key=key,
+                display_key=DisplayClaimKey(
+                    entity="论点",
+                    metric=item.claim,
+                    period=item.source_pub_date.isoformat(),
+                    scope="定性",
+                ),
                 text=item.claim,
                 evidence_ids=[item.id],
                 source_urls=[item.source_url],
@@ -267,6 +289,7 @@ def diff_research_snapshots(
         )
     changes.sort(
         key=lambda item: (
+            0 if item.materiality == "material" else 1,
             _change_order(item.change_type),
             item.key.tuple(),
             item.old_text or "",
@@ -335,31 +358,23 @@ def render_snapshot_diff_markdown(diff: SnapshotDiff) -> str:
                 "> 跨越项：" + "、".join(diff.system_change_reasons),
             ]
         )
-    for change_type in (
-        "added_claim",
-        "disappeared_claim",
-        "numeric_change",
-        "evidence_replacement",
-        "confidence_change",
-        "scope_change",
-    ):
-        items = [item for item in diff.changes if item.change_type == change_type]
-        lines.extend(["", f"## {labels[change_type]}"])
-        if not items:
-            lines.append("- 无")
-            continue
-        for item in items:
-            marker = "material" if item.materiality == "material" else "minor"
-            lines.append(f"- **{marker}**｜{item.detail}")
+    lines.extend(["", "## 变更明细"])
+    if not diff.changes:
+        lines.append("- 无")
+    for item in diff.changes:
+        marker = "material" if item.materiality == "material" else "minor"
+        lines.append(
+            f"- **{marker}｜{labels[item.change_type]}**｜{item.detail}"
+        )
+        lines.append(
+            f"  - 截止日：{item.old_as_of.isoformat()} → {item.new_as_of.isoformat()}"
+        )
+        if item.old_sources or item.new_sources:
             lines.append(
-                f"  - 截止日：{item.old_as_of.isoformat()} → {item.new_as_of.isoformat()}"
+                "  - 来源："
+                f"{', '.join(item.old_sources) or '无'} → "
+                f"{', '.join(item.new_sources) or '无'}"
             )
-            if item.old_sources or item.new_sources:
-                lines.append(
-                    "  - 来源："
-                    f"{', '.join(item.old_sources) or '无'} → "
-                    f"{', '.join(item.new_sources) or '无'}"
-                )
     lines.extend(["", "## 可直接粘贴摘要", "", diff.paste_summary, ""])
     return "\n".join(lines)
 
@@ -424,6 +439,10 @@ def build_demo_followup(
     )
     if scope_change is not None:
         scope_change.key.scope = f"{scope_change.key.scope}-调整口径"
+        if scope_change.display_key is not None:
+            scope_change.display_key.scope = (
+                f"{scope_change.display_key.scope}（调整口径）"
+            )
         scope_change.text = f"{scope_change.text}（演示变体：口径调整）"
         scope_change.claim_id = _claim_id(scope_change.key, scope_change.text)
     if textual:
@@ -440,11 +459,19 @@ def build_demo_followup(
         period=as_of.isoformat(),
         scope="演示构造",
     )
-    added_text = "演示用构造数据：新增“试点进入生产验证”跟踪项，需分析师复核。"
+    added_text = (
+        "该试点已进入生产验证阶段，下一步需评估运行稳定性与人工复核覆盖率。"
+    )
     claims.append(
         SnapshotClaim(
             claim_id=_claim_id(added_key, added_text),
             key=added_key,
+            display_key=DisplayClaimKey(
+                entity="财富管理 AI 试点",
+                metric="生产验证状态",
+                period=as_of.isoformat(),
+                scope="试点项目",
+            ),
             text=added_text,
             evidence_ids=["fixture-demo-added-evidence"],
             source_urls=["fixture-demo://followup/added-source"],
@@ -502,6 +529,7 @@ def _detect_scope_changes(
                     "material" if rules.scope_change_is_material else "minor"
                 ),
                 key=right.key,
+                display_key=_display_key(right),
                 old_text=left.text,
                 new_text=right.text,
                 old_value=left.value,
@@ -515,8 +543,9 @@ def _detect_scope_changes(
                 old_as_of=old.as_of,
                 new_as_of=new.as_of,
                 detail=(
-                    f"{_key_label(left.key)} 口径从“{left.key.scope}”变为"
-                    f"“{right.key.scope}”；数值不并入数值变化。"
+                    f"{_key_label(_display_key(left))}：口径从"
+                    f"“{_display_key(left).scope}”变为"
+                    f"“{_display_key(right).scope}”；数值不并入数值变化。"
                 ),
             )
         )
@@ -557,6 +586,7 @@ def _detect_exact_key_changes(
                             else "minor"
                         ),
                         key=right.key,
+                        display_key=_display_key(right),
                         old_text=left.text,
                         new_text=right.text,
                         old_value=left.value,
@@ -570,7 +600,8 @@ def _detect_exact_key_changes(
                         old_as_of=old.as_of,
                         new_as_of=new.as_of,
                         detail=(
-                            f"{_key_label(right.key)}：{left.value:g}{left.unit or ''}"
+                            f"{_key_label(_display_key(right))}："
+                            f"{left.value:g}{left.unit or ''}"
                             f" → {right.value:g}{right.unit or ''}"
                             f"（相对变化 {relative:.2%}）。"
                         ),
@@ -624,6 +655,7 @@ def _paired_change(
         change_type=change_type,
         materiality=materiality,
         key=right.key,
+        display_key=_display_key(right),
         old_text=left.text,
         new_text=right.text,
         old_value=left.value,
@@ -658,6 +690,7 @@ def _claim_presence_change(
         change_type=change_type,
         materiality=materiality,
         key=claim.key,
+        display_key=_display_key(claim),
         old_text=None if added else claim.text,
         new_text=claim.text if added else None,
         old_value=None if added else claim.value,
@@ -730,14 +763,43 @@ def _paste_summary(
 ) -> str:
     material = [item for item in changes if item.materiality == "material"]
     selected = material[:3] or changes[:3]
-    if not selected:
-        body = "未检出结构化变化。"
-    else:
-        body = "；".join(item.detail.rstrip("。") for item in selected) + "。"
-    return (
-        f"本期相较上期的关键变化（{old_as_of.isoformat()} → "
-        f"{new_as_of.isoformat()}）：{body}"
+    total = len(changes)
+    material_count = len(material)
+    opening = (
+        f"本期共识别 {material_count} 项重大变更（总计 {total} 项），"
+        f"比较区间为 {old_as_of.isoformat()} 至 {new_as_of.isoformat()}。"
     )
+    if not selected:
+        return opening + "未检出需要进一步说明的结构化变化。"
+    transitions = ("最重要的是，", "其次，", "此外，")
+    sentences = [
+        transitions[index] + _summary_change_text(item)
+        for index, item in enumerate(selected)
+    ]
+    return opening + "".join(sentences)
+
+
+def _summary_change_text(item: SnapshotChange) -> str:
+    label = _key_label(item.display_key)
+    if item.change_type == "added_claim":
+        text = (item.new_text or "未提供正文").rstrip("。！？!?")
+        return f"新增论点“{text}”。"
+    if item.change_type == "disappeared_claim":
+        return f"原论点“{item.old_text or '未提供正文'}”不再出现。"
+    if item.change_type == "numeric_change":
+        return (
+            f"{label}，数值由 {item.old_value:g}{item.old_unit or ''} 变为 "
+            f"{item.new_value:g}{item.new_unit or ''}。"
+        )
+    if item.change_type == "scope_change":
+        return f"{label}发生口径调整，相关数值不作直接同比。"
+    if item.change_type == "confidence_change":
+        text = (item.new_text or item.old_text or "该论点").rstrip("。！？!?")
+        return (
+            f"论点“{text}”的置信度由 {item.old_confidence:.2f} "
+            f"变为 {item.new_confidence:.2f}。"
+        )
+    return f"{label}的支撑来源发生更替。"
 
 
 def _relative_change(old: float, new: float) -> float:
@@ -791,5 +853,21 @@ def _normalize(value: str) -> str:
     return re.sub(r"\s+", "", value.strip().lower())
 
 
-def _key_label(key: NormalizedClaimKey) -> str:
-    return "/".join(value or "未标注" for value in key.tuple())
+def _display_key(claim: SnapshotClaim) -> DisplayClaimKey:
+    if claim.display_key is not None:
+        return claim.display_key
+    return DisplayClaimKey(
+        entity=claim.key.entity or "未标注",
+        metric=claim.key.metric or "未标注",
+        period=claim.key.period or "未标注",
+        scope=claim.key.scope or "未标注",
+    )
+
+
+def _key_label(key: DisplayClaimKey) -> str:
+    return (
+        f"实体：{key.entity or '未标注'}｜"
+        f"指标：{key.metric or '未标注'}｜"
+        f"期间：{key.period or '未标注'}｜"
+        f"口径：{key.scope or '未标注'}"
+    )

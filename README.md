@@ -2,7 +2,7 @@
 
 一个把“检索—证据—批判—重试—报告—评测”做成可回放工程闭环的金融投研多 Agent 框架。
 
-[静态演示站](https://deepresearch-agent.jacksonyu1109.workers.dev/) · [评测方法](docs/evaluation.md) · [系统架构](docs/architecture.md)
+[静态演示站](https://deepresearch-agent.jacksonyu1109.workers.dev/) · [评测方法](docs/evaluation.md) · [方法边界](docs/method_limits.md) · [系统架构](docs/architecture.md)
 
 ## Golden v1.1：先看数字
 
@@ -67,7 +67,7 @@ gold v1.0 历史测量拆为 `0.6134 + 0.1865 - 0.0585 = 0.7414`：先固定 jud
 
 ### 3. Context packer 没有在零费用路径静默丢证据
 
-011 时 packer 的 8 个单测全绿、实现看似合理、排在启用顺序第 4 位；若没有产物级快照，它会默认开启并在 fixture 真实工作流中静默丢弃约 80% Evidence，把 citation accuracy 从 1.0 打到 0.25。拦截发生在任何 API 费用产生前，成本 ¥0。本轮修复同 URL 多摘录去重键后仍保持 dark，等待真实模式确认。
+011 时 packer 的 8 个单测全绿、实现看似合理、排在启用顺序第 4 位；若没有产物级快照，它会默认开启并因错误的同 URL 去重静默丢弃约 80% Evidence。这个证据丢失是真缺陷，拦截发生在任何 API 费用产生前，成本 ¥0。修复后两个 fixture 题面分别保留 12/21、13/29 条 Evidence；此时 citation accuracy 的下降经对照实验归因为 Reporter 与 Evaluator 对证据排序不同造成的脚注映射漂移，是质量测量伪信号，不能继续归因给 packer。去重缺陷虽已修复，packer 仍保持 dark，等待 014 的真实模式定向验证；详见 [`method_limits.md`](docs/method_limits.md)。
 
 ![判官效应分解](docs/assets/readme/methodology_judge.png)
 
@@ -79,13 +79,13 @@ gold v1.0 历史测量拆为 `0.6134 + 0.1865 - 0.0585 = 0.7414`：先固定 jud
 | --- | --- | --- |
 | 可靠执行：Pydantic ToolSpec/Result、错误分类、run retry budget、三态熔断、显式降级 | 默认启用，离线故障演练通过 | `TOOL_CONTRACT_ENABLED=true` · [`reliability.md`](docs/reliability.md) |
 | 不可信内容：prompt 边界、注入检测、置信度下调、脱敏、威胁模型 | 已校准，仍 dark | `INJECTION_GUARD_ENABLED=false`；同源 held-in synthetic 召回不代表泛化，主要结论是安全对照误报 15.00% · [`threat_model.md`](docs/threat_model.md) |
-| 运行血统：manifest sidecar、可比性判定、prompt 漂移守卫 | 默认启用 | `RUN_MANIFEST_ENABLED=true`；六个 flags 全量入 manifest · [`provenance/`](src/deepresearch_agent/provenance/) |
-| 上下文工程：可插拔 token 估算、证据去重/排序/预算、溢出事件 | 实测质量回归，仍 dark | `CONTEXT_PACKER_ENABLED=false` · [`context_engineering.md`](docs/context_engineering.md) |
+| 运行血统：manifest sidecar、可比性判定、prompt 漂移守卫 | 默认启用 | `RUN_MANIFEST_ENABLED=true`；当前 flags 全量入 manifest，区分 `content_affecting`、`additive_content`、`operational` · [`provenance/`](src/deepresearch_agent/provenance/) |
+| 上下文工程：可插拔 token 估算、证据去重/排序/预算、溢出事件 | 去重缺陷已修复，仍 dark | `CONTEXT_PACKER_ENABLED=false`；fixture 引用指标受顺序伪信号污染，不能作为转正依据 · [`context_engineering.md`](docs/context_engineering.md) · [`method_limits.md`](docs/method_limits.md) |
 | 可观测：run → node → tool/LLM correlation JSON log 与配置聚合校验 | 默认启用 | `STRUCTURED_LOGGING_ENABLED=true`、`CONFIG_FAIL_FAST_ENABLED=true` |
 | 行为基线：双题面规范化产物、逐字 characterization、节点摘要 | 默认 CI 保护 | [`snapshot_run.py`](scripts/snapshot_run.py) · [`golden_output/`](tests/golden_output/) |
 | Demo 服务：`/healthz`、`/readyz`、在途请求收敛、非 root 多阶段镜像、离线 CI | 已启用 | [`api/main.py`](src/deepresearch_agent/api/main.py) · [`ci.yml`](.github/workflows/ci.yml) |
 | 离线评测：run delta、运维 P50/P90、Golden schema 与共享事实校验 | 已启用 | [`compare_runs.py`](scripts/compare_runs.py) · [`offline_metrics.py`](scripts/offline_metrics.py) |
-| 业务产物：结构化表、审计包、ResearchSnapshot、六类变更追踪、章节轮询 | 导出与快照 active；Reporter 结构化接入及章节轮询仍 dark | `STRUCTURED_OUTPUT_ENABLED=false`、`PROGRESSIVE_DELIVERY_ENABLED=false` · [`use_case.md`](docs/use_case.md) |
+| 业务产物：结构化表、审计包、ResearchSnapshot、六类变更追踪、章节轮询 | 结构化产出、导出与快照 active；章节轮询仍 dark | `STRUCTURED_OUTPUT_ENABLED=true`，归类为 `additive_content`；additive 仅在 deterministic 路径证明，014 须验证 LLM 路径，若改变散文则回滚为 false；`PROGRESSIVE_DELIVERY_ENABLED=false` · [`use_case.md`](docs/use_case.md) |
 | MCP adapter | 仅设计 | 零新增依赖约束下未实现 server · [`mcp_adapter_design.md`](docs/mcp_adapter_design.md) |
 
 010 的阶段 A/C/D/B/F/G/H 共通过 172 项无 key 测试；011 默认点灯后的全量回归为 187 项。Docker/Compose 文件完成静态检查，但任务主机没有 Docker/Podman，未做本机镜像构建或 Compose 引擎级验证。
@@ -137,6 +137,7 @@ PYTHONPATH=src .venv/bin/python scripts/build_site.py
 
 - [静态演示站](https://deepresearch-agent.jacksonyu1109.workers.dev/)：G3 报告、方法论与复现入口
 - [`docs/evaluation.md`](docs/evaluation.md)：指标、judge 校准、噪声带、Golden v1.1 与三代结果
+- [`docs/method_limits.md`](docs/method_limits.md)：characterization 能检出什么、证据集变更场景下的质量测量盲区
 - [`docs/architecture.md`](docs/architecture.md)：LangGraph 拓扑、状态、存储与 hardening layers
 - [`docs/use_case.md`](docs/use_case.md)：投研持续跟踪场景、fixture 产物走查与人工判断边界
 - [`docs/threat_model.md`](docs/threat_model.md)：不可信内容、证据不篡改取舍与残余风险

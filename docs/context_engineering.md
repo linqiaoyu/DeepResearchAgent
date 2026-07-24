@@ -16,3 +16,8 @@ Default exponents are credibility 0.4, relevance 0.4, and freshness 0.2. Evidenc
 The composite key is deliberate: multiple distinct extracts from one page are separate evidence. An item is dropped as `duplicate_content` only when both its normalized URL and verbatim extract hash match an earlier item. `duplicate_url` remains in the event schema for compatibility with previously recorded runs, but corrected packing does not emit it.
 
 The token estimator first probes for an already installed `tiktoken`; otherwise a standard-library fallback counts each CJK character as one token and four other characters as one token. No tokenizer dependency is required.
+
+Fixture characterization can detect packing changes but cannot, by itself,
+measure the research quality of an Evidence-changing control. The reproduced
+footnote-order failure and the resulting activation boundary are documented in
+[`method_limits.md`](method_limits.md).
