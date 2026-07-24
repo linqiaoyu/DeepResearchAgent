@@ -2,6 +2,9 @@
 
 The harness treats evaluation as a first-class subsystem, not a screenshot.
 
+See [`method_limits.md`](method_limits.md) for the boundary between detecting
+behavior changes and interpreting quality for Evidence-changing controls.
+
 Cross-generation comparisons must first pass `scripts/verify_manifest.py`.
 Model, prompt, evaluation-clock, dependency, domain, mode, and
 content-affecting flag differences make runs incomparable. Operational flag
