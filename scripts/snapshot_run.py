@@ -226,17 +226,23 @@ def _snapshot_payload(
                 json.dumps(item["output"], ensure_ascii=False, sort_keys=True),
             ),
         ),
-        "side_effects": {
-            "manifest_enabled": bool(getattr(settings, "run_manifest_enabled", False)),
-            "context_events": list(state.metadata.get("context_events", [])),
-            "degradation_events": list(state.metadata.get("degradation_events", [])),
-            "tool_error_summary": dict(state.metadata.get("tool_error_summary", {})),
-        },
-        "flags": {
-            env_name: bool(getattr(settings, field_name, False))
-            for env_name, field_name in FLAG_FIELDS.items()
-        },
+        "side_effects": _side_effects(state, settings),
     }
+
+
+def _side_effects(state: ResearchState, settings: Any) -> dict[str, Any]:
+    side_effects: dict[str, Any] = {
+        "manifest_enabled": bool(getattr(settings, "run_manifest_enabled", False)),
+        "context_events": list(state.metadata.get("context_events", [])),
+        "degradation_events": list(state.metadata.get("degradation_events", [])),
+        "tool_error_summary": dict(state.metadata.get("tool_error_summary", {})),
+    }
+    runs_root = getattr(settings, "runs_root", None)
+    if runs_root:
+        manifest_path = Path(runs_root) / state.research_id / "manifest.json"
+        if manifest_path.exists():
+            side_effects["manifest"] = json.loads(manifest_path.read_text(encoding="utf-8"))
+    return side_effects
 
 
 def _report_claims(
@@ -308,6 +314,8 @@ def _graph_summary(value: Any) -> dict[str, Any]:
 def normalize(value: Any, *, key: str | None = None) -> Any:
     if key in TIMESTAMP_KEYS:
         return "<normalized-timestamp>"
+    if key == "config_hash":
+        return "<normalized-config-hash>"
     if key in LATENCY_KEYS:
         return 0
     if isinstance(value, dict):

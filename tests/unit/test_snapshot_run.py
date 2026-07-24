@@ -2,11 +2,9 @@ from __future__ import annotations
 
 import difflib
 import importlib.util
-import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -40,31 +38,29 @@ class WorkflowCharacterizationTest(unittest.TestCase):
     maxDiff = None
 
     def test_golden_workflow_outputs_are_byte_identical(self) -> None:
-        false_flags = {name: "false" for name in snapshot_run.FLAG_FIELDS}
-        with patch.dict(os.environ, false_flags, clear=False):
-            for topic, filename in (
-                (snapshot_run.DEFAULT_TOPICS[0], "finance_structured.json"),
-                (snapshot_run.DEFAULT_TOPICS[1], "wealth_research.json"),
-            ):
-                with self.subTest(topic=topic), tempfile.TemporaryDirectory() as temp_dir:
-                    actual = snapshot_run.encode_snapshot(
-                        snapshot_run.build_snapshot(
-                            topic,
-                            runs_root=Path(temp_dir) / "runs",
+        for topic, filename in (
+            (snapshot_run.DEFAULT_TOPICS[0], "finance_structured.json"),
+            (snapshot_run.DEFAULT_TOPICS[1], "wealth_research.json"),
+        ):
+            with self.subTest(topic=topic), tempfile.TemporaryDirectory() as temp_dir:
+                actual = snapshot_run.encode_snapshot(
+                    snapshot_run.build_snapshot(
+                        topic,
+                        runs_root=Path(temp_dir) / "runs",
+                    )
+                )
+                golden_path = ROOT / "tests" / "golden_output" / filename
+                expected = golden_path.read_text(encoding="utf-8")
+                if actual != expected:
+                    diff = "".join(
+                        difflib.unified_diff(
+                            expected.splitlines(keepends=True),
+                            actual.splitlines(keepends=True),
+                            fromfile=str(golden_path),
+                            tofile=f"actual:{topic}",
                         )
                     )
-                    golden_path = ROOT / "tests" / "golden_output" / filename
-                    expected = golden_path.read_text(encoding="utf-8")
-                    if actual != expected:
-                        diff = "".join(
-                            difflib.unified_diff(
-                                expected.splitlines(keepends=True),
-                                actual.splitlines(keepends=True),
-                                fromfile=str(golden_path),
-                                tofile=f"actual:{topic}",
-                            )
-                        )
-                        self.fail(f"Normalized workflow snapshot changed:\n{diff}")
+                    self.fail(f"Normalized workflow snapshot changed:\n{diff}")
 
 
 if __name__ == "__main__":
