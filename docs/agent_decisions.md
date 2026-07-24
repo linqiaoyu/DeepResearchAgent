@@ -1,66 +1,92 @@
-# Agent 决策面
+# Agent 如何通盘权衡
 
-本项目的 Agent 不只执行固定节点，也会在显式边界内作出可审计决定。每个新增决定复用
-`AgentDecision`：记录决策类型、决策者、测量输入、书面判据、结果、考虑过的替代项、
-循环轮次与时间。相同对象进入结构化 trace、run manifest 的 decision summary 和
-读者可见报告；`DecisionGate` 会阻止声明为决策节点却没有新增记录的执行。
+DeepResearchAgent 不把预算、历史结论、Critic 缺口和工具能力当成互不相干的局部变量。
+开启 `DECISION_WEAVING_ENABLED` 后，编排层在每个关键边界构造同一个只读
+`DecisionContext`，再由预算分配、循环停止、跨期分类和检索重规划读取。上下文包含：
 
-## 当前真实决定
+- 每个分支的 allocated / used / remaining、运行总预算和 verify 最低额度；
+- 六项充分性度量与上一轮进展；
+- 最近期 `verify` / `watch` / `explore` 分类；
+- Critic 未解决问题，包括数值自洽错误；
+- 已有 `AgentDecision` 摘要，供后续决策解释它继承了哪些前置判断。
 
-### 1. 研究循环继续、充分停止或边界停止
+这形成一条有方向的依赖链，而不是几个并排启发式：
 
-启用 `RESEARCH_LOOP_ENABLED` 且最大轮次大于 1 后，系统按子问题计算六项充分性度量：
-Evidence 条数、独立来源域名数、平均可信度、最新证据时效、未解决 Critic issue 数、
-是否缺少反方证据。`BoundedLoop` 把度量与轮次、剩余调用预算、连续无进展次数一起
-判断，输出：
+```mermaid
+flowchart LR
+    P["上期分类<br/>verify / watch / explore"] --> DC["DecisionContext"]
+    B["分支预算余额"] --> DC
+    S["充分性与进展"] --> DC
+    C["Critic issues<br/>含数值自洽"] --> DC
+    DC --> A["预算再分配"]
+    DC --> L["循环停止 / 继续"]
+    DC --> R["定向重规划"]
+    DC --> Q["能力选择"]
+    Q --> T["ToolSpec 调用"]
+    A --> N["下一轮研究"]
+    L --> N
+    R --> N
+```
 
-- `continue`：尚不充分且仍有轮次、预算与进展空间；
-- `stop_sufficient`：六项均过闸；
-- `stop_exhausted:*`：命中最大轮次、预算或连续无进展边界，保留已完成工作并标注
-  覆盖不足。
+例如，某个上期结论被标为 `verify` 时，预算器先保留最低复核额度；若剩余预算比例已低于
+阈值，循环器会提前收敛并明确写出“因预算约束提前收敛”；若 Critic 同时发现
+`numeric_inconsistency`，重规划器会把对应公式和 Evidence 定向带入补证意图。最终报告的
+“决策链”按发生顺序展示预算、循环、历史、数值和能力决定，使读者能追溯“为什么这样研究”。
 
-判据不是 LLM 主观打分，默认配置也不启用多轮研究。
+## 当前可审计决定
 
-### 2. 预算如何划拨
+### 研究循环与预算
 
-启用分支预算后，`BranchBudget` 在 LangGraph `Send` 前按分支均分总调用预算，并受
-单支上限约束。join 后，它按充分性度量从低到高把剩余额度拨给较弱分支。分支或总量
-耗尽会停止相应工作、保留结果并写出覆盖警告；不会让低层 retry 偷用循环预算。
+`BoundedLoop` 读取 Evidence 数量、独立来源、平均可信度、时效、未解决 issue、反方证据、
+轮次、剩余调用预算和连续无进展次数，输出 `continue`、`stop_sufficient` 或带原因的
+`stop_exhausted:*`。`BranchBudget` 在 fan-out 前受总量和单支上限约束地分配，join 后向
+低充分性分支再分配；决策编织开启时还会为 `verify` 分支保留最低额度。
 
-`branch_budget_allocate` 与 `branch_budget_reallocate` 记录每支度量、allocated /
-used / remaining、总预算、单支上限、选择理由和替代方案。
+### 上期结论与下一轮意图
 
-### 3. 上期结论属于 verify、watch 还是 explore
+最近一期快照按四键匹配子问题：高置信且非 uncertain 为 `verify`，低置信或 uncertain 为
+`watch`，没有覆盖为 `explore`。verify 可优先 fetch 旧来源，但必须保留独立检索。
+重规划读取同一 `DecisionContext`：来源集中、缺反方、证据过旧、置信度不足以及 Critic
+未解问题会生成不同查询；不会原样重跑。
 
-启用 `PRIOR_MEMORY_ENABLED` 且存在同 question_id 的最近一期快照时，Planner 为每个
-子问题选择：
+### 数值自洽
 
-- `verify`：命中置信度达标且非 uncertain 的上期 claim，需核实是否仍成立；
-- `watch`：命中低置信度或 uncertain claim，需重点关注；
-- `explore`：没有上期 claim 覆盖，需要寻找新信息。
+`NUMERIC_CHECK_ENABLED` 开启后，Critic 校验同比/环比增长、份额、加总和单位换算。超过
+绝对或相对容差的结果产生 `numeric_inconsistency`，必须记录声称值、计算值、公式、
+Evidence IDs 和校验器；口径不可比则沿用 `numeric_conflict`，不伪造算术结论。每次检查和
+整轮扫描都写入 `AgentDecision`，问题随后进入 retry queue 与重规划上下文。
 
-`prior_memory_classification` 写明命中的 claim、confidence、as_of 和旧来源 URL。
-verify 可以优先 fetch 旧来源，但必须同时保留至少一次独立检索，以避免确认偏误。
+### 动态能力选择
 
-### 4. 如何精化下一轮检索意图
+`DYNAMIC_CAPABILITY_ENABLED` 开启后，每个子问题先确定性分类为
+`financial_metric`、`market_price`、`verify` 或 `narrative`，再只从
+`CapabilityRegistry` 中选择已注册且满足 ToolSpec 的能力。决策记录候选、选中、拒绝及
+fallback 理由；没有可用匹配时回退到 015 的固定三能力路径，不绕过预算、契约或工具边界。
 
-循环选择继续时，Planner 不会原样重跑旧查询。`research_replan` 根据具体缺口生成新
-意图：来源集中则要求不同来源类型，缺反方则生成风险/反向查询，过旧则加入 as_of
-限定，证据或置信度不足则要求官方一手复核，未解 Critic issue 则生成定向补证查询。
-记录中同时保存旧查询、新查询、触发 gap 与替代项，可直接审计第二轮是否真正变化。
+## 一个对象，三个审计落点
 
-## 默认状态与权限边界
+所有上述决定复用 `AgentDecision`：actor、测量输入、书面判据、结果、替代项、迭代号和
+时间戳。它同时进入结构化 trajectory、run manifest 的 decision summary 和读者可见报告；
+`DecisionGate` 会拒绝“声明为决策节点却没有新增决定”的执行。
 
-`BRANCH_BUDGET_ENABLED=false`、`RESEARCH_LOOP_ENABLED=false` 且 max iterations
-默认 1、`PRIOR_MEMORY_ENABLED=false`。这些 `content_affecting` 能力在默认路径
-不新增决定、不改报告，两题面 characterization 保持逐字一致。确定性测试只证明
-判据、边界和产物可重复，不能证明它们提高真实 LLM 研究质量。
+`AgentDecision` 不保存一段无法复算的“思维过程”，而保存足以审计的输入、规则和结果。
+`DecisionContext` 同样是深只读值对象，避免下游节点偷偷修改上游事实。
 
-人工仍负责研究题目、provider 与费用授权、来源许可与材料性、预测审批、对外发布，
-以及所有投资或交易决定。Agent 无权自行联网付费、发布、交易或扩大研究范围。
+## 默认状态与证明边界
 
-## 后续接入
+`DECISION_WEAVING_ENABLED=false`、`NUMERIC_CHECK_ENABLED=false`、
+`DYNAMIC_CAPABILITY_ENABLED=false`；015 的 `BRANCH_BUDGET_ENABLED`、
+`RESEARCH_LOOP_ENABLED` 与 `PRIOR_MEMORY_ENABLED` 也保持默认关闭。三项 016 开关均为
+`content_affecting`，关闭时不会进入 manifest 配置 payload，也不改变默认两题面产物。
 
-016 的 LLM 充分性/能力选择或程序性记忆必须继续使用 `AgentDecision` 和现有
-`BoundedLoop` 边界；017 skill packs 的选择决定必须通过同一审计落点。动态工具与
-skill 只能从 `CapabilityRegistry` 取能力，不能绕过 ToolSpec、预算或节点契约。
+零 API fixture 测试可以证明决策依赖被读取、算式检出可重复、能力选择不越过 registry、
+报告审计链闭合以及严格回放逐字一致；不能证明阈值、重规划或能力组合提高真实网页与 LLM
+研究质量。真实效果留给 019 的预登记、预算化成对验证。
+
+人工仍负责题目、provider 与费用授权、来源许可与材料性、预测审批、对外发布，以及所有
+投资或交易决定。Agent 无权自行联网付费、发布、交易或扩大研究范围。
+
+实现和开关细节见 [`decision_weaving.md`](decision_weaving.md)、
+[`numeric_consistency.md`](numeric_consistency.md)、
+[`dynamic_capabilities.md`](dynamic_capabilities.md) 与
+[`trajectory_superset.md`](trajectory_superset.md)。

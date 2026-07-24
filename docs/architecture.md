@@ -9,10 +9,13 @@ flowchart TB
     NC["NodeContract + DecisionGate"] -. validates .-> G["LangGraph StateGraph"]
     LS["LoopSpec / BoundedLoop"] --> G
     BB["BranchBudget"] --> G
+    DC["DecisionContext<br/>budget + sufficiency + prior + issues"] --> BB
+    DC --> G
     EM[("EpisodicMemory")] --> P["Planner"]
     SM[("SemanticMemory")] -. exact four-key facts .-> P
     WM["ContextWorkingMemory"] -. CONTEXT_PACKER_ENABLED .-> RP["Reporter"]
-    CR["CapabilityRegistry"] --> R["Researcher"]
+    CR["CapabilityRegistry"] --> CS["CapabilitySelector"]
+    CS --> R["Researcher"]
     G --> P
     G --> R
     R --> J["Send fan-out / join"]
@@ -27,7 +30,9 @@ flowchart TB
 `NodeContract` 在图构建和每个节点边界强制消费、生产、不变式与决策记录；
 LangGraph 仍是唯一执行器。`BranchBudget` 在 `Send` 前分配并在 join 后再分配。
 `MemoryStore` 的情景/语义实现保持确定性，工作记忆适配既有 context packer。
-`CapabilityRegistry` 只注册和查询能力，本轮不做动态选择。
+`DecisionContext` 是预算、充分性、上期分类与 Critic issue 的深只读快照，预算器、
+循环器和重规划器读取同一事实视图。`CapabilityRegistry` 注册和查询能力；默认关闭的
+确定性 selector 在 Researcher fan-out 前按子问题类型选择当前可用能力。
 
 ## Current Execution Flow
 
@@ -119,6 +124,7 @@ The runtime has two modes:
 - `StructuredResearchOutput`: traceable comparison table, event timeline, and risk matrix
 - `ResearchSnapshot`: business question/as-of, normalized claims, structured objects, manifest reference, and flag snapshot
 - `AgentDecision`: actor, measured inputs, explicit criterion, outcome, alternatives, iteration, and timestamp
+- `DecisionContext`: immutable budget, sufficiency, prior-classification, critic-issue, and preceding-decision snapshot
 - `AgentTrajectory`: LLM/tool calls, node summaries, decisions, manifest reference, and recorded artifacts
 - `NodeContract`: node consumes, produces, invariants, and optional decision gate
 - `LoopSpec`: iteration, budget, no-progress bounds, progress metric, and exhaustion handler
@@ -181,26 +187,30 @@ they do not rebuild it from a later Evidence order. Historical states without
 the field degrade explicitly instead of silently inferring a positional map.
 
 `AgentDecision` has three audit landing points: structured run trace, manifest
-summary, and a reader-visible report section. The current bounded policies decide
-whether research continues, how branch capacity is allocated, whether a
-sub-question is `verify` / `watch` / `explore`, and how the next query is refined.
+summary, and a reader-visible report section. `DecisionContext` weaves the current
+budget, sufficiency, prior classification and Critic issues into a common immutable
+input. The bounded policies decide whether research continues, how branch capacity
+is allocated, whether a sub-question is `verify` / `watch` / `explore`, how the
+next query is refined, whether numeric relations reconcile, and which registered
+capabilities a sub-question may use.
 `TRAJECTORY_RECORD_ENABLED=false` attaches a redacted recorder at the LLM,
 ToolSpec search, and graph-node boundaries. Strict replay uses recorded fixture
 search responses and compares report bytes; strategy replay stops on an
 unrecorded call.
 
-The research-sufficiency back-edge and prior-period Planner/Researcher/Critic/
-Reporter path now exist behind default-off `content_affecting` flags. A future
-MCP server would still enter above the engine boundary. 016 may add dynamic
-capability selection and procedural memory; 017 skill packs may register
-capabilities in the same registry. Neither behavior exists yet.
+The research-sufficiency back-edge, prior-period path, decision weaving, numeric
+consistency checking, and dynamic capability selection exist behind default-off
+`content_affecting` flags. Numeric checking sits inside Critic so an inconsistency
+uses the existing retry path. Capability selection sits in `research_prepare`,
+before fan-out, and the Researcher only consumes that selection. A future MCP
+server and 017 skill packs must register through the same registry.
 
 ## Current MVP Boundaries
 
 - Search is behind a `SearchProvider` boundary. The default implementation is a deterministic `FixtureSearchTool`; Tavily is available as an opt-in adapter, while Serper is not implemented.
 - Structured finance data is behind a `StructuredDataProvider` boundary. The default implementation is recorded fixture data; the live adapter uses AKShare only through whitelisted capabilities: `symbol_resolve`, `financial_indicators`, and `price_history`.
 - Fetch has only a local fixture implementation through `FixtureSearchTool.fetch`; there is no robust live `web_fetch` yet.
-- Search, fetch, and structured data are registered in `CapabilityRegistry`; nodes currently resolve fixed names, not a learned or LLM-selected capability.
+- Search, fetch, and structured data are registered in `CapabilityRegistry`; default execution resolves the fixed 015 set. The optional 016 selector is deterministic, not learned or LLM-selected.
 - Episodic and semantic memory are in-process deterministic stores. They are not durable multi-process memory, vector retrieval, or an automatic forgetting system.
 - `rag_search` is not implemented.
 - Graph checkpoints are persisted by LangGraph's official `SqliteSaver`; evidence rows and evaluations are persisted with `SQLiteStore` for the local MVP. `docs/postgres_schema.sql` documents a production storage path, but there is no Postgres adapter yet.
