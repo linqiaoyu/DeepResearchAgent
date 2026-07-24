@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from datetime import date, datetime, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 from deepresearch_agent.provenance import (
     RunManifest,
@@ -14,6 +15,8 @@ from deepresearch_agent.provenance import (
 )
 from deepresearch_agent.schemas import ResearchState
 from deepresearch_agent.settings import Settings
+from deepresearch_agent.tools.fixture_search import FixtureSearchTool
+from deepresearch_agent.workflow import DeepResearchEngine
 
 
 def manifest() -> RunManifest:
@@ -37,6 +40,51 @@ def manifest() -> RunManifest:
 
 
 class RunManifestTests(unittest.TestCase):
+    def test_default_settings_enable_manifest_and_record_all_flags(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            settings = Settings(storage_path=Path(tmp) / "research.db")
+            built = build_run_manifest(
+                ResearchState(topic="test"),
+                settings,
+                started_at=datetime(2026, 7, 24, tzinfo=timezone.utc),
+            )
+
+        self.assertTrue(settings.run_manifest_enabled)
+        self.assertEqual(
+            built.flags,
+            {
+                "TOOL_CONTRACT_ENABLED": settings.tool_contract_enabled,
+                "INJECTION_GUARD_ENABLED": settings.injection_guard_enabled,
+                "RUN_MANIFEST_ENABLED": settings.run_manifest_enabled,
+                "CONTEXT_PACKER_ENABLED": settings.context_packer_enabled,
+                "STRUCTURED_LOGGING_ENABLED": settings.structured_logging_enabled,
+                "CONFIG_FAIL_FAST_ENABLED": settings.config_fail_fast_enabled,
+            },
+        )
+
+    def test_manifest_write_failure_degrades_without_losing_completed_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            settings = Settings(
+                storage_path=Path(tmp) / "research.db",
+                runs_root=Path(tmp) / "runs",
+            )
+            engine = DeepResearchEngine(
+                settings=settings,
+                search_tool=FixtureSearchTool(),
+            )
+            with patch(
+                "deepresearch_agent.workflow.engine.write_run_manifest",
+                side_effect=OSError("disk unavailable"),
+            ):
+                state = engine.run(topic="AI Agent 财富管理研究", depth_level=1)
+            engine._checkpoint_conn.close()
+
+        self.assertEqual(state.status, "done")
+        self.assertIn(
+            "run manifest sidecar unavailable",
+            [event["impact"] for event in state.metadata["degradation_events"]],
+        )
+
     def test_manifest_builder_populates_required_fields(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             settings = Settings(

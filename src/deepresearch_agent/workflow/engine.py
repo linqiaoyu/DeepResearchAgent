@@ -171,12 +171,26 @@ class DeepResearchEngine:
                 return state
         state = self._state_from_graph_values(result)
         if self.settings.run_manifest_enabled:
-            manifest = build_run_manifest(
-                state,
-                self.settings,
-                started_at=manifest_started_at,
-            )
-            write_run_manifest(manifest, self.settings.runs_root)
+            try:
+                manifest = build_run_manifest(
+                    state,
+                    self.settings,
+                    started_at=manifest_started_at,
+                )
+                write_run_manifest(manifest, self.settings.runs_root)
+            except Exception as exc:
+                state.metadata.setdefault("degradation_events", []).append(
+                    {
+                        "tool": "run_manifest",
+                        "reason": "write_failed",
+                        "impact": "run manifest sidecar unavailable",
+                        "attempts": 1,
+                    }
+                )
+                self.logger.event(
+                    "manifest_write_failed",
+                    error_type=type(exc).__name__,
+                )
         with correlation_context(run_id=research_id, node="workflow"):
             self.logger.event("run_finished", status=state.status)
         return state

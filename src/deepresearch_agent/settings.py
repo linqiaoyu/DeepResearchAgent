@@ -28,7 +28,7 @@ class Settings:
     demo_as_of: date = date(2026, 7, 9)
     tool_contract_enabled: bool = False
     injection_guard_enabled: bool = False
-    run_manifest_enabled: bool = False
+    run_manifest_enabled: bool = True
     runs_root: Path = Path("runs")
     context_packer_enabled: bool = False
     reporter_context_token_budget: int = 200_000
@@ -90,7 +90,7 @@ def load_settings() -> Settings:
         demo_as_of=date.fromisoformat(os.getenv("DEEPRESEARCH_DEMO_AS_OF", "2026-07-09")),
         tool_contract_enabled=_env_flag("TOOL_CONTRACT_ENABLED"),
         injection_guard_enabled=_env_flag("INJECTION_GUARD_ENABLED"),
-        run_manifest_enabled=_env_flag("RUN_MANIFEST_ENABLED"),
+        run_manifest_enabled=_env_flag("RUN_MANIFEST_ENABLED", default=True),
         runs_root=runs_root,
         context_packer_enabled=_env_flag("CONTEXT_PACKER_ENABLED"),
         reporter_context_token_budget=int(
