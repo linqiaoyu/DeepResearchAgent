@@ -448,6 +448,11 @@ class MCPServer:
                         "idempotentHint": spec.idempotent,
                         "openWorldHint": False,
                     },
+                    "_meta": {
+                        "deepresearch/costClass": spec.cost_class,
+                        "deepresearch/timeoutSeconds": spec.timeout_s,
+                        "deepresearch/toolVersion": spec.version,
+                    },
                 }
             )
         return tools

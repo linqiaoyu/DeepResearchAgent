@@ -125,6 +125,10 @@ class MCPServerTest(unittest.TestCase):
                 not metadata.has_side_effect,
                 item["annotations"]["readOnlyHint"],
             )
+            self.assertEqual(
+                metadata.cost_level,
+                item["_meta"]["deepresearch/costClass"],
+            )
 
     def test_fixture_tool_call_runs_research_and_returns_evidence(
         self,
