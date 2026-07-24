@@ -163,25 +163,31 @@ def build_run_manifest(
         dependency_versions=_dependency_versions(),
         domain=domain,
         mode=settings.execution_mode,
-        flags={
-            "TOOL_CONTRACT_ENABLED": settings.tool_contract_enabled,
-            "INJECTION_GUARD_ENABLED": settings.injection_guard_enabled,
-            "RUN_MANIFEST_ENABLED": settings.run_manifest_enabled,
-            "CONTEXT_PACKER_ENABLED": settings.context_packer_enabled,
-            "STRUCTURED_LOGGING_ENABLED": settings.structured_logging_enabled,
-            "CONFIG_FAIL_FAST_ENABLED": settings.config_fail_fast_enabled,
-            **(
-                {"STRUCTURED_OUTPUT_ENABLED": True}
-                if settings.structured_output_enabled
-                else {}
-            ),
-        },
+        flags=settings_flag_snapshot(settings),
         token_total=state.token_used,
         cost_cny_total=state.cost_used,
         degradation_events=degradation_events,
         context_events=context_events,
         tool_error_summary={str(key): int(value) for key, value in tool_errors.items()},
     )
+
+
+def settings_flag_snapshot(
+    settings: Settings,
+    *,
+    include_disabled_experimental: bool = False,
+) -> dict[str, bool]:
+    flags = {
+        "TOOL_CONTRACT_ENABLED": settings.tool_contract_enabled,
+        "INJECTION_GUARD_ENABLED": settings.injection_guard_enabled,
+        "RUN_MANIFEST_ENABLED": settings.run_manifest_enabled,
+        "CONTEXT_PACKER_ENABLED": settings.context_packer_enabled,
+        "STRUCTURED_LOGGING_ENABLED": settings.structured_logging_enabled,
+        "CONFIG_FAIL_FAST_ENABLED": settings.config_fail_fast_enabled,
+    }
+    if settings.structured_output_enabled or include_disabled_experimental:
+        flags["STRUCTURED_OUTPUT_ENABLED"] = settings.structured_output_enabled
+    return flags
 
 
 def write_run_manifest(manifest: RunManifest, runs_root: Path) -> Path:

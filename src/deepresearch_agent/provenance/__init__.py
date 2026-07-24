@@ -5,6 +5,7 @@ from deepresearch_agent.provenance.manifest import (
     build_run_manifest,
     compare_manifests,
     format_manifest_comparison,
+    settings_flag_snapshot,
     write_run_manifest,
 )
 
@@ -15,5 +16,6 @@ __all__ = [
     "build_run_manifest",
     "compare_manifests",
     "format_manifest_comparison",
+    "settings_flag_snapshot",
     "write_run_manifest",
 ]
