@@ -93,6 +93,7 @@ FLAG_CLASSIFICATIONS: dict[str, FlagClassification] = {
     "TRAJECTORY_RECORD_ENABLED": "operational",
     "BRANCH_BUDGET_ENABLED": "content_affecting",
     "RESEARCH_LOOP_ENABLED": "content_affecting",
+    "PRIOR_MEMORY_ENABLED": "content_affecting",
 }
 
 
@@ -222,6 +223,8 @@ def settings_flag_snapshot(
         flags["BRANCH_BUDGET_ENABLED"] = settings.branch_budget_enabled
     if settings.research_loop_active or include_disabled_experimental:
         flags["RESEARCH_LOOP_ENABLED"] = settings.research_loop_active
+    if settings.prior_memory_enabled or include_disabled_experimental:
+        flags["PRIOR_MEMORY_ENABLED"] = settings.prior_memory_enabled
     return flags
 
 
@@ -262,6 +265,9 @@ def _config_hash(settings: Settings) -> str:
         payload.pop("research_min_average_confidence", None)
         payload.pop("research_max_freshness_age_days", None)
         payload.pop("research_max_unresolved_critic_issues", None)
+    if not settings.prior_memory_enabled:
+        payload.pop("prior_memory_enabled", None)
+        payload.pop("prior_watch_confidence_threshold", None)
     encoded = json.dumps(payload, sort_keys=True, ensure_ascii=False, default=str)
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 

@@ -52,3 +52,30 @@ budget、as_of `query` 打包结果。开关继续默认关闭；关闭时不会
 本轮不实现程序性记忆，不引入向量库、embedding 或外部 API，不修改 Evidence Store
 数据库合同，也不做自动遗忘、摘要或压缩。情景与语义实现当前为确定性内存索引；
 持久化适配器属于后续实现，不能把这里的生命周期声明误读为已经部署跨进程数据库。
+
+## 跨期研究行为
+
+`PRIOR_MEMORY_ENABLED` 默认关闭并归类为 `content_affecting`。启用后，Engine 按当前
+topic 的稳定 question_id 查询 `EpisodicMemory`，只选择 as_of 早于本期的最近一条
+`ResearchSnapshot`；本轮不跨越两期。
+
+Planner 把每个子问题分类并记录 `prior_memory_classification` 决策：
+
+- `verify`：子问题命中置信度不低于阈值且非 uncertain 的上期 claim，需要核实是否仍
+  成立；决策写明 claim、confidence、as_of 与来源 URL。
+- `watch`：命中的上期 claim 低置信度或 uncertain，本期重点关注。
+- `explore`：没有命中上期 claim，应寻找上期未覆盖的信息。
+
+verify 的旧 URL 是优先复核目标，不是唯一检索范围。Researcher 即使获得旧 URL，也
+必须为独立查询保留至少一次调用；有分支上限时先预留这一次调用，再安排旧 URL fetch。
+这是防止确认偏误的硬约束，代码注释和测试均覆盖。
+
+Critic 在相同 `(entity, normalized_metric, period, scope)` 下比较上期与本期数值。
+数值实质矛盾且当前 Evidence 没有同比、环比、原因或变化说明时，产生
+`contradicts_prior` high issue，并进入既有 retry queue。相同值、不同 scope，或有
+证据解释的变化都不会触发。
+
+Reporter 的“与上期结论的差异”来自 Agent 本轮主动核实的上下文，列出
+verified_unchanged、changed 或 not_verified 及本期 Evidence。它不同于
+`scripts/diff_snapshots.py`：后者是两份已完成快照的离线机械比对；前者知道 Planner
+为何把问题标成 verify/watch/explore、研究中找到了什么，以及变化是否有证据支撑。

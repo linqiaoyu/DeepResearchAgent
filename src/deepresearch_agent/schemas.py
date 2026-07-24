@@ -222,6 +222,7 @@ class Issue(StrictModel):
         "missing_counterargument",
         "unverified_projection",
         "injection_risk",
+        "contradicts_prior",
     ]
     severity: Literal["low", "medium", "high"]
     affected_claims: list[str] = Field(default_factory=list)

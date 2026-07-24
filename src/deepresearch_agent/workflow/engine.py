@@ -12,8 +12,12 @@ from deepresearch_agent.config_validation import validate_required_configuration
 from deepresearch_agent.llm import BudgetExceededError, LLMClient
 from deepresearch_agent.memory import (
     ContextWorkingMemory,
+    EpisodicMemory,
+    EpisodicQuery,
     WorkingMemoryQuery,
     WorkingMemoryWrite,
+    classify_subquestions_from_prior,
+    prior_difference_rows,
 )
 from deepresearch_agent.observability import JsonLogger, correlation_context
 from deepresearch_agent.orchestration import (
@@ -34,6 +38,10 @@ from deepresearch_agent.orchestration import (
     validate_contract_graph,
 )
 from deepresearch_agent.provenance import build_run_manifest, write_run_manifest
+from deepresearch_agent.research_snapshot import (
+    ResearchSnapshot,
+    research_question_id,
+)
 from deepresearch_agent.schemas import (
     Evidence,
     ResearchState,
@@ -120,6 +128,7 @@ class DeepResearchEngine:
         store: SQLiteStore | None = None,
         search_tool: SearchProvider | None = None,
         structured_data_provider: StructuredDataProvider | None = None,
+        episodic_memory: EpisodicMemory | None = None,
     ) -> None:
         self.settings = settings or load_settings()
         if self.settings.config_fail_fast_enabled:
@@ -157,6 +166,7 @@ class DeepResearchEngine:
         self.evaluator = Evaluator()
         self.branch_budget: BranchBudget | None = None
         self.working_memory = ContextWorkingMemory()
+        self.episodic_memory = episodic_memory or EpisodicMemory()
         self.research_as_of = self.settings.as_of or self.critic.today
         self.sufficiency_thresholds = SufficiencyThresholds(
             min_evidence_count=self.settings.research_min_evidence_count,
@@ -815,6 +825,24 @@ class DeepResearchEngine:
     def _research_one_node(self, graph_state: ResearchGraphState) -> ResearchGraphState:
         state = self._state_from_graph_values(graph_state)
         sub_question = SubQuestion.model_validate(graph_state["fanout_sub_question"])
+        priority_urls: list[str] = []
+        if self.settings.prior_memory_enabled:
+            prior_metadata = state.metadata.get("prior_memory", {})
+            classifications = (
+                prior_metadata.get("classifications", [])
+                if isinstance(prior_metadata, dict)
+                else []
+            )
+            priority_urls = next(
+                (
+                    list(item.get("priority_urls", []))
+                    for item in classifications
+                    if isinstance(item, dict)
+                    and item.get("sub_question_id") == sub_question.id
+                    and item.get("kind") == "verify"
+                ),
+                [],
+            )
         budget_metadata = state.metadata.get("branch_budget", {})
         allocated_calls = budget_metadata.get("allocated_calls", {})
         if self._branch_budget_enabled() and isinstance(
@@ -830,6 +858,18 @@ class DeepResearchEngine:
             ) = self.researcher.research_with_budget(
                 sub_question,
                 max_search_calls=allocation,
+                priority_urls=priority_urls,
+            )
+        elif priority_urls:
+            (
+                sources,
+                records,
+                search_calls,
+                branch_exhausted,
+            ) = self.researcher.research_with_budget(
+                sub_question,
+                max_search_calls=None,
+                priority_urls=priority_urls,
             )
         else:
             sources, records = self.researcher.research(sub_question)
@@ -1215,6 +1255,10 @@ class DeepResearchEngine:
             state.final_report,
             state,
         )
+        state.final_report = self._append_prior_differences(
+            state.final_report,
+            state,
+        )
         state.draft_report = state.final_report
         if self.settings.execution_mode == "llm":
             state.metadata.setdefault("llm_stats", {})["reporter"] = self.reporter.last_stats
@@ -1242,6 +1286,25 @@ class DeepResearchEngine:
 
     def _planning(self, state: ResearchState) -> None:
         state.plan = self.planner.plan(state.topic, state.depth_level, research_id=state.research_id)
+        if self.settings.prior_memory_enabled:
+            prior_records = [
+                item
+                for item in self.episodic_memory.query(
+                    EpisodicQuery(
+                        question_id=research_question_id(state.topic),
+                    )
+                )
+                if item.snapshot.as_of < self.research_as_of
+            ]
+            if prior_records:
+                prior = prior_records[-1].snapshot
+                classify_subquestions_from_prior(
+                    state,
+                    prior,
+                    watch_confidence_threshold=(
+                        self.settings.prior_watch_confidence_threshold
+                    ),
+                )
         if self.settings.execution_mode == "llm":
             state.metadata.setdefault("llm_stats", {})["planner"] = self.planner.last_stats
         state.todo_list = [
@@ -1489,3 +1552,37 @@ class DeepResearchEngine:
                 )
             lines.append("")
         return "\n".join(lines).rstrip()
+
+    def _append_prior_differences(
+        self,
+        report: str,
+        state: ResearchState,
+    ) -> str:
+        if not self.settings.prior_memory_enabled:
+            return report
+        prior_metadata = state.metadata.get("prior_memory", {})
+        raw_snapshot = (
+            prior_metadata.get("snapshot")
+            if isinstance(prior_metadata, dict)
+            else None
+        )
+        if not isinstance(raw_snapshot, dict):
+            return report
+        snapshot = ResearchSnapshot.model_validate(raw_snapshot)
+        rows = prior_difference_rows(state, snapshot)
+        state.metadata["prior_memory"]["differences"] = rows
+        lines = [
+            report.rstrip(),
+            "",
+            "## 与上期结论的差异",
+            "",
+            f"对比基准：{snapshot.as_of.isoformat()}；仅比较最近一期记忆。",
+        ]
+        for row in rows:
+            evidence_ids = ", ".join(row["evidence_ids"]) or "无"
+            lines.append(
+                "- "
+                f"{row['status']}：{row['prior']} "
+                f"{row['explanation']} 支撑 Evidence：{evidence_ids}"
+            )
+        return "\n".join(lines)

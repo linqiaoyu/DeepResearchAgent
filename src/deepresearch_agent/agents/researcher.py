@@ -42,6 +42,7 @@ class ResearcherAgent:
         *,
         top_k_per_query: int = 1,
         max_search_calls: int | None,
+        priority_urls: list[str] | None = None,
     ) -> tuple[list[Source], list[SearchRecord], int, bool]:
         seen: dict[str, Source] = {}
         records: list[SearchRecord] = []
@@ -60,6 +61,32 @@ class ResearcherAgent:
                 return False
             branch_calls += 1
             return True
+
+        # Prior URLs are re-check targets, never the entire retrieval plan.
+        # When a branch ceiling exists, at least one call is reserved for an
+        # independent query to avoid confirmation bias.
+        priority_call_limit = (
+            max(0, max_search_calls - 1)
+            if max_search_calls is not None and sub_question.search_queries
+            else max_search_calls
+        )
+        for url in priority_urls or []:
+            if (
+                priority_call_limit is not None
+                and branch_calls >= priority_call_limit
+            ):
+                break
+            if not consume_call():
+                break
+            source = self.search_tool.fetch(url)
+            records.append(
+                SearchRecord(
+                    query=f"[priority_url] {url}",
+                    source_ids=[source.id] if source else [],
+                )
+            )
+            if source:
+                seen[source.url] = source
 
         for idx, query in enumerate(sub_question.search_queries):
             if not consume_call():

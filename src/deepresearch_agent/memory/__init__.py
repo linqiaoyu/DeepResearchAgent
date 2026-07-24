@@ -8,6 +8,14 @@ from deepresearch_agent.memory.protocols import (
     MemoryScope,
     MemoryStore,
 )
+from deepresearch_agent.memory.prior import (
+    PriorQuestionClassification,
+    classify_subquestions_from_prior,
+    evidence_explains_change,
+    numeric_evidence_key,
+    prior_difference_rows,
+    snapshot_claim_key,
+)
 from deepresearch_agent.memory.semantic import (
     SemanticFact,
     SemanticMemory,
@@ -28,10 +36,16 @@ __all__ = [
     "MemoryLifecycle",
     "MemoryScope",
     "MemoryStore",
+    "PriorQuestionClassification",
     "SemanticFact",
     "SemanticMemory",
     "SemanticQuery",
     "SemanticSeries",
     "WorkingMemoryQuery",
     "WorkingMemoryWrite",
+    "classify_subquestions_from_prior",
+    "evidence_explains_change",
+    "numeric_evidence_key",
+    "prior_difference_rows",
+    "snapshot_claim_key",
 ]

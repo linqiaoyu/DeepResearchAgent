@@ -49,6 +49,8 @@ class Settings:
     research_min_average_confidence: float = 0.7
     research_max_freshness_age_days: int = 365
     research_max_unresolved_critic_issues: int = 0
+    prior_memory_enabled: bool = False
+    prior_watch_confidence_threshold: float = 0.7
 
     @property
     def research_loop_active(self) -> bool:
@@ -165,6 +167,13 @@ def load_settings() -> Settings:
             os.getenv(
                 "DEEPRESEARCH_RESEARCH_MAX_UNRESOLVED_CRITIC_ISSUES",
                 "0",
+            )
+        ),
+        prior_memory_enabled=_env_flag("PRIOR_MEMORY_ENABLED"),
+        prior_watch_confidence_threshold=float(
+            os.getenv(
+                "DEEPRESEARCH_PRIOR_WATCH_CONFIDENCE_THRESHOLD",
+                "0.7",
             )
         ),
     )
