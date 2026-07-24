@@ -1,0 +1,71 @@
+from __future__ import annotations
+
+import difflib
+import importlib.util
+import os
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+
+ROOT = Path(__file__).resolve().parents[2]
+SCRIPT = ROOT / "scripts" / "snapshot_run.py"
+SPEC = importlib.util.spec_from_file_location("snapshot_run", SCRIPT)
+assert SPEC and SPEC.loader
+snapshot_run = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(snapshot_run)
+
+
+class SnapshotNormalizationTest(unittest.TestCase):
+    def test_normalizes_nondeterministic_fields(self) -> None:
+        payload = {
+            "run_id": "123e4567-e89b-42d3-a456-426614174000",
+            "started_at": "2026-07-24T12:00:00Z",
+            "latency_seconds": 3.2,
+            "path": "/tmp/example/research.db",
+            "random_seed": 123,
+        }
+
+        normalized = snapshot_run.normalize(payload)
+
+        self.assertEqual(normalized["run_id"], "<normalized-id>")
+        self.assertEqual(normalized["started_at"], "<normalized-timestamp>")
+        self.assertEqual(normalized["latency_seconds"], 0)
+        self.assertEqual(normalized["path"], "<normalized-path>")
+        self.assertNotIn("random_seed", normalized)
+
+
+class WorkflowCharacterizationTest(unittest.TestCase):
+    maxDiff = None
+
+    def test_golden_workflow_outputs_are_byte_identical(self) -> None:
+        false_flags = {name: "false" for name in snapshot_run.FLAG_FIELDS}
+        with patch.dict(os.environ, false_flags, clear=False):
+            for topic, filename in (
+                (snapshot_run.DEFAULT_TOPICS[0], "finance_structured.json"),
+                (snapshot_run.DEFAULT_TOPICS[1], "wealth_research.json"),
+            ):
+                with self.subTest(topic=topic), tempfile.TemporaryDirectory() as temp_dir:
+                    actual = snapshot_run.encode_snapshot(
+                        snapshot_run.build_snapshot(
+                            topic,
+                            runs_root=Path(temp_dir) / "runs",
+                        )
+                    )
+                    golden_path = ROOT / "tests" / "golden_output" / filename
+                    expected = golden_path.read_text(encoding="utf-8")
+                    if actual != expected:
+                        diff = "".join(
+                            difflib.unified_diff(
+                                expected.splitlines(keepends=True),
+                                actual.splitlines(keepends=True),
+                                fromfile=str(golden_path),
+                                tofile=f"actual:{topic}",
+                            )
+                        )
+                        self.fail(f"Normalized workflow snapshot changed:\n{diff}")
+
+
+if __name__ == "__main__":
+    unittest.main()
