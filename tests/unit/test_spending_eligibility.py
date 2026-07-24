@@ -4,9 +4,13 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from deepresearch_agent.llm import LLMClient
-from deepresearch_agent.llm.client import CostOverrunError
+from deepresearch_agent.llm.client import (
+    CostOverrunError,
+    LLMClientError,
+)
 from deepresearch_agent.llm_config import LLMConfig, RoleModelConfig
 from deepresearch_agent.reflection import (
     ReflectionLLMInsight,
@@ -49,6 +53,36 @@ class StubLLMReflectionReasoner:
 
 
 class SpendingEligibilityAuditTests(unittest.TestCase):
+    def test_environment_secret_is_redacted_from_provider_error(self) -> None:
+        secret = "019A-SECRET-abcdefgh123456"
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"DEEPSEEK_API_KEY": secret},
+        ):
+            root = Path(tmp)
+
+            def fail_with_secret(**_: object) -> dict:
+                raise RuntimeError(f"provider rejected {secret}")
+
+            client = LLMClient(
+                ledger_path=root / "ledger.jsonl",
+                global_ledger_path=root / "global.jsonl",
+                budget_cny=1.0,
+                completion_func=fail_with_secret,
+                sleep_func=lambda _: None,
+                env_path=root / "missing.env",
+            )
+            with self.assertRaises(LLMClientError) as raised:
+                client.complete(
+                    role="planner",
+                    run_id="secret-error-audit",
+                    messages=[{"role": "user", "content": "fixed"}],
+                )
+
+        self.assertNotIn(secret, str(raised.exception))
+        self.assertNotIn("abcdefgh123456", str(raised.exception))
+        self.assertIn("[REDACTED_API_KEY]", str(raised.exception))
+
     def test_provider_pricing_and_two_times_overrun_fuse(self) -> None:
         response = {
             "choices": [{"message": {"content": "fixed"}}],

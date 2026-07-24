@@ -12,6 +12,7 @@ from pydantic import BaseModel, ValidationError
 
 from deepresearch_agent.llm_config import DEFAULT_LLM_CONFIG, LLMConfig
 from deepresearch_agent.observability import JsonLogger, correlation_context
+from deepresearch_agent.security import redact
 from deepresearch_agent.settings import project_root
 from deepresearch_agent.trajectory import LLMCallTrace, active_trajectory_recorder
 
@@ -372,7 +373,9 @@ class LLMClient:
                     if attempt >= self.config.max_retries:
                         break
                     self._sleep(2**attempt)
-        raise LLMClientError(f"LLM call failed for role={role}: {last_error}")
+        raise LLMClientError(
+            redact(f"LLM call failed for role={role}: {last_error}")
+        )
 
     def _api_key(self, key_name: str) -> str:
         if self._env_path.exists():

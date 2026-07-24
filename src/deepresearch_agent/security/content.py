@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import re
 import unicodedata
 from dataclasses import dataclass
@@ -158,6 +159,12 @@ def redact(
     patterns: tuple[RedactionPattern, ...] = DEFAULT_REDACTION_PATTERNS,
 ) -> str:
     redacted = text
+    for name, value in os.environ.items():
+        if (
+            len(value) >= 8
+            and re.search(r"(?:KEY|TOKEN|SECRET|PASSWORD)", name, re.I)
+        ):
+            redacted = redacted.replace(value, "[REDACTED_API_KEY]")
     for item in patterns:
         redacted = item.pattern.sub(item.replacement, redacted)
     return redacted
