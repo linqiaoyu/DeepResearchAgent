@@ -64,6 +64,7 @@ class Settings:
         '"verify":["web_fetch","web_search"],'
         '"narrative":["web_search"]}'
     )
+    reflection_enabled: bool = False
 
     @property
     def research_loop_active(self) -> bool:
@@ -229,6 +230,7 @@ def load_settings() -> Settings:
                 '"narrative":["web_search"]}'
             ),
         ),
+        reflection_enabled=_env_flag("REFLECTION_ENABLED"),
     )
 
 

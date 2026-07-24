@@ -40,6 +40,7 @@ from deepresearch_agent.orchestration import (
     validate_contract_graph,
 )
 from deepresearch_agent.provenance import build_run_manifest, write_run_manifest
+from deepresearch_agent.reflection import Reflector
 from deepresearch_agent.research_snapshot import (
     ResearchSnapshot,
     research_question_id,
@@ -209,6 +210,7 @@ class DeepResearchEngine:
         )
         self.reporter = ReporterAgent(llm_client=self.llm_client)
         self.evaluator = Evaluator()
+        self.reflector = Reflector()
         self.branch_budget: BranchBudget | None = None
         self.working_memory = ContextWorkingMemory()
         self.episodic_memory = episodic_memory or EpisodicMemory()
@@ -374,10 +376,16 @@ class DeepResearchEngine:
                             "dynamic_capability_rules_json": (
                                 self.settings.dynamic_capability_rules_json
                             ),
+                            "reflection_enabled": (
+                                self.settings.reflection_enabled
+                            ),
                         },
                     },
                 )
-                if self.settings.trajectory_record_enabled
+                if (
+                    self.settings.trajectory_record_enabled
+                    or self.settings.reflection_enabled
+                )
                 else None
             )
             try:
@@ -424,7 +432,7 @@ class DeepResearchEngine:
                     "manifest_write_failed",
                     error_type=type(exc).__name__,
                 )
-        if recorder:
+        if recorder and self.settings.trajectory_record_enabled:
             artifacts = {"report.md": state.final_report or ""}
             recorder.finalize(
                 manifest_ref=str(manifest_path) if manifest_path else None,
@@ -466,6 +474,10 @@ class DeepResearchEngine:
             self._graph_node("extractor", self._extractor_node),
         )
         graph.add_node("critic", self._graph_node("critic", self._critic_node))
+        graph.add_node(
+            "reflector",
+            self._graph_node("reflector", self._reflector_node),
+        )
         graph.add_node(
             "research_loop_decide",
             self._graph_node(
@@ -510,6 +522,10 @@ class DeepResearchEngine:
             "research_loop_decide",
             self._route_after_research_loop,
         )
+        graph.add_conditional_edges(
+            "reflector",
+            self._route_after_reflection,
+        )
         graph.add_edge("research_refine", "research_prepare")
         graph.add_conditional_edges("retry_prepare", self._send_retry_tasks)
         graph.add_edge("retry_one", "retry_join")
@@ -536,8 +552,12 @@ class DeepResearchEngine:
                 ("critic", "retry_prepare"),
                 ("critic", "reporter"),
                 ("critic", "research_loop_decide"),
+                ("critic", "reflector"),
                 ("research_loop_decide", "reporter"),
                 ("research_loop_decide", "research_refine"),
+                ("research_loop_decide", "reflector"),
+                ("reflector", "reporter"),
+                ("reflector", "research_refine"),
                 ("research_refine", "research_prepare"),
                 ("retry_prepare", "retry_one"),
                 ("retry_prepare", "retry_join"),
@@ -713,6 +733,17 @@ class DeepResearchEngine:
                     ),
                 ),
                 decision_node=self.settings.numeric_check_enabled,
+            ),
+            "reflector": NodeContract(
+                name="reflector",
+                consumes={
+                    "research_state": state_field,
+                    "research_state.agent_decisions": ContractField(list),
+                },
+                produces=frozenset(
+                    {"research_state.metadata.reflection_result"}
+                ),
+                invariants=(identity,),
             ),
             "research_loop_decide": NodeContract(
                 name="research_loop_decide",
@@ -1295,12 +1326,42 @@ class DeepResearchEngine:
         if state.status == "paused":
             return END
         if state.critic_report and state.critic_report.passed:
+            if self.settings.research_loop_active:
+                return "research_loop_decide"
             return (
-                "research_loop_decide"
-                if self.settings.research_loop_active
+                "reflector"
+                if self.settings.reflection_enabled
                 else "reporter"
             )
         return "retry_prepare"
+
+    def _reflector_node(
+        self,
+        graph_state: ResearchGraphState,
+    ) -> ResearchGraphState:
+        state = self._state_from_graph_values(graph_state)
+        recorder = active_trajectory_recorder()
+        if recorder is None:
+            raise RuntimeError(
+                "REFLECTION_ENABLED requires a run-scoped AgentTrajectory"
+            )
+        result = self.reflector.reflect(
+            recorder.trajectory.model_copy(deep=True),
+            [item.model_copy(deep=True) for item in state.agent_decisions],
+        )
+        state.metadata["reflection_result"] = result.model_dump(mode="json")
+        return self._state_output(state)
+
+    def _route_after_reflection(
+        self,
+        graph_state: ResearchGraphState,
+    ) -> str:
+        state = self._state_from_graph_values(graph_state)
+        return (
+            "research_refine"
+            if state.metadata.get("research_loop_route") == "continue"
+            else "reporter"
+        )
 
     def _research_loop_decide_node(
         self,
@@ -1449,6 +1510,8 @@ class DeepResearchEngine:
         graph_state: ResearchGraphState,
     ) -> str:
         state = self._state_from_graph_values(graph_state)
+        if self.settings.reflection_enabled:
+            return "reflector"
         return (
             "research_refine"
             if state.metadata.get("research_loop_route") == "continue"
