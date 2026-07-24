@@ -6,7 +6,6 @@ import re
 from pathlib import Path
 from typing import Any
 
-from deepresearch_agent.citations import build_footnote_maps
 from deepresearch_agent.provenance import (
     FLAG_CLASSIFICATIONS,
     RunManifest,
@@ -130,7 +129,12 @@ def export_audit_bundle(
 
 
 def extract_report_claims(state: ResearchState) -> list[dict[str, Any]]:
-    footnotes = build_footnote_maps(state.evidence_store).footnote_to_evidence
+    evidence_by_id = {item.id: item for item in state.evidence_store}
+    footnotes = {
+        number: evidence_by_id[evidence_id]
+        for number, evidence_id in state.report_footnote_evidence.items()
+        if evidence_id in evidence_by_id
+    }
     claims: list[dict[str, Any]] = []
     section = ""
     for line in (state.final_report or "").splitlines():

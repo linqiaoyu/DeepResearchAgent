@@ -433,3 +433,12 @@ The default Critic and seed data support these categories:
 - Evaluation can be run repeatedly from the command line.
 - The output includes quality, citation, cost, latency, token, Critic catch rate, and aggregated bad-case fields.
 - Critic issues are visible in the Streamlit dashboard and final report.
+### Reporter footnote contract
+
+Reporter persists the emitted footnote-to-evidence mapping with the report.
+Evaluator and audit export consume that mapping directly and never reconstruct it
+from the current Evidence order. A historical saved state without the mapping is
+marked degraded, so citation resolution cannot fail silently. Historical public
+release results are unchanged: their reports and saved Evidence were produced and
+evaluated under the same canonical order; this repair makes that formerly implicit
+condition explicit without changing any scoring formula.

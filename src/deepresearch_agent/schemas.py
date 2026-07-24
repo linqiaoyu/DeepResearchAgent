@@ -292,6 +292,7 @@ class ResearchState(StrictModel):
     critic_report: CriticReport | None = None
     draft_report: str | None = None
     final_report: str | None = None
+    report_footnote_evidence: dict[int, str] = Field(default_factory=dict)
     structured_output: StructuredResearchOutput | None = None
     evaluation: EvaluationResult | None = None
     token_used: int = 0

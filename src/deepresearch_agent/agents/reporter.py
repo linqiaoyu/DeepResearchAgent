@@ -38,6 +38,11 @@ class ReporterAgent:
     def report(self, state: ResearchState) -> str:
         if not state.plan:
             raise ValueError("Cannot report before planning.")
+        footnotes = build_footnote_maps(state.evidence_store)
+        state.report_footnote_evidence = {
+            number: evidence.id
+            for number, evidence in footnotes.footnote_to_evidence.items()
+        }
         if self.llm_client:
             try:
                 return self._llm_report(state)
