@@ -16,6 +16,7 @@ from deepresearch_agent.research_snapshot import (
     diff_research_snapshots,
 )
 from deepresearch_agent.schemas import ResearchState
+from deepresearch_agent.security import redact
 from deepresearch_agent.settings import Settings, project_root
 from deepresearch_agent.tools.capability_registry import (
     CapabilityMetadata,
@@ -476,22 +477,29 @@ class MCPServer:
         return _tool_result(value)
 
 
-def run_stdio(server: MCPServer, stdin: TextIO, stdout: TextIO) -> None:
+def run_stdio(
+    server: MCPServer,
+    stdin: TextIO,
+    stdout: TextIO,
+    *,
+    trace: TextIO | None = None,
+) -> None:
     for raw_line in stdin:
         line = raw_line.rstrip("\r\n")
         if not line:
             continue
+        _trace_stdio(trace, "CLIENT -> SERVER", line)
         response = server.handle_line(line)
         if response is None:
+            _trace_stdio(trace, "SERVER -> CLIENT", "<no response>")
             continue
-        stdout.write(
-            json.dumps(
-                response,
-                ensure_ascii=False,
-                separators=(",", ":"),
-            )
-            + "\n"
+        encoded = json.dumps(
+            response,
+            ensure_ascii=False,
+            separators=(",", ":"),
         )
+        _trace_stdio(trace, "SERVER -> CLIENT", encoded)
+        stdout.write(encoded + "\n")
         stdout.flush()
 
 
@@ -650,6 +658,17 @@ def _error_response(
     }
 
 
+def _trace_stdio(
+    trace: TextIO | None,
+    direction: str,
+    payload: str,
+) -> None:
+    if trace is None:
+        return
+    trace.write(f"{direction} {redact(payload)}\n")
+    trace.flush()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="DeepResearchAgent MCP server over line-delimited stdio."
@@ -660,10 +679,24 @@ def main() -> None:
         default=None,
         help="Server-owned runtime directory; tool callers cannot override it.",
     )
+    parser.add_argument(
+        "--trace-file",
+        type=Path,
+        default=None,
+        help=(
+            "Operator-only redacted stdio trace. This path is never exposed "
+            "through an MCP tool."
+        ),
+    )
     args = parser.parse_args()
     service = MCPResearchService(args.runtime_root)
     server = MCPServer(build_mcp_capability_registry(service))
-    run_stdio(server, sys.stdin, sys.stdout)
+    if args.trace_file is None:
+        run_stdio(server, sys.stdin, sys.stdout)
+        return
+    args.trace_file.parent.mkdir(parents=True, exist_ok=True)
+    with args.trace_file.open("a", encoding="utf-8") as trace:
+        run_stdio(server, sys.stdin, sys.stdout, trace=trace)
 
 
 if __name__ == "__main__":

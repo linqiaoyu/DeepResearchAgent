@@ -342,11 +342,16 @@ class MCPServerTest(unittest.TestCase):
             )
         )
         stdout = io.StringIO()
-        run_stdio(self.server, stdin, stdout)
+        trace = io.StringIO()
+        run_stdio(self.server, stdin, stdout, trace=trace)
         responses = [
             json.loads(line) for line in stdout.getvalue().splitlines()
         ]
         self.assertEqual([1, 2], [item["id"] for item in responses])
+        self.assertIn(
+            "SERVER -> CLIENT <no response>",
+            trace.getvalue(),
+        )
 
 
 if __name__ == "__main__":
