@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import tempfile
 import unittest
@@ -16,17 +17,25 @@ from deepresearch_agent.evaluation.judge import (
     EXPERIMENT_CONDITION_TERMS,
     redact_judge_report,
 )
+from deepresearch_agent.audit_bundle import (
+    PUBLIC_EXCERPT_CHAR_LIMIT,
+    export_audit_bundle,
+)
+from deepresearch_agent.provenance import build_run_manifest
 from deepresearch_agent.reflection import (
     ReflectionLLMInsight,
     ReflectionReasoningRequest,
     Reflector,
     reflection_request_key,
 )
+from deepresearch_agent.settings import Settings
+from deepresearch_agent.structured_output import build_structured_output
 from deepresearch_agent.trajectory import (
     AgentTrajectory,
     TrajectoryRecorder,
     trajectory_recording,
 )
+from tests.unit.test_audit_bundle import audit_state
 
 
 class StubLLMReflectionReasoner:
@@ -57,6 +66,69 @@ class StubLLMReflectionReasoner:
 
 
 class SpendingEligibilityAuditTests(unittest.TestCase):
+    def test_audit_bundle_redacts_secrets_and_caps_public_excerpts(
+        self,
+    ) -> None:
+        secret = "019A-SECRET-abcdefgh123456"
+        full_extract = secret + "x" * (PUBLIC_EXCERPT_CHAR_LIMIT + 50)
+        state = audit_state()
+        state.topic = f"Audit {secret}"
+        state.final_report = state.final_report.replace(
+            "A fixture-only conclusion.",
+            f"A fixture-only conclusion with {secret}.",
+        )
+        state.evidence_store[0].claim = f"Verified {secret}"
+        state.evidence_store[0].extract_text = full_extract
+        state.structured_output = build_structured_output(state)
+
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(
+            "os.environ",
+            {"DEEPSEEK_API_KEY": secret},
+        ):
+            root = Path(tmp)
+            settings = Settings(
+                storage_path=root / "audit.db",
+                structured_output_enabled=True,
+            )
+            manifest = build_run_manifest(
+                state,
+                settings,
+                started_at=state.started_at,
+                ended_at=state.updated_at,
+            )
+            output = root / "bundle"
+            export_audit_bundle(
+                state=state,
+                settings=settings,
+                manifest=manifest,
+                output_dir=output,
+            )
+            all_bytes = b"".join(
+                path.read_bytes()
+                for path in sorted(output.iterdir())
+                if path.is_file()
+            )
+            evidence = json.loads(
+                output.joinpath("evidence.json").read_text(
+                    encoding="utf-8"
+                )
+            )[0]
+
+        self.assertNotIn(secret.encode(), all_bytes)
+        self.assertNotIn(b"abcdefgh123456", all_bytes)
+        self.assertLessEqual(
+            len(evidence["extract_text"]),
+            PUBLIC_EXCERPT_CHAR_LIMIT,
+        )
+        self.assertTrue(evidence["extract_truncated"])
+        self.assertEqual(
+            evidence["extract_sha256"],
+            hashlib.sha256(full_extract.encode()).hexdigest(),
+        )
+        gitignore = Path(".gitignore").read_text(encoding="utf-8")
+        for ignored in (".env", "data/runtime/", "data/raw/", "runs/"):
+            self.assertIn(ignored, gitignore)
+
     def test_judge_report_redaction_removes_experiment_condition(self) -> None:
         report = (
             "# Report\n\n"
