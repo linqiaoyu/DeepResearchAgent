@@ -6,9 +6,13 @@ from collections.abc import Sequence
 from typing import Annotated, Any, TypedDict
 
 from deepresearch_agent.agents import CriticAgent, Evaluator, ExtractorAgent, PlannerAgent, ReporterAgent, ResearcherAgent
-from deepresearch_agent.context import pack_evidence
 from deepresearch_agent.config_validation import validate_required_configuration
 from deepresearch_agent.llm import BudgetExceededError, LLMClient
+from deepresearch_agent.memory import (
+    ContextWorkingMemory,
+    WorkingMemoryQuery,
+    WorkingMemoryWrite,
+)
 from deepresearch_agent.observability import JsonLogger, correlation_context
 from deepresearch_agent.orchestration import (
     BranchBudget,
@@ -142,6 +146,7 @@ class DeepResearchEngine:
         self.reporter = ReporterAgent(llm_client=self.llm_client)
         self.evaluator = Evaluator()
         self.branch_budget: BranchBudget | None = None
+        self.working_memory = ContextWorkingMemory()
         self._checkpoint_conn = sqlite3.connect(self.settings.storage_path, check_same_thread=False)
         self.checkpointer = SqliteSaver(self._checkpoint_conn)
         self.graph = self._build_graph()
@@ -922,11 +927,19 @@ class DeepResearchEngine:
         self._sync_tool_degradation(state)
         state.evidence_store = self._sorted_evidence(state.evidence_store)
         if self.settings.context_packer_enabled:
-            packed = pack_evidence(
-                state.evidence_store,
-                topic=state.topic,
-                budget=self.settings.reporter_context_token_budget,
-                as_of=self.settings.as_of,
+            self.working_memory.write(
+                WorkingMemoryWrite(
+                    research_id=state.research_id,
+                    evidence=state.evidence_store,
+                )
+            )
+            packed = self.working_memory.query(
+                WorkingMemoryQuery(
+                    research_id=state.research_id,
+                    topic=state.topic,
+                    budget=self.settings.reporter_context_token_budget,
+                    as_of=self.settings.as_of,
+                )
             )
             state.evidence_store = packed.selected
             state.metadata.setdefault("context_events", []).append(
