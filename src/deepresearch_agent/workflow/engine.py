@@ -9,6 +9,7 @@ from typing import Annotated, Any, TypedDict
 
 from deepresearch_agent.agents import CriticAgent, Evaluator, ExtractorAgent, PlannerAgent, ReporterAgent, ResearcherAgent
 from deepresearch_agent.config_validation import validate_required_configuration
+from deepresearch_agent.decisions import append_decision_chain
 from deepresearch_agent.llm import BudgetExceededError, LLMClient
 from deepresearch_agent.memory import (
     ContextWorkingMemory,
@@ -1351,6 +1352,11 @@ class DeepResearchEngine:
                 packed.context_event(node="reporter")
             )
         state.final_report = self.reporter.report(state)
+        if self.settings.decision_weaving_enabled:
+            state.final_report = append_decision_chain(
+                state.final_report,
+                state.agent_decisions,
+            )
         if self.settings.structured_output_enabled:
             state.structured_output = self.reporter.structured_output(state)
         state.final_report = self._append_degradation_notice(state.final_report, state)
