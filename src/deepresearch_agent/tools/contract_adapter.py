@@ -32,6 +32,22 @@ SEARCH_TOOL_SPEC = ToolSpec(
     idempotent=True,
     has_side_effect=False,
 )
+FETCH_TOOL_SPEC = ToolSpec(
+    name="web_fetch",
+    version="1.0.0",
+    input_schema={
+        "type": "object",
+        "required": ["url"],
+        "properties": {"url": {"type": "string", "format": "uri"}},
+    },
+    output_schema={
+        "oneOf": [{"$ref": "Source"}, {"type": "null"}],
+    },
+    timeout_s=60.0,
+    cost_class="low",
+    idempotent=True,
+    has_side_effect=False,
+)
 
 
 class ContractSearchProvider:
@@ -100,7 +116,38 @@ class ContractSearchProvider:
         fetch = getattr(self.provider, "fetch", None)
         if not callable(fetch):
             return None
-        return fetch(url)
+        try:
+            result = fetch(url)
+        except Exception as exc:
+            recorder = active_trajectory_recorder()
+            if recorder:
+                recorder.record_tool_call(
+                    ToolCallTrace(
+                        tool_spec=FETCH_TOOL_SPEC.model_dump(mode="json"),
+                        inputs={"url": url},
+                        error={
+                            "kind": type(exc).__name__,
+                            "message": str(exc),
+                        },
+                        attempts=1,
+                    )
+                )
+            raise
+        recorder = active_trajectory_recorder()
+        if recorder:
+            recorder.record_tool_call(
+                ToolCallTrace(
+                    tool_spec=FETCH_TOOL_SPEC.model_dump(mode="json"),
+                    inputs={"url": url},
+                    result=(
+                        result.model_dump(mode="json")
+                        if result
+                        else None
+                    ),
+                    attempts=1,
+                )
+            )
+        return result
 
     @property
     def degradation_events(self) -> list[dict[str, Any]]:

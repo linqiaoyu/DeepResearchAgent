@@ -1,0 +1,221 @@
+from __future__ import annotations
+
+import tempfile
+import unittest
+from datetime import date
+from pathlib import Path
+
+from deepresearch_agent.schemas import (
+    StructuredDataRecord,
+    StructuredDataRequest,
+)
+from deepresearch_agent.settings import Settings
+from deepresearch_agent.tools import FixtureStructuredDataProvider
+from deepresearch_agent.trajectory import (
+    MemoryWriteTrace,
+    SignalReadTrace,
+    ToolCallTrace,
+    TrajectoryRecorder,
+    load_trajectory,
+)
+from deepresearch_agent.trajectory_replay import replay_trajectory
+from deepresearch_agent.workflow import DeepResearchEngine
+
+
+class NumericRelationProvider(FixtureStructuredDataProvider):
+    def financial_indicators(
+        self,
+        symbol: str,
+        periods: list[str] | None = None,
+        metrics: list[str] | None = None,
+    ) -> list[StructuredDataRecord]:
+        common = {
+            "entity": "宁德时代",
+            "symbol": symbol,
+            "dimension": "全年",
+            "data_source": "numeric-superset-fixture",
+            "as_of": date(2026, 7, 9),
+        }
+        return [
+            StructuredDataRecord(
+                **common,
+                metric_name="营业收入同比增长率",
+                period="2024",
+                value=99,
+                unit="%",
+            ),
+            StructuredDataRecord(
+                **common,
+                metric_name="营业收入",
+                period="2024",
+                value=120,
+                unit="亿元",
+            ),
+            StructuredDataRecord(
+                **common,
+                metric_name="营收",
+                period="2023",
+                value=100,
+                unit="亿元",
+            ),
+        ]
+
+
+class StructuredPlanner:
+    def __init__(self, planner) -> None:
+        self.planner = planner
+        self.last_stats = planner.last_stats
+
+    def plan(
+        self,
+        topic: str,
+        depth_level: int = 2,
+        research_id: str | None = None,
+    ):
+        plan = self.planner.plan(
+            topic,
+            depth_level,
+            research_id=research_id,
+        )
+        plan.sub_questions[0].structured_data_requests = [
+            StructuredDataRequest(
+                capability="financial_indicators",
+                symbol="300750",
+            )
+        ]
+        return plan
+
+
+class ExpandedTrajectoryTest(unittest.TestCase):
+    def test_expanded_016_configuration_is_complete_and_strictly_replays(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            settings = Settings(
+                storage_path=root / "record.db",
+                runs_root=root / "runs",
+                as_of=date(2026, 7, 9),
+                trajectory_record_enabled=True,
+                structured_logging_enabled=False,
+                max_critic_iter=1,
+                research_loop_enabled=True,
+                research_loop_max_iterations=2,
+                research_loop_budget_ceiling=20,
+                research_loop_no_progress_window=5,
+                research_min_evidence_count=99,
+                decision_weaving_enabled=True,
+                numeric_check_enabled=True,
+                dynamic_capability_enabled=True,
+            )
+            engine = DeepResearchEngine(
+                settings=settings,
+                structured_data_provider=NumericRelationProvider(),
+            )
+            engine.planner = StructuredPlanner(engine.planner)
+            state = engine.run(
+                topic="宁德时代 2024 年业绩与欧洲工厂扩张研究",
+                depth_level=1,
+            )
+            engine._checkpoint_conn.close()
+            trajectory = load_trajectory(
+                root
+                / "runs"
+                / state.research_id
+                / "trajectory.json"
+            )
+
+            decision_types = [
+                item.decision_type
+                for item in trajectory.agent_decisions
+            ]
+            tool_names = [
+                str(item.tool_spec.get("name"))
+                for item in trajectory.tool_calls
+            ]
+            node_names = [
+                item.node for item in trajectory.node_transitions
+            ]
+
+            self.assertEqual(trajectory.llm_calls, [])
+            self.assertIn("web_search", tool_names)
+            self.assertIn("structured_data_provider", tool_names)
+            self.assertGreaterEqual(
+                node_names.count("research_prepare"),
+                2,
+            )
+            self.assertIn("capability_selection", decision_types)
+            self.assertIn("numeric_consistency_check", decision_types)
+            self.assertIn("numeric_consistency_scan", decision_types)
+            self.assertIn("branch_budget_reallocate", decision_types)
+            self.assertIn("bounded_loop_control", decision_types)
+            self.assertIn("research_replan", decision_types)
+            self.assertEqual(
+                len(trajectory.agent_decisions),
+                len(state.agent_decisions),
+            )
+            self.assertEqual(
+                len(trajectory.tool_calls),
+                tool_names.count("web_search")
+                + tool_names.count("structured_data_provider"),
+            )
+
+            replay = replay_trajectory(trajectory, mode="strict")
+
+        self.assertEqual(
+            replay.status,
+            "reproduced",
+            replay.cache_miss,
+        )
+        self.assertEqual(replay.artifact_matches, {"report.md": True})
+
+    def test_schema_reserves_017_signal_and_memory_and_018_mcp_calls(
+        self,
+    ) -> None:
+        recorder = TrajectoryRecorder(
+            run_id="forward-schema",
+            request={"topic": "forward"},
+        )
+        recorder.record_signal_read(
+            SignalReadTrace(
+                signal_type="repeated_critic_issue",
+                source="AgentTrajectory.agent_decisions",
+                keys=("issue_type", "iteration"),
+            )
+        )
+        recorder.record_memory_write(
+            MemoryWriteTrace(
+                memory_type="procedural",
+                lifecycle="cross_run",
+                key={"question_type": "financial_metric"},
+                value_summary={"sufficiency_delta": 0.1},
+            )
+        )
+        recorder.record_tool_call(
+            ToolCallTrace(
+                tool_spec={"name": "external_quote_lookup"},
+                inputs={"symbol": "300750"},
+                result={"ok": True},
+                attempts=1,
+                transport="mcp",
+                server="fixture-mcp",
+            )
+        )
+
+        self.assertEqual(recorder.trajectory.schema_version, 2)
+        self.assertEqual(
+            recorder.trajectory.signal_reads[0].signal_type,
+            "repeated_critic_issue",
+        )
+        self.assertEqual(
+            recorder.trajectory.memory_writes[0].lifecycle,
+            "cross_run",
+        )
+        self.assertEqual(
+            recorder.trajectory.tool_calls[0].transport,
+            "mcp",
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1,8 +1,15 @@
 from __future__ import annotations
 
 import json
+import re
 
 from deepresearch_agent.schemas import AgentDecision, ResearchState
+
+_OPAQUE_ID_RE = re.compile(
+    r"\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-"
+    r"[89ab][0-9a-f]{3}-[0-9a-f]{12}\b",
+    re.IGNORECASE,
+)
 
 
 def record_agent_decision(
@@ -51,7 +58,7 @@ def append_decision_record(
         lines.append(
             "  - 依据："
             + json.dumps(
-                decision.inputs,
+                _reader_visible_inputs(decision.inputs),
                 ensure_ascii=False,
                 sort_keys=True,
             )
@@ -158,3 +165,28 @@ def _budget_remaining(value: object) -> str:
     remaining = value.get("remaining", "未记录")
     total = value.get("total", "未记录")
     return f"{remaining}/{total}"
+
+
+def _reader_visible_inputs(inputs: dict[str, object]) -> dict[str, object]:
+    aliases: dict[str, str] = {}
+
+    def normalize(value: object) -> object:
+        if isinstance(value, dict):
+            return {
+                str(key): normalize(item)
+                for key, item in value.items()
+            }
+        if isinstance(value, list):
+            return [normalize(item) for item in value]
+        if not isinstance(value, str):
+            return value
+
+        def replace(match: re.Match[str]) -> str:
+            opaque = match.group(0)
+            if opaque not in aliases:
+                aliases[opaque] = f"evidence-id-{len(aliases) + 1:03d}"
+            return aliases[opaque]
+
+        return _OPAQUE_ID_RE.sub(replace, value)
+
+    return normalize(inputs)  # type: ignore[return-value]

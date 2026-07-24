@@ -62,6 +62,7 @@ from deepresearch_agent.tools import (
     FIXED_CAPABILITY_SET,
     SearchProvider,
     StructuredDataProvider,
+    TrajectoryStructuredDataProvider,
     build_capability_registry,
     build_search_provider,
     build_structured_data_provider,
@@ -151,6 +152,11 @@ class DeepResearchEngine:
             )
         configured_structured_provider = (
             structured_data_provider or build_structured_data_provider()
+        )
+        configured_structured_provider = (
+            TrajectoryStructuredDataProvider(
+                configured_structured_provider
+            )
         )
         self.capability_registry: CapabilityRegistry = (
             build_capability_registry(
@@ -304,6 +310,71 @@ class DeepResearchEngine:
                             else None
                         ),
                         "mode": self.settings.execution_mode,
+                        "strategy_config": {
+                            "max_critic_iter": (
+                                self.settings.max_critic_iter
+                            ),
+                            "branch_budget_enabled": (
+                                self.settings.branch_budget_enabled
+                            ),
+                            "branch_total_budget": (
+                                self.settings.branch_total_budget
+                            ),
+                            "branch_single_cap": (
+                                self.settings.branch_single_cap
+                            ),
+                            "research_loop_enabled": (
+                                self.settings.research_loop_enabled
+                            ),
+                            "research_loop_max_iterations": (
+                                self.settings.research_loop_max_iterations
+                            ),
+                            "research_loop_budget_ceiling": (
+                                self.settings.research_loop_budget_ceiling
+                            ),
+                            "research_loop_no_progress_window": (
+                                self.settings.research_loop_no_progress_window
+                            ),
+                            "research_min_evidence_count": (
+                                self.settings.research_min_evidence_count
+                            ),
+                            "research_min_independent_domains": (
+                                self.settings.research_min_independent_domains
+                            ),
+                            "research_min_average_confidence": (
+                                self.settings.research_min_average_confidence
+                            ),
+                            "research_max_freshness_age_days": (
+                                self.settings.research_max_freshness_age_days
+                            ),
+                            "research_max_unresolved_critic_issues": (
+                                self.settings.research_max_unresolved_critic_issues
+                            ),
+                            "decision_weaving_enabled": (
+                                self.settings.decision_weaving_enabled
+                            ),
+                            "decision_weaving_budget_remaining_ratio": (
+                                self.settings.decision_weaving_budget_remaining_ratio
+                            ),
+                            "decision_weaving_verify_min_allocation": (
+                                self.settings.decision_weaving_verify_min_allocation
+                            ),
+                            "numeric_check_enabled": (
+                                self.settings.numeric_check_enabled
+                            ),
+                            "numeric_check_relative_tolerance": (
+                                self.settings.numeric_check_relative_tolerance
+                            ),
+                            "numeric_check_absolute_tolerance": (
+                                self.settings.numeric_check_absolute_tolerance
+                            ),
+                            "dynamic_capability_enabled": (
+                                self.settings.dynamic_capability_enabled
+                            ),
+                            "dynamic_capability_rules_json": (
+                                self.settings.dynamic_capability_rules_json
+                            ),
+                        },
                     },
                 )
                 if self.settings.trajectory_record_enabled
@@ -1537,6 +1608,12 @@ class DeepResearchEngine:
 
     def _reporter_node(self, graph_state: ResearchGraphState) -> ResearchGraphState:
         state = self._state_from_graph_values(graph_state)
+        if (
+            self.settings.decision_weaving_enabled
+            or self.settings.numeric_check_enabled
+            or self.settings.dynamic_capability_enabled
+        ):
+            state.metadata["stable_reader_evidence_refs"] = True
         self._sync_tool_degradation(state)
         state.evidence_store = self._sorted_evidence(state.evidence_store)
         if self.settings.context_packer_enabled:
@@ -1602,6 +1679,11 @@ class DeepResearchEngine:
 
     def _planning(self, state: ResearchState) -> None:
         state.plan = self.planner.plan(state.topic, state.depth_level, research_id=state.research_id)
+        recorder = active_trajectory_recorder()
+        if recorder:
+            recorder.trajectory.request["recorded_plan"] = (
+                state.plan.model_dump(mode="json")
+            )
         if self.settings.prior_memory_enabled:
             prior_records = [
                 item

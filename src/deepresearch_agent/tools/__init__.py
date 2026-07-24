@@ -43,6 +43,9 @@ from deepresearch_agent.tools.reliable_execution import (
 )
 from deepresearch_agent.tools.search_factory import ConfiguredSearchProvider, build_search_provider
 from deepresearch_agent.tools.structured_data_factory import build_structured_data_provider
+from deepresearch_agent.tools.structured_trace import (
+    TrajectoryStructuredDataProvider,
+)
 from deepresearch_agent.tools.tavily_search import TavilySearchError, TavilySearchProvider
 
 __all__ = [
@@ -78,6 +81,7 @@ __all__ = [
     "ToolErrorKind",
     "ToolResult",
     "ToolSpec",
+    "TrajectoryStructuredDataProvider",
     "build_search_provider",
     "build_capability_registry",
     "build_structured_data_provider",
