@@ -1,22 +1,29 @@
 from __future__ import annotations
 
+import os
+import sys
 import tempfile
 import unittest
 from datetime import date
 from pathlib import Path
 
+from deepresearch_agent.mcp import MCPStdioClient
 from deepresearch_agent.schemas import (
     StructuredDataRecord,
     StructuredDataRequest,
 )
 from deepresearch_agent.settings import Settings
-from deepresearch_agent.tools import FixtureStructuredDataProvider
+from deepresearch_agent.tools import (
+    FixtureStructuredDataProvider,
+    ReliableToolExecutor,
+)
 from deepresearch_agent.trajectory import (
     MemoryWriteTrace,
     SignalReadTrace,
     ToolCallTrace,
     TrajectoryRecorder,
     load_trajectory,
+    trajectory_recording,
 )
 from deepresearch_agent.trajectory_replay import replay_trajectory
 from deepresearch_agent.workflow import DeepResearchEngine
@@ -215,6 +222,120 @@ class ExpandedTrajectoryTest(unittest.TestCase):
             recorder.trajectory.tool_calls[0].transport,
             "mcp",
         )
+
+    def test_expanded_018_mcp_and_skill_trace_strictly_replays(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            settings = Settings(
+                storage_path=root / "record.db",
+                runs_root=root / "runs",
+                as_of=date(2026, 7, 9),
+                trajectory_record_enabled=True,
+                structured_logging_enabled=False,
+                run_manifest_enabled=False,
+                max_critic_iter=1,
+                skill_packs_enabled=True,
+            )
+            engine = DeepResearchEngine(settings=settings)
+            state = engine.run(
+                topic="宁德时代 2024 年营收与归母净利润研究",
+                depth_level=1,
+            )
+            engine._checkpoint_conn.close()
+            trajectory = load_trajectory(
+                root
+                / "runs"
+                / state.research_id
+                / "trajectory.json"
+            )
+
+            recorder = TrajectoryRecorder(
+                run_id=trajectory.run_id,
+                request=trajectory.request,
+            )
+            recorder.trajectory = trajectory
+            environ = dict(os.environ)
+            environ["PYTHONPATH"] = str(
+                Path(__file__).resolve().parents[2] / "src"
+            )
+            client = MCPStdioClient(
+                [
+                    sys.executable,
+                    "-m",
+                    "deepresearch_agent.mcp.server",
+                    "--runtime-root",
+                    str(root / "mcp-runtime"),
+                ],
+                server_name="self-fixture",
+                request_timeout_s=10.0,
+                environ=environ,
+            )
+            try:
+                with trajectory_recording(recorder):
+                    client.discover_and_register(
+                        engine.capability_registry,
+                        state,
+                        trusted_server=True,
+                        executor=ReliableToolExecutor(
+                            sleep=lambda _seconds: None,
+                        ),
+                    )
+                    tool = engine.capability_registry.resolve(
+                        "mcp.self-fixture.research.start"
+                    )
+                    mcp_result = tool.call(
+                        {
+                            "topic": (
+                                "宁德时代 2024 年业绩与欧洲工厂扩张研究"
+                            ),
+                            "depth_level": 1,
+                            "execution_mode": "deterministic",
+                            "allow_paid": False,
+                        },
+                        allow_paid=True,
+                    )
+            finally:
+                client.close()
+            recorder.finalize(
+                manifest_ref=trajectory.run_manifest_ref,
+                artifacts=trajectory.artifacts,
+            )
+            expanded = recorder.trajectory
+
+            decision_types = {
+                item.decision_type
+                for item in expanded.agent_decisions
+            }
+            mcp_calls = [
+                item
+                for item in expanded.tool_calls
+                if item.transport == "mcp"
+            ]
+            self.assertTrue(mcp_result.ok)
+            self.assertIn("skill_selection", decision_types)
+            self.assertIn("skill_load", decision_types)
+            self.assertIn("mcp_tool_discovery", decision_types)
+            self.assertEqual(1, len(mcp_calls))
+            self.assertEqual(
+                "self-fixture",
+                mcp_calls[0].server,
+            )
+            replay = replay_trajectory(
+                expanded,
+                mode="strict",
+                required_calls=[
+                    "tool:mcp.self-fixture.research.start"
+                ],
+            )
+
+        self.assertEqual(
+            replay.status,
+            "reproduced",
+            replay.cache_miss,
+        )
+        self.assertEqual(replay.artifact_matches, {"report.md": True})
 
     def test_expanded_017_configuration_captures_and_strictly_replays(
         self,

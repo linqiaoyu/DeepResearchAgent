@@ -6,7 +6,8 @@
 
 `TRAJECTORY_RECORD_ENABLED=true`、`BRANCH_BUDGET_ENABLED=true`、
 `RESEARCH_LOOP_ENABLED=true`、`DECISION_WEAVING_ENABLED=true`、
-`NUMERIC_CHECK_ENABLED=true`、`DYNAMIC_CAPABILITY_ENABLED=true`，并将
+`NUMERIC_CHECK_ENABLED=true`、`DYNAMIC_CAPABILITY_ENABLED=true`、
+`REFLECTION_ENABLED=true`、`SKILL_PACKS_ENABLED=true`，并将
 `DEEPRESEARCH_RESEARCH_LOOP_MAX_ITERATIONS=2`、研究调用预算设为 20、
 no-progress window 设为 5。录制题面必须同时触发结构化数据与 web search，并包含至少
 一个可核验数值关系。两轮足以覆盖首轮、重规划、第二轮与停止边；后续单轮或关闭部分
@@ -25,7 +26,10 @@ no-progress window 设为 5。录制题面必须同时触发结构化数据与 w
   `ProceduralMemory` cross-run 写入的 `memory_writes`。
 - 018 MCP 外部调用仍进入统一 `tool_calls`，以 `transport=mcp` 与 `server` 标识，
   不另造平行轨迹。
+- 018 skill 选择与资源加载仍进入统一 `agent_decisions`；录制题面必须实际命中
+  `finance-metric-normalization`，同时保留一个不适用判定样本证明资源未被提前加载。
 
-017 实现时必须真正调用 `record_signal_read` 与 `record_memory_write`；本轮只验证
-schema 容器及序列化位置，不实现 Reflector 或程序性记忆。018 MCP client 则必须将
-真实 JSON-RPC 工具调用写入现有 `ToolCallTrace`。这两项机制效果均不由 fixture 证明。
+019 录制 MCP 面时，只连接精确配置并显式信任的本项目 stdio server；至少记录一次
+`tools/list` 后的非付费 fixture 调用。MCP 服务端的 deterministic 调用不替代真实模式
+研究，也不计作质量证据；若要让外部 MCP 工具触发付费 provider，必须另列预登记支出项
+并显式传入 `allow_paid=true`。MCP 与 skill 的 fixture 接线均不能证明研究质量提升。

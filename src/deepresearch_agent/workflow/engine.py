@@ -419,6 +419,9 @@ class DeepResearchEngine:
                             "reflection_enabled": (
                                 self.settings.reflection_enabled
                             ),
+                            "skill_packs_enabled": (
+                                self.settings.skill_packs_enabled
+                            ),
                         },
                     },
                 )
