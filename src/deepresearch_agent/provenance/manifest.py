@@ -98,6 +98,7 @@ FLAG_CLASSIFICATIONS: dict[str, FlagClassification] = {
     "NUMERIC_CHECK_ENABLED": "content_affecting",
     "DYNAMIC_CAPABILITY_ENABLED": "content_affecting",
     "REFLECTION_ENABLED": "content_affecting",
+    "SKILL_PACKS_ENABLED": "content_affecting",
 }
 
 
@@ -244,6 +245,8 @@ def settings_flag_snapshot(
         )
     if settings.reflection_enabled or include_disabled_experimental:
         flags["REFLECTION_ENABLED"] = settings.reflection_enabled
+    if settings.skill_packs_enabled or include_disabled_experimental:
+        flags["SKILL_PACKS_ENABLED"] = settings.skill_packs_enabled
     return flags
 
 
@@ -284,6 +287,8 @@ def _config_hash(settings: Settings) -> str:
         payload.pop("research_min_average_confidence", None)
         payload.pop("research_max_freshness_age_days", None)
         payload.pop("research_max_unresolved_critic_issues", None)
+    if not settings.skill_packs_enabled:
+        payload.pop("skill_packs_enabled", None)
     if not settings.prior_memory_enabled:
         payload.pop("prior_memory_enabled", None)
         payload.pop("prior_watch_confidence_threshold", None)

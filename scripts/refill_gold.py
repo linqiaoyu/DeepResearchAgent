@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from deepresearch_agent.evaluation.gold_audit import MetricNormalizer, enforce_refill_gate
+from deepresearch_agent.skills import finance_metric_resource_path
 
 
 def apply_manifest(
@@ -106,7 +107,10 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Apply evidence-backed Golden refills through the audit gate.")
     parser.add_argument("--questions", default="data/golden_set/v1/questions.json")
     parser.add_argument("--manifest", required=True)
-    parser.add_argument("--normalization", default="data/finance_metric_normalization.json")
+    parser.add_argument(
+        "--normalization",
+        default=str(finance_metric_resource_path()),
+    )
     parser.add_argument("--write", action="store_true")
     return parser.parse_args()
 

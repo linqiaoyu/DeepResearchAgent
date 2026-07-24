@@ -65,6 +65,7 @@ class Settings:
         '"narrative":["web_search"]}'
     )
     reflection_enabled: bool = False
+    skill_packs_enabled: bool = False
 
     @property
     def research_loop_active(self) -> bool:
@@ -231,6 +232,7 @@ def load_settings() -> Settings:
             ),
         ),
         reflection_enabled=_env_flag("REFLECTION_ENABLED"),
+        skill_packs_enabled=_env_flag("SKILL_PACKS_ENABLED"),
     )
 
 

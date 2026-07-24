@@ -17,7 +17,9 @@ from deepresearch_agent.agents.numeric_checker import (
 )
 from deepresearch_agent.research_snapshot import ResearchSnapshot
 from deepresearch_agent.schemas import CriticReport, Evidence, Issue, ResearchState, RetryTask
-from deepresearch_agent.settings import project_root
+from deepresearch_agent.skills.finance import (
+    finance_metric_resource_path,
+)
 
 NUMBER_RE = re.compile(r"(?P<number>\d+(?:\.\d+)?)\s*(?P<suffix>%|percent|x|倍|万|million|billion)?", re.I)
 DATE_RE = re.compile(r"(\d{4}-\d{1,2}(?:-\d{1,2})?|\d{4}年\d{1,2}月(?:\d{1,2}日)?)")
@@ -48,7 +50,7 @@ class CriticAgent:
         self.injection_guard_enabled = injection_guard_enabled
         self.numeric_check_enabled = numeric_check_enabled
         self.metric_table = self._load_metric_table(
-            metric_table_path or project_root() / "data" / "finance_metric_normalization.json"
+            metric_table_path or finance_metric_resource_path()
         )
         self.numeric_checker = NumericConsistencyChecker(
             self.metric_table,

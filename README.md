@@ -1,190 +1,183 @@
 # DeepResearchAgent
 
-一个把“检索—证据—批判—重试—报告—评测”做成可回放工程闭环的金融投研多 Agent 框架。
+面向投研分析师的可审计深度研究 Agent：把一个研究问题变成带逐条证据、可比较快照和审计包的报告。
 
-[静态演示站](https://deepresearch-agent.jacksonyu1109.workers.dev/) · [评测方法](docs/evaluation.md) · [Agent 决策](docs/agent_decisions.md) · [反思骨架](docs/reflection.md) · [轨迹回放](docs/trajectory_harness.md) · [系统架构](docs/architecture.md)
+[![CI](https://github.com/linqiaoyu/DeepResearchAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/linqiaoyu/DeepResearchAgent/actions/workflows/ci.yml)
+![Tests](https://img.shields.io/badge/tests-341%20passing-brightgreen)
+![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+![License](https://img.shields.io/badge/license-not%20declared-lightgrey)
 
-## Golden v1.1：先看数字
+[静态演示站](https://deepresearch-agent.jacksonyu1109.workers.dev/) ·
+[快速开始](#快速开始) ·
+[系统架构](docs/architecture.md) ·
+[评测方法](docs/evaluation.md) ·
+[生产边界](docs/production_readiness.md)
 
-| 冻结口径 | 结果 |
-| --- | ---: |
-| Golden questions | 30 |
-| 四键审计 | 76 PASS / 0 DEFECT / 3 UNCERTAIN |
-| G3 weighted score | 0.7982 |
-| G3 fact accuracy | 0.8867 |
-| G3 citation support rate（3-sample claim majority） | 0.7376 |
-| 假前提反驳 | 2/2，G1/G2/G3 均通过 |
+分析师经常要在分散网页、财务口径、历史结论和引用之间来回核对；普通聊天式回答很难说明“这句话来自哪里”和“这次与上次相比什么变了”。DeepResearchAgent 把这些结果整理成一套可保存、可追溯、可复查的研究资产。当前首个场景是金融投研，默认使用本地 fixture，零 API key 即可运行；项目尚未完成领域解耦，边界见 [use_case.md](docs/use_case.md)。
 
-数字来自 [`questions.json`](data/golden_set/v1/questions.json)、[`g3_judge_v11.json`](data/golden_set/v1/results/g3_judge_v11.json) 与 [`g3_citation_support_3s.json`](data/golden_set/v1/results/g3_citation_support_3s.json)。三代各 30 题、judge 3 采样，均为 0 structured failure；公开形态是静态站，不是常驻公网服务。
+![DeepResearchAgent 静态演示站与研究产物](docs/assets/readme/site_overview.png)
 
-![Golden v1.1 核心数字卡](docs/assets/readme/site_overview.png)
+## 快速开始
 
-## 这个系统解决谁的什么问题
+默认路径是 deterministic + fixture，不读取付费 provider，也不需要 API key。
 
-设计目标用户是持续覆盖公司、行业或投资逻辑的投研分析师；这不是已验证的客户采用声明。
-它把分散搜索、逐字证据、引用与口径检查、结构化表格和审计包连成一条可回放链路。
-第一次运行回答“当前证据支持什么”，ResearchSnapshot 保存问题、论点、证据与运行条件。
-隔期重跑直接区分新增、消失、数值、证据、置信度与口径变化，回答“和上次比什么变了”。
-分析师仍负责问题定义、来源许可、材料性、预测审批和最终投资判断；详见 [`use_case.md`](docs/use_case.md)。
+### 1. 安装
 
-## 系统如何工作
+```bash
+git clone https://github.com/linqiaoyu/DeepResearchAgent.git
+cd DeepResearchAgent
+python -m venv .venv
+.venv/bin/pip install -e ".[dev]"
+```
+
+### 2. 生成完整研究包
+
+```bash
+PYTHONPATH=src \
+DEEPRESEARCH_SEARCH_PROVIDER=fixture \
+DEEPRESEARCH_STRUCTURED_DATA_PROVIDER=fixture \
+DEEPRESEARCH_MODE=deterministic \
+.venv/bin/python scripts/run_research_package.py \
+  --topic 'AI Agent 在财富管理行业的落地机会研究' \
+  --as-of 2026-07-09 \
+  --output _collab/package-demo
+```
+
+### 3. 查看结果
+
+```bash
+ls -1 _collab/package-demo
+sed -n '1,120p' _collab/package-demo/report.md
+```
+
+该命令生成带引用报告、结构化表、Evidence、manifest、审计包和 `ResearchSnapshot`；字段与人工判断边界见 [use_case.md](docs/use_case.md)。
+
+## 核心能力
+
+| 能力 | 当前实现与证据 |
+| --- | --- |
+| 多 Agent 研究流程 | Planner、Researcher、Extractor、Critic、Reporter、Evaluator 由 LangGraph `StateGraph` 编排；Researcher 按子问题 fan-out，见 [architecture.md](docs/architecture.md)。 |
+| 引用与证据闭合 | Reporter 固化 footnote → Evidence ID 映射，Evaluator 与审计导出复用同一契约，见 [citations.py](src/deepresearch_agent/citations.py) 和 [audit_bundle.py](src/deepresearch_agent/audit_bundle.py)。 |
+| 有界研究循环 | Critic retry、轮次、调用预算和连续无进展均有显式边界；默认 `RESEARCH_LOOP_ENABLED=false`，见 [orchestration_contracts.md](docs/orchestration_contracts.md)。 |
+| 可审计决策面 | 策略选择统一写入 `AgentDecision`、trace、manifest 和读者可见报告；缺失决策会被 `DecisionGate` 拦截，见 [agent_decisions.md](docs/agent_decisions.md)。 |
+| 跨期研究 | `ResearchSnapshot` 区分新增、消失、数值、证据、置信度与口径 6 类变化，见 [change_tracking.md](docs/change_tracking.md)。 |
+| MCP server | 标准库实现 JSON-RPC 2.0 over stdio，目标协议 `2025-06-18`，暴露研究、证据、审计导出、快照比较 4 个 fixture 工具，见 [server.py](src/deepresearch_agent/mcp/server.py)。 |
+| MCP client | 标准库客户端可启动外部 server、发现工具、注册进原 `CapabilityRegistry`，并复用超时/重试/降级契约，见 [client.py](src/deepresearch_agent/mcp/client.py)。 |
+| Skill packs | `SKILL.md` metadata-first 渐进披露；首个金融口径 pack 为 1299 字节等价迁移，SHA-256 `8e69cf6…153baf`，默认 `SKILL_PACKS_ENABLED=false`，见 [finance-metric-normalization](skills/finance-metric-normalization/SKILL.md)。 |
+| 评测与回归 | 本地零 key 全量为 341 tests；另有 2 题面逐字 characterization、8 个 chaos 场景和 Ruff 0.15.15，CI 命令见 [ci.yml](.github/workflows/ci.yml)。 |
+
+## 它如何工作
 
 ```mermaid
 flowchart LR
     Q["研究问题"] --> P["Planner"]
-    P --> F{"LangGraph Send<br/>按子问题并行 fan-out"}
-    F --> R1["Researcher 1"]
-    F --> R2["Researcher 2"]
-    F --> RN["Researcher N"]
-    R1 --> J["Join"]
-    R2 --> J
-    RN --> J
-    J --> X["Extractor"]
+    P --> F{"按子问题 fan-out"}
+    F --> R["Researcher × N"]
+    R --> X["Extractor"]
     X --> E[("Evidence Store")]
     E --> C{"Critic"}
-    C -->|pass / force-pass| D{"充分性 / 循环边界"}
-    C -->|issues| T["Retry queue"]
-    T -->|只重跑失败项| R1
-    D -->|充分或边界停止| W["Reporter"]
-    D -->|继续| RP["精化检索意图"]
-    RP --> F
-    W --> V["Evaluator / Judge"]
-    V --> O["带引用报告 + 指标"]
-    S["SqliteSaver"] -. node checkpoint .-> P
-    S -. resume .-> C
+    C -->|"缺口"| T["Retry queue"]
+    T --> R
+    C -->|"通过"| B{"充分性与预算边界"}
+    B -->|"继续"| P2["精化研究意图"]
+    P2 --> F
+    B -->|"停止"| W["Reporter"]
+    W --> V["Evaluator"]
+    V --> O["报告 / 快照 / 审计包"]
+    M["MCP tools"] -. "发现并注册" .-> F
+    S["Skill packs"] -. "适用后加载" .-> C
+    K[("SQLite checkpoint + store")] -.-> E
 ```
 
-`StateGraph` 在节点边界 checkpoint；Researcher 通过 `Send` 并行检索，join 后统一抽取 Evidence。Critic 把缺引用、数字冲突、时点冲突、旧来源、缺反方与未验证预测转成 retry queue，只回流失败项。默认关闭的研究循环会在 Critic 通过后按六项充分性度量决定停止或精化查询再走一轮，并同时受轮次、调用预算和连续无进展边界约束。确定性 fixture 是默认路径；LLM 模式统一经过 [`LLMClient`](src/deepresearch_agent/llm/client.py) 记录 token、成本与延迟。
+1. Planner 把题目拆成可检索子问题；Researcher 并行收集 fixture 或已配置 provider 的来源。
+2. Extractor 把来源转成带原文摘录的 Evidence；Critic 检查缺引用、数字冲突、时点冲突、旧来源、缺反方和未验证预测。
+3. 只有失败项进入 retry queue；可选研究循环在充分性、预算或无进展边界处停止。
+4. Reporter 输出带引用报告，Evaluator 复用 Reporter 的脚注映射；SQLite 保存 checkpoint、Evidence 与评测结果。
 
-## 同一道机制的三次拦截
+默认路径保持确定性。LLM 模式只经 [LLMClient](src/deepresearch_agent/llm/client.py) 调用并记录 token、成本与延迟；付费验证纪律见 [AGENTS.md](AGENTS.md) 的 019 路线。
 
-三次事件不是巧合：都由“冻结输入与运行条件 → 比较产物级输出 → diff 非空即解释”的机制拦下。
+## 差异化亮点
 
-### 1. 判官变化没有冒充模型提升
+### 三次拦截：同一套可复现机制
 
-gold v1.0 历史测量拆为 `0.6134 + 0.1865 - 0.0585 = 0.7414`：先固定 judge，才看到真实生成回归。于是 model、prompt hash、as-of、flags 与依赖进入 [`verify_manifest.py`](scripts/verify_manifest.py)，系统条件不同就不能把分差叫质量变化。
+| 被拦截的问题 | 产物级证据 |
+| --- | --- |
+| Judge 变化被误写成模型提升 | 历史分解为 `0.6134 + 0.1865 - 0.0585 = 0.7414`；manifest 现在比较模型、prompt hash、as-of、flags 与依赖，见 [evaluation.md](docs/evaluation.md)。 |
+| Citation resolution 满分掩盖综合退化 | G1/G2/G3 weighted score 为 `0.8337 → 0.7714 → 0.7982`，而 resolution 为 `0.6000 → 1.0000 → 0.9333`；保存态对比阻止把 G2 当成改进，见 [v11_three_point_comparison.json](data/golden_set/v1/results/v11_three_point_comparison.json)。 |
+| Context packer 静默丢 Evidence | 产物快照在 ¥0 fixture 路径发现约 80% Evidence 丢失；修复后两题保留 `12/21` 与 `13/29` 条，开关仍保持 dark，见 [method_limits.md](docs/method_limits.md)。 |
 
-### 2. “看似修复”没有覆盖失败弧线
+### Agent 决策不是黑盒日志
 
-同一 judge 下 G1/G2/G3 weighted score 为 `0.8337 → 0.7714 → 0.7982`，citation resolution 为 `0.6000 → 1.0000 → 0.9333`。G2 的 lexical backfill 把 resolution 推满却拉低综合分；保存态 harness 使这次坏修复可见，G3 才改用结构化 Reporter repair。逐维证据见 [`v11_three_point_comparison.json`](data/golden_set/v1/results/v11_three_point_comparison.json)。
+预算分配、循环停止、跨期分类、数值自洽、能力选择、反思信号、MCP 发现和 skill 加载都复用同一 `AgentDecision`。每条记录包含输入、判据、结果、替代项和轮次；016 的只读 `DecisionContext` 明确上游决定如何影响下游，见 [decision_weaving.md](docs/decision_weaving.md)。
 
-### 3. Context packer 没有在零费用路径静默丢证据
+### MCP 是双向边界
 
-011 时 packer 的 8 个单测全绿、实现看似合理、排在启用顺序第 4 位；若没有产物级快照，它会默认开启并因错误的同 URL 去重静默丢弃约 80% Evidence。这个证据丢失是真缺陷，拦截发生在任何 API 费用产生前，成本 ¥0。修复后两个 fixture 题面分别保留 12/21、13/29 条 Evidence；citation accuracy 的历史下降经对照实验归因为 Reporter 与 Evaluator 的脚注映射漂移。本轮把映射固化为 Reporter 一等产物，五组对照均恢复为 1.000。该修复消除了伪信号，但 fixture 仍不能证明 packer 提升真实研究质量，因此 packer 保持 dark，等待后续真实模式定向验证；详见 [`method_limits.md`](docs/method_limits.md)。
+服务端把现有 `CapabilityRegistry` 机械映射成 4 个 MCP tool schema；客户端把外部 `tools/list` 结果注册回同一 registry，供 016 动态能力选择使用。外部 annotations 默认不可信，未知工具按可能收费、有副作用、不可幂等 fail-closed；调用仍经过 010 的超时、重试和降级契约，见 [mcp/client.py](src/deepresearch_agent/mcp/client.py)。
 
-![判官效应分解](docs/assets/readme/methodology_judge.png)
+第三方全序列握手仍为 **INCOMPLETE**：本机 Claude Code 2.1.172 实际完成了 `initialize → notifications/initialized → tools/list`，但无模型 health check 没有直接 `tools/call` 命令；通过模型调用会违反本轮零 API 约束。完整 `initialize → tools/list → tools/call` 仅由独立最小 stdio 客户端验证，脚本见 [mcp_stdio_client.py](scripts/mcp_stdio_client.py)。README 不把该降级表述为第三方完整握手。
 
-## 工程化加固一览
+### Skill pack 是领域债务的首付
 
-011 先用产物级快照证明旧默认路径等价，再逐项点灯；“dark”表示实现与离线测试已就位，但没有计入当前生产控制。
+金融数值口径表从 `data/` 迁到 [finance-metric-normalization](skills/finance-metric-normalization/SKILL.md)，迁移前后 SHA-256 一致。开启 pack 后，系统先读 `SKILL.md` 的 name/description，判定涉及金融数值后才读取资源并注册能力；非金融用例的 resource reads 为 0。Critic、Reporter 模板、检索意图和其他金融逻辑仍在核心模块，因此这不是“领域解耦完成”，完整边界见 [skills.md](docs/skills.md)。
 
-| 能力 | 状态 | 证据 |
-| --- | --- | --- |
-| 可靠执行：Pydantic ToolSpec/Result、错误分类、run retry budget、三态熔断、显式降级 | 默认启用，离线故障演练通过 | `TOOL_CONTRACT_ENABLED=true` · [`reliability.md`](docs/reliability.md) |
-| 不可信内容：prompt 边界、注入检测、置信度下调、脱敏、威胁模型 | 已校准，仍 dark | `INJECTION_GUARD_ENABLED=false`；同源 held-in synthetic 召回不代表泛化，主要结论是安全对照误报 15.00% · [`threat_model.md`](docs/threat_model.md) |
-| 运行血统：manifest sidecar、可比性判定、prompt 漂移守卫 | 默认启用 | `RUN_MANIFEST_ENABLED=true`；当前 flags 全量入 manifest，区分 `content_affecting`、`additive_content`、`operational` · [`provenance/`](src/deepresearch_agent/provenance/) |
-| 上下文工程：可插拔 token 估算、证据去重/排序/预算、溢出事件 | 去重缺陷已修复，仍 dark | `CONTEXT_PACKER_ENABLED=false`；fixture 引用指标受顺序伪信号污染，不能作为转正依据 · [`context_engineering.md`](docs/context_engineering.md) · [`method_limits.md`](docs/method_limits.md) |
-| 可观测：run → node → tool/LLM correlation JSON log 与配置聚合校验 | 默认启用 | `STRUCTURED_LOGGING_ENABLED=true`、`CONFIG_FAIL_FAST_ENABLED=true` |
-| 行为基线：双题面规范化产物、逐字 characterization、节点摘要 | 默认 CI 保护 | [`snapshot_run.py`](scripts/snapshot_run.py) · [`golden_output/`](tests/golden_output/) |
-| Demo 服务：`/healthz`、`/readyz`、在途请求收敛、非 root 多阶段镜像、离线 CI | 已启用 | [`api/main.py`](src/deepresearch_agent/api/main.py) · [`ci.yml`](.github/workflows/ci.yml) |
-| 离线评测：run delta、运维 P50/P90、Golden schema 与共享事实校验 | 已启用 | [`compare_runs.py`](scripts/compare_runs.py) · [`offline_metrics.py`](scripts/offline_metrics.py) |
-| 业务产物：结构化表、审计包、ResearchSnapshot、六类变更追踪、章节轮询 | 结构化产出、导出与快照 active；章节轮询仍 dark | `STRUCTURED_OUTPUT_ENABLED=true`，归类为 `additive_content`；additive 仅在 deterministic 路径证明，后续须验证 LLM 路径；`PROGRESSIVE_DELIVERY_ENABLED=false` · [`use_case.md`](docs/use_case.md) |
-| 脚注映射契约 | active | Reporter 持久化 footnote → Evidence ID；Evaluator 与审计包禁止按 Evidence 顺序重建；乱序回归仍为 1.000 |
-| 编排契约与有界循环 | 契约 active；研究循环仍 dark | 每个节点声明 consumes / produces / invariants / decision gate；`LoopSpec` 约束轮次、预算与无进展，首次使用 LangGraph 原生条件回边 · [`orchestration_contracts.md`](docs/orchestration_contracts.md) |
-| 分支预算调度 | 实现完成，仍 dark | `BRANCH_BUDGET_ENABLED=false`；Send 前均分、join 后向低充分性分支再分配，总量与单支上限均 fail closed |
-| 研究记忆 | 情景/语义/程序机制已实现；效果待验证 | 程序记忆按 `question_type` 保存策略—充分性—反思观察，不自动选策；`PRIOR_MEMORY_ENABLED=false` · [`memory.md`](docs/memory.md) |
-| Capability registry 与动态选择 | registry active；动态选择仍 dark | web search、fetch、结构化 provider 均携带 ToolSpec 注册；`DYNAMIC_CAPABILITY_ENABLED=false`，开启后按子问题类型记录候选、选中、拒绝与 fallback；018 才注册 skill 能力 · [`dynamic_capabilities.md`](docs/dynamic_capabilities.md) |
-| 决策编织与数值自洽 | 实现完成，仍 dark | `DECISION_WEAVING_ENABLED=false`、`NUMERIC_CHECK_ENABLED=false`；预算、循环、上期分类、Critic 数值问题和重规划共享只读上下文，四类算式错误进入 retry · [`decision_weaving.md`](docs/decision_weaving.md) · [`numeric_consistency.md`](docs/numeric_consistency.md) |
-| 反思与程序性记忆 | 骨架已实现，判断力待 019 | `REFLECTION_ENABLED=false`；四类确定性信号、类型化 LLM 推理接口、严格 cache miss、程序记忆与重规划接线已离线验证；不声明反思质量 · [`reflection.md`](docs/reflection.md) |
-| Agent 决策记录 | active；策略默认关闭 | 所有策略决定复用 `AgentDecision`，进入 trace、manifest 摘要和报告决策链；`DecisionGate` 阻止无记录决策 · [`agent_decisions.md`](docs/agent_decisions.md) |
-| 轨迹录制与回放 | 实现完成，仍 dark | `TRAJECTORY_RECORD_ENABLED=false`；两题面 fixture 严格回放报告逐字一致，策略 cache miss 显式停止；真实轨迹待后续任务 · [`trajectory_harness.md`](docs/trajectory_harness.md) |
-| MCP adapter | 仅设计 | 零新增依赖约束下未实现 server · [`mcp_adapter_design.md`](docs/mcp_adapter_design.md) |
-| Skill packs | 未实现 | 本轮未建立加载器或抽取规则；金融逻辑仍硬编码，不能宣称领域解耦 |
+## 工程质量
 
-010 的阶段 A/C/D/B/F/G/H 共通过 172 项无 key 测试；011 默认点灯后的全量回归为 187 项。Docker/Compose 文件完成静态检查，但任务主机没有 Docker/Podman，未做本机镜像构建或 Compose 引擎级验证。
+| 检查面 | 已验证状态 |
+| --- | --- |
+| 全量回归 | 2026-07-24 本地 deterministic + fixture：`Ran 341 tests`、0 failure；命令与 CI 对齐，见 [ci.yml](.github/workflows/ci.yml)。 |
+| 静态检查 | Ruff `0.15.15` 本地与 CI 精确锁定，见 [pyproject.toml](pyproject.toml) 和 [ci.yml](.github/workflows/ci.yml)。 |
+| 行为等价 | 2 个规范化题面逐字匹配 [golden_output](tests/golden_output/)；未知 manifest flag fail-closed，见 [manifest.py](src/deepresearch_agent/provenance/manifest.py)。 |
+| 故障演练 | 8 个离线 chaos 场景覆盖认证、限流、超时、连续失败、熔断和部分降级，见 [tests/chaos](tests/chaos/)。 |
+| Golden v1.1 | 30 questions；四键审计 `76 PASS / 0 DEFECT / 3 UNCERTAIN`；G3 weighted `0.7982`、fact accuracy `0.8867`、citation support `0.7376`，见 [Golden results](data/golden_set/v1/results/)。 |
+| 公开形态 | [公开地址](https://deepresearch-agent.jacksonyu1109.workers.dev/) 是 `scripts/build_site.py` 生成的静态演示站，不是常驻 API 服务；部署边界见 [deployment.md](docs/deployment.md)。 |
 
-跨代比较必须先经 [`verify_manifest.py`](scripts/verify_manifest.py) 判定；flags、模型、prompt、as-of 或依赖不一致时，不得把分数差描述为质量改进或回归。
+## 诚实边界
 
-## Agent 的决策面与循环
-
-除 Planner 题目拆解和 Critic 定向 retry 外，系统会在开启相应 dark 开关后决定：研究
-是否继续、预算拨给哪个弱分支、子问题属于 `verify` / `watch` / `explore`、下一轮如何
-补缺、数字能否由证据自洽计算，以及当前子问题应调用哪些注册能力。
-
-016 用只读 `DecisionContext` 把这些决定编成依赖链：上期 `verify` 分类保留复核预算，
-剩余预算可触发提前收敛，Critic 的 `numeric_inconsistency` 直接成为定向重规划输入，
-能力选择只读取 `CapabilityRegistry`。每个决定把测量输入、判据、结果、替代项和迭代号
-同步写入 trace、manifest 与报告决策链；声明为决策节点却没有新增 `AgentDecision` 会被
-契约层拦截。
-
-017 新增反思与程序性记忆的机制骨架：Reflector 机械聚合跨轮模式，只有确定性信号进入
-下一轮重规划；独立的 LLM 推理接口本轮仅使用零 token 合成/录制占位。程序记忆保存
-策略效果观察但不自动选择策略。反思判断力与跨运行策略偏好是否更优均待 019 真实验证。
-
-`DECISION_WEAVING_ENABLED`、`NUMERIC_CHECK_ENABLED` 与
-`DYNAMIC_CAPABILITY_ENABLED` 均默认 false，并归类为 `content_affecting`；015 的三项
-策略开关和 `REFLECTION_ENABLED` 也保持关闭。因此默认 fixture 路径逐字不变。离线验证证明接线、边界和回放，
-不证明真实 LLM 研究质量提升；该效果留给 019 的预登记、预算化验证。人工继续负责题目、
-来源许可、费用、发布与投资判断。完整说明见
-[`agent_decisions.md`](docs/agent_decisions.md) 与
-[`decision_weaving.md`](docs/decision_weaving.md)。
-
-## 快速开始：本地 venv
-
-默认使用 fixture 与 deterministic 模式，不需要 API key。
-
-```bash
-python -m venv .venv
-.venv/bin/pip install -e ".[dev]"
-PYTHONPATH=src DEEPRESEARCH_SEARCH_PROVIDER=fixture DEEPRESEARCH_STRUCTURED_DATA_PROVIDER=fixture DEEPRESEARCH_MODE=deterministic .venv/bin/python -m unittest discover -s tests
-```
-
-一条命令生成研究问题记录、带引用报告、结构化表、审计包与
-ResearchSnapshot：
-
-```bash
-PYTHONPATH=src .venv/bin/python scripts/run_research_package.py --topic 'AI Agent 在财富管理行业的落地机会研究' --as-of 2026-07-09 --output _collab/package-demo
-```
-
-Docker/Compose 资产仍保留，但当前任务主机没有 Docker/Podman，尚未完成引擎级
-验证，因此不把容器命令作为首屏快速开始。
-
-生成静态演示站：
-
-```bash
-PYTHONPATH=src .venv/bin/python scripts/build_site.py
-```
-
-![Q16 假前提识破与指标条](docs/assets/readme/report_q16.png)
-
-## 设计取舍与 Non-goals
-
-- **向量检索**：金融数值事实默认按 `(entity, metric, period, scope)` 精确检索；只有非结构化叙事成为主要目标且真实样本证明字段检索召回不足时，才触发向量适配器设计。
-- **HITL**：没有 reviewer/approval workflow；高影响发布或交易动作进入产品范围后才需要设计。
-- **常驻服务器**：FastAPI/Streamlit 是可部署 demo 路径，公开触达仍是静态站，不声明公网 API SLA。
-- **A/B 框架**：当前用冻结保存态、同 judge 三采样与 `±0.01` 操作带做回归，不把它包装成在线实验平台。
-- **演示视频**：已有可点击静态站、保存态报告与复现脚本；不维护容易过期的视频副本。
-- **MCP 实现**：只保留 ToolSpec → MCP 的接口设计；本轮禁止新增 SDK，也没有认证与服务身份底座。
-- **领域无关性**：010 审计确认金融逻辑仍硬编码在核心 Agent；领域抽取需要独立架构任务，当前 README 不声称已有双 domain pack。
+- `REFLECTION_ENABLED=false`：四类确定性信号、LLM 推理接口占位、程序记忆与重规划接线已实现；反思判断力和跨运行策略优劣待 019 真实验证，见 [reflection.md](docs/reflection.md)。
+- `CONTEXT_PACKER_ENABLED=false`、`INJECTION_GUARD_ENABLED=false`、`RESEARCH_LOOP_ENABLED=false`、`DYNAMIC_CAPABILITY_ENABLED=false`、`SKILL_PACKS_ENABLED=false`：离线接线不等于真实质量提升，适用性限制见 [method_limits.md](docs/method_limits.md)。
+- MCP 不暴露任意文件读取或命令执行；server 只允许服务端自管运行目录，付费路径需要显式 `allow_paid`，本轮 fixture server 即使确认也拒绝 LLM 执行，见 [server.py](src/deepresearch_agent/mcp/server.py)。
+- 010 耦合审计确认金融逻辑仍存在于核心 Agent；尚无 `domains/finance` 与 `domains/competitive`，不得据此声称框架领域无关，见 [architecture.md](docs/architecture.md)。
+- Docker/Compose 资产存在，但当前验证主机没有 Docker/Podman，因此没有本机引擎级构建证据；现状见 [production_readiness.md](docs/production_readiness.md)。
+- 分析师仍负责问题定义、来源许可、材料性、预测审批、发布和最终投资判断；本项目不构成投资建议，见 [use_case.md](docs/use_case.md)。
 
 ## 深入阅读
 
-- [静态演示站](https://deepresearch-agent.jacksonyu1109.workers.dev/)：G3 报告、方法论与复现入口
-- [`docs/evaluation.md`](docs/evaluation.md)：指标、judge 校准、噪声带、Golden v1.1 与三代结果
-- [`docs/method_limits.md`](docs/method_limits.md)：characterization 能检出什么、证据集变更场景下的质量测量盲区
-- [`docs/architecture.md`](docs/architecture.md)：LangGraph 拓扑、状态、存储与 hardening layers
-- [`docs/orchestration_contracts.md`](docs/orchestration_contracts.md)：节点契约、有界循环、分支预算与 capability registry
-- [`docs/memory.md`](docs/memory.md)：四类记忆、四键检索、跨期核实与向量检索触发条件
-- [`docs/agent_decisions.md`](docs/agent_decisions.md)：Agent 当前决定什么、如何记录，以及仍由人决定什么
-- [`docs/reflection.md`](docs/reflection.md)：Reflector 双轨骨架、四类机械信号、019 接入与判断边界
-- [`docs/decision_weaving.md`](docs/decision_weaving.md)：预算、循环、历史、Critic 与能力选择如何共享只读决策上下文
-- [`docs/numeric_consistency.md`](docs/numeric_consistency.md)：同比/环比、份额、加总与单位换算的自洽校验
-- [`docs/dynamic_capabilities.md`](docs/dynamic_capabilities.md)：基于 CapabilityRegistry 的确定性能力选择与 fallback
-- [`docs/trajectory_superset.md`](docs/trajectory_superset.md)：016 超集轨迹配置、字段与严格回放边界
-- [`docs/trajectory_harness.md`](docs/trajectory_harness.md)：轨迹字段、严格/策略回放与 cache miss 语义
-- [`docs/use_case.md`](docs/use_case.md)：投研持续跟踪场景、fixture 产物走查与人工判断边界
-- [`docs/threat_model.md`](docs/threat_model.md)：不可信内容、证据不篡改取舍与残余风险
-- [`docs/production_readiness.md`](docs/production_readiness.md)：Done / Partial / Not done 生产清单
-- [`docs/slo.md`](docs/slo.md)：目标值、实测值与缺失的在线遥测
-- [`docs/reliability.md`](docs/reliability.md)：离线故障注入场景、实测与明确不处理项
-- [`AGENTS.md`](AGENTS.md)：仓库事实、约束、验证与协作规则
+### 架构与运行
+
+- [系统架构](docs/architecture.md)
+- [编排契约、循环与分支预算](docs/orchestration_contracts.md)
+- [Provider 集成](docs/provider_integration.md)
+- [部署说明](docs/deployment.md)
+- [Postgres 目标 schema](docs/postgres_schema.sql)
+- [MCP 双向集成](docs/mcp.md)
+- [Skill packs](docs/skills.md)
+- [MCP adapter 原设计](docs/mcp_adapter_design.md)
+
+### 研究、决策与记忆
+
+- [持续投研用例](docs/use_case.md)
+- [Agent 决策](docs/agent_decisions.md)
+- [决策编织](docs/decision_weaving.md)
+- [动态能力选择](docs/dynamic_capabilities.md)
+- [数值自洽](docs/numeric_consistency.md)
+- [反思骨架](docs/reflection.md)
+- [研究记忆](docs/memory.md)
+- [上下文工程](docs/context_engineering.md)
+- [跨期变更追踪](docs/change_tracking.md)
+
+### 评测、轨迹与边界
+
+- [评测方法与 Golden 结果](docs/evaluation.md)
+- [方法适用性边界](docs/method_limits.md)
+- [轨迹录制与回放](docs/trajectory_harness.md)
+- [019 轨迹超集建议](docs/trajectory_superset.md)
+- [威胁模型](docs/threat_model.md)
+- [可靠执行与故障演练](docs/reliability.md)
+- [生产就绪度](docs/production_readiness.md)
+- [SLO](docs/slo.md)
+
+仓库级事实、开关默认值、协作纪律和 019 付费预登记要求见 [AGENTS.md](AGENTS.md)。
+
+## License
+
+仓库当前没有 `LICENSE` 文件，也没有声明可复用许可证；顶部 badge 因此标为 `not declared`。在项目所有者明确选择许可证前，不应推断为 MIT、Apache-2.0 或其他开源授权。

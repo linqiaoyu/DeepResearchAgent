@@ -20,7 +20,9 @@ from deepresearch_agent.schemas import (
     StructuredResearchOutput,
     TimelineEvent,
 )
-from deepresearch_agent.settings import project_root
+from deepresearch_agent.skills.finance import (
+    finance_metric_resource_path,
+)
 
 _FIXED_WORKBOOK_TIME = datetime(2026, 7, 9, tzinfo=timezone.utc)
 _FIXED_ZIP_TIME = (2026, 7, 9, 0, 0, 0)
@@ -308,7 +310,7 @@ def _xlsx_bytes(output: StructuredResearchOutput) -> bytes:
 
 
 def _metric_aliases() -> dict[str, str]:
-    path = project_root() / "data" / "finance_metric_normalization.json"
+    path = finance_metric_resource_path()
     payload = json.loads(path.read_text(encoding="utf-8"))
     return {str(key): str(value) for key, value in payload["metric_aliases"].items()}
 

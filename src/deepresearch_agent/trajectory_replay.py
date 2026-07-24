@@ -255,6 +255,7 @@ def replay_trajectory(
                     "dynamic_capability_enabled",
                     "dynamic_capability_rules_json",
                     "reflection_enabled",
+                    "skill_packs_enabled",
                 }
             },
         )

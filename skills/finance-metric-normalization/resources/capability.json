@@ -1,0 +1,29 @@
+{
+  "applicable_subquestion_types": [
+    "financial_metric"
+  ],
+  "cost_level": "free",
+  "has_side_effect": false,
+  "name": "skill.finance.metric_normalization",
+  "resource": "finance_metric_normalization.json",
+  "tool_spec": {
+    "cost_class": "free",
+    "has_side_effect": false,
+    "idempotent": true,
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "resource": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "skill.finance.metric_normalization",
+    "output_schema": {
+      "type": "object"
+    },
+    "timeout_s": 1.0,
+    "version": "2026-06-12"
+  }
+}

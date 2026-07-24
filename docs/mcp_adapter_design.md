@@ -1,6 +1,10 @@
 # MCP adapter design
 
-This is a design document, not an implemented MCP server. Implementation would require selecting and adding an MCP SDK, which is outside the zero-dependency scope of task 010.
+> Historical note: this task 010 document records the pre-implementation production
+> design. Task 018 has since implemented a zero-dependency local stdio server and
+> client. See [`mcp.md`](mcp.md) for the authoritative current status, protocol,
+> tools, handshake evidence, and limitations. Authentication and hosted transport
+> in this document remain future production work.
 
 ## Contract mapping
 
@@ -44,6 +48,10 @@ Transport failure and tool failure remain distinct. A successful MCP transport c
 
 The proposed server owns serialization, authentication, deadline propagation, and tool registration. The research process owns run retry budget, circuit state, degradation events, and manifest aggregation. Correlation fields cross the boundary as metadata, not user-editable tool inputs.
 
-## Why it is not implemented now
+## Original task 010 implementation boundary
 
-The repository has no MCP dependency, authentication subsystem, or production service identity. Adding a server now would violate the task's zero-new-dependency rule and create an unauthenticated demo endpoint. The typed contract is the deliberate seam for a later implementation after transport, identity, and deployment decisions are approved.
+At task 010 time the repository had no MCP dependency, authentication subsystem, or
+production service identity. The typed contract was the deliberate seam. Task 018
+later implemented only a same-host, fixture-only stdio boundary with the Python
+standard library, so it still does not provide the authenticated production service
+described above.

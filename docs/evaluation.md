@@ -112,7 +112,7 @@ That shared premise penetrated all three defenses and produced 19 confirmed
 defects across entity, normalized metric, report period, and scope/unit.
 
 `scripts/audit_gold.py` is now a permanent positive and release control. It
-normalizes finance metrics with `data/finance_metric_normalization.json`, parses
+normalizes finance metrics with `skills/finance-metric-normalization/resources/finance_metric_normalization.json`, parses
 annual, quarterly, half-year, first-three-quarter, range, and event periods,
 checks entity plus scope/unit, and requires every declared numeric token to
 occur in the source excerpt. Running it on v1.0 reproduced the exact 19-defect
