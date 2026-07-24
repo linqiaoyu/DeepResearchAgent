@@ -284,6 +284,8 @@ def _config_hash(settings: Settings) -> str:
         payload.pop("research_min_average_confidence", None)
         payload.pop("research_max_freshness_age_days", None)
         payload.pop("research_max_unresolved_critic_issues", None)
+    if not settings.skill_packs_enabled:
+        payload.pop("skill_packs_enabled", None)
     if not settings.prior_memory_enabled:
         payload.pop("prior_memory_enabled", None)
         payload.pop("prior_watch_confidence_threshold", None)
