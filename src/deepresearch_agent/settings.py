@@ -26,7 +26,7 @@ class Settings:
     demo_job_path: Path = Path("data/runtime/demo_jobs.json")
     demo_queue_limit: int = 3
     demo_as_of: date = date(2026, 7, 9)
-    tool_contract_enabled: bool = False
+    tool_contract_enabled: bool = True
     injection_guard_enabled: bool = False
     run_manifest_enabled: bool = True
     runs_root: Path = Path("runs")
@@ -88,7 +88,7 @@ def load_settings() -> Settings:
         demo_job_path=demo_jobs,
         demo_queue_limit=int(os.getenv("DEEPRESEARCH_DEMO_QUEUE_LIMIT", "3")),
         demo_as_of=date.fromisoformat(os.getenv("DEEPRESEARCH_DEMO_AS_OF", "2026-07-09")),
-        tool_contract_enabled=_env_flag("TOOL_CONTRACT_ENABLED"),
+        tool_contract_enabled=_env_flag("TOOL_CONTRACT_ENABLED", default=True),
         injection_guard_enabled=_env_flag("INJECTION_GUARD_ENABLED"),
         run_manifest_enabled=_env_flag("RUN_MANIFEST_ENABLED", default=True),
         runs_root=runs_root,
