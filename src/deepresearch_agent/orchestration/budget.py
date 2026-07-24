@@ -2,9 +2,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from threading import Lock
+from typing import TYPE_CHECKING
 
 from deepresearch_agent.decisions import record_agent_decision
 from deepresearch_agent.schemas import AgentDecision, ResearchState
+
+if TYPE_CHECKING:
+    from deepresearch_agent.orchestration.decision_context import (
+        DecisionContext,
+    )
 
 
 @dataclass
@@ -47,6 +53,8 @@ class BranchBudget:
         self,
         branch_ids: list[str],
         state: ResearchState,
+        *,
+        decision_context: DecisionContext | None = None,
     ) -> dict[str, int]:
         ordered = list(dict.fromkeys(branch_ids))
         if not ordered:
@@ -77,6 +85,7 @@ class BranchBudget:
                 "divide the run budget equally before LangGraph Send fan-out, "
                 "subject to the per-branch cap"
             ),
+            decision_context=decision_context,
         )
         return {key: value["allocated"] for key, value in snapshot.items()}
 
@@ -84,7 +93,12 @@ class BranchBudget:
         self,
         metrics: dict[str, float],
         state: ResearchState,
+        *,
+        decision_context: DecisionContext | None = None,
+        verify_min_allocation: int = 0,
     ) -> dict[str, int]:
+        if verify_min_allocation < 0:
+            raise ValueError("verify_min_allocation must be non-negative")
         with self._lock:
             unknown = set(metrics) - set(self.allocations)
             if unknown:
@@ -99,6 +113,25 @@ class BranchBudget:
             )
             for item in self.allocations.values():
                 item.allocated = item.used
+            verify_branches = (
+                {
+                    item.sub_question_id
+                    for item in decision_context.prior_classifications
+                    if item.kind == "verify"
+                }
+                if decision_context
+                else set()
+            )
+            guaranteed: dict[str, int] = {}
+            for branch_id in sorted(verify_branches):
+                item = self.allocations.get(branch_id)
+                if item is None:
+                    continue
+                target = min(verify_min_allocation, self.per_branch_cap)
+                grant = min(max(0, target - item.allocated), available)
+                item.allocated += grant
+                available -= grant
+                guaranteed[branch_id] = item.allocated
             ordered = sorted(
                 self.allocations,
                 key=lambda branch_id: (
@@ -131,10 +164,24 @@ class BranchBudget:
             state,
             decision_type="branch_budget_reallocate",
             metrics=metrics,
-            outcome="reallocated_toward_lower_metric_branches",
+            outcome=(
+                f"reallocated_with_verify_floor={guaranteed}"
+                if guaranteed
+                else "reallocated_toward_lower_metric_branches"
+            ),
             rationale=(
                 "after join, distribute remaining capacity in ascending metric "
                 "order while preserving completed work and the per-branch cap"
+            ),
+            decision_context=decision_context,
+            context_fields=(
+                (
+                    "budget",
+                    "sufficiency",
+                    "prior_classifications",
+                )
+                if decision_context
+                else ()
             ),
         )
         return {key: value["allocated"] for key, value in snapshot.items()}
@@ -201,20 +248,29 @@ class BranchBudget:
         metrics: dict[str, float | None],
         outcome: str,
         rationale: str,
+        decision_context: DecisionContext | None = None,
+        context_fields: tuple[str, ...] = (),
     ) -> None:
+        inputs: dict[str, object] = {
+            "metrics": dict(sorted(metrics.items())),
+            "allocations": self.snapshot(),
+            "total_budget": self.total_budget,
+            "total_used": self.total_used,
+            "per_branch_cap": self.per_branch_cap,
+            "rationale": rationale,
+        }
+        if decision_context:
+            fields = context_fields or ("iteration", "budget")
+            inputs["decision_context_fields"] = list(fields)
+            inputs["decision_context"] = decision_context.field_snapshot(
+                *fields
+            )
         record_agent_decision(
             state,
             AgentDecision(
                 decision_type=decision_type,
                 made_by="BranchBudget",
-                inputs={
-                    "metrics": dict(sorted(metrics.items())),
-                    "allocations": self.snapshot(),
-                    "total_budget": self.total_budget,
-                    "total_used": self.total_used,
-                    "per_branch_cap": self.per_branch_cap,
-                    "rationale": rationale,
-                },
+                inputs=inputs,
                 criterion=(
                     "allocate within the run total and per-branch cap; on "
                     "reallocation, lower measured coverage receives capacity first"

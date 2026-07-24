@@ -51,6 +51,9 @@ class Settings:
     research_max_unresolved_critic_issues: int = 0
     prior_memory_enabled: bool = False
     prior_watch_confidence_threshold: float = 0.7
+    decision_weaving_enabled: bool = False
+    decision_weaving_budget_remaining_ratio: float = 0.2
+    decision_weaving_verify_min_allocation: int = 1
 
     @property
     def research_loop_active(self) -> bool:
@@ -174,6 +177,19 @@ def load_settings() -> Settings:
             os.getenv(
                 "DEEPRESEARCH_PRIOR_WATCH_CONFIDENCE_THRESHOLD",
                 "0.7",
+            )
+        ),
+        decision_weaving_enabled=_env_flag("DECISION_WEAVING_ENABLED"),
+        decision_weaving_budget_remaining_ratio=float(
+            os.getenv(
+                "DEEPRESEARCH_DECISION_WEAVING_BUDGET_REMAINING_RATIO",
+                "0.2",
+            )
+        ),
+        decision_weaving_verify_min_allocation=int(
+            os.getenv(
+                "DEEPRESEARCH_DECISION_WEAVING_VERIFY_MIN_ALLOCATION",
+                "1",
             )
         ),
     )

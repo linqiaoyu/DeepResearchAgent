@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import Field
 
@@ -16,6 +16,11 @@ from deepresearch_agent.schemas import (
     ResearchState,
     StrictModel,
 )
+
+if TYPE_CHECKING:
+    from deepresearch_agent.orchestration.decision_context import (
+        DecisionContext,
+    )
 
 PriorQuestionKind = Literal["verify", "explore", "watch"]
 
@@ -36,6 +41,7 @@ def classify_subquestions_from_prior(
     snapshot: ResearchSnapshot,
     *,
     watch_confidence_threshold: float = 0.7,
+    decision_context: DecisionContext | None = None,
 ) -> list[PriorQuestionClassification]:
     if not state.plan:
         raise ValueError("Prior-memory classification requires a plan")
@@ -87,19 +93,26 @@ def classify_subquestions_from_prior(
                 priority_urls=sorted(set(claim.source_urls)),
             )
         classifications.append(classification)
+        inputs: dict[str, object] = {
+            "sub_question_id": sub_question.id,
+            "prior_claim_id": classification.prior_claim_id,
+            "prior_claim": classification.prior_claim_text,
+            "prior_confidence": classification.prior_confidence,
+            "prior_as_of": classification.prior_as_of,
+            "priority_urls": classification.priority_urls,
+        }
+        if decision_context:
+            fields = ("iteration", "budget", "unresolved_critic_issues")
+            inputs["decision_context_fields"] = list(fields)
+            inputs["decision_context"] = decision_context.field_snapshot(
+                *fields
+            )
         record_agent_decision(
             state,
             AgentDecision(
                 decision_type="prior_memory_classification",
                 made_by="PlannerAgent",
-                inputs={
-                    "sub_question_id": sub_question.id,
-                    "prior_claim_id": classification.prior_claim_id,
-                    "prior_claim": classification.prior_claim_text,
-                    "prior_confidence": classification.prior_confidence,
-                    "prior_as_of": classification.prior_as_of,
-                    "priority_urls": classification.priority_urls,
-                },
+                inputs=inputs,
                 criterion=classification.criterion,
                 outcome=classification.kind,
                 alternatives_considered=["verify", "explore", "watch"],

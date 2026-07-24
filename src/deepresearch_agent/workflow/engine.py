@@ -32,6 +32,7 @@ from deepresearch_agent.orchestration import (
     LoopTracker,
     ResearchSufficiency,
     SufficiencyThresholds,
+    build_decision_context,
     enforce_node_contract,
     evaluate_research_sufficiency,
     refine_research_plan,
@@ -1073,9 +1074,35 @@ class DeepResearchEngine:
                 )
                 for item in sufficiency.by_sub_question
             }
+            context = (
+                build_decision_context(
+                    state,
+                    iteration=(
+                        int(
+                            state.metadata.get(
+                                "research_loop_tracker",
+                                {},
+                            ).get("iteration", 0)
+                        )
+                        + 1
+                    ),
+                    budget_total=self.branch_budget.total_budget,
+                    budget_used=self.branch_budget.total_used,
+                    budget_snapshot=self.branch_budget.snapshot(),
+                    sufficiency=sufficiency,
+                )
+                if self.settings.decision_weaving_enabled
+                else None
+            )
             allocations = self.branch_budget.reallocate(
                 branch_metrics,
                 state,
+                decision_context=context,
+                verify_min_allocation=(
+                    self.settings.decision_weaving_verify_min_allocation
+                    if context
+                    else 0
+                ),
             )
             state.metadata["branch_budget"].update(
                 {
@@ -1100,10 +1127,40 @@ class DeepResearchEngine:
             stop_requested=sufficiency.sufficient,
             stop_reason="sufficiency_thresholds_met",
         )
+        loop_context = (
+            build_decision_context(
+                state,
+                iteration=tracker.iteration + 1,
+                budget_total=(
+                    self.branch_budget.total_budget
+                    if self.branch_budget
+                    else self.settings.research_loop_budget_ceiling
+                ),
+                budget_used=(
+                    self.branch_budget.total_used
+                    if self.branch_budget
+                    else tracker.budget_used
+                ),
+                budget_snapshot=(
+                    self.branch_budget.snapshot()
+                    if self.branch_budget
+                    else None
+                ),
+                sufficiency=sufficiency,
+            )
+            if self.settings.decision_weaving_enabled
+            else None
+        )
         outcome = self.research_loop.advance(
             state,
             tracker,
             iteration_result,
+            decision_context=loop_context,
+            budget_remaining_ratio_threshold=(
+                self.settings.decision_weaving_budget_remaining_ratio
+                if loop_context
+                else 0.0
+            ),
         )
         state.metadata["research_loop_tracker"] = asdict(outcome.tracker)
         state.metadata["research_loop_route"] = outcome.route
@@ -1168,6 +1225,30 @@ class DeepResearchEngine:
             sufficiency,
             as_of=self.research_as_of,
             iteration=tracker.iteration + 1,
+            decision_context=(
+                build_decision_context(
+                    state,
+                    iteration=tracker.iteration + 1,
+                    budget_total=(
+                        self.branch_budget.total_budget
+                        if self.branch_budget
+                        else 0
+                    ),
+                    budget_used=(
+                        self.branch_budget.total_used
+                        if self.branch_budget
+                        else 0
+                    ),
+                    budget_snapshot=(
+                        self.branch_budget.snapshot()
+                        if self.branch_budget
+                        else None
+                    ),
+                    sufficiency=sufficiency,
+                )
+                if self.settings.decision_weaving_enabled
+                else None
+            ),
         )
         state.metadata["next_research_intent"] = refined
         state.critic_report = None
@@ -1325,6 +1406,11 @@ class DeepResearchEngine:
                     prior,
                     watch_confidence_threshold=(
                         self.settings.prior_watch_confidence_threshold
+                    ),
+                    decision_context=(
+                        build_decision_context(state, iteration=0)
+                        if self.settings.decision_weaving_enabled
+                        else None
                     ),
                 )
         if self.settings.execution_mode == "llm":
