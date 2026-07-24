@@ -7,7 +7,9 @@ from pathlib import Path
 
 from deepresearch_agent.orchestration import (
     SufficiencyThresholds,
+    build_decision_context,
     evaluate_research_sufficiency,
+    refine_research_plan,
 )
 from deepresearch_agent.memory import ProceduralMemory, ProceduralQuery
 from deepresearch_agent.reflection import (
@@ -530,6 +532,136 @@ class ReflectionReasoningInterfaceTest(unittest.TestCase):
             "cache_miss",
         )
         self.assertIsNone(state.final_report)
+
+
+class ReflectionDrivenReplanningTest(unittest.TestCase):
+    def _state(self) -> ResearchState:
+        state = ResearchState(topic="reflection replanning")
+        state.plan = ResearchPlan(
+            topic=state.topic,
+            sub_questions=[
+                SubQuestion(
+                    id="weak",
+                    question="核实持续薄弱问题",
+                    search_queries=["original"],
+                )
+            ],
+        )
+        state.evidence_store = [
+            Evidence(
+                id="e",
+                research_id=state.research_id,
+                sub_question_id="weak",
+                claim="one observation",
+                claim_type="fact",
+                source_url="https://one.example/a",
+                source_title="one",
+                source_pub_date=date(2026, 7, 24),
+                extract_text="one observation",
+            )
+        ]
+        return state
+
+    def test_deterministic_signals_change_next_replanning_intent(
+        self,
+    ) -> None:
+        baseline_state = self._state()
+        reflected_state = self._state()
+        sufficiency = evaluate_research_sufficiency(
+            baseline_state,
+            as_of=date(2026, 7, 24),
+            thresholds=SufficiencyThresholds(min_evidence_count=2),
+        )
+        reflected_sufficiency = evaluate_research_sufficiency(
+            reflected_state,
+            as_of=date(2026, 7, 24),
+            thresholds=SufficiencyThresholds(min_evidence_count=2),
+        )
+        reflected_state.metadata["reflection_result"] = {
+            "deterministic_signals": {
+                "persistently_weak_subquestions": ["weak"],
+                "repeatedly_ineffective_sources": ["bad.example"],
+                "repeated_critic_issue_types": {
+                    "missing_citation": 2
+                },
+                "ineffective_replanning_iterations": [2],
+            },
+            "llm_insight": {
+                "status": "recorded_placeholder",
+                "insights": [
+                    {
+                        "recommendation": "THIS MUST NOT ENTER A QUERY"
+                    }
+                ],
+            },
+        }
+
+        baseline = refine_research_plan(
+            baseline_state,
+            sufficiency,
+            as_of=date(2026, 7, 24),
+            iteration=3,
+        )
+        context = build_decision_context(
+            reflected_state,
+            iteration=3,
+            sufficiency=reflected_sufficiency,
+        )
+        reflected = refine_research_plan(
+            reflected_state,
+            reflected_sufficiency,
+            as_of=date(2026, 7, 24),
+            iteration=3,
+            decision_context=context,
+        )
+
+        self.assertNotEqual(reflected, baseline)
+        joined = " ".join(reflected["weak"])
+        self.assertIn("persistent cross-round weakness", joined)
+        self.assertIn("bad.example", joined)
+        self.assertNotIn("THIS MUST NOT ENTER A QUERY", joined)
+        decision = reflected_state.agent_decisions[-1]
+        self.assertIn(
+            "reflection_signals",
+            decision.inputs["decision_context_fields"],
+        )
+        self.assertNotIn(
+            "llm_insight",
+            decision.inputs["decision_context"],
+        )
+
+    def test_enabled_loop_report_explains_reflection_effect(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            engine = DeepResearchEngine(
+                settings=Settings(
+                    storage_path=root / "reflection-loop.db",
+                    runs_root=root / "runs",
+                    as_of=date(2026, 7, 24),
+                    reflection_enabled=True,
+                    research_loop_enabled=True,
+                    research_loop_max_iterations=2,
+                    research_loop_no_progress_window=5,
+                    research_min_evidence_count=99,
+                    max_critic_iter=1,
+                    structured_logging_enabled=False,
+                )
+            )
+            state = engine.run(
+                topic="AI Agent 在财富管理行业的落地机会研究",
+                depth_level=1,
+            )
+            engine._checkpoint_conn.close()
+
+        self.assertIn("## 研究过程", state.final_report or "")
+        self.assertIn(
+            "反思如何影响重规划",
+            state.final_report or "",
+        )
+        self.assertIn(
+            "LLM 洞察未参与，待 019",
+            state.final_report or "",
+        )
 
 
 if __name__ == "__main__":

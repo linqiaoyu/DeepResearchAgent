@@ -1751,11 +1751,33 @@ class DeepResearchEngine:
                     ),
                     sufficiency=sufficiency,
                 )
-                if self.settings.decision_weaving_enabled
+                if (
+                    self.settings.decision_weaving_enabled
+                    or self.settings.reflection_enabled
+                )
                 else None
             ),
         )
         state.metadata["next_research_intent"] = refined
+        if self.settings.reflection_enabled:
+            process = state.metadata.get("research_process", [])
+            reflection_result = state.metadata.get(
+                "reflection_result",
+                {},
+            )
+            if process and isinstance(process[-1], dict):
+                process[-1]["reflection_effect"] = {
+                    "deterministic_signals": (
+                        reflection_result.get(
+                            "deterministic_signals",
+                            {},
+                        )
+                        if isinstance(reflection_result, dict)
+                        else {}
+                    ),
+                    "adjusted_queries": refined,
+                    "llm_insight_used": False,
+                }
         state.critic_report = None
         state.critic_iteration = 0
         state.retry_queue = []
@@ -2210,6 +2232,31 @@ class DeepResearchEngine:
                         ensure_ascii=False,
                         sort_keys=True,
                     )
+                )
+            reflection_effect = item.get("reflection_effect")
+            if isinstance(reflection_effect, dict):
+                lines.append(
+                    "- 反思如何影响重规划：仅使用确定性跨轮信号 "
+                    + json.dumps(
+                        reflection_effect.get(
+                            "deterministic_signals",
+                            {},
+                        ),
+                        ensure_ascii=False,
+                        sort_keys=True,
+                    )
+                )
+                lines.append(
+                    "- 据此调整下一轮检索意图："
+                    + json.dumps(
+                        reflection_effect.get(
+                            "adjusted_queries",
+                            {},
+                        ),
+                        ensure_ascii=False,
+                        sort_keys=True,
+                    )
+                    + "；LLM 洞察未参与，待 019。"
                 )
             if item.get("stop_boundary"):
                 lines.append(
