@@ -50,8 +50,8 @@ ReflectionLLMInsight
 `reflection_signal_extraction` `AgentDecision`：
 
 1. 持续薄弱子问题：至少两个重规划轮次中始终存在充分性 gap 的子问题；
-2. 反复无效来源：在搜索结果中至少重复出现两次、但未进入已采纳 Evidence 域名集合的
-   来源域名；
+2. 反复无效来源：在至少两次独立搜索调用中出现、但未进入已采纳 Evidence 域名集合的
+   来源域名；同一次搜索返回同域多页只计一次；
 3. 重复 Critic issue：跨 Critic 节点至少出现两次的 issue 类型及计数；
 4. 无效重规划轮次：存在重规划决定，但下一轮充分性进展没有提高的轮次。
 

@@ -2235,19 +2235,30 @@ class DeepResearchEngine:
                 )
             reflection_effect = item.get("reflection_effect")
             if isinstance(reflection_effect, dict):
-                lines.append(
-                    "- 反思如何影响重规划：仅使用确定性跨轮信号 "
-                    + json.dumps(
-                        reflection_effect.get(
-                            "deterministic_signals",
-                            {},
-                        ),
-                        ensure_ascii=False,
-                        sort_keys=True,
-                    )
+                signals = reflection_effect.get(
+                    "deterministic_signals",
+                    {},
                 )
+                has_signal = (
+                    isinstance(signals, dict)
+                    and any(bool(value) for value in signals.values())
+                )
+                if has_signal:
+                    lines.append(
+                        "- 反思如何影响重规划：仅使用确定性跨轮信号 "
+                        + json.dumps(
+                            signals,
+                            ensure_ascii=False,
+                            sort_keys=True,
+                        )
+                    )
+                else:
+                    lines.append(
+                        "- 反思如何影响重规划：本轮未发现跨轮重复模式，"
+                        "因此没有追加反思定向条件。"
+                    )
                 lines.append(
-                    "- 据此调整下一轮检索意图："
+                    "- 下一轮检索意图："
                     + json.dumps(
                         reflection_effect.get(
                             "adjusted_queries",

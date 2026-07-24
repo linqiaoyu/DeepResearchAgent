@@ -313,12 +313,14 @@ def _repeatedly_ineffective_sources(
     for call in trajectory.tool_calls:
         if call.tool_spec.get("name") != "web_search" or call.error:
             continue
+        domains_in_call: set[str] = set()
         for item in call.result if isinstance(call.result, list) else []:
             if not isinstance(item, Mapping):
                 continue
             domain = _domain(item.get("url"))
             if domain:
-                retrieved[domain] += 1
+                domains_in_call.add(domain)
+        retrieved.update(domains_in_call)
     accepted = {
         str(domain)
         for transition in trajectory.node_transitions

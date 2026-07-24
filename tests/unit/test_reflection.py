@@ -310,6 +310,38 @@ class DeterministicSignalExtractionTest(unittest.TestCase):
             second.deterministic_signals.model_dump_json(),
         )
 
+    def test_ineffective_source_requires_repetition_across_search_calls(
+        self,
+    ) -> None:
+        trajectory = AgentTrajectory(
+            run_id="same-call-duplicates",
+            request={"topic": "same-call-duplicates"},
+            tool_calls=[
+                ToolCallTrace(
+                    tool_spec={"name": "web_search"},
+                    inputs={"query": "one"},
+                    result=[
+                        {
+                            "url": "https://one.example/a",
+                            "title": "a",
+                        },
+                        {
+                            "url": "https://one.example/b",
+                            "title": "b",
+                        },
+                    ],
+                    attempts=1,
+                )
+            ],
+        )
+
+        result = Reflector().reflect(trajectory, [])
+
+        self.assertEqual(
+            result.deterministic_signals.repeatedly_ineffective_sources,
+            [],
+        )
+
     def test_signal_decision_records_sources_even_when_signals_empty(
         self,
     ) -> None:
@@ -660,6 +692,10 @@ class ReflectionDrivenReplanningTest(unittest.TestCase):
         )
         self.assertIn(
             "LLM 洞察未参与，待 019",
+            state.final_report or "",
+        )
+        self.assertIn(
+            "没有追加反思定向条件",
             state.final_report or "",
         )
 
