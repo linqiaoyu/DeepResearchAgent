@@ -77,7 +77,7 @@ v1.1 同一 judge 下，G1/G2/G3 weighted score 为 `0.8337 → 0.7714 → 0.798
 | 离线评测：run delta、运维 P50/P90、Golden schema 与共享事实校验 | 已启用 | [`compare_runs.py`](scripts/compare_runs.py) · [`offline_metrics.py`](scripts/offline_metrics.py) |
 | MCP adapter | 仅设计 | 零新增依赖约束下未实现 server · [`mcp_adapter_design.md`](docs/mcp_adapter_design.md) |
 
-阶段 A/C/D/B/F/G/H 共通过 172 项无 key 测试。Docker/Compose 文件完成静态检查，但任务主机没有 Docker/Podman，未做本机镜像构建或 Compose 引擎级验证。
+010 的阶段 A/C/D/B/F/G/H 共通过 172 项无 key 测试；011 默认点灯后的全量回归为 187 项。Docker/Compose 文件完成静态检查，但任务主机没有 Docker/Podman，未做本机镜像构建或 Compose 引擎级验证。
 
 跨代比较必须先经 [`verify_manifest.py`](scripts/verify_manifest.py) 判定；flags、模型、prompt、as-of 或依赖不一致时，不得把分数差描述为质量改进或回归。
 
