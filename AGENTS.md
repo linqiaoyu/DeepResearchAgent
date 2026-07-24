@@ -4,7 +4,7 @@
 
 DeepResearchAgent 是一个多 Agent 深度研究框架，金融投研为首个落地场景。
 
-当前仓库处于 MVP 阶段：已实现确定性的 Planner、Researcher、Extractor、Critic、Reporter、Evaluator 工作流；默认使用本地 fixture 检索数据与录制结构化金融数据；编排层已迁移为 LangGraph `StateGraph`，Researcher 按子问题 fan-out，Critic 通过条件边回流 retry queue；checkpoint 由官方 `SqliteSaver` 写入 SQLite，Evidence 和 evaluation 结果由 `SQLiteStore` 写入 SQLite；LLM 模式通过统一 LiteLLM 层覆盖 Planner、Extractor、Reporter，Researcher 与 Critic 当前仍保持确定性；已接入 AKShare 白名单结构化数据边界、五元素数字 claim 口径体系、金融化 Critic；Golden Set v1.1 已以四键审计闸冻结（76 PASS、0 DEFECT、3 条 PM 注记 UNCERTAIN），并完成 G1/G2/G3 保存态三采样重评；007/007S 已加入三层演示资产（G3 展示层、异步 Golden replay 重跑层、owner-token live 层）与持久化日消耗护栏，公开触达形态为静态演示站，由 `scripts/build_site.py` 生成 `site/dist/` 后手工上传；010 已新增默认关闭的工具契约、安全、运行血统、上下文打包、结构化日志与配置校验层，以及只读离线评测工具；010 耦合审计判定金融逻辑仍硬编码于核心 Agent，`domains/finance` 与 `domains/competitive` 尚未落位，不得宣称框架已完成领域解耦；当前主推理模型锁定 deepseek-v4-flash，judge 与 citation_support 锁定 qwen3.7-plus；CLI demo、LLM smoke、Golden Set runner、FastAPI demo endpoints、静态站构建和 unittest 套件已在本地 `.venv` 验证过相应路径。
+当前仓库处于 MVP 阶段：已实现确定性的 Planner、Researcher、Extractor、Critic、Reporter、Evaluator 工作流；默认使用本地 fixture 检索数据与录制结构化金融数据；编排层已迁移为 LangGraph `StateGraph`，Researcher 按子问题 fan-out，Critic 通过条件边回流 retry queue；checkpoint 由官方 `SqliteSaver` 写入 SQLite，Evidence 和 evaluation 结果由 `SQLiteStore` 写入 SQLite；LLM 模式通过统一 LiteLLM 层覆盖 Planner、Extractor、Reporter，Researcher 与 Critic 当前仍保持确定性；已接入 AKShare 白名单结构化数据边界、五元素数字 claim 口径体系、金融化 Critic；Golden Set v1.1 已以四键审计闸冻结（76 PASS、0 DEFECT、3 条 PM 注记 UNCERTAIN），并完成 G1/G2/G3 保存态三采样重评；007/007S 已加入三层演示资产（G3 展示层、异步 Golden replay 重跑层、owner-token live 层）与持久化日消耗护栏，公开触达形态为静态演示站，由 `scripts/build_site.py` 生成 `site/dist/` 后手工上传；010 新增工具契约、安全、运行血统、上下文打包、结构化日志与配置校验层，以及只读离线评测工具；011 用双题面规范化快照证明 010 默认路径与 `befd60b` 产物等价，默认启用工具契约、run manifest、结构化日志与 fail-fast，新增八场景离线 chaos 演练，并把注入语料扩为 63 条；context packer 与 injection guard 仍保持 dark；010 耦合审计判定金融逻辑仍硬编码于核心 Agent，`domains/finance` 与 `domains/competitive` 尚未落位，不得宣称框架已完成领域解耦；当前主推理模型锁定 deepseek-v4-flash，judge 与 citation_support 锁定 qwen3.7-plus；CLI demo、LLM smoke、Golden Set runner、FastAPI demo endpoints、静态站构建和 unittest 套件已在本地 `.venv` 验证过相应路径。
 
 本项目是作品集和演示导向项目，但实现选择仍应能解释为生产化工程决策。
 
@@ -23,13 +23,13 @@ DeepResearchAgent 是一个多 Agent 深度研究框架，金融投研为首个�
 - `prompts/`：当前存在五个角色 prompt 与 `registry.json` 漂移登记表。
 - `scripts/`：除运行入口外，包含 manifest 比对、prompt 漂移、只读 run 对比、离线指标和 Golden schema 校验工具。
 - `src/deepresearch_agent/`：包源码，包含 `agents/`、`api/`、`context/`、`evaluation/`、`observability/`、`provenance/`、`security/`、`storage/`、`tools/`、`workflow/`。
-- `tests/`：`unit/`、`integration/`、`evaluation/` 三类 unittest 测试。
+- `tests/`：`unit/`、`integration/`、`evaluation/`、`chaos/` 四类 unittest 测试，并以 `golden_output/` 固化双题面行为快照。
 - `ui/app.py`：Streamlit UI 入口。
 - `pyproject.toml`：项目元数据、依赖、脚本入口和 Ruff 配置。
 
 领域目录约定（尚未实施）：目标 domain pack 包含 `tools/`、`prompts/`、`templates/`、`eval/`、`domain.yaml` 五类；新增领域前必须先完成 finance 等价抽取、旧路径兼容、资源 SHA-256 与默认 E2E 行为证明。
 
-010 新增开关均默认关闭：`TOOL_CONTRACT_ENABLED=false`、`INJECTION_GUARD_ENABLED=false`、`RUN_MANIFEST_ENABLED=false`、`CONTEXT_PACKER_ENABLED=false`、`STRUCTURED_LOGGING_ENABLED=false`、`CONFIG_FAIL_FAST_ENABLED=false`。
+当前默认开关：`TOOL_CONTRACT_ENABLED=true`、`INJECTION_GUARD_ENABLED=false`、`RUN_MANIFEST_ENABLED=true`、`CONTEXT_PACKER_ENABLED=false`、`STRUCTURED_LOGGING_ENABLED=true`、`CONFIG_FAIL_FAST_ENABLED=true`。任何跨代比较必须先经 `scripts/verify_manifest.py` 判定。
 
 ## 3. 技术栈与版本
 
@@ -79,6 +79,18 @@ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_golden_rou
 ```
 
 007 已验证 FastAPI/Uvicorn demo endpoints（展示层、方法论、报告读取、owner live 无令牌 403、护栏触顶 429）。007S 已验证异步 demo rerun 的 mock 队列/轮询/重启恢复/护栏测试和 `scripts/build_site.py` 静态站构建；本机未安装 `docker`/`podman`，因此 Docker/Compose 构建运行仍未在本地验证；Streamlit 入口未做浏览器级验证。
+
+011 产物级 characterization：
+
+```bash
+PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m unittest tests.unit.test_snapshot_run -v
+```
+
+011 离线故障演练：
+
+```bash
+PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 DEEPRESEARCH_SEARCH_PROVIDER=fixture DEEPRESEARCH_STRUCTURED_DATA_PROVIDER=fixture .venv/bin/python -m unittest discover -s tests/chaos -v
+```
 
 ## 5. 编码规范
 
