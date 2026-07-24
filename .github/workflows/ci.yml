@@ -30,7 +30,11 @@ jobs:
       - name: Install package
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e ".[dev]" "ruff==0.15.15"
+          python -m pip install -e ".[dev]" \
+            "fastapi==0.136.3" \
+            "langgraph==1.2.2" \
+            "litellm==1.86.2" \
+            "ruff==0.15.15"
 
       - name: Run Ruff
         run: python -m ruff check src tests scripts

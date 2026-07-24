@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -17,7 +18,7 @@ class ResearchPackageTests(unittest.TestCase):
             output = Path(tmp) / "package"
             result = subprocess.run(
                 [
-                    str(ROOT / ".venv" / "bin" / "python"),
+                    sys.executable,
                     str(SCRIPT),
                     "--topic",
                     "AI Agent 在财富管理行业的落地机会研究",
@@ -53,7 +54,7 @@ class ResearchPackageTests(unittest.TestCase):
             output = Path(tmp) / "must-not-exist"
             result = subprocess.run(
                 [
-                    str(ROOT / ".venv" / "bin" / "python"),
+                    sys.executable,
                     str(SCRIPT),
                     "--topic",
                     "live preflight only",
