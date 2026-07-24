@@ -934,7 +934,7 @@
         "INJECTION_GUARD_ENABLED": false,
         "RUN_MANIFEST_ENABLED": true,
         "STRUCTURED_LOGGING_ENABLED": true,
-        "TOOL_CONTRACT_ENABLED": false
+        "TOOL_CONTRACT_ENABLED": true
       },
       "mode": "deterministic",
       "model_strings": {
