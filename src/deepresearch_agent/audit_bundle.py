@@ -74,6 +74,7 @@ def export_audit_bundle(
         "report_markdown": state.final_report or "",
         "claims": report_claims,
     }
+    ledger_payload = _accounting_payload(state, settings)
     manifest_payload = manifest.model_dump(mode="json")
     manifest_payload["flags"] = settings_flag_snapshot(
         settings,
@@ -83,17 +84,15 @@ def export_audit_bundle(
         flag: FLAG_CLASSIFICATIONS.get(flag, "content_affecting")
         for flag in sorted(manifest_payload["flags"])
     }
-    ledger_payload = {
-        "token_total": state.token_used,
-        "cost_usd": state.cost_used,
-        "cost_cny": (
-            state.metadata.get("llm_usage", {}).get("total_cost_cny")
-            if isinstance(state.metadata.get("llm_usage"), dict)
-            else None
-        ),
-        "mode": settings.execution_mode,
-        "llm_stats": state.metadata.get("llm_stats", {}),
-    }
+    manifest_payload["token_total_estimated"] = ledger_payload[
+        "token_total_estimated"
+    ]
+    manifest_payload["token_total_source"] = ledger_payload["token_total_source"]
+    manifest_payload["cost_cny_total"] = ledger_payload["cost_cny"] or 0.0
+    manifest_payload["cost_cny_total_estimated"] = ledger_payload[
+        "cost_cny_estimated"
+    ]
+    manifest_payload["cost_cny_total_source"] = ledger_payload["cost_cny_source"]
 
     _write_text(output_dir / "report.md", state.final_report or "")
     _write_json(output_dir / "report.json", report_payload)
@@ -106,6 +105,7 @@ def export_audit_bundle(
             state=state,
             report_claims=report_claims,
             cited_evidence_count=len(evidence_payload),
+            accounting=ledger_payload,
         ),
     )
     if state.structured_output is not None:
@@ -173,6 +173,7 @@ def _cover(
     state: ResearchState,
     report_claims: list[dict[str, Any]],
     cited_evidence_count: int,
+    accounting: dict[str, Any],
 ) -> str:
     data_as_of = max(
         (item.source_pub_date for item in state.evidence_store),
@@ -180,6 +181,16 @@ def _cover(
     )
     as_of = data_as_of.isoformat() if data_as_of else "未标注"
     uncited_claims = sum(1 for claim in report_claims if not claim["evidence_ids"])
+    if accounting["mode"] == "deterministic":
+        cost_disclosure = (
+            "- 成本：本次为 deterministic fixture 运行，未产生真实 API "
+            "账单；ledger 中 USD 数值为模拟估算并已显式标注。"
+        )
+    else:
+        cost_disclosure = (
+            "- 成本：ledger 数值来自 token 用量与配置价格的估算，"
+            "不是供应商最终账单；具体来源与性质见 ledger.json。"
+        )
     return "\n".join(
         [
             "# 审计包封面",
@@ -187,6 +198,7 @@ def _cover(
             f"- 研究问题：{state.topic}",
             f"- 结论摘要：{_report_summary(state.final_report or '')}",
             f"- 证据统计：引用证据 {cited_evidence_count} 条；报告 claim {len(report_claims)} 条；无引用 claim {uncited_claims} 条。",
+            cost_disclosure,
             "- 已知局限：仅覆盖包内公开/fixture 证据；不含非公开数据、实时行情或人工投资判断。",
             "",
             "## 能力边界声明",
@@ -195,6 +207,43 @@ def _cover(
             "",
         ]
     )
+
+
+def _accounting_payload(
+    state: ResearchState,
+    settings: Settings,
+) -> dict[str, Any]:
+    usage = state.metadata.get("llm_usage", {})
+    llm_usage = usage if isinstance(usage, dict) else {}
+    deterministic = settings.execution_mode == "deterministic"
+    cost_cny = llm_usage.get("total_cost_cny")
+    price_source = llm_usage.get("price_source")
+    return {
+        "token_total": state.token_used,
+        "token_total_estimated": deterministic,
+        "token_total_source": (
+            "deterministic_simulation"
+            if deterministic
+            else "provider_usage_via_llm_ledger"
+        ),
+        "cost_usd": state.cost_used,
+        "cost_usd_estimated": True,
+        "cost_usd_source": (
+            "deterministic_simulation"
+            if deterministic
+            else f"llm_ledger_display_conversion:{price_source or 'unavailable'}"
+        ),
+        "cost_cny": cost_cny,
+        "cost_cny_estimated": cost_cny is not None,
+        "cost_cny_source": (
+            "unavailable_no_api_billing"
+            if deterministic
+            else str(price_source or "unavailable")
+        ),
+        "provider_invoice_available": False,
+        "mode": settings.execution_mode,
+        "llm_stats": state.metadata.get("llm_stats", {}),
+    }
 
 
 def _report_summary(report: str) -> str:

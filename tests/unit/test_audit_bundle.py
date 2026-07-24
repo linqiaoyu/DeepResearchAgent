@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from datetime import date, datetime, timezone
@@ -55,7 +56,7 @@ def audit_state(*, invalid_citation: bool = False) -> ResearchState:
             f"- Verified claim {citation}\n"
         ),
         token_used=42,
-        cost_used=0.0,
+        cost_used=0.017,
         started_at=now,
         updated_at=now,
     )
@@ -107,6 +108,46 @@ class AuditBundleTests(unittest.TestCase):
             self.assertIn(
                 "不构成投资建议",
                 (Path(tmp) / "first" / "cover.md").read_text(encoding="utf-8"),
+            )
+            cover = (Path(tmp) / "first" / "cover.md").read_text(
+                encoding="utf-8"
+            )
+            ledger = json.loads(
+                (Path(tmp) / "first" / "ledger.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            bundle_manifest = json.loads(
+                (Path(tmp) / "first" / "manifest.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertIn("未产生真实 API 账单", cover)
+            self.assertIn("模拟估算", cover)
+            self.assertNotIn("成本：0.017", cover)
+            self.assertEqual(ledger["cost_usd"], 0.017)
+            self.assertTrue(ledger["cost_usd_estimated"])
+            self.assertEqual(
+                ledger["cost_usd_source"],
+                "deterministic_simulation",
+            )
+            self.assertTrue(ledger["token_total_estimated"])
+            self.assertEqual(
+                ledger["token_total_source"],
+                "deterministic_simulation",
+            )
+            self.assertIsNone(ledger["cost_cny"])
+            self.assertEqual(
+                ledger["cost_cny_source"],
+                "unavailable_no_api_billing",
+            )
+            self.assertEqual(bundle_manifest["cost_cny_total"], 0.0)
+            self.assertFalse(
+                bundle_manifest["cost_cny_total_estimated"]
+            )
+            self.assertEqual(
+                bundle_manifest["cost_cny_total_source"],
+                "unavailable_no_api_billing",
             )
 
     def test_missing_citation_refuses_bundle_and_lists_missing_ids(self) -> None:
