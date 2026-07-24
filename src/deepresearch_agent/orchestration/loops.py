@@ -61,6 +61,23 @@ class LoopIterationResult:
 LoopStep = Callable[[ResearchState, LoopContext], LoopIterationResult]
 
 
+@dataclass(frozen=True)
+class LoopTracker:
+    iteration: int
+    budget_used: int
+    best_metric: float
+    last_metric: float
+    no_progress_count: int
+
+
+@dataclass(frozen=True)
+class LoopOutcome:
+    tracker: LoopTracker
+    route: Literal["continue", "stop"]
+    stop_boundary: str | None
+    outcome: str
+
+
 class _LoopGraphState(TypedDict):
     research_state: ResearchState
     iteration: int
@@ -99,15 +116,15 @@ class BoundedLoop:
         self.graph = graph.compile()
 
     def run(self, state: ResearchState) -> ResearchState:
-        initial_metric = float(self.spec.progress_metric(state))
+        tracker = self.start(state)
         initial: _LoopGraphState = {
             "research_state": state,
-            "iteration": 0,
-            "budget_used": 0,
-            "best_metric": initial_metric,
-            "metric_before": initial_metric,
-            "last_metric": initial_metric,
-            "no_progress_count": 0,
+            "iteration": tracker.iteration,
+            "budget_used": tracker.budget_used,
+            "best_metric": tracker.best_metric,
+            "metric_before": tracker.last_metric,
+            "last_metric": tracker.last_metric,
+            "no_progress_count": tracker.no_progress_count,
             "last_result": None,
             "route": "continue",
             "stop_boundary": None,
@@ -125,6 +142,63 @@ class BoundedLoop:
             },
         )
         return result["research_state"]
+
+    def start(self, state: ResearchState) -> LoopTracker:
+        initial_metric = float(self.spec.progress_metric(state))
+        return LoopTracker(
+            iteration=0,
+            budget_used=0,
+            best_metric=initial_metric,
+            last_metric=initial_metric,
+            no_progress_count=0,
+        )
+
+    def advance(
+        self,
+        state: ResearchState,
+        tracker: LoopTracker,
+        result: LoopIterationResult,
+    ) -> LoopOutcome:
+        remaining = self.spec.budget_ceiling - tracker.budget_used
+        if result.budget_consumed > remaining:
+            raise ValueError(
+                "loop step exceeded remaining budget: "
+                f"consumed={result.budget_consumed}, remaining={remaining}"
+            )
+        metric = float(self.spec.progress_metric(state))
+        improved = metric > (
+            tracker.best_metric + self.spec.min_progress_delta
+        )
+        advanced = LoopTracker(
+            iteration=tracker.iteration + 1,
+            budget_used=tracker.budget_used + result.budget_consumed,
+            best_metric=metric if improved else tracker.best_metric,
+            last_metric=metric,
+            no_progress_count=(
+                0 if improved else tracker.no_progress_count + 1
+            ),
+        )
+        route, stop_boundary, outcome = self._evaluate_outcome(
+            advanced,
+            result,
+        )
+        self._record_decision(
+            state,
+            advanced,
+            result,
+            metric_before=tracker.last_metric,
+            route=route,
+            stop_boundary=stop_boundary,
+            outcome=outcome,
+        )
+        if stop_boundary:
+            self._exhaust(state, stop_boundary)
+        return LoopOutcome(
+            tracker=advanced,
+            route=route,
+            stop_boundary=stop_boundary,
+            outcome=outcome,
+        )
 
     def _iteration_node(self, graph_state: _LoopGraphState) -> dict[str, object]:
         iteration = graph_state["iteration"] + 1
@@ -164,12 +238,44 @@ class BoundedLoop:
         result = graph_state["last_result"]
         if result is None:
             raise RuntimeError("loop_decide requires one completed iteration")
+        tracker = LoopTracker(
+            iteration=graph_state["iteration"],
+            budget_used=graph_state["budget_used"],
+            best_metric=graph_state["best_metric"],
+            last_metric=graph_state["last_metric"],
+            no_progress_count=graph_state["no_progress_count"],
+        )
+        route, stop_boundary, outcome = self._evaluate_outcome(
+            tracker,
+            result,
+        )
+        self._record_decision(
+            graph_state["research_state"],
+            tracker,
+            result,
+            metric_before=graph_state["metric_before"],
+            route=route,
+            stop_boundary=stop_boundary,
+            outcome=outcome,
+        )
+        if stop_boundary:
+            self._exhaust(graph_state["research_state"], stop_boundary)
+        return {
+            "route": route,
+            "stop_boundary": stop_boundary,
+        }
+
+    def _evaluate_outcome(
+        self,
+        tracker: LoopTracker,
+        result: LoopIterationResult,
+    ) -> tuple[Literal["continue", "stop"], str | None, str]:
         boundaries: list[str] = []
-        if graph_state["budget_used"] >= self.spec.budget_ceiling:
+        if tracker.budget_used >= self.spec.budget_ceiling:
             boundaries.append("budget_ceiling")
-        if graph_state["iteration"] >= self.spec.max_iterations:
+        if tracker.iteration >= self.spec.max_iterations:
             boundaries.append("max_iterations")
-        if graph_state["no_progress_count"] >= self.spec.no_progress_window:
+        if tracker.no_progress_count >= self.spec.no_progress_window:
             boundaries.append("no_progress_window")
 
         if boundaries:
@@ -185,21 +291,36 @@ class BoundedLoop:
             stop_boundary = None
             outcome = "continue"
 
+        return route, stop_boundary, outcome
+
+    def _record_decision(
+        self,
+        state: ResearchState,
+        tracker: LoopTracker,
+        result: LoopIterationResult,
+        *,
+        metric_before: float,
+        route: Literal["continue", "stop"],
+        stop_boundary: str | None,
+        outcome: str,
+    ) -> None:
+        boundaries = stop_boundary.split("+") if stop_boundary else []
         decision = AgentDecision(
             decision_type="bounded_loop_control",
             made_by="BoundedLoop",
             inputs={
-                "metric_before": graph_state["metric_before"],
-                "metric_after": graph_state["last_metric"],
-                "budget_used": graph_state["budget_used"],
+                "metric_before": metric_before,
+                "metric_after": tracker.last_metric,
+                "budget_used": tracker.budget_used,
                 "budget_ceiling": self.spec.budget_ceiling,
                 "budget_unit": self.spec.budget_unit,
                 "retry_budget_consumed": result.retry_budget_consumed,
-                "iteration": graph_state["iteration"],
+                "iteration": tracker.iteration,
                 "max_iterations": self.spec.max_iterations,
-                "no_progress_count": graph_state["no_progress_count"],
+                "no_progress_count": tracker.no_progress_count,
                 "no_progress_window": self.spec.no_progress_window,
                 "boundaries_triggered": boundaries,
+                "route": route,
             },
             criterion=(
                 "stop when the strategy reports sufficiency or any of "
@@ -211,15 +332,9 @@ class BoundedLoop:
                 "stop_sufficient",
                 "stop_and_mark_coverage_insufficient",
             ],
-            iteration=graph_state["iteration"],
+            iteration=tracker.iteration,
         )
-        record_agent_decision(graph_state["research_state"], decision)
-        if stop_boundary:
-            self._exhaust(graph_state["research_state"], stop_boundary)
-        return {
-            "route": route,
-            "stop_boundary": stop_boundary,
-        }
+        record_agent_decision(state, decision)
 
     def _route(
         self,

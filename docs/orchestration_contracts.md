@@ -77,3 +77,36 @@ LangGraph 负责节点执行、条件边、`Send` 扇出和 checkpoint；它并�
 已完成结果仍进入 join。该行为由默认关闭、归类为 `content_affecting` 的
 `BRANCH_BUDGET_ENABLED` 控制；关闭时不创建账本、决策或产物差异。阶段 5 将在研究
 轮次之间复用 join 后的再分配结果。
+
+## 研究充分性循环与重规划
+
+`RESEARCH_LOOP_ENABLED` 默认关闭并归类为 `content_affecting`；
+`DEEPRESEARCH_RESEARCH_LOOP_MAX_ITERATIONS` 默认 1。单轮配置视为有效关闭，因此
+不会新增决策、manifest flag 或报告章节，双题面仍与既有快照逐字一致。大于 1 时，
+Critic 通过后进入 `research_loop_decide`：充分则进入 Reporter，不足且边界未触发则
+进入 `research_refine`，随后通过 LangGraph conditional edge 回到原有
+`research_prepare → Send → research_join → extractor → critic` 路径。并行 fan-out
+拓扑没有改写。
+
+充分性按每个子问题确定性计算六项：
+
+- Evidence 条数；
+- 独立来源域名数；
+- 平均置信度；
+- 最新 Evidence 距 as_of 的天数；
+- 未解决 Critic issue 数；
+- 是否缺少反方/风险证据。
+
+默认阈值依次是 2、2、0.7、365 天、0，并要求反方证据；均可由
+`DEEPRESEARCH_RESEARCH_*` 环境变量配置。总分是六项归一分量的平均值，只用于进展
+检测；是否充分必须逐项过闸。
+
+不足时 Planner 的确定性重规划根据实际 gap 替换下一轮查询：来源集中则要求独立来源，
+缺反方则生成风险/约束查询，时效不足则加入 as_of 限定，证据或置信度不足则要求官方/
+一手复核，Critic issue 未解则生成定向补证查询。它不复用上一轮原查询。
+`research_replan` 决策记录 gap、判据和新查询。每轮 join 后 `BranchBudget.reallocate`
+把剩余搜索调用额度向低充分性分支倾斜；循环、分支和底层工具重试账本各自保留用途，
+不会把同一重试重复计为研究轮预算。
+
+启用时报告新增“研究过程”，逐轮展示查询、六项度量、循环决策、预算和停止边界。
+轮次、调用预算、无进展任一边界耗尽都会保留既有工作，并明确写出“覆盖可能不足”。

@@ -133,6 +133,8 @@ class OrchestrationContractTest(unittest.TestCase):
                 "research_join",
                 "extractor",
                 "critic",
+                "research_loop_decide",
+                "research_refine",
                 "retry_prepare",
                 "retry_one",
                 "retry_join",

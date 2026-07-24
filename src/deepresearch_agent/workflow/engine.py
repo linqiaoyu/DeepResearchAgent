@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 import time
 from collections.abc import Sequence
+from dataclasses import asdict
 from typing import Annotated, Any, TypedDict
 
 from deepresearch_agent.agents import CriticAgent, Evaluator, ExtractorAgent, PlannerAgent, ReporterAgent, ResearcherAgent
@@ -15,12 +17,20 @@ from deepresearch_agent.memory import (
 )
 from deepresearch_agent.observability import JsonLogger, correlation_context
 from deepresearch_agent.orchestration import (
+    BoundedLoop,
     BranchBudget,
     ContractField,
     ContractGraph,
     ContractInvariant,
     NodeContract,
+    LoopIterationResult,
+    LoopSpec,
+    LoopTracker,
+    ResearchSufficiency,
+    SufficiencyThresholds,
     enforce_node_contract,
+    evaluate_research_sufficiency,
+    refine_research_plan,
     validate_contract_graph,
 )
 from deepresearch_agent.provenance import build_run_manifest, write_run_manifest
@@ -147,6 +157,39 @@ class DeepResearchEngine:
         self.evaluator = Evaluator()
         self.branch_budget: BranchBudget | None = None
         self.working_memory = ContextWorkingMemory()
+        self.research_as_of = self.settings.as_of or self.critic.today
+        self.sufficiency_thresholds = SufficiencyThresholds(
+            min_evidence_count=self.settings.research_min_evidence_count,
+            min_independent_domains=(
+                self.settings.research_min_independent_domains
+            ),
+            min_average_confidence=(
+                self.settings.research_min_average_confidence
+            ),
+            max_freshness_age_days=(
+                self.settings.research_max_freshness_age_days
+            ),
+            max_unresolved_critic_issues=(
+                self.settings.research_max_unresolved_critic_issues
+            ),
+        )
+        self.research_loop = BoundedLoop(
+            LoopSpec(
+                max_iterations=self.settings.research_loop_max_iterations,
+                budget_ceiling=self.settings.research_loop_budget_ceiling,
+                no_progress_window=(
+                    self.settings.research_loop_no_progress_window
+                ),
+                progress_metric=lambda state: float(
+                    state.metadata.get("research_loop_score", 0.0)
+                ),
+                on_exhausted=self._on_research_loop_exhausted,
+                budget_unit="calls",
+            ),
+            step=lambda _state, _context: LoopIterationResult(
+                budget_consumed=0
+            ),
+        )
         self._checkpoint_conn = sqlite3.connect(self.settings.storage_path, check_same_thread=False)
         self.checkpointer = SqliteSaver(self._checkpoint_conn)
         self.graph = self._build_graph()
@@ -304,6 +347,17 @@ class DeepResearchEngine:
         )
         graph.add_node("critic", self._graph_node("critic", self._critic_node))
         graph.add_node(
+            "research_loop_decide",
+            self._graph_node(
+                "research_loop_decide",
+                self._research_loop_decide_node,
+            ),
+        )
+        graph.add_node(
+            "research_refine",
+            self._graph_node("research_refine", self._research_refine_node),
+        )
+        graph.add_node(
             "retry_prepare",
             self._graph_node("retry_prepare", self._retry_prepare_node),
         )
@@ -332,6 +386,11 @@ class DeepResearchEngine:
         graph.add_conditional_edges("research_join", self._route_after_research)
         graph.add_conditional_edges("extractor", self._route_after_extraction)
         graph.add_conditional_edges("critic", self._route_after_critic)
+        graph.add_conditional_edges(
+            "research_loop_decide",
+            self._route_after_research_loop,
+        )
+        graph.add_edge("research_refine", "research_prepare")
         graph.add_conditional_edges("retry_prepare", self._send_retry_tasks)
         graph.add_edge("retry_one", "retry_join")
         graph.add_edge("retry_join", "critic")
@@ -356,6 +415,10 @@ class DeepResearchEngine:
                 ("extractor", "critic"),
                 ("critic", "retry_prepare"),
                 ("critic", "reporter"),
+                ("critic", "research_loop_decide"),
+                ("research_loop_decide", "reporter"),
+                ("research_loop_decide", "research_refine"),
+                ("research_refine", "research_prepare"),
                 ("retry_prepare", "retry_one"),
                 ("retry_prepare", "retry_join"),
                 ("retry_one", "retry_join"),
@@ -481,6 +544,38 @@ class DeepResearchEngine:
                     }
                 ),
                 invariants=(identity,),
+            ),
+            "research_loop_decide": NodeContract(
+                name="research_loop_decide",
+                consumes={
+                    "research_state": state_field,
+                    "research_state.plan": ContractField(dict),
+                    "research_state.evidence_store": ContractField(list),
+                    "research_state.critic_report": ContractField(dict),
+                },
+                produces=frozenset(
+                    {
+                        "research_state.metadata",
+                        "research_state.agent_decisions",
+                    }
+                ),
+                invariants=(identity,),
+                decision_node=True,
+            ),
+            "research_refine": NodeContract(
+                name="research_refine",
+                consumes={
+                    "research_state": state_field,
+                    "research_state.plan": ContractField(dict),
+                },
+                produces=frozenset(
+                    {
+                        "research_state.plan",
+                        "research_state.agent_decisions",
+                    }
+                ),
+                invariants=(identity,),
+                decision_node=True,
             ),
             "retry_prepare": NodeContract(
                 name="retry_prepare",
@@ -654,15 +749,43 @@ class DeepResearchEngine:
         if not state.plan:
             raise ValueError("Researching requires a plan.")
         branch_ids = [item.id for item in state.plan.sub_questions]
-        if self.settings.branch_budget_enabled:
+        if self.settings.research_loop_active:
+            raw_tracker = state.metadata.get("research_loop_tracker")
+            if not isinstance(raw_tracker, dict):
+                tracker = self.research_loop.start(state)
+                state.metadata["research_loop_tracker"] = asdict(tracker)
+            else:
+                tracker = LoopTracker(**raw_tracker)
+            round_number = tracker.iteration + 1
+            intents = state.metadata.setdefault("research_intents", [])
+            if not any(
+                item.get("iteration") == round_number
+                for item in intents
+                if isinstance(item, dict)
+            ):
+                intents.append(
+                    {
+                        "iteration": round_number,
+                        "queries": {
+                            item.id: list(item.search_queries)
+                            for item in state.plan.sub_questions
+                        },
+                    }
+                )
+        if self._branch_budget_enabled() and self.branch_budget is None:
+            total_budget = (
+                self.settings.research_loop_budget_ceiling
+                if self.settings.research_loop_active
+                else self.settings.branch_total_budget
+            )
             self.branch_budget = BranchBudget(
-                total_budget=self.settings.branch_total_budget,
+                total_budget=total_budget,
                 per_branch_cap=self.settings.branch_single_cap,
             )
             allocations = self.branch_budget.allocate(branch_ids, state)
             state.metadata["branch_budget"] = {
                 "unit": "search_calls",
-                "total_budget": self.settings.branch_total_budget,
+                "total_budget": total_budget,
                 "per_branch_cap": self.settings.branch_single_cap,
                 "allocations": self.branch_budget.snapshot(),
                 "phase": "before_send",
@@ -694,7 +817,7 @@ class DeepResearchEngine:
         sub_question = SubQuestion.model_validate(graph_state["fanout_sub_question"])
         budget_metadata = state.metadata.get("branch_budget", {})
         allocated_calls = budget_metadata.get("allocated_calls", {})
-        if self.settings.branch_budget_enabled and isinstance(
+        if self._branch_budget_enabled() and isinstance(
             allocated_calls,
             dict,
         ):
@@ -730,7 +853,7 @@ class DeepResearchEngine:
                 sub_question.id: list(self.researcher.last_symbol_resolutions)
             },
         }
-        if self.settings.branch_budget_enabled:
+        if self._branch_budget_enabled():
             output["research_budget_usage"] = {
                 sub_question.id: search_calls,
             }
@@ -781,7 +904,7 @@ class DeepResearchEngine:
         state.metadata["sources_by_subquestion"] = sources_by_subquestion
         state.metadata["structured_data_stats"] = structured_stats_batches
         state.metadata["symbol_resolutions"] = symbol_resolution_batches
-        if self.settings.branch_budget_enabled and self.branch_budget:
+        if self._branch_budget_enabled() and self.branch_budget:
             for sub_question in state.plan.sub_questions:
                 used = int(budget_usage.get(sub_question.id, 0))
                 self.branch_budget.consume(sub_question.id, used, state)
@@ -792,7 +915,18 @@ class DeepResearchEngine:
                 )
                 for sub_question in state.plan.sub_questions
             }
-            reallocated = self.branch_budget.reallocate(metrics, state)
+            if self.settings.research_loop_active:
+                reallocated = {
+                    branch_id: int(item["allocated"])
+                    for branch_id, item in (
+                        self.branch_budget.snapshot().items()
+                    )
+                }
+            else:
+                reallocated = self.branch_budget.reallocate(
+                    metrics,
+                    state,
+                )
             state.metadata["branch_budget"].update(
                 {
                     "allocations": self.branch_budget.snapshot(),
@@ -851,8 +985,136 @@ class DeepResearchEngine:
         if state.status == "paused":
             return END
         if state.critic_report and state.critic_report.passed:
-            return "reporter"
+            return (
+                "research_loop_decide"
+                if self.settings.research_loop_active
+                else "reporter"
+            )
         return "retry_prepare"
+
+    def _research_loop_decide_node(
+        self,
+        graph_state: ResearchGraphState,
+    ) -> ResearchGraphState:
+        state = self._state_from_graph_values(graph_state)
+        sufficiency = evaluate_research_sufficiency(
+            state,
+            as_of=self.research_as_of,
+            thresholds=self.sufficiency_thresholds,
+        )
+        state.metadata["research_loop_score"] = sufficiency.score
+        if self.branch_budget:
+            branch_metrics = {
+                item.sub_question_id: round(
+                    1.0 - len(item.gaps) / 6,
+                    6,
+                )
+                for item in sufficiency.by_sub_question
+            }
+            allocations = self.branch_budget.reallocate(
+                branch_metrics,
+                state,
+            )
+            state.metadata["branch_budget"].update(
+                {
+                    "allocations": self.branch_budget.snapshot(),
+                    "allocated_calls": allocations,
+                    "metrics": branch_metrics,
+                    "phase": "after_sufficiency",
+                    "total_used": self.branch_budget.total_used,
+                }
+            )
+        raw_tracker = state.metadata.get("research_loop_tracker")
+        tracker = (
+            LoopTracker(**raw_tracker)
+            if isinstance(raw_tracker, dict)
+            else self.research_loop.start(state)
+        )
+        budget_usage = graph_state.get("research_budget_usage", {})
+        iteration_result = LoopIterationResult(
+            budget_consumed=sum(
+                int(value) for value in budget_usage.values()
+            ),
+            stop_requested=sufficiency.sufficient,
+            stop_reason="sufficiency_thresholds_met",
+        )
+        outcome = self.research_loop.advance(
+            state,
+            tracker,
+            iteration_result,
+        )
+        state.metadata["research_loop_tracker"] = asdict(outcome.tracker)
+        state.metadata["research_loop_route"] = outcome.route
+        state.metadata["research_sufficiency"] = sufficiency.model_dump(
+            mode="json"
+        )
+        process = state.metadata.setdefault("research_process", [])
+        intent = next(
+            (
+                item
+                for item in reversed(
+                    state.metadata.get("research_intents", [])
+                )
+                if isinstance(item, dict)
+                and item.get("iteration") == outcome.tracker.iteration
+            ),
+            {},
+        )
+        process.append(
+            {
+                "iteration": outcome.tracker.iteration,
+                "queries": intent.get("queries", {}),
+                "sufficiency": sufficiency.model_dump(mode="json"),
+                "decision": state.agent_decisions[-1].model_dump(
+                    mode="json"
+                ),
+                "budget": (
+                    dict(state.metadata.get("branch_budget", {}))
+                    if self._branch_budget_enabled()
+                    else {}
+                ),
+                "stop_boundary": outcome.stop_boundary,
+            }
+        )
+        return self._state_output(state)
+
+    def _route_after_research_loop(
+        self,
+        graph_state: ResearchGraphState,
+    ) -> str:
+        state = self._state_from_graph_values(graph_state)
+        return (
+            "research_refine"
+            if state.metadata.get("research_loop_route") == "continue"
+            else "reporter"
+        )
+
+    def _research_refine_node(
+        self,
+        graph_state: ResearchGraphState,
+    ) -> ResearchGraphState:
+        state = self._state_from_graph_values(graph_state)
+        raw_sufficiency = state.metadata.get("research_sufficiency")
+        if not isinstance(raw_sufficiency, dict):
+            raise ValueError("Research refinement requires sufficiency metrics")
+        sufficiency = ResearchSufficiency.model_validate(raw_sufficiency)
+        tracker = LoopTracker(
+            **state.metadata["research_loop_tracker"],
+        )
+        refined = refine_research_plan(
+            state,
+            sufficiency,
+            as_of=self.research_as_of,
+            iteration=tracker.iteration + 1,
+        )
+        state.metadata["next_research_intent"] = refined
+        state.critic_report = None
+        state.critic_iteration = 0
+        state.retry_queue = []
+        state.current_phase = "researching"
+        state.status = "running"
+        state.updated_at = utc_now()
+        return self._state_output(state)
 
     def _retry_prepare_node(self, graph_state: ResearchGraphState) -> ResearchGraphState:
         state = self._state_from_graph_values(graph_state)
@@ -949,6 +1211,10 @@ class DeepResearchEngine:
         if self.settings.structured_output_enabled:
             state.structured_output = self.reporter.structured_output(state)
         state.final_report = self._append_degradation_notice(state.final_report, state)
+        state.final_report = self._append_research_process(
+            state.final_report,
+            state,
+        )
         state.draft_report = state.final_report
         if self.settings.execution_mode == "llm":
             state.metadata.setdefault("llm_stats", {})["reporter"] = self.reporter.last_stats
@@ -1063,8 +1329,29 @@ class DeepResearchEngine:
             "price_source": aggregate.get("price_source"),
         }
 
-    def _config(self, research_id: str) -> dict[str, dict[str, str]]:
-        return {"configurable": {"thread_id": research_id}}
+    def _config(self, research_id: str) -> dict[str, Any]:
+        return {
+            "configurable": {"thread_id": research_id},
+            "recursion_limit": max(
+                25,
+                self.settings.research_loop_max_iterations * 20 + 20,
+            ),
+        }
+
+    def _branch_budget_enabled(self) -> bool:
+        return (
+            self.settings.branch_budget_enabled
+            or self.settings.research_loop_active
+        )
+
+    def _on_research_loop_exhausted(
+        self,
+        state: ResearchState,
+        boundary: str,
+    ) -> None:
+        state.metadata.setdefault("research_loop", {})[
+            "convergence"
+        ] = f"graceful_exhaustion:{boundary}"
 
     def _dump_state(self, state: ResearchState) -> dict[str, Any]:
         return state.model_dump(mode="json")
@@ -1133,3 +1420,72 @@ class DeepResearchEngine:
                 f"(attempts={int(event.get('attempts', 0))})"
             )
         return "\n".join(lines)
+
+    def _append_research_process(
+        self,
+        report: str,
+        state: ResearchState,
+    ) -> str:
+        if not self.settings.research_loop_active:
+            return report
+        process = state.metadata.get("research_process", [])
+        if not process:
+            return report
+        lines = [report.rstrip(), "", "## 研究过程", ""]
+        for item in process:
+            iteration = int(item.get("iteration", 0))
+            sufficiency = item.get("sufficiency", {})
+            decision = item.get("decision", {})
+            budget = item.get("budget", {})
+            lines.extend(
+                [
+                    f"### 第 {iteration} 轮",
+                    "",
+                    "- 检索意图："
+                    + json.dumps(
+                        item.get("queries", {}),
+                        ensure_ascii=False,
+                        sort_keys=True,
+                    ),
+                    (
+                        "- 充分性总分："
+                        f"{float(sufficiency.get('score', 0.0)):.3f}"
+                    ),
+                ]
+            )
+            for metrics in sufficiency.get("by_sub_question", []):
+                lines.append(
+                    "- "
+                    f"{metrics.get('sub_question_id')}: "
+                    f"evidence={metrics.get('evidence_count')}, "
+                    f"domains={metrics.get('independent_source_domains')}, "
+                    f"confidence={float(metrics.get('average_confidence', 0.0)):.3f}, "
+                    f"freshest_age_days={metrics.get('freshest_evidence_age_days')}, "
+                    f"critic_issues={metrics.get('unresolved_critic_issues')}, "
+                    f"missing_counterargument={metrics.get('missing_counterargument')}, "
+                    f"gaps={metrics.get('gaps', [])}"
+                )
+            lines.append(
+                "- 循环决策："
+                f"{decision.get('outcome')}；判据："
+                f"{decision.get('criterion')}"
+            )
+            if budget:
+                lines.append(
+                    "- 预算分配："
+                    + json.dumps(
+                        {
+                            "total_budget": budget.get("total_budget"),
+                            "total_used": budget.get("total_used"),
+                            "allocations": budget.get("allocations", {}),
+                        },
+                        ensure_ascii=False,
+                        sort_keys=True,
+                    )
+                )
+            if item.get("stop_boundary"):
+                lines.append(
+                    f"- 停止说明：因 {item['stop_boundary']} 边界停止，覆盖可能不足。"
+                )
+            lines.append("")
+        return "\n".join(lines).rstrip()
