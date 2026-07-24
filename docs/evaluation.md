@@ -8,7 +8,7 @@ content-affecting flag differences make runs incomparable. Operational flag
 differences are reported as informational without blocking comparison.
 Treating every flag as content-changing is too strict: it prevents legitimate
 quality comparisons just as a permissive check can create false improvements.
-The classification is grounded in the 011 product-level flag-impact snapshots,
+The classification is grounded in the prior product-level flag-impact replay,
 not flag names or implementation claims; unknown flags fail closed as
 content-affecting until measured.
 
