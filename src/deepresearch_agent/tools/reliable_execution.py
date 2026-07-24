@@ -139,12 +139,14 @@ class ReliableToolExecutor:
             )
 
         attempts = 0
+        last_failure_kind: ToolErrorKind | None = None
         while True:
             attempts += 1
             try:
                 value = operation()
             except Exception as exc:
                 kind = classify_tool_error(exc)
+                last_failure_kind = kind
                 policy = spec.retry_policy.get(kind, ERROR_RETRY_POLICIES[kind])
                 if not policy.retryable or attempts >= policy.max_attempts:
                     breaker.record_failure()
@@ -178,6 +180,15 @@ class ReliableToolExecutor:
                 self._sleep(delay)
                 continue
             breaker.record_success()
+            if attempts > 1 and last_failure_kind is not None:
+                context.degradation_events.append(
+                    DegradationEvent(
+                        tool=spec.name,
+                        reason=last_failure_kind,
+                        impact="transient tool degradation recovered after bounded retry",
+                        attempts=attempts,
+                    )
+                )
             return ToolResult(
                 ok=True,
                 value=value,
