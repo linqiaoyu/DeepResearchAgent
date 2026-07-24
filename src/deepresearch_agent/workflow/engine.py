@@ -477,6 +477,8 @@ class DeepResearchEngine:
                 packed.context_event(node="reporter")
             )
         state.final_report = self.reporter.report(state)
+        if self.settings.structured_output_enabled:
+            state.structured_output = self.reporter.structured_output(state)
         state.final_report = self._append_degradation_notice(state.final_report, state)
         state.draft_report = state.final_report
         if self.settings.execution_mode == "llm":

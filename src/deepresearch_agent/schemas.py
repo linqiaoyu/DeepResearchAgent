@@ -4,7 +4,7 @@ from datetime import date, datetime, timezone
 from typing import Any, Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 def utc_now() -> datetime:
@@ -141,6 +141,68 @@ class ReportDraft(StrictModel):
     unverified_assumptions: list[ReportClaim] = Field(default_factory=list)
 
 
+class TraceableRow(StrictModel):
+    evidence_ids: list[str] = Field(default_factory=list)
+    verification_status: Literal["verified", "unverified"] = "verified"
+
+    @model_validator(mode="after")
+    def require_unverified_without_evidence(self) -> TraceableRow:
+        if not self.evidence_ids and self.verification_status != "unverified":
+            raise ValueError("rows without evidence_ids must be marked unverified")
+        return self
+
+
+class MetricRow(TraceableRow):
+    entity: str
+    metric: str
+    normalized_metric: str
+    period: str
+    scope: str
+    value: float
+    unit: str
+    confidence: float = Field(ge=0, le=1)
+
+
+class ComparisonTable(StrictModel):
+    question: str
+    rows: list[MetricRow] = Field(default_factory=list)
+    scope_consistent: bool = True
+    scope_notes: list[str] = Field(default_factory=list)
+    data_as_of: date | None = None
+
+
+class TimelineEvent(TraceableRow):
+    occurred_at: date
+    event: str
+    source: str
+    thesis_impact: Literal["positive", "negative", "neutral", "uncertain"]
+
+
+class EventTimeline(StrictModel):
+    question: str
+    events: list[TimelineEvent] = Field(default_factory=list)
+    data_as_of: date | None = None
+
+
+class RiskItem(TraceableRow):
+    risk: str
+    likelihood: Literal["low", "medium", "high", "unknown"]
+    impact: Literal["low", "medium", "high", "unknown"]
+    unverified_prediction: bool = False
+
+
+class RiskMatrix(StrictModel):
+    question: str
+    risks: list[RiskItem] = Field(default_factory=list)
+    data_as_of: date | None = None
+
+
+class StructuredResearchOutput(StrictModel):
+    comparison_table: ComparisonTable
+    event_timeline: EventTimeline
+    risk_matrix: RiskMatrix
+
+
 class RetryTask(StrictModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
     reason: str
@@ -230,6 +292,7 @@ class ResearchState(StrictModel):
     critic_report: CriticReport | None = None
     draft_report: str | None = None
     final_report: str | None = None
+    structured_output: StructuredResearchOutput | None = None
     evaluation: EvaluationResult | None = None
     token_used: int = 0
     cost_used: float = 0.0

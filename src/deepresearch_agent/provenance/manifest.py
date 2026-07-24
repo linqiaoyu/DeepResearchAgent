@@ -170,6 +170,11 @@ def build_run_manifest(
             "CONTEXT_PACKER_ENABLED": settings.context_packer_enabled,
             "STRUCTURED_LOGGING_ENABLED": settings.structured_logging_enabled,
             "CONFIG_FAIL_FAST_ENABLED": settings.config_fail_fast_enabled,
+            **(
+                {"STRUCTURED_OUTPUT_ENABLED": True}
+                if settings.structured_output_enabled
+                else {}
+            ),
         },
         token_total=state.token_used,
         cost_cny_total=state.cost_used,
