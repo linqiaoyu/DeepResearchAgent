@@ -92,28 +92,25 @@ gold v1.0 历史测量拆为 `0.6134 + 0.1865 - 0.0585 = 0.7414`：先固定 jud
 
 跨代比较必须先经 [`verify_manifest.py`](scripts/verify_manifest.py) 判定；flags、模型、prompt、as-of 或依赖不一致时，不得把分数差描述为质量改进或回归。
 
-## 快速开始：Docker Compose 三步
+## 快速开始：本地 venv
 
 默认使用 fixture 与 deterministic 模式，不需要 API key。
-
-```bash
-# 1. 构建镜像
-docker compose build
-
-# 2. 启动 API 与 UI
-docker compose up -d api ui
-
-# 3. 检查 readiness
-curl http://localhost:8000/readyz
-```
-
-本地零容器路径：
 
 ```bash
 python -m venv .venv
 .venv/bin/pip install -e ".[dev]"
 PYTHONPATH=src DEEPRESEARCH_SEARCH_PROVIDER=fixture DEEPRESEARCH_STRUCTURED_DATA_PROVIDER=fixture DEEPRESEARCH_MODE=deterministic .venv/bin/python -m unittest discover -s tests
 ```
+
+一条命令生成研究问题记录、带引用报告、结构化表、审计包与
+ResearchSnapshot：
+
+```bash
+PYTHONPATH=src .venv/bin/python scripts/run_research_package.py --topic 'AI Agent 在财富管理行业的落地机会研究' --as-of 2026-07-09 --output _collab/package-demo
+```
+
+Docker/Compose 资产仍保留，但当前任务主机没有 Docker/Podman，尚未完成引擎级
+验证，因此不把容器命令作为首屏快速开始。
 
 生成静态演示站：
 
