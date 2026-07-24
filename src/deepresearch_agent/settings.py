@@ -26,10 +26,25 @@ class Settings:
     demo_job_path: Path = Path("data/runtime/demo_jobs.json")
     demo_queue_limit: int = 3
     demo_as_of: date = date(2026, 7, 9)
+    tool_contract_enabled: bool = False
+    injection_guard_enabled: bool = False
+    run_manifest_enabled: bool = False
+    runs_root: Path = Path("runs")
+    context_packer_enabled: bool = False
+    reporter_context_token_budget: int = 200_000
+    structured_logging_enabled: bool = False
+    config_fail_fast_enabled: bool = False
 
 
 def project_root() -> Path:
     return Path(__file__).resolve().parents[2]
+
+
+def _env_flag(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def load_settings() -> Settings:
@@ -46,6 +61,9 @@ def load_settings() -> Settings:
     demo_jobs = Path(os.getenv("DEEPRESEARCH_DEMO_JOB_PATH", "data/runtime/demo_jobs.json"))
     if not demo_jobs.is_absolute():
         demo_jobs = root / demo_jobs
+    runs_root = Path(os.getenv("DEEPRESEARCH_RUNS_ROOT", "runs"))
+    if not runs_root.is_absolute():
+        runs_root = root / runs_root
     mode = os.getenv("DEEPRESEARCH_MODE", "deterministic")
     if mode not in {"deterministic", "llm"}:
         mode = "deterministic"
@@ -70,6 +88,16 @@ def load_settings() -> Settings:
         demo_job_path=demo_jobs,
         demo_queue_limit=int(os.getenv("DEEPRESEARCH_DEMO_QUEUE_LIMIT", "3")),
         demo_as_of=date.fromisoformat(os.getenv("DEEPRESEARCH_DEMO_AS_OF", "2026-07-09")),
+        tool_contract_enabled=_env_flag("TOOL_CONTRACT_ENABLED"),
+        injection_guard_enabled=_env_flag("INJECTION_GUARD_ENABLED"),
+        run_manifest_enabled=_env_flag("RUN_MANIFEST_ENABLED"),
+        runs_root=runs_root,
+        context_packer_enabled=_env_flag("CONTEXT_PACKER_ENABLED"),
+        reporter_context_token_budget=int(
+            os.getenv("DEEPRESEARCH_REPORTER_CONTEXT_TOKEN_BUDGET", "200000")
+        ),
+        structured_logging_enabled=_env_flag("STRUCTURED_LOGGING_ENABLED"),
+        config_fail_fast_enabled=_env_flag("CONFIG_FAIL_FAST_ENABLED"),
     )
 
 

@@ -137,3 +137,32 @@ Critic loads `data/finance_metric_normalization.json` to normalize finance terms
 ## Why Evidence Store Is First-Class
 
 The project does not rely on vector memory as the source of truth. Each final claim must be backed by a structured `Evidence` row with an extract from the source. This makes citation verification, numeric conflict detection, and interview explanations concrete.
+
+## Domain Pack Boundary: Proposed, Not Yet Extracted
+
+Task 010's coupling audit found financial behavior hard-coded in core Planner, Critic, Reporter, Researcher, and Golden audit code. There is therefore no `domains/finance` or `domains/competitive` package in the current implementation, and the repository does not claim domain independence yet.
+
+The target domain contract has five file classes:
+
+1. `tools/`: domain-specific provider adapters and capability declarations;
+2. `prompts/`: Planner/Extractor/Critic/Reporter instructions selected by domain;
+3. `templates/`: report layout, as-of label, and disclaimer text;
+4. `eval/`: references to domain evaluation assets and scoring policy, without moving frozen data;
+5. `domain.yaml`: domain id, capability registry, prompt/template versions, structured provider declaration, and eval references.
+
+Adding a domain safely requires a `DomainSpec` protocol and registry first, characterization tests for the existing finance output, finance extraction with old-path compatibility and SHA-256 proof, then the new domain resources and a fixture/mock dry-run. Competitive intelligence must declare `structured_data_provider: null` until a real structured source exists. The full audit and extraction proposal are task evidence in `_collab/010_hardening-and-readme/domain_coupling_audit.md` and are intentionally not runtime claims.
+
+## Hardening Layers And Default State
+
+The hardening modules are additive. Default-off modules do not change the deterministic finance path.
+
+| Layer | Code | Flag | Default | Runtime effect |
+| --- | --- | --- | --- | --- |
+| Typed tool execution | `tools/contracts.py`, `tools/reliable_execution.py` | `TOOL_CONTRACT_ENABLED` | `false` | Wraps search with run retry budget, circuit breaker, and degradation events |
+| Untrusted content | `security/content.py` | `INJECTION_GUARD_ENABLED` | `false` | Wraps source text for model prompts, records patterns, reduces confidence, adds Critic issue |
+| Run lineage | `provenance/manifest.py` | `RUN_MANIFEST_ENABLED` | `false` | Writes `runs/<run_id>/manifest.json` sidecar |
+| Context packing | `context/packer.py` | `CONTEXT_PACKER_ENABLED` | `false` | Deduplicates/ranks evidence under Reporter budget and records drops |
+| JSON logging | `observability/logging.py` | `STRUCTURED_LOGGING_ENABLED` | `false` | Emits redacted correlation-aware JSON events |
+| Config fail-fast | `config_validation.py` | `CONFIG_FAIL_FAST_ENABLED` | `false` | Aggregates missing required configuration before engine construction |
+
+Prompt drift validation is enabled in CI because it is a build-time guard, not a runtime behavior change. Read-only offline evaluation tools in `scripts/compare_runs.py`, `scripts/offline_metrics.py`, and `scripts/validate_golden_schema.py` never initiate research or modify Golden assets.

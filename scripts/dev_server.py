@@ -42,6 +42,12 @@ class DeepResearchHandler(BaseHTTPRequestHandler):
         if parsed.path == "/health":
             self._send_json({"status": "ok"})
             return
+        if parsed.path == "/healthz":
+            self._send_json({"status": "ok"})
+            return
+        if parsed.path == "/readyz":
+            self._send_json({"status": "ready"})
+            return
         if parsed.path == "/metrics":
             self._send_json([item.model_dump(mode="json") for item in self.engine.store.latest_metrics()])
             return

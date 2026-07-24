@@ -104,6 +104,8 @@ class Evidence(StrictModel):
     structured_record: StructuredDataRecord | None = None
     numeric_fields: NumericFields | None = None
     numeric_fields_incomplete: bool = False
+    injection_risk_score: float = Field(default=0.0, ge=0, le=1)
+    injection_patterns: list[str] = Field(default_factory=list)
     extracted_at: datetime = Field(default_factory=utc_now)
 
 
@@ -157,6 +159,7 @@ class Issue(StrictModel):
         "outdated_source",
         "missing_counterargument",
         "unverified_projection",
+        "injection_risk",
     ]
     severity: Literal["low", "medium", "high"]
     affected_claims: list[str] = Field(default_factory=list)

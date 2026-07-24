@@ -6,7 +6,11 @@ from collections.abc import Sequence
 from typing import Annotated, Any, TypedDict
 
 from deepresearch_agent.agents import CriticAgent, Evaluator, ExtractorAgent, PlannerAgent, ReporterAgent, ResearcherAgent
+from deepresearch_agent.context import pack_evidence
+from deepresearch_agent.config_validation import validate_required_configuration
 from deepresearch_agent.llm import BudgetExceededError, LLMClient
+from deepresearch_agent.observability import JsonLogger, correlation_context
+from deepresearch_agent.provenance import build_run_manifest, write_run_manifest
 from deepresearch_agent.schemas import (
     Evidence,
     ResearchState,
@@ -25,6 +29,7 @@ from deepresearch_agent.tools import (
     build_search_provider,
     build_structured_data_provider,
 )
+from deepresearch_agent.tools.contract_adapter import ContractSearchProvider
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Send
@@ -62,13 +67,19 @@ class DeepResearchEngine:
         structured_data_provider: StructuredDataProvider | None = None,
     ) -> None:
         self.settings = settings or load_settings()
+        if self.settings.config_fail_fast_enabled:
+            validate_required_configuration(self.settings)
+        self.logger = JsonLogger(enabled=self.settings.structured_logging_enabled)
         self.store = store or SQLiteStore(self.settings.storage_path)
         self.search_tool = search_tool or build_search_provider(as_of=self.settings.as_of)
+        if self.settings.tool_contract_enabled:
+            self.search_tool = ContractSearchProvider(self.search_tool, logger=self.logger)
         self.structured_data_provider = structured_data_provider or build_structured_data_provider()
         self.llm_client = (
             LLMClient(
                 ledger_path=self.settings.llm_ledger_path,
                 budget_cny=self.settings.llm_budget_cny,
+                logger=self.logger,
             )
             if self.settings.execution_mode == "llm"
             else None
@@ -79,8 +90,14 @@ class DeepResearchEngine:
             self.structured_data_provider,
             max_searches_per_run=self.settings.max_searches_per_run,
         )
-        self.extractor = ExtractorAgent(llm_client=self.llm_client)
-        self.critic = CriticAgent(today=self.settings.as_of)
+        self.extractor = ExtractorAgent(
+            llm_client=self.llm_client,
+            injection_guard_enabled=self.settings.injection_guard_enabled,
+        )
+        self.critic = CriticAgent(
+            today=self.settings.as_of,
+            injection_guard_enabled=self.settings.injection_guard_enabled,
+        )
         self.reporter = ReporterAgent(llm_client=self.llm_client)
         self.evaluator = Evaluator()
         self._checkpoint_conn = sqlite3.connect(self.settings.storage_path, check_same_thread=False)
@@ -98,6 +115,7 @@ class DeepResearchEngine:
         interrupt_after: Sequence[str] | None = None,
     ) -> ResearchState:
         started = time.perf_counter()
+        manifest_started_at = utc_now()
         self.researcher.reset_search_budget()
         if resume:
             if not research_id:
@@ -130,23 +148,38 @@ class DeepResearchEngine:
                 "stop_after_phase": stop_after_phase,
             }
 
-        if self.llm_client:
-            self.llm_client.start_run(research_id)
-        try:
-            result = self.graph.invoke(
-                graph_input,
-                config=config,
-                interrupt_before=interrupt_before,
-                interrupt_after=interrupt_after,
+        with correlation_context(run_id=research_id, node="workflow"):
+            self.logger.event("run_started", mode=self.settings.execution_mode)
+            if self.llm_client:
+                self.llm_client.start_run(research_id)
+            try:
+                result = self.graph.invoke(
+                    graph_input,
+                    config=config,
+                    interrupt_before=interrupt_before,
+                    interrupt_after=interrupt_after,
+                )
+            except BudgetExceededError:
+                state = self.load_state(research_id) or state
+                state.status = "budget_exceeded"
+                state.metadata["llm_budget_exceeded"] = True
+                state.metadata["llm_run_total_cny"] = (
+                    self.llm_client.run_total_cny(research_id) if self.llm_client else 0.0
+                )
+                self.graph.update_state(config, self._state_output(state))
+                self.logger.event("run_finished", status=state.status)
+                return state
+        state = self._state_from_graph_values(result)
+        if self.settings.run_manifest_enabled:
+            manifest = build_run_manifest(
+                state,
+                self.settings,
+                started_at=manifest_started_at,
             )
-        except BudgetExceededError:
-            state = self.load_state(research_id) or state
-            state.status = "budget_exceeded"
-            state.metadata["llm_budget_exceeded"] = True
-            state.metadata["llm_run_total_cny"] = self.llm_client.run_total_cny(research_id) if self.llm_client else 0.0
-            self.graph.update_state(config, self._state_output(state))
-            return state
-        return self._state_from_graph_values(result)
+            write_run_manifest(manifest, self.settings.runs_root)
+        with correlation_context(run_id=research_id, node="workflow"):
+            self.logger.event("run_finished", status=state.status)
+        return state
 
     def load_state(self, research_id: str) -> ResearchState | None:
         snapshot = self.graph.get_state(self._config(research_id))
@@ -417,6 +450,17 @@ class DeepResearchEngine:
     def _reporter_node(self, graph_state: ResearchGraphState) -> ResearchGraphState:
         state = self._state_from_graph_values(graph_state)
         state.evidence_store = self._sorted_evidence(state.evidence_store)
+        if self.settings.context_packer_enabled:
+            packed = pack_evidence(
+                state.evidence_store,
+                topic=state.topic,
+                budget=self.settings.reporter_context_token_budget,
+                as_of=self.settings.as_of,
+            )
+            state.evidence_store = packed.selected
+            state.metadata.setdefault("context_events", []).append(
+                packed.context_event(node="reporter")
+            )
         state.final_report = self.reporter.report(state)
         state.draft_report = state.final_report
         if self.settings.execution_mode == "llm":
