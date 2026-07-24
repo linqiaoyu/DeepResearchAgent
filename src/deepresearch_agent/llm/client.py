@@ -37,6 +37,23 @@ class BudgetExceededError(LLMClientError):
         self.actual_cny = actual_cny
 
 
+class CostOverrunError(LLMClientError):
+    def __init__(
+        self,
+        run_id: str,
+        estimated_cny: float,
+        actual_cny: float,
+    ) -> None:
+        super().__init__(
+            f"LLM single-call cost overrun for run_id={run_id}: "
+            f"actual_cny={actual_cny:.6f} estimated_cny={estimated_cny:.6f} "
+            "threshold_multiplier=2"
+        )
+        self.run_id = run_id
+        self.estimated_cny = estimated_cny
+        self.actual_cny = actual_cny
+
+
 @dataclass(frozen=True)
 class LLMCallResult:
     content: str
@@ -90,6 +107,7 @@ class LLMClient:
         messages: list[dict[str, str]],
         run_id: str,
         schema: type[SchemaT] | None = None,
+        expected_cost_cny: float | None = None,
     ) -> LLMCallResult:
         if run_id not in self._run_costs_cny:
             self.start_run(run_id)
@@ -137,6 +155,11 @@ class LLMClient:
                     parse_error=first_error,
                 )
                 self._run_costs_cny[run_id] += raw_result.cost_cny
+                self._enforce_cost_overrun(
+                    run_id,
+                    expected_cost_cny,
+                    raw_result.cost_cny,
+                )
                 if self._run_costs_cny[run_id] > self.budget_cny:
                     raise BudgetExceededError(run_id, self.budget_cny, self._run_costs_cny[run_id])
                 repair_attempts = 1
@@ -188,6 +211,11 @@ class LLMClient:
             parse_error=first_error,
         )
         self._run_costs_cny[run_id] += result.cost_cny
+        self._enforce_cost_overrun(
+            run_id,
+            expected_cost_cny,
+            result.cost_cny,
+        )
         if self._run_costs_cny[run_id] > self.budget_cny:
             raise BudgetExceededError(run_id, self.budget_cny, self._run_costs_cny[run_id])
         with correlation_context(llm_call=role):
@@ -281,7 +309,10 @@ class LLMClient:
                     latency = time.perf_counter() - started
                     content = self._message_content(response)
                     usage = self._usage(response)
-                    cost_cny = self._cost_cny(usage)
+                    cost_cny, price_source = self._cost_cny(
+                        usage,
+                        candidate_model,
+                    )
                     result = LLMCallResult(
                         content=content,
                         parsed=None,
@@ -293,7 +324,7 @@ class LLMClient:
                         total_tokens=usage["total_tokens"],
                         cost_usd=cost_cny * self.config.display_cny_to_usd_rate,
                         cost_cny=cost_cny,
-                        price_source=self.config.price_source,
+                        price_source=price_source,
                         latency_seconds=latency,
                         cache_hit=self._cache_hit(response),
                         repair_attempts=1 if is_repair else 0,
@@ -409,13 +440,65 @@ class LLMClient:
             return int(value.get("cached_tokens", 0) or 0)
         return int(getattr(value, "cached_tokens", 0) or 0)
 
-    def _cost_cny(self, usage: dict[str, int]) -> float:
-        input_cost = (
-            usage["prompt_cache_miss_tokens"] * self.config.input_cache_miss_cny_per_million
-            + usage["prompt_cache_hit_tokens"] * self.config.input_cache_hit_cny_per_million
+    def _cost_cny(
+        self,
+        usage: dict[str, int],
+        model: str,
+    ) -> tuple[float, str]:
+        tiers = self.config.pricing_by_model.get(model, ())
+        pricing = next(
+            (
+                tier for tier in tiers
+                if tier.max_prompt_tokens is None
+                or usage["prompt_tokens"] <= tier.max_prompt_tokens
+            ),
+            None,
         )
-        output_cost = usage["completion_tokens"] * self.config.output_cny_per_million
-        return (input_cost + output_cost) / 1_000_000
+        if tiers and pricing is None:
+            raise LLMClientError(
+                f"Prompt exceeds configured pricing tiers for model={model}"
+            )
+        miss_rate = getattr(
+            pricing,
+            "input_cache_miss_cny_per_million",
+            self.config.input_cache_miss_cny_per_million,
+        )
+        hit_rate = getattr(
+            pricing,
+            "input_cache_hit_cny_per_million",
+            self.config.input_cache_hit_cny_per_million,
+        )
+        output_rate = getattr(
+            pricing,
+            "output_cny_per_million",
+            self.config.output_cny_per_million,
+        )
+        input_cost = (
+            usage["prompt_cache_miss_tokens"] * miss_rate
+            + usage["prompt_cache_hit_tokens"] * hit_rate
+        )
+        output_cost = usage["completion_tokens"] * output_rate
+        return (
+            (input_cost + output_cost) / 1_000_000,
+            (
+                pricing.price_source
+                if pricing
+                else self.config.price_source
+            ),
+        )
+
+    def _enforce_cost_overrun(
+        self,
+        run_id: str,
+        estimated_cny: float | None,
+        actual_cny: float,
+    ) -> None:
+        if estimated_cny is None:
+            return
+        if estimated_cny < 0:
+            raise ValueError("expected_cost_cny must be non-negative")
+        if actual_cny > estimated_cny * 2:
+            raise CostOverrunError(run_id, estimated_cny, actual_cny)
 
     def _cache_hit(self, response: Any) -> bool | None:
         headers = response.get("_hidden_params", {}).get("additional_headers", {}) if isinstance(response, dict) else {}

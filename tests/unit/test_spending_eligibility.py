@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 
 from deepresearch_agent.llm import LLMClient
+from deepresearch_agent.llm.client import CostOverrunError
 from deepresearch_agent.llm_config import LLMConfig, RoleModelConfig
 from deepresearch_agent.reflection import (
     ReflectionLLMInsight,
@@ -48,6 +49,54 @@ class StubLLMReflectionReasoner:
 
 
 class SpendingEligibilityAuditTests(unittest.TestCase):
+    def test_provider_pricing_and_two_times_overrun_fuse(self) -> None:
+        response = {
+            "choices": [{"message": {"content": "fixed"}}],
+            "usage": {
+                "prompt_tokens": 1_000,
+                "prompt_cache_hit_tokens": 200,
+                "completion_tokens": 500,
+                "total_tokens": 1_500,
+            },
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            env_path = root / ".env"
+            env_path.write_text(
+                "DEEPSEEK_API_KEY=zero-cost-stub-key\n"
+                "DASHSCOPE_API_KEY=zero-cost-stub-key\n",
+                encoding="utf-8",
+            )
+            client = LLMClient(
+                ledger_path=root / "ledger.jsonl",
+                global_ledger_path=root / "global.jsonl",
+                budget_cny=1.0,
+                completion_func=lambda **_: response,
+                env_path=env_path,
+            )
+
+            qwen_result = client.complete(
+                role="judge",
+                run_id="qwen-price-audit",
+                messages=[{"role": "user", "content": "fixed"}],
+            )
+            with self.assertRaises(CostOverrunError) as raised:
+                client.complete(
+                    role="planner",
+                    run_id="cost-overrun-audit",
+                    messages=[{"role": "user", "content": "fixed"}],
+                    expected_cost_cny=0.0008,
+                )
+
+            ledger = root.joinpath("ledger.jsonl").read_text(
+                encoding="utf-8"
+            )
+
+        self.assertAlmostEqual(qwen_result.cost_cny, 0.00568)
+        self.assertAlmostEqual(raised.exception.actual_cny, 0.001804)
+        self.assertAlmostEqual(raised.exception.estimated_cny, 0.0008)
+        self.assertIn('"cost_cny": 0.001804', ledger)
+
     def test_reflection_replay_key_is_stable_across_run_ids(self) -> None:
         first = Reflector().reasoning_request(
             AgentTrajectory(
