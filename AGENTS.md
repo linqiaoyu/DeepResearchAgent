@@ -4,7 +4,7 @@
 
 DeepResearchAgent 是一个多 Agent 深度研究框架，金融投研为首个落地场景。
 
-当前仓库处于 MVP 阶段：已实现确定性的 Planner、Researcher、Extractor、Critic、Reporter、Evaluator 工作流；默认使用本地 fixture 检索数据与录制结构化金融数据；编排层已迁移为 LangGraph `StateGraph`，Researcher 按子问题 fan-out，Critic 通过条件边回流 retry queue；checkpoint 由官方 `SqliteSaver` 写入 SQLite，Evidence 和 evaluation 结果由 `SQLiteStore` 写入 SQLite；LLM 模式通过统一 LiteLLM 层覆盖 Planner、Extractor、Reporter，Researcher 与 Critic 当前仍保持确定性；已接入 AKShare 白名单结构化数据边界、五元素数字 claim 口径体系、金融化 Critic；Golden Set v1.1 已以四键审计闸冻结（76 PASS、0 DEFECT、3 条 PM 注记 UNCERTAIN），并完成 G1/G2/G3 保存态三采样重评；007/007S 已加入三层演示资产（G3 展示层、异步 Golden replay 重跑层、owner-token live 层）与持久化日消耗护栏，公开触达形态为静态演示站，由 `scripts/build_site.py` 生成 `site/dist/` 后手工上传；010 新增工具契约、安全、运行血统、上下文打包、结构化日志与配置校验层，以及只读离线评测工具；011 用双题面规范化快照证明 010 默认路径与 `befd60b` 产物等价，默认启用工具契约、run manifest、结构化日志与 fail-fast，新增八场景离线 chaos 演练，并把注入语料扩为 63 条；012 修复 context packer 的同 URL 多摘录去重缺陷但继续保持 dark，新增结构化产出、引用闭合审计包、独立 ResearchSnapshot、manifest-aware 六类变更追踪、默认关闭的 API 章节轮询与 fixture 业务场景页；013 修正结构化产出转正规则并将其在 deterministic 默认路径启用，以 `additive_content` 标记其可比性边界，同时查明 fixture 引用崩塌来自 Reporter/Evaluator 的位置脚注排序漂移，记录方法边界、可读变更呈现、模拟成本标签与保存态延迟；context packer、injection guard 与 progressive delivery 仍保持 dark，结构化产出的 LLM additive 性须在 014 验证；010 耦合审计判定金融逻辑仍硬编码于核心 Agent，`domains/finance` 与 `domains/competitive` 尚未落位，不得宣称框架已完成领域解耦；当前主推理模型锁定 deepseek-v4-flash，judge 与 citation_support 锁定 qwen3.7-plus；CLI demo、LLM smoke、Golden Set runner、FastAPI demo endpoints、静态站构建和 unittest 套件已在本地 `.venv` 验证过相应路径。
+当前仓库处于 MVP 阶段：已实现确定性的 Planner、Researcher、Extractor、Critic、Reporter、Evaluator 工作流；默认使用本地 fixture 检索数据与录制结构化金融数据；编排层已迁移为 LangGraph `StateGraph`，Researcher 按子问题 fan-out，Critic 通过条件边回流 retry queue；checkpoint 由官方 `SqliteSaver` 写入 SQLite，Evidence 和 evaluation 结果由 `SQLiteStore` 写入 SQLite；LLM 模式通过统一 LiteLLM 层覆盖 Planner、Extractor、Reporter，Researcher 与 Critic 当前仍保持确定性；已接入 AKShare 白名单结构化数据边界、五元素数字 claim 口径体系、金融化 Critic；Golden Set v1.1 已以四键审计闸冻结（76 PASS、0 DEFECT、3 条 PM 注记 UNCERTAIN），并完成 G1/G2/G3 保存态三采样重评；007/007S 已加入三层演示资产（G3 展示层、异步 Golden replay 重跑层、owner-token live 层）与持久化日消耗护栏，公开触达形态为静态演示站，由 `scripts/build_site.py` 生成 `site/dist/` 后手工上传；010 新增工具契约、安全、运行血统、上下文打包、结构化日志与配置校验层，以及只读离线评测工具；011 用双题面规范化快照证明 010 默认路径与 `befd60b` 产物等价，默认启用工具契约、run manifest、结构化日志与 fail-fast，新增八场景离线 chaos 演练，并把注入语料扩为 63 条；012 修复 context packer 的同 URL 多摘录去重缺陷但继续保持 dark，新增结构化产出、引用闭合审计包、独立 ResearchSnapshot、manifest-aware 六类变更追踪、默认关闭的 API 章节轮询与 fixture 业务场景页；013 修正结构化产出转正规则并将其在 deterministic 默认路径启用，以 `additive_content` 标记其可比性边界，同时查明 fixture 引用崩塌来自 Reporter/Evaluator 的位置脚注排序漂移，记录方法边界、可读变更呈现、模拟成本标签与保存态延迟；014 新增统一 `AgentDecision`、结构化轨迹与 fixture 严格/策略回放，并把 Reporter 脚注映射固化为跨消费者契约；015 新增覆盖全图节点的 `NodeContract`、LangGraph 原生有界研究回边、分支预算、确定性情景/语义记忆、最近两期研究行为与 `CapabilityRegistry`，三个 content-affecting 策略开关均保持默认关闭；context packer、injection guard、progressive delivery 与 trajectory recording 仍保持 dark，结构化产出的 LLM additive 性仍须在后续授权任务验证；010 耦合审计判定金融逻辑仍硬编码于核心 Agent，`domains/finance` 与 `domains/competitive` 尚未落位，不得宣称框架已完成领域解耦；当前主推理模型锁定 deepseek-v4-flash，judge 与 citation_support 锁定 qwen3.7-plus；CLI demo、LLM smoke、Golden Set runner、FastAPI demo endpoints、静态站构建和 unittest 套件已在本地 `.venv` 验证过相应路径。
 
 本项目是作品集和演示导向项目，但实现选择仍应能解释为生产化工程决策。
 
@@ -22,14 +22,14 @@ DeepResearchAgent 是一个多 Agent 深度研究框架，金融投研为首个�
 - `docs/`：架构、评估、方法边界、部署、provider、威胁模型、SLO、生产就绪度与 MCP 设计文档。
 - `prompts/`：当前存在五个角色 prompt 与 `registry.json` 漂移登记表。
 - `scripts/`：除运行入口外，包含 manifest 比对、prompt 漂移、只读 run 对比、离线指标、Golden schema 校验、审计包导出、业务快照创建与快照差异工具。
-- `src/deepresearch_agent/`：包源码，包含 `agents/`、`api/`、`context/`、`evaluation/`、`observability/`、`provenance/`、`security/`、`storage/`、`tools/`、`workflow/`。
+- `src/deepresearch_agent/`：包源码，包含 `agents/`、`api/`、`context/`、`evaluation/`、`memory/`、`observability/`、`orchestration/`、`provenance/`、`security/`、`storage/`、`tools/`、`workflow/`。
 - `tests/`：`unit/`、`integration/`、`evaluation/`、`chaos/` 四类 unittest 测试，并以 `golden_output/` 固化双题面行为快照。
 - `ui/app.py`：Streamlit UI 入口。
 - `pyproject.toml`：项目元数据、依赖、脚本入口和 Ruff 配置。
 
 领域目录约定（尚未实施）：目标 domain pack 包含 `tools/`、`prompts/`、`templates/`、`eval/`、`domain.yaml` 五类；新增领域前必须先完成 finance 等价抽取、旧路径兼容、资源 SHA-256 与默认 E2E 行为证明。
 
-当前默认开关：`TOOL_CONTRACT_ENABLED=true`、`INJECTION_GUARD_ENABLED=false`、`RUN_MANIFEST_ENABLED=true`、`CONTEXT_PACKER_ENABLED=false`、`STRUCTURED_LOGGING_ENABLED=true`、`CONFIG_FAIL_FAST_ENABLED=true`、`STRUCTURED_OUTPUT_ENABLED=true`、`PROGRESSIVE_DELIVERY_ENABLED=false`、`TRAJECTORY_RECORD_ENABLED=false`。任何跨代比较必须先经 `scripts/verify_manifest.py` 判定。
+当前默认开关：`TOOL_CONTRACT_ENABLED=true`、`INJECTION_GUARD_ENABLED=false`、`RUN_MANIFEST_ENABLED=true`、`CONTEXT_PACKER_ENABLED=false`、`STRUCTURED_LOGGING_ENABLED=true`、`CONFIG_FAIL_FAST_ENABLED=true`、`STRUCTURED_OUTPUT_ENABLED=true`、`PROGRESSIVE_DELIVERY_ENABLED=false`、`TRAJECTORY_RECORD_ENABLED=false`、`BRANCH_BUDGET_ENABLED=false`、`RESEARCH_LOOP_ENABLED=false`（max iterations 默认 1）、`PRIOR_MEMORY_ENABLED=false`。任何跨代比较必须先经 `scripts/verify_manifest.py` 判定。
 
 ## 3. 技术栈与版本
 
@@ -39,7 +39,7 @@ DeepResearchAgent 是一个多 Agent 深度研究框架，金融投研为首个�
 - FastAPI：`>=0.110`。
 - Uvicorn：`uvicorn[standard]>=0.27`。
 - Streamlit：`>=1.35`。
-- LangGraph：`pyproject.toml` 声明 `langgraph>=0.2.50`；本地 `.venv` 实际安装版本为 1.2.2。当前工作流代码已使用 LangGraph 图执行。
+- LangGraph：`pyproject.toml` 声明 `langgraph>=0.2.50`；本地 `.venv` 实际安装版本为 1.2.2。当前工作流代码已使用 LangGraph 图执行；015 首次在研究主路径通过 conditional edge 使用原生有界回边，`BoundedLoop` 只提供边界状态而不替代执行器。
 - LangGraph SQLite Checkpointer：`pyproject.toml` 声明 `langgraph-checkpoint-sqlite>=3.1.0,<4.0.0`；本地 `.venv` 实际安装版本为 3.1.0，`from langgraph.checkpoint.sqlite import SqliteSaver` 已验证成功。
 - LiteLLM：`>=1.40`，本地 `.venv` 实际安装版本为 1.86.2。所有真实 LLM 调用必须经过 `deepresearch_agent.llm.LLMClient`；当前 LLM 模式覆盖 Planner、Extractor、Reporter。
 - AKShare：`pyproject.toml` 声明 `akshare>=1.18.64,<2.0.0`；本地 `.venv` 实际安装版本为 1.18.64。当前仅通过 `StructuredDataProvider` 白名单能力使用，测试与默认运行使用录制 fixture。
@@ -163,6 +163,7 @@ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/build_site.py
 - 产品内部的 Planner、Researcher、Extractor、Critic、Reporter、Evaluator 是领域组件，不是 Codex 开发角色。
 - Reporter 产生的 `report_footnote_evidence` 是引用解析契约；Evaluator、审计导出与其他消费者不得根据当前 Evidence 顺序重建脚注映射。历史状态缺少映射时必须显式降级。
 - 新增 Agent 决策能力必须复用 `AgentDecision`，并同步进入结构化 trace、manifest 决策摘要和读者可见报告。轨迹录制默认关闭，真实轨迹须经单独授权。
+- 016/017 新增节点、循环、记忆或工具能力时，必须分别复用 `NodeContract`、`LoopSpec`、`MemoryStore` 与 `CapabilityRegistry`；不得绕过 DecisionGate、预算、ToolSpec 或 manifest flag 分类。
 
 ## 9. 验证纪律
 

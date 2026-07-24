@@ -25,7 +25,7 @@ LangGraph 负责节点执行、条件边、`Send` 扇出和 checkpoint；它并�
 - `decision_node`：启用 `DecisionGate`，要求本次执行新增至少一个
   `AgentDecision`。
 
-现有十二个节点均已声明契约。尤其是 Reporter 明确生产
+当前图中的全部节点均已声明契约。尤其是 Reporter 明确生产
 `research_state.report_footnote_evidence`，Evaluator 明确消费同一路径。
 这使脚注映射成为 Reporter 到 Evaluator 的强制交接合同，而不是消费者自行推断。
 
@@ -61,7 +61,8 @@ LangGraph 负责节点执行、条件边、`Send` 扇出和 checkpoint；它并�
 循环预算与工具层 `RetryBudget` 是两套正交账本：前者只计研究轮的主调用或 token，
 后者只计一次工具主调用内部的重试。`LoopIterationResult.retry_budget_consumed` 仅作
 决策审计输入，不会再次累加进循环预算，因此不双重计费；循环剩余预算为零时不会
-调用策略，所以低层重试也不能绕过循环边界。阶段 5 才会把充分性策略接入该控制器。
+调用策略，所以低层重试也不能绕过循环边界。研究充分性策略已通过同一控制器的
+`advance` 接口接入主图条件回边。
 
 ## BranchBudget 与 Send 扇出
 
@@ -75,8 +76,8 @@ LangGraph 负责节点执行、条件边、`Send` 扇出和 checkpoint；它并�
 `branch_budget_reallocate` 决策，输入包含每支度量、逐支额度、总量、已用量、单支
 上限和理由。分支额度耗尽只停止该分支并标注覆盖不足；总额度耗尽让全部分支收敛，
 已完成结果仍进入 join。该行为由默认关闭、归类为 `content_affecting` 的
-`BRANCH_BUDGET_ENABLED` 控制；关闭时不创建账本、决策或产物差异。阶段 5 将在研究
-轮次之间复用 join 后的再分配结果。
+`BRANCH_BUDGET_ENABLED` 控制；关闭时不创建账本、决策或产物差异。研究循环启用时
+会在轮次之间复用 join 后的再分配结果。
 
 ## 研究充分性循环与重规划
 

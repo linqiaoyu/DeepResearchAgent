@@ -42,16 +42,19 @@ flowchart LR
     J --> X["Extractor"]
     X --> E[("Evidence Store")]
     E --> C{"Critic"}
-    C -->|pass / force-pass| W["Reporter"]
+    C -->|pass / force-pass| D{"充分性 / 循环边界"}
     C -->|issues| T["Retry queue"]
     T -->|只重跑失败项| R1
+    D -->|充分或边界停止| W["Reporter"]
+    D -->|继续| RP["精化检索意图"]
+    RP --> F
     W --> V["Evaluator / Judge"]
     V --> O["带引用报告 + 指标"]
     S["SqliteSaver"] -. node checkpoint .-> P
     S -. resume .-> C
 ```
 
-`StateGraph` 在节点边界 checkpoint；Researcher 通过 `Send` 并行检索，join 后统一抽取 Evidence。Critic 把缺引用、数字冲突、时点冲突、旧来源、缺反方与未验证预测转成 retry queue，只回流失败项。确定性 fixture 是默认路径；LLM 模式统一经过 [`LLMClient`](src/deepresearch_agent/llm/client.py) 记录 token、成本与延迟。
+`StateGraph` 在节点边界 checkpoint；Researcher 通过 `Send` 并行检索，join 后统一抽取 Evidence。Critic 把缺引用、数字冲突、时点冲突、旧来源、缺反方与未验证预测转成 retry queue，只回流失败项。默认关闭的研究循环会在 Critic 通过后按六项充分性度量决定停止或精化查询再走一轮，并同时受轮次、调用预算和连续无进展边界约束。确定性 fixture 是默认路径；LLM 模式统一经过 [`LLMClient`](src/deepresearch_agent/llm/client.py) 记录 token、成本与延迟。
 
 ## 同一道机制的三次拦截
 
@@ -87,7 +90,11 @@ gold v1.0 历史测量拆为 `0.6134 + 0.1865 - 0.0585 = 0.7414`：先固定 jud
 | 离线评测：run delta、运维 P50/P90、Golden schema 与共享事实校验 | 已启用 | [`compare_runs.py`](scripts/compare_runs.py) · [`offline_metrics.py`](scripts/offline_metrics.py) |
 | 业务产物：结构化表、审计包、ResearchSnapshot、六类变更追踪、章节轮询 | 结构化产出、导出与快照 active；章节轮询仍 dark | `STRUCTURED_OUTPUT_ENABLED=true`，归类为 `additive_content`；additive 仅在 deterministic 路径证明，后续须验证 LLM 路径；`PROGRESSIVE_DELIVERY_ENABLED=false` · [`use_case.md`](docs/use_case.md) |
 | 脚注映射契约 | active | Reporter 持久化 footnote → Evidence ID；Evaluator 与审计包禁止按 Evidence 顺序重建；乱序回归仍为 1.000 |
-| Agent 决策记录 | 基础设施 active | `AgentDecision` 同时进入 trace、manifest 摘要和报告；本轮未新增研究策略 · [`agent_decisions.md`](docs/agent_decisions.md) |
+| 编排契约与有界循环 | 契约 active；研究循环仍 dark | 每个节点声明 consumes / produces / invariants / decision gate；`LoopSpec` 约束轮次、预算与无进展，首次使用 LangGraph 原生条件回边 · [`orchestration_contracts.md`](docs/orchestration_contracts.md) |
+| 分支预算调度 | 实现完成，仍 dark | `BRANCH_BUDGET_ENABLED=false`；Send 前均分、join 后向低充分性分支再分配，总量与单支上限均 fail closed |
+| 研究记忆 | 情景/语义实现；跨期行为仍 dark | 四键精确语义检索；`PRIOR_MEMORY_ENABLED=false`；只比较最近两期，verify 仍保留独立检索 · [`memory.md`](docs/memory.md) |
+| Capability registry | active 固定解析 | web search、fetch、结构化 provider 均携带 ToolSpec 注册；016 才做动态选择，017 才注册 skill 能力 |
+| Agent 决策记录 | active；策略默认关闭 | 循环停止、预算划拨、verify/explore/watch 与检索精化均复用 `AgentDecision`，进入 trace、manifest 摘要和报告 · [`agent_decisions.md`](docs/agent_decisions.md) |
 | 轨迹录制与回放 | 实现完成，仍 dark | `TRAJECTORY_RECORD_ENABLED=false`；两题面 fixture 严格回放报告逐字一致，策略 cache miss 显式停止；真实轨迹待后续任务 · [`trajectory_harness.md`](docs/trajectory_harness.md) |
 | MCP adapter | 仅设计 | 零新增依赖约束下未实现 server · [`mcp_adapter_design.md`](docs/mcp_adapter_design.md) |
 | Skill packs | 未实现 | 本轮未建立加载器或抽取规则；金融逻辑仍硬编码，不能宣称领域解耦 |
@@ -96,13 +103,20 @@ gold v1.0 历史测量拆为 `0.6134 + 0.1865 - 0.0585 = 0.7414`：先固定 jud
 
 跨代比较必须先经 [`verify_manifest.py`](scripts/verify_manifest.py) 判定；flags、模型、prompt、as-of 或依赖不一致时，不得把分数差描述为质量改进或回归。
 
-## Agent 的决策面
+## Agent 的决策面与循环
 
-Planner 决定题目拆解、查询、来源类型和结构化数据请求；Critic 决定 issue、定向
-retry 与有界收敛。新增 `AgentDecision` 把依据、判据、结果、替代项和迭代号同步
-写入 trace、manifest 与报告。研究充分性循环、跨期记忆、数值自洽和 skill
-选择仍未实现；人工继续负责题目、来源许可、费用、发布与投资判断。完整边界见
-[`agent_decisions.md`](docs/agent_decisions.md)。
+除 Planner 题目拆解和 Critic 定向 retry 外，系统现在具备四类有判据的决定：研究
+是否继续、剩余预算拨给哪个弱分支、子问题属于 `verify` / `watch` / `explore`、
+以及下一轮如何根据缺口改写检索意图。每个决定把测量输入、判据、结果、替代项和
+迭代号同步写入 trace、manifest 与报告；声明为决策节点却没有新增
+`AgentDecision` 会被契约层拦截。
+
+三项新策略开关均默认关闭：`BRANCH_BUDGET_ENABLED=false`、
+`RESEARCH_LOOP_ENABLED=false`（max iterations 默认 1）和
+`PRIOR_MEMORY_ENABLED=false`。因此默认 fixture 路径逐字不变；现有验证证明边界
+确定、可回放，不证明真实 LLM 研究质量提升。人工继续负责题目、来源许可、费用、
+发布与投资判断。完整判据见 [`agent_decisions.md`](docs/agent_decisions.md)，控制面
+见 [`orchestration_contracts.md`](docs/orchestration_contracts.md)。
 
 ## 快速开始：本地 venv
 
@@ -134,7 +148,7 @@ PYTHONPATH=src .venv/bin/python scripts/build_site.py
 
 ## 设计取舍与 Non-goals
 
-- **向量检索**：当前审计原语是 verbatim Evidence 与引用映射；先测出 lexical/fixture 检索瓶颈，再引入向量依赖。
+- **向量检索**：金融数值事实默认按 `(entity, metric, period, scope)` 精确检索；只有非结构化叙事成为主要目标且真实样本证明字段检索召回不足时，才触发向量适配器设计。
 - **HITL**：没有 reviewer/approval workflow；高影响发布或交易动作进入产品范围后才需要设计。
 - **常驻服务器**：FastAPI/Streamlit 是可部署 demo 路径，公开触达仍是静态站，不声明公网 API SLA。
 - **A/B 框架**：当前用冻结保存态、同 judge 三采样与 `±0.01` 操作带做回归，不把它包装成在线实验平台。
@@ -148,6 +162,8 @@ PYTHONPATH=src .venv/bin/python scripts/build_site.py
 - [`docs/evaluation.md`](docs/evaluation.md)：指标、judge 校准、噪声带、Golden v1.1 与三代结果
 - [`docs/method_limits.md`](docs/method_limits.md)：characterization 能检出什么、证据集变更场景下的质量测量盲区
 - [`docs/architecture.md`](docs/architecture.md)：LangGraph 拓扑、状态、存储与 hardening layers
+- [`docs/orchestration_contracts.md`](docs/orchestration_contracts.md)：节点契约、有界循环、分支预算与 capability registry
+- [`docs/memory.md`](docs/memory.md)：四类记忆、四键检索、跨期核实与向量检索触发条件
 - [`docs/agent_decisions.md`](docs/agent_decisions.md)：Agent 当前决定什么、如何记录，以及仍由人决定什么
 - [`docs/trajectory_harness.md`](docs/trajectory_harness.md)：轨迹字段、严格/策略回放与 cache miss 语义
 - [`docs/use_case.md`](docs/use_case.md)：投研持续跟踪场景、fixture 产物走查与人工判断边界

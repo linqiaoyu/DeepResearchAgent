@@ -47,6 +47,13 @@ Reporter 在 `CONTEXT_PACKER_ENABLED=true` 时先 `write` 当前 Evidence，再�
 budget、as_of `query` 打包结果。开关继续默认关闭；关闭时不会写入或查询工作记忆，
 现有 Evidence、报告和双题面 characterization 保持逐字一致。
 
+## 程序性记忆 ProceduralMemory（016 预留）
+
+程序性记忆保存“在什么条件下采用哪种研究策略”的可复用规则，而不是某次运行的事实
+或轨迹。本轮没有实现、学习或自动更新策略。016 若接入，必须实现 `MemoryStore`，
+把策略版本、适用条件、来源运行和验证状态作为强类型写入对象；读取出的策略仍须经过
+`NodeContract`、`LoopSpec`、预算与 `AgentDecision`，不能自行改图或绕过边界。
+
 ## 明确不做什么
 
 本轮不实现程序性记忆，不引入向量库、embedding 或外部 API，不修改 Evidence Store
