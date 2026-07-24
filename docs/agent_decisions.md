@@ -8,6 +8,7 @@ DeepResearchAgent 不把预算、历史结论、Critic 缺口和工具能力当�
 - 六项充分性度量与上一轮进展；
 - 最近期 `verify` / `watch` / `explore` 分类；
 - Critic 未解决问题，包括数值自洽错误；
+- Reflector 机械提取的跨轮策略信号；
 - 已有 `AgentDecision` 摘要，供后续决策解释它继承了哪些前置判断。
 
 这形成一条有方向的依赖链，而不是几个并排启发式：
@@ -18,6 +19,7 @@ flowchart LR
     B["分支预算余额"] --> DC
     S["充分性与进展"] --> DC
     C["Critic issues<br/>含数值自洽"] --> DC
+    RF["Reflector deterministic signals"] --> DC
     DC --> A["预算再分配"]
     DC --> L["循环停止 / 继续"]
     DC --> R["定向重规划"]
@@ -63,6 +65,19 @@ Evidence IDs 和校验器；口径不可比则沿用 `numeric_conflict`，不伪
 `CapabilityRegistry` 中选择已注册且满足 ToolSpec 的能力。决策记录候选、选中、拒绝及
 fallback 理由；没有可用匹配时回退到 015 的固定三能力路径，不绕过预算、契约或工具边界。
 
+### 反思信号、程序性记忆与重规划
+
+`REFLECTION_ENABLED` 开启后，Reflector 的两个新决定都复用 `AgentDecision`：
+
+- `reflection_signal_extraction` 记录四类机械信号、读取的 trajectory/decision 片段与
+  空信号类别；
+- `procedural_memory_write` 记录按 `question_type` 写入的策略效果观察、`cross_run`
+  lifecycle 与索引键。
+
+只有确定性信号进入 `DecisionContext` 并影响既有重规划接口；LLM 推理接口本轮是零
+token 合成/录制占位，`llm_insight` 不参与行为。反思判断质量与程序记忆策略优劣均待
+019 真实模式验证，不能由 fixture 接线测试推出。
+
 ## 一个对象，三个审计落点
 
 所有上述决定复用 `AgentDecision`：actor、测量输入、书面判据、结果、替代项、迭代号和
@@ -76,7 +91,8 @@ fallback 理由；没有可用匹配时回退到 015 的固定三能力路径，
 
 `DECISION_WEAVING_ENABLED=false`、`NUMERIC_CHECK_ENABLED=false`、
 `DYNAMIC_CAPABILITY_ENABLED=false`；015 的 `BRANCH_BUDGET_ENABLED`、
-`RESEARCH_LOOP_ENABLED` 与 `PRIOR_MEMORY_ENABLED` 也保持默认关闭。三项 016 开关均为
+`RESEARCH_LOOP_ENABLED` 与 `PRIOR_MEMORY_ENABLED` 也保持默认关闭；
+`REFLECTION_ENABLED=false`。三项 016 与一项 017 开关均为
 `content_affecting`，关闭时不会进入 manifest 配置 payload，也不改变默认两题面产物。
 
 零 API fixture 测试可以证明决策依赖被读取、算式检出可重复、能力选择不越过 registry、
@@ -89,4 +105,5 @@ fallback 理由；没有可用匹配时回退到 015 的固定三能力路径，
 实现和开关细节见 [`decision_weaving.md`](decision_weaving.md)、
 [`numeric_consistency.md`](numeric_consistency.md)、
 [`dynamic_capabilities.md`](dynamic_capabilities.md) 与
-[`trajectory_superset.md`](trajectory_superset.md)。
+[`trajectory_superset.md`](trajectory_superset.md)，反思边界见
+[`reflection.md`](reflection.md)。

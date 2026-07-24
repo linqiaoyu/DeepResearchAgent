@@ -110,3 +110,20 @@ provider 下可接受。
 因此 `DECISION_WEAVING_ENABLED`、`NUMERIC_CHECK_ENABLED` 与
 `DYNAMIC_CAPABILITY_ENABLED` 均保持 false。任何“通盘权衡提高质量”“数字幻觉减少”或
 “动态工具优于固定工具”的结论，都必须等 019 按预登记规则完成真实模式成对测量后再说。
+
+## 017 反思与程序性记忆能证明与不能证明的内容
+
+零 API fixture 验证可以证明：Reflector 能只读消费 `AgentTrajectory` 与
+`AgentDecision`；四类机械信号可按固定口径确定性提取；信号进入 `DecisionContext` 后会
+改变下一轮检索意图；类型化 LLM 接口、精确录制响应与 cache miss 停止语义已经接通；
+程序性记忆实现 `MemoryStore`、`cross_run` lifecycle 和 `question_type` 索引；扩张轨迹
+完整捕获信号读取、零 token 占位调用和记忆写入，并可严格逐字回放报告。
+
+这些结果完全不能证明反思的判断质量。合成/录制 `llm_insight` 只证明管道，不代表模型
+识别了有效策略，更不代表策略改善真实检索、引用支持、覆盖、时效或分析师效率。
+程序性记忆同样只证明观察记录可存取，不能证明跨真实运行积累的策略偏好更优。两项判断
+都依赖 019 的真实 LLM、预登记对照、人工评判和费用/延迟测量。
+
+因此 `REFLECTION_ENABLED=false` 且为 `content_affecting`。在 019 完成前，禁止使用
+“Agent 已具备有效反思能力”“Agent 已从历史中学会更优策略”或同义表述；准确表述只能是
+“反思与程序性记忆的机制骨架已实现，判断力待 019 验证”。
