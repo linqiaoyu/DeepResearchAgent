@@ -934,6 +934,7 @@
         "INJECTION_GUARD_ENABLED": false,
         "RUN_MANIFEST_ENABLED": true,
         "STRUCTURED_LOGGING_ENABLED": true,
+        "STRUCTURED_OUTPUT_ENABLED": true,
         "TOOL_CONTRACT_ENABLED": true
       },
       "mode": "deterministic",
@@ -961,5 +962,386 @@
     "tool_error_summary": {}
   },
   "status": "done",
+  "structured_output": {
+    "comparison_table": {
+      "data_as_of": "2026-04-10",
+      "question": "AI Agent 在财富管理行业的落地机会研究",
+      "rows": [
+        {
+          "confidence": 0.772,
+          "entity": "digital wealth cohort",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "metric": "Assets under management growth",
+          "normalized_metric": "assets under management growth",
+          "period": "未标注",
+          "scope": "surveyed cohort",
+          "unit": "%",
+          "value": 7.0,
+          "verification_status": "verified"
+        },
+        {
+          "confidence": 0.772,
+          "entity": "digital wealth cohort",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "metric": "Assets under management growth",
+          "normalized_metric": "assets under management growth",
+          "period": "未标注",
+          "scope": "surveyed cohort",
+          "unit": "%",
+          "value": 7.0,
+          "verification_status": "verified"
+        },
+        {
+          "confidence": 0.772,
+          "entity": "wealth management pilot",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "metric": "Advisor productivity",
+          "normalized_metric": "advisor productivity",
+          "period": "未标注",
+          "scope": "pilot cohort",
+          "unit": "%",
+          "value": 18.0,
+          "verification_status": "verified"
+        },
+        {
+          "confidence": 0.772,
+          "entity": "wealth management pilot",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "metric": "Advisor productivity",
+          "normalized_metric": "advisor productivity",
+          "period": "未标注",
+          "scope": "pilot cohort",
+          "unit": "%",
+          "value": 18.0,
+          "verification_status": "verified"
+        },
+        {
+          "confidence": 0.7240000000000001,
+          "entity": "wealth management pilot",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "metric": "Advisor productivity",
+          "normalized_metric": "advisor productivity",
+          "period": "未标注",
+          "scope": "pilot cohort",
+          "unit": "%",
+          "value": 31.0,
+          "verification_status": "verified"
+        }
+      ],
+      "scope_consistent": true,
+      "scope_notes": []
+    },
+    "event_timeline": {
+      "data_as_of": "2026-04-10",
+      "events": [
+        {
+          "event": "AI systems in wealth management must keep auditable evidence, human review paths, and clear risk warnings.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2025-12-15",
+          "source": "https://example.gov/digital-finance-ai-guideline",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "AI systems in wealth management must keep auditable evidence, human review paths, and clear risk warnings.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2025-12-15",
+          "source": "https://example.gov/digital-finance-ai-guideline",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "AI systems in wealth management must keep auditable evidence, human review paths, and clear risk warnings.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2025-12-15",
+          "source": "https://example.gov/digital-finance-ai-guideline",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Financial institutions should build centralized AI governance for model demand, testing, deployment, evaluation, and exit.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2025-12-15",
+          "source": "https://example.gov/digital-finance-ai-guideline",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Financial institutions should build centralized AI governance for model demand, testing, deployment, evaluation, and exit.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2025-12-15",
+          "source": "https://example.gov/digital-finance-ai-guideline",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Financial institutions should build centralized AI governance for model demand, testing, deployment, evaluation, and exit.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2025-12-15",
+          "source": "https://example.gov/digital-finance-ai-guideline",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Regulatory constraints mean an AI agent cannot provide unqualified investment advice without suitability checks and compliance review.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2025-12-15",
+          "source": "https://example.gov/digital-finance-ai-guideline",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Regulatory constraints mean an AI agent cannot provide unqualified investment advice without suitability checks and compliance review.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2025-12-15",
+          "source": "https://example.gov/digital-finance-ai-guideline",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Regulatory constraints mean an AI agent cannot provide unqualified investment advice without suitability checks and compliance review.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2025-12-15",
+          "source": "https://example.gov/digital-finance-ai-guideline",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Consumer fintech products are experimenting with AI guidance for budgeting, portfolio explanation, and financial education.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-01-20",
+          "source": "https://example.com/news/revolut-ai-advisor-update",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Consumer fintech products are experimenting with AI guidance for budgeting, portfolio explanation, and financial education.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-01-20",
+          "source": "https://example.com/news/revolut-ai-advisor-update",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Consumer fintech products are experimenting with AI guidance for budgeting, portfolio explanation, and financial education.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-01-20",
+          "source": "https://example.com/news/revolut-ai-advisor-update",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Product teams expect adoption to grow when citations, opt-outs, and audit logs become visible to users.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-01-20",
+          "source": "https://example.com/news/revolut-ai-advisor-update",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Product teams expect adoption to grow when citations, opt-outs, and audit logs become visible to users.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-01-20",
+          "source": "https://example.com/news/revolut-ai-advisor-update",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Product teams expect adoption to grow when citations, opt-outs, and audit logs become visible to users.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-01-20",
+          "source": "https://example.com/news/revolut-ai-advisor-update",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "The stronger use cases are education and explanation rather than direct trade recommendations.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-01-20",
+          "source": "https://example.com/news/revolut-ai-advisor-update",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "The stronger use cases are education and explanation rather than direct trade recommendations.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-01-20",
+          "source": "https://example.com/news/revolut-ai-advisor-update",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "The stronger use cases are education and explanation rather than direct trade recommendations.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-01-20",
+          "source": "https://example.com/news/revolut-ai-advisor-update",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "A bank pilot used planner-researcher-writer agents to summarize fund factsheets, compare products, and prepare relationship manager scripts.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-02-02",
+          "source": "https://example.com/company/ai-wealth-assistant-case",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Advisor productivity improved 31% after the assistant was embedded in daily workflows.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-02-02",
+          "source": "https://example.com/company/ai-wealth-assistant-case",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "The project team emphasized source traceability, latency budgets, and manual approval for high-risk suggestions.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-02-02",
+          "source": "https://example.com/company/ai-wealth-assistant-case",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Advisor productivity improved 18% in pilots that used AI agents for research summaries and client meeting preparation.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-04-10",
+          "source": "https://example.com/reports/wealth-ai-pain-2026",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Advisor productivity improved 18% in pilots that used AI agents for research summaries and client meeting preparation.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-04-10",
+          "source": "https://example.com/reports/wealth-ai-pain-2026",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Assets under management growth remained 7% in the surveyed digital wealth cohort.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-04-10",
+          "source": "https://example.com/reports/wealth-ai-pain-2026",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Assets under management growth remained 7% in the surveyed digital wealth cohort.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-04-10",
+          "source": "https://example.com/reports/wealth-ai-pain-2026",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "The report recommends traceable citations for every investment-related recommendation.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-04-10",
+          "source": "https://example.com/reports/wealth-ai-pain-2026",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "The report recommends traceable citations for every investment-related recommendation.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-04-10",
+          "source": "https://example.com/reports/wealth-ai-pain-2026",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Wealth managers report fragmented client data, slow product comparison, and weak personalization as the top pain points.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-04-10",
+          "source": "https://example.com/reports/wealth-ai-pain-2026",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Wealth managers report fragmented client data, slow product comparison, and weak personalization as the top pain points.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-04-10",
+          "source": "https://example.com/reports/wealth-ai-pain-2026",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        }
+      ],
+      "question": "AI Agent 在财富管理行业的落地机会研究"
+    },
+    "risk_matrix": {
+      "data_as_of": "2026-04-10",
+      "question": "AI Agent 在财富管理行业的落地机会研究",
+      "risks": []
+    }
+  },
   "topic": "AI Agent 在财富管理行业的落地机会研究"
 }

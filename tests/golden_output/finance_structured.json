@@ -814,6 +814,7 @@
         "INJECTION_GUARD_ENABLED": false,
         "RUN_MANIFEST_ENABLED": true,
         "STRUCTURED_LOGGING_ENABLED": true,
+        "STRUCTURED_OUTPUT_ENABLED": true,
         "TOOL_CONTRACT_ENABLED": true
       },
       "mode": "deterministic",
@@ -841,5 +842,462 @@
     "tool_error_summary": {}
   },
   "status": "done",
+  "structured_output": {
+    "comparison_table": {
+      "data_as_of": "2026-04-21",
+      "question": "宁德时代 2024 年业绩与欧洲工厂扩张研究",
+      "rows": [
+        {
+          "confidence": 0.772,
+          "entity": "digital wealth cohort",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "metric": "Assets under management growth",
+          "normalized_metric": "assets under management growth",
+          "period": "未标注",
+          "scope": "surveyed cohort",
+          "unit": "%",
+          "value": 7.0,
+          "verification_status": "verified"
+        },
+        {
+          "confidence": 0.772,
+          "entity": "digital wealth cohort",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "metric": "Assets under management growth",
+          "normalized_metric": "assets under management growth",
+          "period": "未标注",
+          "scope": "surveyed cohort",
+          "unit": "%",
+          "value": 7.0,
+          "verification_status": "verified"
+        },
+        {
+          "confidence": 0.772,
+          "entity": "wealth management pilot",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "metric": "Advisor productivity",
+          "normalized_metric": "advisor productivity",
+          "period": "未标注",
+          "scope": "pilot cohort",
+          "unit": "%",
+          "value": 18.0,
+          "verification_status": "verified"
+        },
+        {
+          "confidence": 0.772,
+          "entity": "wealth management pilot",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "metric": "Advisor productivity",
+          "normalized_metric": "advisor productivity",
+          "period": "未标注",
+          "scope": "pilot cohort",
+          "unit": "%",
+          "value": 18.0,
+          "verification_status": "verified"
+        },
+        {
+          "confidence": 0.804,
+          "entity": "宁德时代",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "metric": "净利润",
+          "normalized_metric": "净利润",
+          "period": "2024",
+          "scope": "累计",
+          "unit": "亿元",
+          "value": 520.0,
+          "verification_status": "verified"
+        },
+        {
+          "confidence": 0.804,
+          "entity": "宁德时代",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "metric": "净利润",
+          "normalized_metric": "净利润",
+          "period": "2024",
+          "scope": "累计",
+          "unit": "亿元",
+          "value": 520.0,
+          "verification_status": "verified"
+        },
+        {
+          "confidence": 0.804,
+          "entity": "宁德时代",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "metric": "归母净利润",
+          "normalized_metric": "归母净利润",
+          "period": "2024",
+          "scope": "单季",
+          "unit": "亿元",
+          "value": 105.1,
+          "verification_status": "verified"
+        },
+        {
+          "confidence": 0.804,
+          "entity": "宁德时代",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "metric": "归母净利润",
+          "normalized_metric": "归母净利润",
+          "period": "2024",
+          "scope": "单季",
+          "unit": "亿元",
+          "value": 105.1,
+          "verification_status": "verified"
+        },
+        {
+          "confidence": 0.6599999999999999,
+          "entity": "宁德时代",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "metric": "归母净利润",
+          "normalized_metric": "归母净利润",
+          "period": "2024",
+          "scope": "累计",
+          "unit": "亿元",
+          "value": 410.0,
+          "verification_status": "verified"
+        },
+        {
+          "confidence": 0.6599999999999999,
+          "entity": "宁德时代",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "metric": "归母净利润",
+          "normalized_metric": "归母净利润",
+          "period": "2024",
+          "scope": "累计",
+          "unit": "亿元",
+          "value": 410.0,
+          "verification_status": "verified"
+        },
+        {
+          "confidence": 0.804,
+          "entity": "宁德时代",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "metric": "归母净利润",
+          "normalized_metric": "归母净利润",
+          "period": "2024",
+          "scope": "累计",
+          "unit": "亿元",
+          "value": 507.45,
+          "verification_status": "verified"
+        },
+        {
+          "confidence": 0.804,
+          "entity": "宁德时代",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "metric": "归母净利润",
+          "normalized_metric": "归母净利润",
+          "period": "2024",
+          "scope": "累计",
+          "unit": "亿元",
+          "value": 507.45,
+          "verification_status": "verified"
+        },
+        {
+          "confidence": 0.6599999999999999,
+          "entity": "宁德时代",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "metric": "扣非净利润",
+          "normalized_metric": "扣非净利润",
+          "period": "2024",
+          "scope": "累计",
+          "unit": "亿元",
+          "value": 450.0,
+          "verification_status": "verified"
+        },
+        {
+          "confidence": 0.6599999999999999,
+          "entity": "宁德时代",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "metric": "扣非净利润",
+          "normalized_metric": "扣非净利润",
+          "period": "2024",
+          "scope": "累计",
+          "unit": "亿元",
+          "value": 450.0,
+          "verification_status": "verified"
+        },
+        {
+          "confidence": 0.804,
+          "entity": "宁德时代",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "metric": "营业收入",
+          "normalized_metric": "营业收入",
+          "period": "2024",
+          "scope": "累计",
+          "unit": "亿元",
+          "value": 3620.13,
+          "verification_status": "verified"
+        },
+        {
+          "confidence": 0.804,
+          "entity": "宁德时代",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "metric": "营业收入",
+          "normalized_metric": "营业收入",
+          "period": "2024",
+          "scope": "累计",
+          "unit": "亿元",
+          "value": 3620.13,
+          "verification_status": "verified"
+        }
+      ],
+      "scope_consistent": false,
+      "scope_notes": [
+        "归母净利润 同时存在不同口径：单季, 累计；禁止静默并列。"
+      ]
+    },
+    "event_timeline": {
+      "data_as_of": "2026-04-21",
+      "events": [
+        {
+          "event": "AI systems in wealth management must keep auditable evidence, human review paths, and clear risk warnings.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2025-12-15",
+          "source": "https://example.gov/digital-finance-ai-guideline",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "AI systems in wealth management must keep auditable evidence, human review paths, and clear risk warnings.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2025-12-15",
+          "source": "https://example.gov/digital-finance-ai-guideline",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Financial institutions should build centralized AI governance for model demand, testing, deployment, evaluation, and exit.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2025-12-15",
+          "source": "https://example.gov/digital-finance-ai-guideline",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Financial institutions should build centralized AI governance for model demand, testing, deployment, evaluation, and exit.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2025-12-15",
+          "source": "https://example.gov/digital-finance-ai-guideline",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Regulatory constraints mean an AI agent cannot provide unqualified investment advice without suitability checks and compliance review.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2025-12-15",
+          "source": "https://example.gov/digital-finance-ai-guideline",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Regulatory constraints mean an AI agent cannot provide unqualified investment advice without suitability checks and compliance review.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2025-12-15",
+          "source": "https://example.gov/digital-finance-ai-guideline",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Consumer fintech products are experimenting with AI guidance for budgeting, portfolio explanation, and financial education.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-01-20",
+          "source": "https://example.com/news/revolut-ai-advisor-update",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Product teams expect adoption to grow when citations, opt-outs, and audit logs become visible to users.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-01-20",
+          "source": "https://example.com/news/revolut-ai-advisor-update",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "The stronger use cases are education and explanation rather than direct trade recommendations.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-01-20",
+          "source": "https://example.com/news/revolut-ai-advisor-update",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Advisor productivity improved 18% in pilots that used AI agents for research summaries and client meeting preparation.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-04-10",
+          "source": "https://example.com/reports/wealth-ai-pain-2026",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Advisor productivity improved 18% in pilots that used AI agents for research summaries and client meeting preparation.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-04-10",
+          "source": "https://example.com/reports/wealth-ai-pain-2026",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Assets under management growth remained 7% in the surveyed digital wealth cohort.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-04-10",
+          "source": "https://example.com/reports/wealth-ai-pain-2026",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Assets under management growth remained 7% in the surveyed digital wealth cohort.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-04-10",
+          "source": "https://example.com/reports/wealth-ai-pain-2026",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "The report recommends traceable citations for every investment-related recommendation.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-04-10",
+          "source": "https://example.com/reports/wealth-ai-pain-2026",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "The report recommends traceable citations for every investment-related recommendation.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-04-10",
+          "source": "https://example.com/reports/wealth-ai-pain-2026",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Wealth managers report fragmented client data, slow product comparison, and weak personalization as the top pain points.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-04-10",
+          "source": "https://example.com/reports/wealth-ai-pain-2026",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Wealth managers report fragmented client data, slow product comparison, and weak personalization as the top pain points.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-04-10",
+          "source": "https://example.com/reports/wealth-ai-pain-2026",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "宁德时代 2024 年累计营业收入为 3620.13 亿元。宁德时代 2024 年累计归母净利润为 507.45 亿元。宁德时代 2024 年累计净利润为 520.00 亿元。宁德时代 2024 年单季归母净利润为 105.10 亿元。",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-04-20",
+          "source": "https://example.com/finance/catl-annual-summary-2024",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "宁德时代 2024 年累计营业收入为 3620.13 亿元。宁德时代 2024 年累计归母净利润为 507.45 亿元。宁德时代 2024 年累计净利润为 520.00 亿元。宁德时代 2024 年单季归母净利润为 105.10 亿元。",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-04-20",
+          "source": "https://example.com/finance/catl-annual-summary-2024",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "宁德时代 2024 年累计归母净利润为 410.00 亿元。该数字与公司摘要存在差异，需要回到官方结构化数据源核查。宁德时代 2024 年累计扣非净利润为 450.00 亿元。",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-04-21",
+          "source": "https://example.com/finance/catl-profit-conflict-note-2024",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "宁德时代 2024 年累计归母净利润为 410.00 亿元。该数字与公司摘要存在差异，需要回到官方结构化数据源核查。宁德时代 2024 年累计扣非净利润为 450.00 亿元。",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-04-21",
+          "source": "https://example.com/finance/catl-profit-conflict-note-2024",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        }
+      ],
+      "question": "宁德时代 2024 年业绩与欧洲工厂扩张研究"
+    },
+    "risk_matrix": {
+      "data_as_of": "2026-04-21",
+      "question": "宁德时代 2024 年业绩与欧洲工厂扩张研究",
+      "risks": []
+    }
+  },
   "topic": "宁德时代 2024 年业绩与欧洲工厂扩张研究"
 }
