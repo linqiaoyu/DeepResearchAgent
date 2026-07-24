@@ -4,7 +4,7 @@
 
 DeepResearchAgent 是一个多 Agent 深度研究框架，金融投研为首个落地场景。
 
-当前仓库处于 MVP 阶段：已实现确定性的 Planner、Researcher、Extractor、Critic、Reporter、Evaluator 工作流；默认使用本地 fixture 检索数据与录制结构化金融数据；编排层已迁移为 LangGraph `StateGraph`，Researcher 按子问题 fan-out，Critic 通过条件边回流 retry queue；checkpoint 由官方 `SqliteSaver` 写入 SQLite，Evidence 和 evaluation 结果由 `SQLiteStore` 写入 SQLite；LLM 模式通过统一 LiteLLM 层覆盖 Planner、Extractor、Reporter，Researcher 与 Critic 当前仍保持确定性；已接入 AKShare 白名单结构化数据边界、五元素数字 claim 口径体系、金融化 Critic；Golden Set v1.1 已以四键审计闸冻结（76 PASS、0 DEFECT、3 条 PM 注记 UNCERTAIN），并完成 G1/G2/G3 保存态三采样重评；007/007S 已加入三层演示资产（G3 展示层、异步 Golden replay 重跑层、owner-token live 层）与持久化日消耗护栏，公开触达形态为静态演示站，由 `scripts/build_site.py` 生成 `site/dist/` 后手工上传；010 新增工具契约、安全、运行血统、上下文打包、结构化日志与配置校验层，以及只读离线评测工具；011 用双题面规范化快照证明 010 默认路径与 `befd60b` 产物等价，默认启用工具契约、run manifest、结构化日志与 fail-fast，新增八场景离线 chaos 演练，并把注入语料扩为 63 条；context packer 与 injection guard 仍保持 dark；010 耦合审计判定金融逻辑仍硬编码于核心 Agent，`domains/finance` 与 `domains/competitive` 尚未落位，不得宣称框架已完成领域解耦；当前主推理模型锁定 deepseek-v4-flash，judge 与 citation_support 锁定 qwen3.7-plus；CLI demo、LLM smoke、Golden Set runner、FastAPI demo endpoints、静态站构建和 unittest 套件已在本地 `.venv` 验证过相应路径。
+当前仓库处于 MVP 阶段：已实现确定性的 Planner、Researcher、Extractor、Critic、Reporter、Evaluator 工作流；默认使用本地 fixture 检索数据与录制结构化金融数据；编排层已迁移为 LangGraph `StateGraph`，Researcher 按子问题 fan-out，Critic 通过条件边回流 retry queue；checkpoint 由官方 `SqliteSaver` 写入 SQLite，Evidence 和 evaluation 结果由 `SQLiteStore` 写入 SQLite；LLM 模式通过统一 LiteLLM 层覆盖 Planner、Extractor、Reporter，Researcher 与 Critic 当前仍保持确定性；已接入 AKShare 白名单结构化数据边界、五元素数字 claim 口径体系、金融化 Critic；Golden Set v1.1 已以四键审计闸冻结（76 PASS、0 DEFECT、3 条 PM 注记 UNCERTAIN），并完成 G1/G2/G3 保存态三采样重评；007/007S 已加入三层演示资产（G3 展示层、异步 Golden replay 重跑层、owner-token live 层）与持久化日消耗护栏，公开触达形态为静态演示站，由 `scripts/build_site.py` 生成 `site/dist/` 后手工上传；010 新增工具契约、安全、运行血统、上下文打包、结构化日志与配置校验层，以及只读离线评测工具；011 用双题面规范化快照证明 010 默认路径与 `befd60b` 产物等价，默认启用工具契约、run manifest、结构化日志与 fail-fast，新增八场景离线 chaos 演练，并把注入语料扩为 63 条；012 修复 context packer 的同 URL 多摘录去重缺陷但继续保持 dark，新增结构化产出、引用闭合审计包、独立 ResearchSnapshot、manifest-aware 六类变更追踪、默认关闭的 API 章节轮询与 fixture 业务场景页；context packer、injection guard、structured output 与 progressive delivery 仍保持 dark；010 耦合审计判定金融逻辑仍硬编码于核心 Agent，`domains/finance` 与 `domains/competitive` 尚未落位，不得宣称框架已完成领域解耦；当前主推理模型锁定 deepseek-v4-flash，judge 与 citation_support 锁定 qwen3.7-plus；CLI demo、LLM smoke、Golden Set runner、FastAPI demo endpoints、静态站构建和 unittest 套件已在本地 `.venv` 验证过相应路径。
 
 本项目是作品集和演示导向项目，但实现选择仍应能解释为生产化工程决策。
 
@@ -21,7 +21,7 @@ DeepResearchAgent 是一个多 Agent 深度研究框架，金融投研为首个�
 - `data/`：评测集、Golden Set v1、bad cases、mock source fixture、demo 展示资产和 runtime 数据。
 - `docs/`：架构、评估、部署、provider、威胁模型、SLO、生产就绪度与 MCP 设计文档。
 - `prompts/`：当前存在五个角色 prompt 与 `registry.json` 漂移登记表。
-- `scripts/`：除运行入口外，包含 manifest 比对、prompt 漂移、只读 run 对比、离线指标和 Golden schema 校验工具。
+- `scripts/`：除运行入口外，包含 manifest 比对、prompt 漂移、只读 run 对比、离线指标、Golden schema 校验、审计包导出、业务快照创建与快照差异工具。
 - `src/deepresearch_agent/`：包源码，包含 `agents/`、`api/`、`context/`、`evaluation/`、`observability/`、`provenance/`、`security/`、`storage/`、`tools/`、`workflow/`。
 - `tests/`：`unit/`、`integration/`、`evaluation/`、`chaos/` 四类 unittest 测试，并以 `golden_output/` 固化双题面行为快照。
 - `ui/app.py`：Streamlit UI 入口。
@@ -29,7 +29,7 @@ DeepResearchAgent 是一个多 Agent 深度研究框架，金融投研为首个�
 
 领域目录约定（尚未实施）：目标 domain pack 包含 `tools/`、`prompts/`、`templates/`、`eval/`、`domain.yaml` 五类；新增领域前必须先完成 finance 等价抽取、旧路径兼容、资源 SHA-256 与默认 E2E 行为证明。
 
-当前默认开关：`TOOL_CONTRACT_ENABLED=true`、`INJECTION_GUARD_ENABLED=false`、`RUN_MANIFEST_ENABLED=true`、`CONTEXT_PACKER_ENABLED=false`、`STRUCTURED_LOGGING_ENABLED=true`、`CONFIG_FAIL_FAST_ENABLED=true`。任何跨代比较必须先经 `scripts/verify_manifest.py` 判定。
+当前默认开关：`TOOL_CONTRACT_ENABLED=true`、`INJECTION_GUARD_ENABLED=false`、`RUN_MANIFEST_ENABLED=true`、`CONTEXT_PACKER_ENABLED=false`、`STRUCTURED_LOGGING_ENABLED=true`、`CONFIG_FAIL_FAST_ENABLED=true`、`STRUCTURED_OUTPUT_ENABLED=false`、`PROGRESSIVE_DELIVERY_ENABLED=false`。任何跨代比较必须先经 `scripts/verify_manifest.py` 判定。
 
 ## 3. 技术栈与版本
 
@@ -90,6 +90,25 @@ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m unittest tests.unit
 
 ```bash
 PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 DEEPRESEARCH_SEARCH_PROVIDER=fixture DEEPRESEARCH_STRUCTURED_DATA_PROVIDER=fixture .venv/bin/python -m unittest discover -s tests/chaos -v
+```
+
+012 审计包导出（deterministic + fixture）：
+
+```bash
+PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/export_audit_bundle.py --topic '宁德时代 2024 年业绩与欧洲工厂扩张研究' --as-of 2026-07-09 --output _collab/012_business-layer/audit_bundle_demo --structured-output
+```
+
+012 业务快照创建与变更比较：
+
+```bash
+PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/create_research_snapshot.py --topic 'AI Agent 在财富管理行业的落地机会研究' --as-of 2026-07-09 --output _collab/012_business-layer/snapshots/wealth_2026-07-09.json
+PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/diff_snapshots.py _collab/012_business-layer/snapshots/wealth_2026-07-09.json _collab/012_business-layer/snapshots/wealth_2026-07-24_demo.json --markdown _collab/012_business-layer/demo_diff.md --json _collab/012_business-layer/snapshots/demo_diff.json --summary _collab/012_business-layer/snapshots/demo_summary.txt
+```
+
+012 静态站业务场景构建：
+
+```bash
+PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/build_site.py
 ```
 
 ## 5. 编码规范

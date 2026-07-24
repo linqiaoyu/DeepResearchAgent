@@ -17,7 +17,11 @@ The project remains an MVP and portfolio demo. Its public form is a static site,
 | Run lineage/comparability | Done | `RUN_MANIFEST_ENABLED=true`; all flags recorded; `tests/unit/test_run_manifest.py`; prompt guard active in CI | Define sidecar retention with the deployment storage lifecycle |
 | Prompt injection handling | Partial | `security/content.py`, 63-case calibration in `docs/threat_model.md`, `INJECTION_GUARD_ENABLED=false` | The measured false positives and synthetic-only corpus require real licensed-page calibration and PM threshold approval |
 | Evidence integrity | Done | Extract substring validation and verbatim evidence tests | Add per-claim provenance beyond current evidence-to-report mapping |
-| Context overflow governance | Partial | `context/packer.py`, `CONTEXT_PACKER_ENABLED=false`; 011 snapshots show evidence loss and a citation-accuracy regression on the pure-search topic | Fix same-URL multi-claim collapsing, then pass comparable replay quality gates |
+| Context overflow governance | Partial | 012 fixed same-URL/different-extract collapsing; enabled fixture replay retained 12/21 finance and 13/29 wealth Evidence, but report/metrics still changed; `CONTEXT_PACKER_ENABLED=false` | Run comparable real-LLM quality validation in 013 before activation |
+| Structured business output | Partial | Pydantic comparison/timeline/risk objects and deterministic Markdown/JSON/XLSX renderers; `STRUCTURED_OUTPUT_ENABLED=false` | PM activation decision after real-mode compatibility review |
+| Audit bundle export | Done for offline workflow | `scripts/export_audit_bundle.py` preflight checks report and structured citation closure before writing report/evidence/manifest/ledger/cover | Add archive signing, retention, and access control before regulated distribution |
+| Research snapshot/change tracking | Done for offline workflow | Independent `ResearchSnapshot`; manifest-aware six-category diff; deterministic Markdown/JSON/paste summary | Select durable version storage and analyst review UI before multi-user service use |
+| Progressive delivery | Partial | `PROGRESSIVE_DELIVERY_ENABLED=false`; demo polling exposes ordered sections and validates byte-identical reassembly/citation closure | Reporter still generates atomically; true chapter generation needs a separately characterized LLM design |
 | Configuration validation | Done | `CONFIG_FAIL_FAST_ENABLED=true`; fixture no-key and missing-provider-key tests | Keep the provider requirement matrix current as integrations change |
 | Secrets | Partial | `.env` discipline, gitignore, log/manifest redaction utility | External secret manager and credential rotation for hosted operation |
 | Data governance | Partial | Frozen Golden metadata, corpus fingerprint, read-only validation | Retention/deletion policy, source license register, data owner |
@@ -31,7 +35,7 @@ The project remains an MVP and portfolio demo. Its public form is a static site,
 
 ## Remaining dark controls
 
-1. Keep the context packer dark until same-URL multi-claim handling is corrected and comparable replay shows no citation/quality regression.
+1. Keep the context packer dark: the duplicate-key defect is fixed, but fixture replay still changes evidence, report text, and quality metrics; 013 must validate the real-LLM path.
 2. Keep the injection guard dark until licensed real-page calibration meets a PM-approved false-positive boundary.
 3. Validate the active tool-contract path against real providers in the provider-integration task; current evidence is intentionally offline.
 

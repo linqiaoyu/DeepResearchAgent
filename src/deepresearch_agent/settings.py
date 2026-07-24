@@ -34,6 +34,8 @@ class Settings:
     reporter_context_token_budget: int = 200_000
     structured_logging_enabled: bool = True
     config_fail_fast_enabled: bool = True
+    structured_output_enabled: bool = False
+    progressive_delivery_enabled: bool = False
 
 
 def project_root() -> Path:
@@ -98,6 +100,8 @@ def load_settings() -> Settings:
         ),
         structured_logging_enabled=_env_flag("STRUCTURED_LOGGING_ENABLED", default=True),
         config_fail_fast_enabled=_env_flag("CONFIG_FAIL_FAST_ENABLED", default=True),
+        structured_output_enabled=_env_flag("STRUCTURED_OUTPUT_ENABLED"),
+        progressive_delivery_enabled=_env_flag("PROGRESSIVE_DELIVERY_ENABLED"),
     )
 
 

@@ -62,6 +62,8 @@ FLAG_FIELDS = {
     "CONTEXT_PACKER_ENABLED": "context_packer_enabled",
     "STRUCTURED_LOGGING_ENABLED": "structured_logging_enabled",
     "CONFIG_FAIL_FAST_ENABLED": "config_fail_fast_enabled",
+    "STRUCTURED_OUTPUT_ENABLED": "structured_output_enabled",
+    "PROGRESSIVE_DELIVERY_ENABLED": "progressive_delivery_enabled",
 }
 
 
@@ -153,7 +155,7 @@ def _snapshot_payload(
     evaluation = state.evaluation.model_dump(mode="json") if state.evaluation else None
     if evaluation:
         evaluation.pop("research_id", None)
-    return {
+    payload = {
         "schema_version": 1,
         "topic": state.topic,
         "depth_level": state.depth_level,
@@ -228,6 +230,9 @@ def _snapshot_payload(
         ),
         "side_effects": _side_effects(state, settings),
     }
+    if state.structured_output is not None:
+        payload["structured_output"] = state.structured_output.model_dump(mode="json")
+    return payload
 
 
 def _side_effects(state: ResearchState, settings: Any) -> dict[str, Any]:

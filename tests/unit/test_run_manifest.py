@@ -8,9 +8,11 @@ from pathlib import Path
 from unittest.mock import patch
 
 from deepresearch_agent.provenance import (
+    FLAG_CLASSIFICATIONS,
     RunManifest,
     build_run_manifest,
     compare_manifests,
+    format_manifest_comparison,
     write_run_manifest,
 )
 from deepresearch_agent.schemas import ResearchState
@@ -60,6 +62,14 @@ class RunManifestTests(unittest.TestCase):
                 "STRUCTURED_LOGGING_ENABLED": settings.structured_logging_enabled,
                 "CONFIG_FAIL_FAST_ENABLED": settings.config_fail_fast_enabled,
             },
+        )
+        self.assertEqual(
+            FLAG_CLASSIFICATIONS["RUN_MANIFEST_ENABLED"],
+            "operational",
+        )
+        self.assertEqual(
+            FLAG_CLASSIFICATIONS["PROGRESSIVE_DELIVERY_ENABLED"],
+            "operational",
         )
 
     def test_manifest_write_failure_degrades_without_losing_completed_run(self) -> None:
@@ -143,11 +153,76 @@ class RunManifestTests(unittest.TestCase):
             compare_manifests(manifest(), changed).differences,
         )
 
-    def test_flag_change_is_not_comparable(self) -> None:
+    def test_operational_flag_change_is_informational_and_comparable(self) -> None:
         changed = manifest().model_copy(
             update={"flags": {"RUN_MANIFEST_ENABLED": False}}
         )
-        self.assertIn("flags", compare_manifests(manifest(), changed).differences)
+        comparison = compare_manifests(manifest(), changed)
+        self.assertTrue(comparison.comparable)
+        self.assertEqual(comparison.incomparable_reasons, {})
+        self.assertIn(
+            "flags.RUN_MANIFEST_ENABLED",
+            comparison.informational_differences,
+        )
+
+    def test_content_affecting_flag_change_is_not_comparable(self) -> None:
+        changed = manifest().model_copy(
+            update={
+                "flags": {
+                    "RUN_MANIFEST_ENABLED": True,
+                    "CONTEXT_PACKER_ENABLED": True,
+                }
+            }
+        )
+        comparison = compare_manifests(manifest(), changed)
+        self.assertFalse(comparison.comparable)
+        self.assertIn(
+            "flags.CONTEXT_PACKER_ENABLED",
+            comparison.incomparable_reasons,
+        )
+
+    def test_unknown_flag_change_is_conservatively_not_comparable(self) -> None:
+        changed = manifest().model_copy(
+            update={
+                "flags": {
+                    "RUN_MANIFEST_ENABLED": True,
+                    "NEW_UNCLASSIFIED_FLAG": True,
+                }
+            }
+        )
+        comparison = compare_manifests(manifest(), changed)
+        self.assertFalse(comparison.comparable)
+        self.assertIn("flags.NEW_UNCLASSIFIED_FLAG", comparison.differences)
+
+    def test_mixed_differences_are_split_into_three_output_sections(self) -> None:
+        changed = manifest().model_copy(
+            update={
+                "model_strings": {"judge": "openai/another-judge"},
+                "flags": {
+                    "RUN_MANIFEST_ENABLED": False,
+                    "CONTEXT_PACKER_ENABLED": True,
+                },
+            }
+        )
+        payload = format_manifest_comparison(compare_manifests(manifest(), changed))
+        self.assertEqual(
+            list(payload),
+            [
+                "incomparable_reasons",
+                "informational_differences",
+                "conclusion",
+            ],
+        )
+        self.assertIn("model_strings", payload["incomparable_reasons"])
+        self.assertIn(
+            "flags.CONTEXT_PACKER_ENABLED",
+            payload["incomparable_reasons"],
+        )
+        self.assertIn(
+            "flags.RUN_MANIFEST_ENABLED",
+            payload["informational_differences"],
+        )
+        self.assertFalse(payload["conclusion"]["comparable"])
 
     def test_dependency_change_is_not_comparable(self) -> None:
         changed = manifest().model_copy(

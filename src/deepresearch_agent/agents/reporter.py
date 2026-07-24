@@ -6,8 +6,15 @@ from dataclasses import dataclass
 
 from deepresearch_agent.citations import build_footnote_maps
 from deepresearch_agent.llm import LLMClient, LLMClientError, StructuredOutputError
-from deepresearch_agent.schemas import Evidence, ReportClaim, ReportDraft, ResearchState
+from deepresearch_agent.schemas import (
+    Evidence,
+    ReportClaim,
+    ReportDraft,
+    ResearchState,
+    StructuredResearchOutput,
+)
 from deepresearch_agent.settings import project_root
+from deepresearch_agent.structured_output import build_structured_output
 
 
 @dataclass(frozen=True)
@@ -37,6 +44,9 @@ class ReporterAgent:
             except (LLMClientError, StructuredOutputError, ValueError) as exc:
                 self.last_stats = {"fallback": True, "error_type": type(exc).__name__}
         return self._deterministic_report(state)
+
+    def structured_output(self, state: ResearchState) -> StructuredResearchOutput:
+        return build_structured_output(state)
 
     def _deterministic_report(self, state: ResearchState) -> str:
         evidence = state.evidence_store

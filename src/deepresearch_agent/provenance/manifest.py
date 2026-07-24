@@ -6,7 +6,7 @@ import json
 from dataclasses import asdict
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import Field
 
@@ -38,7 +38,12 @@ class RunManifest(StrictModel):
 
 class ManifestComparison(StrictModel):
     comparable: bool
+    # Backward-compatible alias for callers that consumed the old flat result.
+    # It contains only differences that make the runs incomparable.
     differences: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    incomparable_reasons: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    informational_differences: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    conclusion: str
 
 
 COMPARABILITY_FIELDS = (
@@ -46,11 +51,34 @@ COMPARABILITY_FIELDS = (
     "prompt_hashes",
     "retrieval_corpus_as_of",
     "evaluation_as_of",
-    "flags",
     "dependency_versions",
     "domain",
     "mode",
 )
+
+# Classification evidence is the 011 product-level flag-impact replay under
+# `_collab/011_baseline-and-activation/flag_impact/`, not an implementation
+# claim. Context packing changed evidence and reports; injection guarding was
+# inert on the held-in fixtures but can alter confidence, Critic routing, and
+# content when a pattern matches. Structured output is additive business
+# content introduced in 012 and therefore conservatively content-affecting.
+FLAG_CLASSIFICATIONS: dict[str, Literal["content_affecting", "operational"]] = {
+    "CONTEXT_PACKER_ENABLED": "content_affecting",
+    "INJECTION_GUARD_ENABLED": "content_affecting",
+    "STRUCTURED_OUTPUT_ENABLED": "content_affecting",
+    # 011 replay showed no report/claim/evidence/metric changes for these
+    # flags. RUN_MANIFEST changed only its sidecar; logging changed stdout;
+    # fail-fast is startup validation; tool contracts were inert on fixture
+    # happy paths. They remain operational for content comparability.
+    "RUN_MANIFEST_ENABLED": "operational",
+    "STRUCTURED_LOGGING_ENABLED": "operational",
+    "CONFIG_FAIL_FAST_ENABLED": "operational",
+    "TOOL_CONTRACT_ENABLED": "operational",
+    # 012 characterization confirmed that API-level section publication
+    # reassembles to the byte-identical final report. It changes polling
+    # sidecars only, so it is operational rather than content-affecting.
+    "PROGRESSIVE_DELIVERY_ENABLED": "operational",
+}
 
 
 def compare_manifests(left: RunManifest, right: RunManifest) -> ManifestComparison:
@@ -61,16 +89,54 @@ def compare_manifests(left: RunManifest, right: RunManifest) -> ManifestComparis
     machine-readable comparability decision.
     """
 
-    differences: dict[str, dict[str, Any]] = {}
+    incomparable: dict[str, dict[str, Any]] = {}
+    informational: dict[str, dict[str, Any]] = {}
     for field_name in COMPARABILITY_FIELDS:
         left_value = getattr(left, field_name)
         right_value = getattr(right, field_name)
         if left_value != right_value:
-            differences[field_name] = {
+            incomparable[field_name] = {
                 "left": _json_value(left_value),
                 "right": _json_value(right_value),
             }
-    return ManifestComparison(comparable=not differences, differences=differences)
+    for flag_name in sorted(set(left.flags) | set(right.flags)):
+        left_value = left.flags.get(flag_name)
+        right_value = right.flags.get(flag_name)
+        if left_value == right_value:
+            continue
+        difference = {"left": left_value, "right": right_value}
+        field_name = f"flags.{flag_name}"
+        category = FLAG_CLASSIFICATIONS.get(flag_name, "content_affecting")
+        if category == "operational":
+            informational[field_name] = difference
+        else:
+            incomparable[field_name] = difference
+    comparable = not incomparable
+    conclusion = (
+        "comparable: only operational or no differences detected"
+        if comparable
+        else "not comparable: content or run-identity differences detected"
+    )
+    return ManifestComparison(
+        comparable=comparable,
+        differences=incomparable,
+        incomparable_reasons=incomparable,
+        informational_differences=informational,
+        conclusion=conclusion,
+    )
+
+
+def format_manifest_comparison(comparison: ManifestComparison) -> dict[str, Any]:
+    """Return the CLI's three-section, human-scannable result."""
+
+    return {
+        "incomparable_reasons": comparison.incomparable_reasons,
+        "informational_differences": comparison.informational_differences,
+        "conclusion": {
+            "comparable": comparison.comparable,
+            "summary": comparison.conclusion,
+        },
+    }
 
 
 def build_run_manifest(
@@ -101,20 +167,35 @@ def build_run_manifest(
         dependency_versions=_dependency_versions(),
         domain=domain,
         mode=settings.execution_mode,
-        flags={
-            "TOOL_CONTRACT_ENABLED": settings.tool_contract_enabled,
-            "INJECTION_GUARD_ENABLED": settings.injection_guard_enabled,
-            "RUN_MANIFEST_ENABLED": settings.run_manifest_enabled,
-            "CONTEXT_PACKER_ENABLED": settings.context_packer_enabled,
-            "STRUCTURED_LOGGING_ENABLED": settings.structured_logging_enabled,
-            "CONFIG_FAIL_FAST_ENABLED": settings.config_fail_fast_enabled,
-        },
+        flags=settings_flag_snapshot(settings),
         token_total=state.token_used,
         cost_cny_total=state.cost_used,
         degradation_events=degradation_events,
         context_events=context_events,
         tool_error_summary={str(key): int(value) for key, value in tool_errors.items()},
     )
+
+
+def settings_flag_snapshot(
+    settings: Settings,
+    *,
+    include_disabled_experimental: bool = False,
+) -> dict[str, bool]:
+    flags = {
+        "TOOL_CONTRACT_ENABLED": settings.tool_contract_enabled,
+        "INJECTION_GUARD_ENABLED": settings.injection_guard_enabled,
+        "RUN_MANIFEST_ENABLED": settings.run_manifest_enabled,
+        "CONTEXT_PACKER_ENABLED": settings.context_packer_enabled,
+        "STRUCTURED_LOGGING_ENABLED": settings.structured_logging_enabled,
+        "CONFIG_FAIL_FAST_ENABLED": settings.config_fail_fast_enabled,
+    }
+    if settings.structured_output_enabled or include_disabled_experimental:
+        flags["STRUCTURED_OUTPUT_ENABLED"] = settings.structured_output_enabled
+    if settings.progressive_delivery_enabled or include_disabled_experimental:
+        flags["PROGRESSIVE_DELIVERY_ENABLED"] = (
+            settings.progressive_delivery_enabled
+        )
+    return flags
 
 
 def write_run_manifest(manifest: RunManifest, runs_root: Path) -> Path:

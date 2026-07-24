@@ -13,6 +13,11 @@ from pathlib import Path
 from typing import Any
 
 from deepresearch_agent.schemas import ResearchState
+from deepresearch_agent.progressive_delivery import (
+    ReportSection,
+    publish_report_progress,
+    validate_final_report,
+)
 from deepresearch_agent.settings import Settings, load_settings, project_root
 from deepresearch_agent.workflow import DeepResearchEngine
 
@@ -185,6 +190,51 @@ class DemoJobStore:
             },
         )
 
+    def mark_section(
+        self,
+        job_id: str,
+        section: ReportSection,
+    ) -> dict[str, Any]:
+        with self._lock:
+            state = self._read_state()
+            for job in state["jobs"]:
+                if job["job_id"] != job_id:
+                    continue
+                progress = job.setdefault(
+                    "progress",
+                    {
+                        "mode": "api_sections",
+                        "completed_sections": [],
+                        "final_validation": "pending",
+                    },
+                )
+                progress["completed_sections"].append(
+                    {
+                        "index": section.index,
+                        "heading": section.heading,
+                        "markdown": section.markdown,
+                    }
+                )
+                job["updated_at"] = _utc_timestamp()
+                self._write_state(state)
+                return self._with_position(job)
+        raise KeyError(job_id)
+
+    def mark_progress_validated(self, job_id: str) -> dict[str, Any]:
+        with self._lock:
+            state = self._read_state()
+            for job in state["jobs"]:
+                if job["job_id"] != job_id:
+                    continue
+                progress = job.get("progress")
+                if not isinstance(progress, dict):
+                    raise RuntimeError("progress was not initialized")
+                progress["final_validation"] = "passed"
+                job["updated_at"] = _utc_timestamp()
+                self._write_state(state)
+                return self._with_position(job)
+        raise KeyError(job_id)
+
     def _update(self, job_id: str, values: dict[str, Any]) -> dict[str, Any]:
         with self._lock:
             state = self._read_state()
@@ -239,10 +289,12 @@ class DemoJobManager:
         store: DemoJobStore,
         queue_limit: int,
         run_func: Any,
+        progressive_delivery_enabled: bool = False,
     ) -> None:
         self.store = store
         self.queue_limit = queue_limit
         self._run_func = run_func
+        self.progressive_delivery_enabled = progressive_delivery_enabled
         self._worker_lock = threading.Lock()
         self._worker: threading.Thread | None = None
 
@@ -274,6 +326,23 @@ class DemoJobManager:
             except Exception as exc:  # pragma: no cover - exact provider errors are environment-specific.
                 self.store.mark_failed(job["job_id"], f"{type(exc).__name__}: {exc}")
             else:
+                if self.progressive_delivery_enabled:
+                    try:
+                        sections = publish_report_progress(
+                            result.report,
+                            lambda section: self.store.mark_section(
+                                job["job_id"],
+                                section,
+                            ),
+                        )
+                        validate_final_report(result.report, sections)
+                        self.store.mark_progress_validated(job["job_id"])
+                    except Exception as exc:
+                        self.store.mark_failed(
+                            job["job_id"],
+                            f"{type(exc).__name__}: {exc}",
+                        )
+                        continue
                 self.store.mark_done(job["job_id"], result)
 
 
@@ -303,6 +372,9 @@ class DemoService:
             store=job_store or DemoJobStore(self.settings.demo_job_path),
             queue_limit=self.settings.demo_queue_limit,
             run_func=self._runner_func,
+            progressive_delivery_enabled=(
+                self.settings.progressive_delivery_enabled
+            ),
         )
 
     def overview(self) -> dict[str, Any]:

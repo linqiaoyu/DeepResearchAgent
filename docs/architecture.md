@@ -84,8 +84,54 @@ The runtime has two modes:
 - `Evidence`: claim, claim type, source URL/title/date, extract text, confidence, source kind, optional structured record, optional numeric fields
 - `CriticReport`: pass/fail, quality score, issues, retry tasks, iteration
 - `EvaluationResult`: task success, citation accuracy, critic catch rate, relevance, faithfulness, latency, cost, tokens
+- `StructuredResearchOutput`: traceable comparison table, event timeline, and risk matrix
+- `ResearchSnapshot`: business question/as-of, normalized claims, structured objects, manifest reference, and flag snapshot
 
 All cross-agent contracts are Pydantic models in `src/deepresearch_agent/schemas.py`.
+
+## Business Output And Follow-up Data Flow
+
+The characterization snapshot in `tests/golden_output/` remains a test
+baseline. The business `ResearchSnapshot` is a separate versionable artifact:
+
+```mermaid
+flowchart LR
+    R["Reporter"] --> M["Markdown report"]
+    R --> S["StructuredResearchOutput"]
+    M --> A["Audit bundle preflight"]
+    S --> A
+    E[("Evidence Store")] --> A
+    P["Run manifest + ledger"] --> A
+    A --> B["Closed audit bundle"]
+    M --> RS1["ResearchSnapshot at T1"]
+    S --> RS1
+    P --> RS1
+    RS1 --> D["Manifest-aware snapshot diff"]
+    RS2["ResearchSnapshot at T2"] --> D
+    D --> O["Markdown + JSON + paste summary"]
+```
+
+`StructuredResearchOutput` is additive and gated by
+`STRUCTURED_OUTPUT_ENABLED=false`. Every row carries `evidence_ids`; a row
+without evidence must be marked `unverified`. Metric aliases reuse
+`data/finance_metric_normalization.json`, and mixed scopes for one normalized
+metric are surfaced as a table conflict.
+
+`scripts/export_audit_bundle.py` refuses to write an incomplete directory:
+all report claim and structured-object evidence IDs must resolve before export.
+`scripts/create_research_snapshot.py` writes the independent business schema;
+`scripts/diff_snapshots.py` classifies six deterministic change types and
+calls manifest comparability before business comparison. Scope changes are
+matched before numeric changes, preventing a changed period definition from
+being misreported as business growth or decline.
+
+The existing Reporter contract returns one complete report. Task 012 therefore
+uses the permitted API-layer downgrade for progressive delivery:
+`PROGRESSIVE_DELIVERY_ENABLED=false` publishes ordered sections into the demo
+job polling payload only after the report is complete, then byte-reassembles it
+and checks citation closure. True per-section Reporter generation remains
+unimplemented because it would change LLM calls, prompt semantics, and repair
+behavior.
 
 ## Current MVP Boundaries
 
@@ -94,7 +140,7 @@ All cross-agent contracts are Pydantic models in `src/deepresearch_agent/schemas
 - Fetch has only a local fixture implementation through `FixtureSearchTool.fetch`; there is no robust live `web_fetch` yet.
 - `rag_search` is not implemented.
 - Graph checkpoints are persisted by LangGraph's official `SqliteSaver`; evidence rows and evaluations are persisted with `SQLiteStore` for the local MVP. `docs/postgres_schema.sql` documents a production storage path, but there is no Postgres adapter yet.
-- FastAPI and the fallback stdlib server execute runs synchronously. The project does not yet include a background job queue.
+- The primary FastAPI and fallback stdlib research endpoints execute runs synchronously. Demo Golden reruns use a process-local worker and JSON polling store; this is not a durable distributed queue.
 - Checkpoint recovery is available through `research_id` and can be demonstrated with `scripts/run_checkpoint_demo.py`.
 - LiteLLM is used only through `deepresearch_agent.llm.LLMClient` in `llm` mode. No other module should call LiteLLM directly.
 
@@ -158,11 +204,13 @@ The hardening modules are additive. Default-off modules do not change the determ
 
 | Layer | Code | Flag | Default | Runtime effect |
 | --- | --- | --- | --- | --- |
-| Typed tool execution | `tools/contracts.py`, `tools/reliable_execution.py` | `TOOL_CONTRACT_ENABLED` | `false` | Wraps search with run retry budget, circuit breaker, and degradation events |
+| Typed tool execution | `tools/contracts.py`, `tools/reliable_execution.py` | `TOOL_CONTRACT_ENABLED` | `true` | Wraps search with run retry budget, circuit breaker, and degradation events |
 | Untrusted content | `security/content.py` | `INJECTION_GUARD_ENABLED` | `false` | Wraps source text for model prompts, records patterns, reduces confidence, adds Critic issue |
-| Run lineage | `provenance/manifest.py` | `RUN_MANIFEST_ENABLED` | `false` | Writes `runs/<run_id>/manifest.json` sidecar |
+| Run lineage | `provenance/manifest.py` | `RUN_MANIFEST_ENABLED` | `true` | Writes `runs/<run_id>/manifest.json` sidecar |
 | Context packing | `context/packer.py` | `CONTEXT_PACKER_ENABLED` | `false` | Deduplicates/ranks evidence under Reporter budget and records drops |
-| JSON logging | `observability/logging.py` | `STRUCTURED_LOGGING_ENABLED` | `false` | Emits redacted correlation-aware JSON events |
-| Config fail-fast | `config_validation.py` | `CONFIG_FAIL_FAST_ENABLED` | `false` | Aggregates missing required configuration before engine construction |
+| JSON logging | `observability/logging.py` | `STRUCTURED_LOGGING_ENABLED` | `true` | Emits redacted correlation-aware JSON events |
+| Config fail-fast | `config_validation.py` | `CONFIG_FAIL_FAST_ENABLED` | `true` | Aggregates missing required configuration before engine construction |
+| Structured business output | `structured_output.py` | `STRUCTURED_OUTPUT_ENABLED` | `false` | Adds tables/timeline/risk objects without replacing prose |
+| API section progress | `progressive_delivery.py`, `api/demo.py` | `PROGRESSIVE_DELIVERY_ENABLED` | `false` | Adds polling sidecars; final report is byte-identical |
 
 Prompt drift validation is enabled in CI because it is a build-time guard, not a runtime behavior change. Read-only offline evaluation tools in `scripts/compare_runs.py`, `scripts/offline_metrics.py`, and `scripts/validate_golden_schema.py` never initiate research or modify Golden assets.
