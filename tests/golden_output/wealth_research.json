@@ -911,7 +911,53 @@
   "side_effects": {
     "context_events": [],
     "degradation_events": [],
-    "manifest_enabled": false,
+    "manifest": {
+      "config_hash": "<normalized-config-hash>",
+      "context_events": [],
+      "cost_cny_total": 0.017,
+      "degradation_events": [],
+      "dependency_versions": {
+        "deepresearch-agent": "0.1.0",
+        "fastapi": "0.136.3",
+        "httpx": "0.28.1",
+        "langgraph": "1.2.2",
+        "langgraph-checkpoint-sqlite": "3.1.0",
+        "litellm": "1.86.2",
+        "pydantic": "2.13.4"
+      },
+      "domain": "finance",
+      "ended_at": "<normalized-timestamp>",
+      "evaluation_as_of": "2026-07-09",
+      "flags": {
+        "CONFIG_FAIL_FAST_ENABLED": false,
+        "CONTEXT_PACKER_ENABLED": false,
+        "INJECTION_GUARD_ENABLED": false,
+        "RUN_MANIFEST_ENABLED": true,
+        "STRUCTURED_LOGGING_ENABLED": false,
+        "TOOL_CONTRACT_ENABLED": false
+      },
+      "mode": "deterministic",
+      "model_strings": {
+        "citation_support": "openai/qwen3.7-plus",
+        "extractor": "openai/deepseek-v4-flash",
+        "judge": "openai/qwen3.7-plus",
+        "planner": "openai/deepseek-v4-flash",
+        "reporter": "openai/deepseek-v4-flash"
+      },
+      "prompt_hashes": {
+        "critic.md": "fd7b56de2e65c335f966f85be911d1e9e31eb5375708291f8ae61d535ab8e882",
+        "extractor.md": "55d22d6195fc69c268cf9ae8bb7d6ffdc585dc226a614f42fbb5497f77e5374f",
+        "judge.md": "2e87f85cb54673ab6f84e0f0fc4b8c108441757e20ecd9ec4c3416df5d893533",
+        "planner.md": "17b835c94076ee30521a57fa45404435e6a34bc3b6614e9927d9dd81795d9bc2",
+        "reporter.md": "01a32221d0ef1a1d9ef67cc5e58afd8fc761ccd9fbbb8dda7e370e89fae2de2f"
+      },
+      "retrieval_corpus_as_of": "2026-07-09",
+      "run_id": "<normalized-id>",
+      "started_at": "<normalized-timestamp>",
+      "token_total": 7310,
+      "tool_error_summary": {}
+    },
+    "manifest_enabled": true,
     "tool_error_summary": {}
   },
   "status": "done",
