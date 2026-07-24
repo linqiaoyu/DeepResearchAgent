@@ -63,7 +63,12 @@ from deepresearch_agent.schemas import (
     TodoItem,
     utc_now,
 )
-from deepresearch_agent.settings import Settings, load_settings
+from deepresearch_agent.settings import Settings, load_settings, project_root
+from deepresearch_agent.skills import (
+    SkillPackLoader,
+    finance_metric_skill_applicable,
+    load_skills_if_enabled,
+)
 from deepresearch_agent.storage import SQLiteStore
 from deepresearch_agent.tools import (
     CapabilityRegistry,
@@ -195,6 +200,9 @@ class DeepResearchEngine:
                 search_provider=configured_search_tool,
                 structured_data_provider=configured_structured_provider,
             )
+        )
+        self.skill_loader = SkillPackLoader(
+            project_root() / "skills"
         )
         self.search_tool = self.capability_registry.resolve("web_search")
         self.structured_data_provider = self.capability_registry.resolve(
@@ -1004,7 +1012,32 @@ class DeepResearchEngine:
         return traced
 
     def _entry_node(self, graph_state: ResearchGraphState) -> ResearchGraphState:
-        return graph_state
+        if not self.settings.skill_packs_enabled:
+            return graph_state
+        state = self._state_from_graph_values(graph_state)
+        skill_metadata = state.metadata.get("skill_packs")
+        if isinstance(skill_metadata, dict) and skill_metadata.get(
+            "selection_complete"
+        ):
+            return graph_state
+        outcome = load_skills_if_enabled(
+            self.settings,
+            self.skill_loader,
+            state.topic,
+            registry=self.capability_registry,
+            state=state,
+            is_applicable=finance_metric_skill_applicable,
+        )
+        state.metadata["skill_packs"] = {
+            "selection_complete": True,
+            "selected_skills": list(outcome.selected_skills),
+            "registered_capabilities": list(
+                outcome.registered_capabilities
+            ),
+        }
+        result = dict(graph_state)
+        result["research_state"] = self._dump_state(state)
+        return result
 
     def _route_entry(self, graph_state: ResearchGraphState) -> str:
         state = self._state_from_graph_values(graph_state)

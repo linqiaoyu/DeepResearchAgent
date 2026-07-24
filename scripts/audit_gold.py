@@ -10,6 +10,7 @@ from deepresearch_agent.evaluation.gold_audit import (
     render_audit_markdown,
     summarize_audit,
 )
+from deepresearch_agent.skills import finance_metric_resource_path
 
 
 def main() -> None:
@@ -48,7 +49,10 @@ def main() -> None:
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Audit Golden must_include slots with the four-key gate.")
     parser.add_argument("--questions", default="data/golden_set/v1/questions.json")
-    parser.add_argument("--normalization", default="data/finance_metric_normalization.json")
+    parser.add_argument(
+        "--normalization",
+        default=str(finance_metric_resource_path()),
+    )
     parser.add_argument("--output", default="")
     parser.add_argument("--json-output", default="")
     parser.add_argument("--fail-on-defect", action="store_true")
