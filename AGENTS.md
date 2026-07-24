@@ -144,6 +144,12 @@ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/build_site.py
 - 执行的最后一个动作是把执行报告存入同目录 `report.md` 并完整打印到终端。
 - 执行报告必须包含 `git log --oneline main..HEAD` 与 `git diff main --stat` 的原始输出。
 - 冻结资产的任何元数据变更必须在执行报告中单列申报，说明字段、原因、影响边界和是否触及评分契约。
+- 对已证明只新增产物、不改动既有产物的开关执行转正时，默认值翻转与
+  `tests/golden_output/` 更新组成一个原子提交对：第一个 commit 只翻默认值，
+  第二个 commit 只更新 golden。绿灯闸门作用于提交对完成之后，不作用于
+  中间态；仅第一个 commit 允许 characterization 因预期的 golden 差异为红。
+  两个 commit 必须连续，中间不得插入其他改动，提交对完成后必须立即运行
+  全量绿灯闸门。
 - 只执行提示词明确列出的事项。
 - 发现提示词与仓库现实冲突时，停止该项、在报告中说明，不得自行扩大范围或自行决策。
 - 一个 Codex 执行者负责每轮任务端到端闭环；不要使用 `.agent_handoff` 式交接，不要拆分为 Architect/Executor 多 Codex 角色，不要把任务扩展到无关模块。
