@@ -6,15 +6,22 @@ import time
 from collections.abc import Sequence
 from dataclasses import asdict
 from typing import Annotated, Any, TypedDict
+from urllib.parse import urlsplit
 
 from deepresearch_agent.agents import CriticAgent, Evaluator, ExtractorAgent, PlannerAgent, ReporterAgent, ResearcherAgent
 from deepresearch_agent.config_validation import validate_required_configuration
-from deepresearch_agent.decisions import append_decision_chain
+from deepresearch_agent.decisions import (
+    append_decision_chain,
+    record_agent_decision,
+)
 from deepresearch_agent.llm import BudgetExceededError, LLMClient
 from deepresearch_agent.memory import (
     ContextWorkingMemory,
     EpisodicMemory,
     EpisodicQuery,
+    ProceduralMemory,
+    ProceduralRecord,
+    ProceduralSufficiencyResult,
     WorkingMemoryQuery,
     WorkingMemoryWrite,
     classify_subquestions_from_prior,
@@ -40,11 +47,13 @@ from deepresearch_agent.orchestration import (
     validate_contract_graph,
 )
 from deepresearch_agent.provenance import build_run_manifest, write_run_manifest
+from deepresearch_agent.reflection import Reflector
 from deepresearch_agent.research_snapshot import (
     ResearchSnapshot,
     research_question_id,
 )
 from deepresearch_agent.schemas import (
+    AgentDecision,
     Evidence,
     ResearchState,
     RetryTask,
@@ -66,10 +75,14 @@ from deepresearch_agent.tools import (
     build_capability_registry,
     build_search_provider,
     build_structured_data_provider,
+    classify_subquestion,
 )
 from deepresearch_agent.tools.contract_adapter import ContractSearchProvider
 from deepresearch_agent.trajectory import (
+    LLMCallTrace,
+    MemoryWriteTrace,
     NodeTransitionTrace,
+    SignalReadTrace,
     TrajectoryRecorder,
     active_trajectory_recorder,
     trajectory_recording,
@@ -119,6 +132,24 @@ def _trace_graph_summary(value: Any) -> dict[str, Any]:
         "evidence_count": len(raw_state.get("evidence_store", [])),
         "retry_count": len(raw_state.get("retry_queue", [])),
     }
+    evidence_domains = sorted(
+        {
+            urlsplit(str(item.get("source_url", ""))).netloc.lower()
+            for item in raw_state.get("evidence_store", [])
+            if isinstance(item, dict) and item.get("source_url")
+        }
+    )
+    if evidence_domains:
+        summary["evidence_source_domains"] = evidence_domains
+    critic_report = raw_state.get("critic_report")
+    if isinstance(critic_report, dict):
+        issue_types = sorted(
+            str(item.get("issue_type"))
+            for item in critic_report.get("issues", [])
+            if isinstance(item, dict) and item.get("issue_type")
+        )
+        if issue_types:
+            summary["critic_issue_types"] = issue_types
     sub_question = value.get("fanout_sub_question")
     if isinstance(sub_question, dict):
         summary["sub_question_id"] = sub_question.get("id")
@@ -136,6 +167,7 @@ class DeepResearchEngine:
         search_tool: SearchProvider | None = None,
         structured_data_provider: StructuredDataProvider | None = None,
         episodic_memory: EpisodicMemory | None = None,
+        procedural_memory: ProceduralMemory | None = None,
     ) -> None:
         self.settings = settings or load_settings()
         if self.settings.config_fail_fast_enabled:
@@ -209,9 +241,11 @@ class DeepResearchEngine:
         )
         self.reporter = ReporterAgent(llm_client=self.llm_client)
         self.evaluator = Evaluator()
+        self.reflector = Reflector()
         self.branch_budget: BranchBudget | None = None
         self.working_memory = ContextWorkingMemory()
         self.episodic_memory = episodic_memory or EpisodicMemory()
+        self.procedural_memory = procedural_memory or ProceduralMemory()
         self.research_as_of = self.settings.as_of or self.critic.today
         self.sufficiency_thresholds = SufficiencyThresholds(
             min_evidence_count=self.settings.research_min_evidence_count,
@@ -374,10 +408,16 @@ class DeepResearchEngine:
                             "dynamic_capability_rules_json": (
                                 self.settings.dynamic_capability_rules_json
                             ),
+                            "reflection_enabled": (
+                                self.settings.reflection_enabled
+                            ),
                         },
                     },
                 )
-                if self.settings.trajectory_record_enabled
+                if (
+                    self.settings.trajectory_record_enabled
+                    or self.settings.reflection_enabled
+                )
                 else None
             )
             try:
@@ -424,7 +464,7 @@ class DeepResearchEngine:
                     "manifest_write_failed",
                     error_type=type(exc).__name__,
                 )
-        if recorder:
+        if recorder and self.settings.trajectory_record_enabled:
             artifacts = {"report.md": state.final_report or ""}
             recorder.finalize(
                 manifest_ref=str(manifest_path) if manifest_path else None,
@@ -466,6 +506,10 @@ class DeepResearchEngine:
             self._graph_node("extractor", self._extractor_node),
         )
         graph.add_node("critic", self._graph_node("critic", self._critic_node))
+        graph.add_node(
+            "reflector",
+            self._graph_node("reflector", self._reflector_node),
+        )
         graph.add_node(
             "research_loop_decide",
             self._graph_node(
@@ -510,6 +554,10 @@ class DeepResearchEngine:
             "research_loop_decide",
             self._route_after_research_loop,
         )
+        graph.add_conditional_edges(
+            "reflector",
+            self._route_after_reflection,
+        )
         graph.add_edge("research_refine", "research_prepare")
         graph.add_conditional_edges("retry_prepare", self._send_retry_tasks)
         graph.add_edge("retry_one", "retry_join")
@@ -536,8 +584,12 @@ class DeepResearchEngine:
                 ("critic", "retry_prepare"),
                 ("critic", "reporter"),
                 ("critic", "research_loop_decide"),
+                ("critic", "reflector"),
                 ("research_loop_decide", "reporter"),
                 ("research_loop_decide", "research_refine"),
+                ("research_loop_decide", "reflector"),
+                ("reflector", "reporter"),
+                ("reflector", "research_refine"),
                 ("research_refine", "research_prepare"),
                 ("retry_prepare", "retry_one"),
                 ("retry_prepare", "retry_join"),
@@ -713,6 +765,21 @@ class DeepResearchEngine:
                     ),
                 ),
                 decision_node=self.settings.numeric_check_enabled,
+            ),
+            "reflector": NodeContract(
+                name="reflector",
+                consumes={
+                    "research_state": state_field,
+                    "research_state.agent_decisions": ContractField(list),
+                },
+                produces=frozenset(
+                    {
+                        "research_state.metadata.reflection_result",
+                        "research_state.agent_decisions",
+                    }
+                ),
+                invariants=(identity,),
+                decision_node=self.settings.reflection_enabled,
             ),
             "research_loop_decide": NodeContract(
                 name="research_loop_decide",
@@ -1295,12 +1362,201 @@ class DeepResearchEngine:
         if state.status == "paused":
             return END
         if state.critic_report and state.critic_report.passed:
+            if self.settings.research_loop_active:
+                return "research_loop_decide"
             return (
-                "research_loop_decide"
-                if self.settings.research_loop_active
+                "reflector"
+                if self.settings.reflection_enabled
                 else "reporter"
             )
         return "retry_prepare"
+
+    def _reflector_node(
+        self,
+        graph_state: ResearchGraphState,
+    ) -> ResearchGraphState:
+        state = self._state_from_graph_values(graph_state)
+        recorder = active_trajectory_recorder()
+        if recorder is None:
+            raise RuntimeError(
+                "REFLECTION_ENABLED requires a run-scoped AgentTrajectory"
+            )
+        trajectory = recorder.trajectory.model_copy(deep=True)
+        decisions = [
+            item.model_copy(deep=True) for item in state.agent_decisions
+        ]
+        request = self.reflector.reasoning_request(
+            trajectory,
+            decisions,
+        )
+        result = self.reflector.reflect(
+            trajectory,
+            decisions,
+            reasoning_request=request,
+        )
+        recorder.record_llm_call(
+            LLMCallTrace(
+                role="reflector_placeholder",
+                prompt=[
+                    {
+                        "role": "user",
+                        "content": request.model_dump_json(),
+                    }
+                ],
+                response=result.llm_insight.model_dump_json(),
+                prompt_tokens=0,
+                completion_tokens=0,
+                total_tokens=0,
+                latency_seconds=0.0,
+                model=result.llm_insight.provider or "unconfigured",
+                attempt=1,
+            )
+        )
+        signal_sources = {
+            "persistent_weakness": (
+                "ResearchState.agent_decisions.research_replan"
+            ),
+            "ineffective_source": "AgentTrajectory.tool_calls+node_transitions",
+            "repeated_critic_issue": "AgentTrajectory.node_transitions.critic",
+            "ineffective_replanning": (
+                "ResearchState.agent_decisions.bounded_loop_control"
+            ),
+        }
+        for signal_type, source in signal_sources.items():
+            recorder.record_signal_read(
+                SignalReadTrace(
+                    signal_type=signal_type,
+                    source=source,
+                    keys=("iteration", "type", "count"),
+                )
+            )
+        record_agent_decision(
+            state,
+            self.reflector.signal_extraction_decision(
+                recorder.trajectory,
+                state.agent_decisions,
+                result.deterministic_signals,
+            ),
+        )
+        self._write_procedural_memory(
+            state,
+            result.deterministic_signals,
+            recorder,
+        )
+        state.metadata["reflection_result"] = result.model_dump(mode="json")
+        if result.llm_insight.must_stop:
+            state.status = "paused"
+            state.metadata["reflection_cache_miss"] = {
+                "cache_key": result.llm_insight.cache_key,
+                "reason": result.llm_insight.cache_miss_reason,
+            }
+        return self._state_output(state)
+
+    def _write_procedural_memory(
+        self,
+        state: ResearchState,
+        signals,
+        recorder: TrajectoryRecorder,
+    ) -> None:
+        if not state.plan:
+            return
+        raw_sufficiency = state.metadata.get("research_sufficiency", {})
+        rows = (
+            raw_sufficiency.get("by_sub_question", [])
+            if isinstance(raw_sufficiency, dict)
+            else []
+        )
+        sufficiency_by_id = {
+            str(item.get("sub_question_id")): item
+            for item in rows
+            if isinstance(item, dict)
+        }
+        iteration = int(
+            state.metadata.get("research_loop_tracker", {}).get(
+                "iteration",
+                0,
+            )
+        )
+        written: list[dict[str, object]] = []
+        for sub_question in state.plan.sub_questions:
+            raw_result = sufficiency_by_id.get(sub_question.id, {})
+            gaps = tuple(str(item) for item in raw_result.get("gaps", []))
+            score = round(1.0 - len(gaps) / 6, 6)
+            record = ProceduralRecord(
+                question_type=classify_subquestion(sub_question),
+                strategy=tuple(sub_question.search_queries),
+                sufficiency_result=ProceduralSufficiencyResult(
+                    score=score,
+                    sufficient=bool(raw_result.get("sufficient", False)),
+                    gaps=gaps,
+                ),
+                reflection_signals=signals,
+                run_id=state.research_id,
+                sub_question_id=sub_question.id,
+                iteration=iteration,
+            )
+            self.procedural_memory.write(record)
+            key = {
+                "question_type": record.question_type,
+                "run_id": record.run_id,
+                "sub_question_id": record.sub_question_id,
+                "iteration": record.iteration,
+            }
+            recorder.record_memory_write(
+                MemoryWriteTrace(
+                    memory_type="procedural",
+                    lifecycle=self.procedural_memory.lifecycle,
+                    key=key,
+                    value_summary={
+                        "strategy": list(record.strategy),
+                        "sufficiency_score": (
+                            record.sufficiency_result.score
+                        ),
+                        "sufficient": (
+                            record.sufficiency_result.sufficient
+                        ),
+                        "validation_status": record.validation_status,
+                    },
+                )
+            )
+            written.append(key)
+        record_agent_decision(
+            state,
+            AgentDecision(
+                decision_type="procedural_memory_write",
+                made_by="Reflector",
+                inputs={
+                    "records": written,
+                    "lifecycle": self.procedural_memory.lifecycle,
+                    "index_key": "question_type",
+                },
+                criterion=(
+                    "write deterministic strategy-effect observations under "
+                    "the MemoryStore cross_run scope without selecting a "
+                    "future strategy"
+                ),
+                outcome=f"procedural_records_written={len(written)}",
+                alternatives_considered=[
+                    "skip_empty_signal_records",
+                    "auto_select_historical_strategy",
+                    "store_observation_without_auto_selection",
+                ],
+                iteration=iteration,
+            ),
+        )
+
+    def _route_after_reflection(
+        self,
+        graph_state: ResearchGraphState,
+    ) -> str:
+        state = self._state_from_graph_values(graph_state)
+        if state.status == "paused":
+            return END
+        return (
+            "research_refine"
+            if state.metadata.get("research_loop_route") == "continue"
+            else "reporter"
+        )
 
     def _research_loop_decide_node(
         self,
@@ -1449,6 +1705,8 @@ class DeepResearchEngine:
         graph_state: ResearchGraphState,
     ) -> str:
         state = self._state_from_graph_values(graph_state)
+        if self.settings.reflection_enabled:
+            return "reflector"
         return (
             "research_refine"
             if state.metadata.get("research_loop_route") == "continue"
@@ -1493,11 +1751,33 @@ class DeepResearchEngine:
                     ),
                     sufficiency=sufficiency,
                 )
-                if self.settings.decision_weaving_enabled
+                if (
+                    self.settings.decision_weaving_enabled
+                    or self.settings.reflection_enabled
+                )
                 else None
             ),
         )
         state.metadata["next_research_intent"] = refined
+        if self.settings.reflection_enabled:
+            process = state.metadata.get("research_process", [])
+            reflection_result = state.metadata.get(
+                "reflection_result",
+                {},
+            )
+            if process and isinstance(process[-1], dict):
+                process[-1]["reflection_effect"] = {
+                    "deterministic_signals": (
+                        reflection_result.get(
+                            "deterministic_signals",
+                            {},
+                        )
+                        if isinstance(reflection_result, dict)
+                        else {}
+                    ),
+                    "adjusted_queries": refined,
+                    "llm_insight_used": False,
+                }
         state.critic_report = None
         state.critic_iteration = 0
         state.retry_queue = []
@@ -1952,6 +2232,42 @@ class DeepResearchEngine:
                         ensure_ascii=False,
                         sort_keys=True,
                     )
+                )
+            reflection_effect = item.get("reflection_effect")
+            if isinstance(reflection_effect, dict):
+                signals = reflection_effect.get(
+                    "deterministic_signals",
+                    {},
+                )
+                has_signal = (
+                    isinstance(signals, dict)
+                    and any(bool(value) for value in signals.values())
+                )
+                if has_signal:
+                    lines.append(
+                        "- 反思如何影响重规划：仅使用确定性跨轮信号 "
+                        + json.dumps(
+                            signals,
+                            ensure_ascii=False,
+                            sort_keys=True,
+                        )
+                    )
+                else:
+                    lines.append(
+                        "- 反思如何影响重规划：本轮未发现跨轮重复模式，"
+                        "因此没有追加反思定向条件。"
+                    )
+                lines.append(
+                    "- 下一轮检索意图："
+                    + json.dumps(
+                        reflection_effect.get(
+                            "adjusted_queries",
+                            {},
+                        ),
+                        ensure_ascii=False,
+                        sort_keys=True,
+                    )
+                    + "；LLM 洞察未参与，待 019。"
                 )
             if item.get("stop_boundary"):
                 lines.append(

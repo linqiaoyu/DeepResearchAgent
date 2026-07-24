@@ -12,6 +12,10 @@ DeepResearchAgent 是一个多 Agent 深度研究框架，金融投研为首个�
 数值自洽校验、基于 `CapabilityRegistry` 的确定性动态能力选择和扩展轨迹严格回放。
 三项新增 `content_affecting` 开关均默认关闭；017–019 的既定后续路线见第 13 节。
 
+017 已完成 Reflector 双轨骨架：四类确定性跨轮信号、独立 LLM 推理接口及合成/录制
+占位、严格 cache miss、程序性记忆与反思驱动重规划接线均已落位。该轮只证明管道，
+反思判断质量与跨运行策略偏好优劣待 019 真实验证。
+
 ## 2. 仓库结构
 
 - `.env.example`：环境变量示例文件。
@@ -33,7 +37,7 @@ DeepResearchAgent 是一个多 Agent 深度研究框架，金融投研为首个�
 
 领域目录约定（尚未实施）：目标 domain pack 包含 `tools/`、`prompts/`、`templates/`、`eval/`、`domain.yaml` 五类；新增领域前必须先完成 finance 等价抽取、旧路径兼容、资源 SHA-256 与默认 E2E 行为证明。
 
-当前默认开关：`TOOL_CONTRACT_ENABLED=true`、`INJECTION_GUARD_ENABLED=false`、`RUN_MANIFEST_ENABLED=true`、`CONTEXT_PACKER_ENABLED=false`、`STRUCTURED_LOGGING_ENABLED=true`、`CONFIG_FAIL_FAST_ENABLED=true`、`STRUCTURED_OUTPUT_ENABLED=true`、`PROGRESSIVE_DELIVERY_ENABLED=false`、`TRAJECTORY_RECORD_ENABLED=false`、`BRANCH_BUDGET_ENABLED=false`、`RESEARCH_LOOP_ENABLED=false`（max iterations 默认 1）、`PRIOR_MEMORY_ENABLED=false`、`DECISION_WEAVING_ENABLED=false`、`NUMERIC_CHECK_ENABLED=false`、`DYNAMIC_CAPABILITY_ENABLED=false`。任何跨代比较必须先经 `scripts/verify_manifest.py` 判定。
+当前默认开关：`TOOL_CONTRACT_ENABLED=true`、`INJECTION_GUARD_ENABLED=false`、`RUN_MANIFEST_ENABLED=true`、`CONTEXT_PACKER_ENABLED=false`、`STRUCTURED_LOGGING_ENABLED=true`、`CONFIG_FAIL_FAST_ENABLED=true`、`STRUCTURED_OUTPUT_ENABLED=true`、`PROGRESSIVE_DELIVERY_ENABLED=false`、`TRAJECTORY_RECORD_ENABLED=false`、`BRANCH_BUDGET_ENABLED=false`、`RESEARCH_LOOP_ENABLED=false`（max iterations 默认 1）、`PRIOR_MEMORY_ENABLED=false`、`DECISION_WEAVING_ENABLED=false`、`NUMERIC_CHECK_ENABLED=false`、`DYNAMIC_CAPABILITY_ENABLED=false`、`REFLECTION_ENABLED=false`。任何跨代比较必须先经 `scripts/verify_manifest.py` 判定。
 
 ## 3. 技术栈与版本
 
@@ -216,12 +220,13 @@ Goal 或自治模式下绝对禁止 push、force push、历史改写、批量文
 
 本节使 017/018/019 成为仓库事实源的一部分。任何后续任务若要跳过或缩减它们，必须显式在报告中申报并给出理由，禁止无声推迟。
 
-### 017（认知与记忆轮，零成本）
+### 017（骨架已完成；LLM 接入与判断力待 019）
 
-- 反思器 Reflector：运行结束后读取 AgentTrajectory 与全部 AgentDecision，提取结构化策略信号——哪些子问题充分性始终偏低、哪些来源反复无效、Critic 反复提哪类 issue、哪几轮重规划未带来进展。开关 REFLECTION_ENABLED 默认 false，content_affecting。可 fixture 验证的部分：信号提取的正确性、信号进入下一轮重规划输入的接线。标注待 019 验证的部分：反思出的策略调整在真实世界是否改善下一轮
-- 反思驱动重规划：把 015 的确定性精化规则升级为可接纳反思信号；反思结论进入 DecisionContext 并影响下一轮检索意图。复用 015 的重规划接口与 BoundedLoop，不另造循环
-- 程序性记忆 ProceduralMemory：实现 015 锁定的 MemoryStore 协议，lifecycle=cross_run。存储"哪类问题下哪种策略产生了何种充分性结果"的结构化记录，按问题类型索引，供后续运行的规划阶段查询。可 fixture 验证的部分：存储、检索、按问题类型索引、确定性查询。标注待 019 验证的部分：跨真实运行积累的策略偏好是否真的更优
-- 契约要求：Reflector 与 ProceduralMemory 涉及的新节点必须声明 NodeContract；反思与记忆写入若构成决策必须经 DecisionGate
+- Reflector 已读取 AgentTrajectory 与全部 AgentDecision，机械提取持续薄弱项、反复无效来源、重复 Critic issue 与无进展重规划轮次；`REFLECTION_ENABLED=false`，`content_affecting`
+- 双轨结构已落位：确定性信号可 fixture 验证；类型化 LLM 推理接口本轮仅合成/录制占位，真实判断质量待 019
+- 反思驱动重规划已复用 015 的精化接口、016 的 DecisionContext 与 BoundedLoop；只有确定性信号参与，llm_insight 不参与
+- ProceduralMemory 已实现 MemoryStore，`lifecycle=cross_run`，按问题类型索引策略—充分性—反思观察；不自动选择策略，跨真实运行偏好优劣待 019
+- Reflector 已声明 NodeContract；信号提取与程序记忆写入均形成 AgentDecision 并经 DecisionGate；扩张轨迹可严格逐字回放
 
 ### 018（生态接口轮，零成本）
 

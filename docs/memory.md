@@ -7,9 +7,14 @@
 research_id，防止不同研究或领域静默串用数据。生命周期分为单次运行 `run`、
 跨运行 `cross_run` 和持久 `persistent`。
 
-本轮实现情景记忆、语义记忆，并把已有 context packer 适配为工作记忆；不实现程序性
-记忆。016 的程序性记忆必须实现同一协议，并声明自己的作用域、生命周期、写入对象与
-查询结果，不能绕开记忆边界直接读取其他运行的 state。
+当前实现情景记忆、语义记忆与程序性记忆，并把已有 context packer 适配为工作记忆。
+三类跨运行/持久记忆都实现同一协议；程序性写入不能绕开节点契约与决策审计。
+
+| 记忆 | 保存什么 | lifecycle | 主索引 |
+| --- | --- | --- | --- |
+| 情景 Episodic | 某次运行发生了什么：ResearchSnapshot 与轨迹引用 | `cross_run` | `(question_id, as_of)` |
+| 语义 Semantic | 某个归一事实的时间序列 | `persistent` | `(entity, normalized_metric, period, scope)` |
+| 程序 Procedural | 某类问题下，策略产生的充分性结果与反思信号 | `cross_run` | `question_type`，记录内含 run/sub-question/iteration |
 
 ## 情景记忆 EpisodicMemory
 
@@ -47,18 +52,22 @@ Reporter 在 `CONTEXT_PACKER_ENABLED=true` 时先 `write` 当前 Evidence，再�
 budget、as_of `query` 打包结果。开关继续默认关闭；关闭时不会写入或查询工作记忆，
 现有 Evidence、报告和双题面 characterization 保持逐字一致。
 
-## 程序性记忆 ProceduralMemory（016 预留）
+## 程序性记忆 ProceduralMemory
 
-程序性记忆保存“在什么条件下采用哪种研究策略”的可复用规则，而不是某次运行的事实
-或轨迹。本轮没有实现、学习或自动更新策略。016 若接入，必须实现 `MemoryStore`，
-把策略版本、适用条件、来源运行和验证状态作为强类型写入对象；读取出的策略仍须经过
-`NodeContract`、`LoopSpec`、预算与 `AgentDecision`，不能自行改图或绕过边界。
+程序性记忆保存“某类问题下采用了什么策略、产生何种充分性结果与反思信号”，而不是
+某次运行的业务事实或完整轨迹。`ProceduralRecord` 强类型记录 `question_type`、查询策略、
+充分性分数/是否充分/gaps、四类确定性反思信号、run、sub-question、iteration 和验证状态。
+同一复合记录键再次写入是幂等替换；按 `question_type` 查询稳定排序。
+
+当前读取只返回历史，不自动排序、推荐或采用策略。fixture 可以证明存储、检索、索引和
+确定性；跨真实运行积累出的偏好是否更优完全不可证，待 019 验证。
 
 ## 明确不做什么
 
-本轮不实现程序性记忆，不引入向量库、embedding 或外部 API，不修改 Evidence Store
-数据库合同，也不做自动遗忘、摘要或压缩。情景与语义实现当前为确定性内存索引；
-持久化适配器属于后续实现，不能把这里的生命周期声明误读为已经部署跨进程数据库。
+本轮不引入向量库、embedding 或外部 API，不修改 Evidence Store 数据库合同，也不做
+记忆自动遗忘、摘要、压缩或基于程序记忆的自动策略选择。三类实现当前都是确定性进程内
+索引；`cross_run` / `persistent` 是生命周期与作用域合同，不能误读为已经部署跨进程
+数据库。
 
 ## 跨期研究行为
 

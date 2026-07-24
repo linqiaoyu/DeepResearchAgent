@@ -18,6 +18,7 @@ from deepresearch_agent.orchestration.decision_context import (
     CriticIssueContext,
     DecisionContext,
     PriorClassificationContext,
+    ReflectionSignalContext,
     SufficiencyContext,
     build_decision_context,
 )
@@ -51,6 +52,7 @@ __all__ = [
     "CriticIssueContext",
     "DecisionContext",
     "PriorClassificationContext",
+    "ReflectionSignalContext",
     "SufficiencyContext",
     "build_decision_context",
     "BoundedLoop",

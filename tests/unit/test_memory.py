@@ -9,12 +9,17 @@ from deepresearch_agent.memory import (
     EpisodicQuery,
     EpisodicRecord,
     MemoryStore,
+    ProceduralMemory,
+    ProceduralQuery,
+    ProceduralRecord,
+    ProceduralSufficiencyResult,
     SemanticFact,
     SemanticMemory,
     SemanticQuery,
     WorkingMemoryQuery,
     WorkingMemoryWrite,
 )
+from deepresearch_agent.reflection import DeterministicReflectionSignals
 from deepresearch_agent.provenance import RunManifest
 from deepresearch_agent.research_snapshot import ResearchSnapshot
 from deepresearch_agent.schemas import (
@@ -236,6 +241,101 @@ class MemoryStoreTest(unittest.TestCase):
         )
         self.assertEqual(empty.selected, [])
         self.assertEqual(memory.lifecycle, "run")
+
+    def test_procedural_memory_implements_cross_run_store_protocol(
+        self,
+    ) -> None:
+        memory = ProceduralMemory()
+
+        self.assertIsInstance(memory, MemoryStore)
+        self.assertEqual(memory.lifecycle, "cross_run")
+        self.assertEqual(memory.scope.namespace, "procedural")
+        self.assertIsNone(memory.scope.research_id)
+
+    def test_procedural_memory_indexes_question_type_deterministically(
+        self,
+    ) -> None:
+        memory = ProceduralMemory()
+        narrative = ProceduralRecord(
+            question_type="narrative",
+            strategy=("official source",),
+            sufficiency_result=ProceduralSufficiencyResult(
+                score=0.8,
+                sufficient=True,
+            ),
+            reflection_signals=DeterministicReflectionSignals(),
+            run_id="run-b",
+            sub_question_id="sq-b",
+            iteration=2,
+        )
+        financial = ProceduralRecord(
+            question_type="financial_metric",
+            strategy=("structured data",),
+            sufficiency_result=ProceduralSufficiencyResult(
+                score=0.6,
+                sufficient=False,
+                gaps=("independent_source_domains",),
+            ),
+            reflection_signals=DeterministicReflectionSignals(
+                persistently_weak_subquestions=["sq-a"]
+            ),
+            run_id="run-a",
+            sub_question_id="sq-a",
+            iteration=1,
+        )
+        memory.write(narrative)
+        memory.write(financial)
+        memory.write(financial)
+
+        first = memory.query(
+            ProceduralQuery(question_type="financial_metric")
+        )
+        second = memory.query(
+            ProceduralQuery(question_type="financial_metric")
+        )
+
+        self.assertEqual(
+            first.model_dump_json(),
+            second.model_dump_json(),
+        )
+        self.assertEqual(first.records, [financial])
+        self.assertEqual(
+            memory.query(
+                ProceduralQuery(question_type="narrative")
+            ).records,
+            [narrative],
+        )
+        self.assertEqual(
+            memory.query(
+                ProceduralQuery(question_type="verify")
+            ).records,
+            [],
+        )
+
+    def test_memory_families_have_distinct_scope_and_index_shapes(
+        self,
+    ) -> None:
+        episodic = EpisodicMemory()
+        semantic = SemanticMemory()
+        procedural = ProceduralMemory()
+
+        self.assertEqual(
+            {
+                episodic.scope.namespace,
+                semantic.scope.namespace,
+                procedural.scope.namespace,
+            },
+            {"episodic", "semantic", "procedural"},
+        )
+        self.assertEqual(episodic.lifecycle, "cross_run")
+        self.assertEqual(semantic.lifecycle, "persistent")
+        self.assertEqual(procedural.lifecycle, "cross_run")
+        self.assertEqual(
+            procedural.query(
+                ProceduralQuery(question_type="narrative")
+            ).question_type,
+            "narrative",
+        )
 
 
 if __name__ == "__main__":

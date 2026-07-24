@@ -183,6 +183,48 @@ def refine_research_plan(
         metrics = metrics_by_id[sub_question.id]
         gaps_by_id[sub_question.id] = list(metrics.gaps)
         queries: list[str] = []
+        reflection = (
+            decision_context.reflection_signals
+            if decision_context
+            else None
+        )
+        if (
+            reflection
+            and sub_question.id
+            in reflection.persistently_weak_subquestions
+        ):
+            queries.append(
+                f"{sub_question.question} targeted recovery for "
+                "persistent cross-round weakness"
+            )
+        if reflection and reflection.repeatedly_ineffective_sources:
+            excluded = " ".join(
+                reflection.repeatedly_ineffective_sources
+            )
+            queries.append(
+                f"{sub_question.question} alternative primary sources "
+                f"excluding repeatedly ineffective domains {excluded}"
+            )
+        if reflection and reflection.repeated_critic_issue_types:
+            repeated_types = " ".join(
+                item[0] for item in reflection.repeated_critic_issue_types
+            )
+            queries.append(
+                f"{sub_question.question} resolve repeated critic patterns "
+                f"{repeated_types}"
+            )
+        if (
+            reflection
+            and reflection.ineffective_replanning_iterations
+        ):
+            rounds = " ".join(
+                str(item)
+                for item in reflection.ineffective_replanning_iterations
+            )
+            queries.append(
+                f"{sub_question.question} new evidence angle after "
+                f"no-progress replanning rounds {rounds}"
+            )
         targeted_issues = (
             [
                 issue
@@ -235,12 +277,14 @@ def refine_research_plan(
         "as_of": as_of.isoformat(),
     }
     if decision_context:
-        fields = (
+        fields = [
             "iteration",
             "sufficiency",
             "unresolved_critic_issues",
-        )
-        inputs["decision_context_fields"] = list(fields)
+        ]
+        if decision_context.reflection_signals.present:
+            fields.append("reflection_signals")
+        inputs["decision_context_fields"] = fields
         inputs["decision_context"] = decision_context.field_snapshot(
             *fields
         )
@@ -256,6 +300,12 @@ def refine_research_plan(
                 + (
                     " and unresolved DecisionContext critic issues"
                     if decision_context
+                    else ""
+                )
+                + (
+                    " and deterministic cross-round reflection signals"
+                    if decision_context
+                    and decision_context.reflection_signals.present
                     else ""
                 )
             ),

@@ -337,6 +337,51 @@ class RunManifestTests(unittest.TestCase):
 
         self.assertEqual(baseline.config_hash, changed.config_hash)
 
+    def test_reflection_flag_is_content_affecting_and_omitted_when_off(
+        self,
+    ) -> None:
+        settings = Settings(storage_path=Path("test.db"))
+        default_flags = settings_flag_snapshot(settings)
+        expanded = settings_flag_snapshot(
+            settings,
+            include_disabled_experimental=True,
+        )
+
+        self.assertEqual(
+            FLAG_CLASSIFICATIONS["REFLECTION_ENABLED"],
+            "content_affecting",
+        )
+        self.assertNotIn("REFLECTION_ENABLED", default_flags)
+        self.assertIs(expanded["REFLECTION_ENABLED"], False)
+
+        enabled = settings_flag_snapshot(
+            Settings(
+                storage_path=Path("test.db"),
+                reflection_enabled=True,
+            )
+        )
+        self.assertIs(enabled["REFLECTION_ENABLED"], True)
+
+    def test_enabled_reflection_makes_historical_run_incomparable(
+        self,
+    ) -> None:
+        changed = manifest().model_copy(
+            update={
+                "flags": {
+                    **manifest().flags,
+                    "REFLECTION_ENABLED": True,
+                }
+            }
+        )
+
+        comparison = compare_manifests(manifest(), changed)
+
+        self.assertFalse(comparison.comparable)
+        self.assertIn(
+            "flags.REFLECTION_ENABLED",
+            comparison.incomparable_reasons,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

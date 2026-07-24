@@ -13,7 +13,12 @@ from deepresearch_agent.schemas import (
     SymbolInfo,
 )
 from deepresearch_agent.settings import load_settings
-from deepresearch_agent.trajectory import AgentTrajectory, ReplayResult
+from deepresearch_agent.trajectory import (
+    AgentTrajectory,
+    ReplayResult,
+    ToolCallTrace,
+    active_trajectory_recorder,
+)
 from deepresearch_agent.workflow import DeepResearchEngine
 
 
@@ -21,19 +26,15 @@ class ReplaySearchProvider:
     def __init__(self, trajectory: AgentTrajectory) -> None:
         self._responses: dict[
             tuple[str, int, str | None],
-            deque[list[Source]],
+            deque[ToolCallTrace],
         ] = defaultdict(deque)
-        self._fetches: dict[str, deque[Source | None]] = defaultdict(
+        self._fetches: dict[str, deque[ToolCallTrace]] = defaultdict(
             deque
         )
         for call in trajectory.tool_calls:
             name = call.tool_spec.get("name")
             if name == "web_fetch" and not call.error:
-                self._fetches[str(call.inputs["url"])].append(
-                    Source.model_validate(call.result)
-                    if call.result
-                    else None
-                )
+                self._fetches[str(call.inputs["url"])].append(call)
             if name != "web_search" or call.error:
                 continue
             key = (
@@ -41,9 +42,7 @@ class ReplaySearchProvider:
                 int(call.inputs.get("top_k", 3)),
                 call.inputs.get("source_type"),
             )
-            self._responses[key].append(
-                [Source.model_validate(item) for item in (call.result or [])]
-            )
+            self._responses[key].append(call)
 
     def search(
         self,
@@ -55,7 +54,14 @@ class ReplaySearchProvider:
         queue = self._responses.get(key)
         if not queue:
             raise RuntimeError(f"trajectory cache_miss: web_search {key!r}")
-        return queue.popleft()
+        call = queue.popleft()
+        recorder = active_trajectory_recorder()
+        if recorder:
+            recorder.record_tool_call(call.model_copy(deep=True))
+        return [
+            Source.model_validate(item)
+            for item in (call.result or [])
+        ]
 
     def fetch(self, url: str) -> Source | None:
         queue = self._fetches.get(url)
@@ -63,7 +69,15 @@ class ReplaySearchProvider:
             raise RuntimeError(
                 f"trajectory cache_miss: web_fetch {url!r}"
             )
-        return queue.popleft()
+        call = queue.popleft()
+        recorder = active_trajectory_recorder()
+        if recorder:
+            recorder.record_tool_call(call.model_copy(deep=True))
+        return (
+            Source.model_validate(call.result)
+            if call.result
+            else None
+        )
 
 
 class ReplayStructuredDataProvider:
@@ -240,6 +254,7 @@ def replay_trajectory(
                     "numeric_check_absolute_tolerance",
                     "dynamic_capability_enabled",
                     "dynamic_capability_rules_json",
+                    "reflection_enabled",
                 }
             },
         )

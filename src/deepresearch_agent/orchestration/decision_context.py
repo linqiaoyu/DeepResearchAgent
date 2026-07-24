@@ -51,6 +51,24 @@ class CriticIssueContext(FrozenDecisionModel):
     evidence_ids: tuple[str, ...] = ()
 
 
+class ReflectionSignalContext(FrozenDecisionModel):
+    persistently_weak_subquestions: tuple[str, ...] = ()
+    repeatedly_ineffective_sources: tuple[str, ...] = ()
+    repeated_critic_issue_types: tuple[tuple[str, int], ...] = ()
+    ineffective_replanning_iterations: tuple[int, ...] = ()
+
+    @property
+    def present(self) -> bool:
+        return any(
+            (
+                self.persistently_weak_subquestions,
+                self.repeatedly_ineffective_sources,
+                self.repeated_critic_issue_types,
+                self.ineffective_replanning_iterations,
+            )
+        )
+
+
 class DecisionContext(FrozenDecisionModel):
     """Read-only aggregate through which decisions observe one another."""
 
@@ -59,6 +77,7 @@ class DecisionContext(FrozenDecisionModel):
     sufficiency: tuple[SufficiencyContext, ...] = ()
     prior_classifications: tuple[PriorClassificationContext, ...] = ()
     unresolved_critic_issues: tuple[CriticIssueContext, ...] = ()
+    reflection_signals: ReflectionSignalContext = ReflectionSignalContext()
 
     def field_snapshot(self, *fields: str) -> dict[str, object]:
         payload = self.model_dump(mode="json")
@@ -118,6 +137,7 @@ def build_decision_context(
     )
     prior_rows = _prior_rows(state)
     issue_rows = _issue_rows(state)
+    reflection_signals = _reflection_signals(state)
     return DecisionContext(
         iteration=iteration,
         budget=BudgetContext(
@@ -129,6 +149,7 @@ def build_decision_context(
         sufficiency=sufficiency_rows,
         prior_classifications=prior_rows,
         unresolved_critic_issues=issue_rows,
+        reflection_signals=reflection_signals,
     )
 
 
@@ -208,3 +229,52 @@ def _issue_rows(state: ResearchState) -> tuple[CriticIssueContext, ...]:
             )
         )
     return tuple(rows)
+
+
+def _reflection_signals(state: ResearchState) -> ReflectionSignalContext:
+    result = state.metadata.get("reflection_result", {})
+    raw = (
+        result.get("deterministic_signals", {})
+        if isinstance(result, Mapping)
+        else {}
+    )
+    if not isinstance(raw, Mapping):
+        return ReflectionSignalContext()
+    repeated = raw.get("repeated_critic_issue_types", {})
+    return ReflectionSignalContext(
+        persistently_weak_subquestions=tuple(
+            sorted(
+                str(item)
+                for item in raw.get(
+                    "persistently_weak_subquestions",
+                    [],
+                )
+            )
+        ),
+        repeatedly_ineffective_sources=tuple(
+            sorted(
+                str(item)
+                for item in raw.get(
+                    "repeatedly_ineffective_sources",
+                    [],
+                )
+            )
+        ),
+        repeated_critic_issue_types=tuple(
+            (str(key), int(value))
+            for key, value in sorted(
+                repeated.items()
+                if isinstance(repeated, Mapping)
+                else []
+            )
+        ),
+        ineffective_replanning_iterations=tuple(
+            sorted(
+                int(item)
+                for item in raw.get(
+                    "ineffective_replanning_iterations",
+                    [],
+                )
+            )
+        ),
+    )

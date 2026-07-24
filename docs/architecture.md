@@ -9,10 +9,11 @@ flowchart TB
     NC["NodeContract + DecisionGate"] -. validates .-> G["LangGraph StateGraph"]
     LS["LoopSpec / BoundedLoop"] --> G
     BB["BranchBudget"] --> G
-    DC["DecisionContext<br/>budget + sufficiency + prior + issues"] --> BB
+    DC["DecisionContext<br/>budget + sufficiency + prior + issues + reflection"] --> BB
     DC --> G
     EM[("EpisodicMemory")] --> P["Planner"]
     SM[("SemanticMemory")] -. exact four-key facts .-> P
+    PM[("ProceduralMemory")]
     WM["ContextWorkingMemory"] -. CONTEXT_PACKER_ENABLED .-> RP["Reporter"]
     CR["CapabilityRegistry"] --> CS["CapabilitySelector"]
     CS --> R["Researcher"]
@@ -22,17 +23,24 @@ flowchart TB
     J --> X["Extractor"]
     X --> C["Critic"]
     C --> D{"research_loop_decide"}
-    D -->|continue| RF["research_refine"]
+    D -->|reflection off / continue| RF["research_refine"]
+    D -->|reflection off / stop| RP
+    D -->|REFLECTION_ENABLED| FCT["Reflector<br/>signals + reasoning seam"]
+    FCT --> PM
+    FCT --> DC
+    FCT -->|continue| RF
     RF --> J
-    D -->|stop| RP
+    FCT -->|stop| RP
 ```
 
 `NodeContract` 在图构建和每个节点边界强制消费、生产、不变式与决策记录；
 LangGraph 仍是唯一执行器。`BranchBudget` 在 `Send` 前分配并在 join 后再分配。
-`MemoryStore` 的情景/语义实现保持确定性，工作记忆适配既有 context packer。
+`MemoryStore` 的情景/语义/程序实现保持确定性，工作记忆适配既有 context packer。
 `DecisionContext` 是预算、充分性、上期分类与 Critic issue 的深只读快照，预算器、
 循环器和重规划器读取同一事实视图。`CapabilityRegistry` 注册和查询能力；默认关闭的
 确定性 selector 在 Researcher fan-out 前按子问题类型选择当前可用能力。
+Reflector 位于充分性决定与重规划/报告之间：只把机械信号送入 `DecisionContext`，
+独立 LLM 推理接口待 019；程序记忆写入策略效果观察但不自动选策。
 
 ## Current Execution Flow
 
@@ -49,6 +57,7 @@ sequenceDiagram
     participant Saver as SqliteSaver
     participant Store as SQLiteStore
     participant Critic
+    participant Reflector
     participant Reporter
     participant Evaluator
 
@@ -80,6 +89,10 @@ sequenceDiagram
         Graph->>Critic: evaluate evidence set
         Critic-->>Graph: CriticReport + retry queue
         alt passed or forced pass
+            opt REFLECTION_ENABLED
+                Graph->>Reflector: trajectory + all AgentDecision
+                Reflector-->>Graph: deterministic signals + placeholder insight
+            end
             alt deterministic mode
                 Graph->>Reporter: markdown report with footnote citations
             else llm mode
@@ -125,6 +138,7 @@ The runtime has two modes:
 - `ResearchSnapshot`: business question/as-of, normalized claims, structured objects, manifest reference, and flag snapshot
 - `AgentDecision`: actor, measured inputs, explicit criterion, outcome, alternatives, iteration, and timestamp
 - `DecisionContext`: immutable budget, sufficiency, prior-classification, critic-issue, and preceding-decision snapshot
+- `ReflectionResult`: deterministic cross-round signals plus a separately typed LLM insight seam
 - `AgentTrajectory`: LLM/tool calls, node summaries, decisions, manifest reference, and recorded artifacts
 - `NodeContract`: node consumes, produces, invariants, and optional decision gate
 - `LoopSpec`: iteration, budget, no-progress bounds, progress metric, and exhaustion handler
@@ -193,6 +207,9 @@ input. The bounded policies decide whether research continues, how branch capaci
 is allocated, whether a sub-question is `verify` / `watch` / `explore`, how the
 next query is refined, whether numeric relations reconcile, and which registered
 capabilities a sub-question may use.
+Reflector adds two auditable decisions: mechanical signal extraction and procedural-memory
+write. Only deterministic signals enter `DecisionContext`; the placeholder `llm_insight`
+cannot affect behavior before 019.
 `TRAJECTORY_RECORD_ENABLED=false` attaches a redacted recorder at the LLM,
 ToolSpec search, and graph-node boundaries. Strict replay uses recorded fixture
 search responses and compares report bytes; strategy replay stops on an
@@ -203,7 +220,7 @@ consistency checking, and dynamic capability selection exist behind default-off
 `content_affecting` flags. Numeric checking sits inside Critic so an inconsistency
 uses the existing retry path. Capability selection sits in `research_prepare`,
 before fan-out, and the Researcher only consumes that selection. A future MCP
-server and 017 skill packs must register through the same registry.
+server and 018 skill packs must register through the same registry.
 
 ## Current MVP Boundaries
 
@@ -212,6 +229,7 @@ server and 017 skill packs must register through the same registry.
 - Fetch has only a local fixture implementation through `FixtureSearchTool.fetch`; there is no robust live `web_fetch` yet.
 - Search, fetch, and structured data are registered in `CapabilityRegistry`; default execution resolves the fixed 015 set. The optional 016 selector is deterministic, not learned or LLM-selected.
 - Episodic and semantic memory are in-process deterministic stores. They are not durable multi-process memory, vector retrieval, or an automatic forgetting system.
+- Procedural memory is also an in-process deterministic `cross_run` index; it records strategy effects but does not learn, rank, or adopt a strategy.
 - `rag_search` is not implemented.
 - Graph checkpoints are persisted by LangGraph's official `SqliteSaver`; evidence rows and evaluations are persisted with `SQLiteStore` for the local MVP. `docs/postgres_schema.sql` documents a production storage path, but there is no Postgres adapter yet.
 - The primary FastAPI and fallback stdlib research endpoints execute runs synchronously. Demo Golden reruns use a process-local worker and JSON polling store; this is not a durable distributed queue.
@@ -298,5 +316,6 @@ The hardening modules are additive. Default-off modules do not change the determ
 | Branch budget | `orchestration/budget.py` | `BRANCH_BUDGET_ENABLED` | `false` | Bounds per-run and per-branch search calls; records allocation decisions |
 | Research sufficiency loop | `orchestration/loops.py`, `orchestration/research_loop.py` | `RESEARCH_LOOP_ENABLED` | `false` | Refines weak queries through a bounded native LangGraph back-edge |
 | Prior research memory | `memory/prior.py` | `PRIOR_MEMORY_ENABLED` | `false` | Uses only the latest earlier snapshot to classify and verify sub-questions |
+| Reflection skeleton | `reflection.py`, `memory/procedural.py` | `REFLECTION_ENABLED` | `false` | Extracts mechanical signals, invokes a zero-API reasoning placeholder, writes procedural observations, and can inform existing replanning |
 
 Prompt drift validation is enabled in CI because it is a build-time guard, not a runtime behavior change. Read-only offline evaluation tools in `scripts/compare_runs.py`, `scripts/offline_metrics.py`, and `scripts/validate_golden_schema.py` never initiate research or modify Golden assets.
