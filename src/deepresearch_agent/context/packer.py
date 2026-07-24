@@ -63,8 +63,7 @@ def pack_evidence(
     reference_date = as_of or date.today()
     unique: list[tuple[int, Evidence]] = []
     dropped: list[DroppedEvidence] = []
-    seen_urls: set[str] = set()
-    seen_content: set[str] = set()
+    seen_evidence: set[tuple[str, str]] = set()
     token_counts: dict[str, int] = {}
 
     for index, item in enumerate(evidence):
@@ -72,16 +71,8 @@ def pack_evidence(
         token_counts[item.id] = tokens
         normalized_url = _normalize_url(item.source_url)
         content_hash = hashlib.sha256(item.extract_text.encode("utf-8")).hexdigest()
-        if normalized_url in seen_urls:
-            dropped.append(
-                DroppedEvidence(
-                    evidence_id=item.id,
-                    reason="duplicate_url",
-                    token_estimate=tokens,
-                )
-            )
-            continue
-        if content_hash in seen_content:
+        evidence_key = (normalized_url, content_hash)
+        if evidence_key in seen_evidence:
             dropped.append(
                 DroppedEvidence(
                     evidence_id=item.id,
@@ -90,8 +81,7 @@ def pack_evidence(
                 )
             )
             continue
-        seen_urls.add(normalized_url)
-        seen_content.add(content_hash)
+        seen_evidence.add(evidence_key)
         unique.append((index, item))
 
     ranked = sorted(

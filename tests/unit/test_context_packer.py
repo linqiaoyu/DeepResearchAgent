@@ -56,7 +56,7 @@ class ContextPackerTests(unittest.TestCase):
         second = pack_evidence(items, **kwargs)
         self.assertEqual(first.model_dump(), second.model_dump())
 
-    def test_deduplicates_normalized_url_and_content_hash(self) -> None:
+    def test_same_url_different_extracts_are_not_deduplicated(self) -> None:
         items = [
             evidence("a", url="HTTPS://EXAMPLE.COM/path/?b=2&a=1", text="first"),
             evidence("b", url="https://example.com/path?a=1&b=2#fragment", text="second"),
@@ -68,10 +68,38 @@ class ContextPackerTests(unittest.TestCase):
             budget=100,
             estimator=FixedEstimator(10),
         )
-        reasons = {item.evidence_id: item.reason for item in result.dropped}
-        self.assertEqual(reasons["b"], "duplicate_url")
-        self.assertEqual(reasons["c"], "duplicate_content")
+        self.assertEqual(result.dropped, [])
+        self.assertEqual([item.id for item in result.selected], ["a", "c", "b"])
+
+    def test_same_normalized_url_and_extract_are_deduplicated(self) -> None:
+        items = [
+            evidence("a", url="HTTPS://EXAMPLE.COM/path/?b=2&a=1", text="same"),
+            evidence("b", url="https://example.com/path?a=1&b=2#fragment", text="same"),
+        ]
+        result = pack_evidence(
+            items,
+            topic="same",
+            budget=100,
+            estimator=FixedEstimator(10),
+        )
         self.assertEqual([item.id for item in result.selected], ["a"])
+        self.assertEqual(
+            [(item.evidence_id, item.reason) for item in result.dropped],
+            [("b", "duplicate_content")],
+        )
+
+    def test_same_extract_from_different_urls_is_not_deduplicated(self) -> None:
+        result = pack_evidence(
+            [
+                evidence("a", url="https://one.example/path", text="same"),
+                evidence("b", url="https://two.example/path", text="same"),
+            ],
+            topic="same",
+            budget=100,
+            estimator=FixedEstimator(10),
+        )
+        self.assertEqual([item.id for item in result.selected], ["a", "b"])
+        self.assertEqual(result.dropped, [])
 
     def test_budget_is_never_exceeded_and_reasons_are_complete(self) -> None:
         result = pack_evidence(
@@ -101,6 +129,18 @@ class ContextPackerTests(unittest.TestCase):
         )
         self.assertEqual(result.selected, [])
         self.assertEqual(result.dropped[0].reason, "over_budget")
+
+    def test_over_budget_is_only_used_when_item_exceeds_full_budget(self) -> None:
+        result = pack_evidence(
+            [evidence("a"), evidence("b"), evidence("large")],
+            topic="AI agent",
+            budget=10,
+            estimator=FixedEstimator(6),
+        )
+        self.assertEqual(
+            [item.reason for item in result.dropped],
+            ["lower_rank", "lower_rank"],
+        )
 
     def test_equal_scores_preserve_input_order(self) -> None:
         items = [
