@@ -3,9 +3,14 @@
 The harness treats evaluation as a first-class subsystem, not a screenshot.
 
 Cross-generation comparisons must first pass `scripts/verify_manifest.py`.
-Runs with different flags, models, prompts, evaluation clocks, or dependency
-identities are not comparable and must not be described as quality improvement
-or regression.
+Model, prompt, evaluation-clock, dependency, domain, mode, and
+content-affecting flag differences make runs incomparable. Operational flag
+differences are reported as informational without blocking comparison.
+Treating every flag as content-changing is too strict: it prevents legitimate
+quality comparisons just as a permissive check can create false improvements.
+The classification is grounded in the 011 product-level flag-impact snapshots,
+not flag names or implementation claims; unknown flags fail closed as
+content-affecting until measured.
 
 ## Metrics
 

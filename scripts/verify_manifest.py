@@ -4,7 +4,11 @@ import argparse
 import json
 from pathlib import Path
 
-from deepresearch_agent.provenance import RunManifest, compare_manifests
+from deepresearch_agent.provenance import (
+    RunManifest,
+    compare_manifests,
+    format_manifest_comparison,
+)
 
 
 def main() -> None:
@@ -15,7 +19,13 @@ def main() -> None:
     left = RunManifest.model_validate_json(Path(args.left).read_text(encoding="utf-8"))
     right = RunManifest.model_validate_json(Path(args.right).read_text(encoding="utf-8"))
     comparison = compare_manifests(left, right)
-    print(json.dumps(comparison.model_dump(mode="json"), ensure_ascii=False, indent=2))
+    print(
+        json.dumps(
+            format_manifest_comparison(comparison),
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
     if not comparison.comparable:
         raise SystemExit(1)
 
