@@ -8,7 +8,7 @@ Protected assets are source evidence and its provenance, prompts, model and tool
 
 | Surface | Risk | Implemented control | State |
 | --- | --- | --- | --- |
-| External page text | Prompt injection and role spoofing | `security/content.py::detect_injection` marks direct, multilingual, encoded, long-context, and role-spoof patterns; `wrap_untrusted` creates an explicit data boundary before Extractor prompts | Dark; 63-case offline calibration measured 100.00% recall and 15.00% false-positive rate, so `INJECTION_GUARD_ENABLED=false` remains the default |
+| External page text | Prompt injection and role spoofing | `security/content.py::detect_injection` marks direct, multilingual, encoded, long-context, and role-spoof patterns; `wrap_untrusted` creates an explicit data boundary before Extractor prompts | Dark; held-in synthetic recall was 100.00%, but the corpus and rules are co-designed, so this is not a generalization estimate. The primary result is a 15.00% safe-control false-positive rate; `INJECTION_GUARD_ENABLED=false` remains the default |
 | Evidence provenance | A sanitizer could alter quoted evidence | Detection only labels; `Source.content` and `Evidence.extract_text` remain verbatim | Implemented and tested |
 | Tool output | Timeout, transient failure, silent degradation | Typed contracts, run retry budget, circuit breaker, and degradation events in `tools/reliable_execution.py` | Dark; `TOOL_CONTRACT_ENABLED=false` |
 | Model output | Fabricated citations or schema violations | Existing Pydantic structured output validation, extract substring checks, Critic, and citation evaluation | Enabled on existing paths |
@@ -30,13 +30,18 @@ text, quoted/role-spoof instructions, and harmless passages containing
 security-sensitive keywords.
 
 At the operational threshold `risk_score > 0`, the adjusted rules detected
-43/43 risky samples for **100.00% recall** and flagged 3/20 safe samples for a
-**15.00% false-positive rate**. The three false positives were an academic
-quotation of an injection phrase, documentation of a `SYSTEM:` marker, and a
-layout-only HTML comment. The small synthetic corpus is an engineering
-calibration set, not a production security benchmark. The false-positive rate
-and lack of licensed real-page calibration are the reasons the guard remains
-dark.
+43/43 risky samples for **100.00% held-in synthetic recall**. The corpus and
+the detection rules are co-designed, so this result does not estimate
+generalization to real pages and must not be presented as production recall.
+
+The primary calibration result is that 3/20 safe samples were flagged: a
+**15.00% false-positive rate**. Those false positives were a security-research
+quotation of an injection phrase, documentation explaining a `SYSTEM:` marker,
+and a layout-only HTML comment. A research Agent naturally encounters all
+three content classes frequently. It is therefore unsafe to assume the real
+false-positive rate would be below 15.00%; without licensed real-page
+calibration, the operational false-positive pressure is more likely higher.
+That result—not the held-in recall—is the hard reason the guard remains dark.
 
 ## Fetch policy
 
