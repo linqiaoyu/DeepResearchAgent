@@ -6,10 +6,14 @@ import time
 from collections.abc import Sequence
 from dataclasses import asdict
 from typing import Annotated, Any, TypedDict
+from urllib.parse import urlsplit
 
 from deepresearch_agent.agents import CriticAgent, Evaluator, ExtractorAgent, PlannerAgent, ReporterAgent, ResearcherAgent
 from deepresearch_agent.config_validation import validate_required_configuration
-from deepresearch_agent.decisions import append_decision_chain
+from deepresearch_agent.decisions import (
+    append_decision_chain,
+    record_agent_decision,
+)
 from deepresearch_agent.llm import BudgetExceededError, LLMClient
 from deepresearch_agent.memory import (
     ContextWorkingMemory,
@@ -71,6 +75,7 @@ from deepresearch_agent.tools import (
 from deepresearch_agent.tools.contract_adapter import ContractSearchProvider
 from deepresearch_agent.trajectory import (
     NodeTransitionTrace,
+    SignalReadTrace,
     TrajectoryRecorder,
     active_trajectory_recorder,
     trajectory_recording,
@@ -120,6 +125,24 @@ def _trace_graph_summary(value: Any) -> dict[str, Any]:
         "evidence_count": len(raw_state.get("evidence_store", [])),
         "retry_count": len(raw_state.get("retry_queue", [])),
     }
+    evidence_domains = sorted(
+        {
+            urlsplit(str(item.get("source_url", ""))).netloc.lower()
+            for item in raw_state.get("evidence_store", [])
+            if isinstance(item, dict) and item.get("source_url")
+        }
+    )
+    if evidence_domains:
+        summary["evidence_source_domains"] = evidence_domains
+    critic_report = raw_state.get("critic_report")
+    if isinstance(critic_report, dict):
+        issue_types = sorted(
+            str(item.get("issue_type"))
+            for item in critic_report.get("issues", [])
+            if isinstance(item, dict) and item.get("issue_type")
+        )
+        if issue_types:
+            summary["critic_issue_types"] = issue_types
     sub_question = value.get("fanout_sub_question")
     if isinstance(sub_question, dict):
         summary["sub_question_id"] = sub_question.get("id")
@@ -741,9 +764,13 @@ class DeepResearchEngine:
                     "research_state.agent_decisions": ContractField(list),
                 },
                 produces=frozenset(
-                    {"research_state.metadata.reflection_result"}
+                    {
+                        "research_state.metadata.reflection_result",
+                        "research_state.agent_decisions",
+                    }
                 ),
                 invariants=(identity,),
+                decision_node=self.settings.reflection_enabled,
             ),
             "research_loop_decide": NodeContract(
                 name="research_loop_decide",
@@ -1348,6 +1375,32 @@ class DeepResearchEngine:
         result = self.reflector.reflect(
             recorder.trajectory.model_copy(deep=True),
             [item.model_copy(deep=True) for item in state.agent_decisions],
+        )
+        signal_sources = {
+            "persistent_weakness": (
+                "ResearchState.agent_decisions.research_replan"
+            ),
+            "ineffective_source": "AgentTrajectory.tool_calls+node_transitions",
+            "repeated_critic_issue": "AgentTrajectory.node_transitions.critic",
+            "ineffective_replanning": (
+                "ResearchState.agent_decisions.bounded_loop_control"
+            ),
+        }
+        for signal_type, source in signal_sources.items():
+            recorder.record_signal_read(
+                SignalReadTrace(
+                    signal_type=signal_type,
+                    source=source,
+                    keys=("iteration", "type", "count"),
+                )
+            )
+        record_agent_decision(
+            state,
+            self.reflector.signal_extraction_decision(
+                recorder.trajectory,
+                state.agent_decisions,
+                result.deterministic_signals,
+            ),
         )
         state.metadata["reflection_result"] = result.model_dump(mode="json")
         return self._state_output(state)
