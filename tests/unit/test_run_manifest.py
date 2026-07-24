@@ -67,6 +67,10 @@ class RunManifestTests(unittest.TestCase):
             FLAG_CLASSIFICATIONS["RUN_MANIFEST_ENABLED"],
             "operational",
         )
+        self.assertEqual(
+            FLAG_CLASSIFICATIONS["PROGRESSIVE_DELIVERY_ENABLED"],
+            "operational",
+        )
 
     def test_manifest_write_failure_degrades_without_losing_completed_run(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

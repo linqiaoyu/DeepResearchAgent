@@ -74,6 +74,10 @@ FLAG_CLASSIFICATIONS: dict[str, Literal["content_affecting", "operational"]] = {
     "STRUCTURED_LOGGING_ENABLED": "operational",
     "CONFIG_FAIL_FAST_ENABLED": "operational",
     "TOOL_CONTRACT_ENABLED": "operational",
+    # 012 characterization confirmed that API-level section publication
+    # reassembles to the byte-identical final report. It changes polling
+    # sidecars only, so it is operational rather than content-affecting.
+    "PROGRESSIVE_DELIVERY_ENABLED": "operational",
 }
 
 
@@ -187,6 +191,10 @@ def settings_flag_snapshot(
     }
     if settings.structured_output_enabled or include_disabled_experimental:
         flags["STRUCTURED_OUTPUT_ENABLED"] = settings.structured_output_enabled
+    if settings.progressive_delivery_enabled or include_disabled_experimental:
+        flags["PROGRESSIVE_DELIVERY_ENABLED"] = (
+            settings.progressive_delivery_enabled
+        )
     return flags
 
 

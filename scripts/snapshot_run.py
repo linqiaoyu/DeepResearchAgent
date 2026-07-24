@@ -63,6 +63,7 @@ FLAG_FIELDS = {
     "STRUCTURED_LOGGING_ENABLED": "structured_logging_enabled",
     "CONFIG_FAIL_FAST_ENABLED": "config_fail_fast_enabled",
     "STRUCTURED_OUTPUT_ENABLED": "structured_output_enabled",
+    "PROGRESSIVE_DELIVERY_ENABLED": "progressive_delivery_enabled",
 }
 
 
