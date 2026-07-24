@@ -74,6 +74,7 @@ from deepresearch_agent.tools import (
 )
 from deepresearch_agent.tools.contract_adapter import ContractSearchProvider
 from deepresearch_agent.trajectory import (
+    LLMCallTrace,
     NodeTransitionTrace,
     SignalReadTrace,
     TrajectoryRecorder,
@@ -1372,9 +1373,36 @@ class DeepResearchEngine:
             raise RuntimeError(
                 "REFLECTION_ENABLED requires a run-scoped AgentTrajectory"
             )
+        trajectory = recorder.trajectory.model_copy(deep=True)
+        decisions = [
+            item.model_copy(deep=True) for item in state.agent_decisions
+        ]
+        request = self.reflector.reasoning_request(
+            trajectory,
+            decisions,
+        )
         result = self.reflector.reflect(
-            recorder.trajectory.model_copy(deep=True),
-            [item.model_copy(deep=True) for item in state.agent_decisions],
+            trajectory,
+            decisions,
+            reasoning_request=request,
+        )
+        recorder.record_llm_call(
+            LLMCallTrace(
+                role="reflector_placeholder",
+                prompt=[
+                    {
+                        "role": "user",
+                        "content": request.model_dump_json(),
+                    }
+                ],
+                response=result.llm_insight.model_dump_json(),
+                prompt_tokens=0,
+                completion_tokens=0,
+                total_tokens=0,
+                latency_seconds=0.0,
+                model=result.llm_insight.provider or "unconfigured",
+                attempt=1,
+            )
         )
         signal_sources = {
             "persistent_weakness": (
@@ -1403,6 +1431,12 @@ class DeepResearchEngine:
             ),
         )
         state.metadata["reflection_result"] = result.model_dump(mode="json")
+        if result.llm_insight.must_stop:
+            state.status = "paused"
+            state.metadata["reflection_cache_miss"] = {
+                "cache_key": result.llm_insight.cache_key,
+                "reason": result.llm_insight.cache_miss_reason,
+            }
         return self._state_output(state)
 
     def _route_after_reflection(
@@ -1410,6 +1444,8 @@ class DeepResearchEngine:
         graph_state: ResearchGraphState,
     ) -> str:
         state = self._state_from_graph_values(graph_state)
+        if state.status == "paused":
+            return END
         return (
             "research_refine"
             if state.metadata.get("research_loop_route") == "continue"

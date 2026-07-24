@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Iterable, Mapping
-from typing import Any, Literal
+import hashlib
+import json
+from typing import Any, Literal, Protocol, runtime_checkable
 from urllib.parse import urlsplit
 
 from pydantic import Field
@@ -25,11 +27,114 @@ class DeterministicReflectionSignals(StrictModel):
 class ReflectionLLMInsight(StrictModel):
     """Explicit reasoning seam whose judgment quality is deferred to 019."""
 
-    status: Literal["pending_llm_reasoning"] = "pending_llm_reasoning"
-    insights: list[str] = Field(default_factory=list)
+    status: Literal[
+        "pending_llm_reasoning",
+        "recorded_placeholder",
+        "cache_miss",
+    ] = "pending_llm_reasoning"
+    insights: list["StrategyInsight"] = Field(default_factory=list)
     quality_validation: Literal[
         "unverifiable_in_deterministic_mode"
     ] = "unverifiable_in_deterministic_mode"
+    provider: str | None = None
+    cache_key: str | None = None
+    cache_miss_reason: str | None = None
+    must_stop: bool = False
+
+
+class StrategyInsight(StrictModel):
+    target_type: Literal["subquestion", "source", "replanning", "global"]
+    target: str
+    recommendation: str
+    rationale: str
+
+
+class ReflectionTrajectorySummary(StrictModel):
+    run_id: str
+    tool_call_count: int = Field(ge=0)
+    node_transition_count: int = Field(ge=0)
+    decision_types: tuple[str, ...] = ()
+    node_names: tuple[str, ...] = ()
+
+
+class ReflectionReasoningRequest(StrictModel):
+    deterministic_signals: DeterministicReflectionSignals
+    trajectory_summary: ReflectionTrajectorySummary
+
+
+@runtime_checkable
+class ReflectionReasoningInterface(Protocol):
+    """019 seam: schema-stable strategy reasoning over extracted facts."""
+
+    def reason(
+        self,
+        request: ReflectionReasoningRequest,
+    ) -> ReflectionLLMInsight:
+        ...
+
+
+class SyntheticFixtureReflectionReasoner:
+    """Zero-API adapter proving the reasoning seam is wired, not useful."""
+
+    def reason(
+        self,
+        request: ReflectionReasoningRequest,
+    ) -> ReflectionLLMInsight:
+        key = reflection_request_key(request)
+        return ReflectionLLMInsight(
+            status="recorded_placeholder",
+            insights=[
+                StrategyInsight(
+                    target_type="global",
+                    target="fixture_pipeline",
+                    recommendation=(
+                        "retain deterministic behavior; do not auto-adopt "
+                        "this synthetic placeholder"
+                    ),
+                    rationale=(
+                        "the fixture adapter validates schema and routing "
+                        "only; judgment quality requires 019"
+                    ),
+                )
+            ],
+            provider="synthetic_fixture",
+            cache_key=key,
+        )
+
+
+class RecordedReflectionReasoner:
+    """Exact-match replay adapter that fails closed on unseen inputs."""
+
+    def __init__(
+        self,
+        responses: Mapping[str, ReflectionLLMInsight],
+    ) -> None:
+        self._responses = {
+            str(key): value.model_copy(deep=True)
+            for key, value in responses.items()
+        }
+
+    def reason(
+        self,
+        request: ReflectionReasoningRequest,
+    ) -> ReflectionLLMInsight:
+        key = reflection_request_key(request)
+        response = self._responses.get(key)
+        if response is None:
+            return ReflectionLLMInsight(
+                status="cache_miss",
+                provider="recorded_replay",
+                cache_key=key,
+                cache_miss_reason=(
+                    "unseen reflection signal combination; stop and report "
+                    "rather than fabricate strategy insight"
+                ),
+                must_stop=True,
+            )
+        return response.model_copy(
+            deep=True,
+            update={"cache_key": key},
+        )
 
 
 class ReflectionResult(StrictModel):
@@ -52,16 +157,61 @@ class Reflector:
     themselves judge which strategy should be adopted.
     """
 
+    def __init__(
+        self,
+        reasoner: ReflectionReasoningInterface | None = None,
+    ) -> None:
+        self.reasoner = reasoner or SyntheticFixtureReflectionReasoner()
+
     def reflect(
         self,
         trajectory: AgentTrajectory,
         decisions: list[AgentDecision],
+        *,
+        reasoning_request: ReflectionReasoningRequest | None = None,
     ) -> ReflectionResult:
+        copied_trajectory = trajectory.model_copy(deep=True)
+        copied_decisions = [
+            item.model_copy(deep=True) for item in decisions
+        ]
+        signals = self._extract_signals(
+            copied_trajectory,
+            copied_decisions,
+        )
+        request = reasoning_request or self.reasoning_request(
+            copied_trajectory,
+            copied_decisions,
+            signals=signals,
+        )
         return ReflectionResult(
-            deterministic_signals=self._extract_signals(
-                trajectory.model_copy(deep=True),
-                [item.model_copy(deep=True) for item in decisions],
-            )
+            deterministic_signals=signals,
+            llm_insight=self.reasoner.reason(request),
+        )
+
+    def reasoning_request(
+        self,
+        trajectory: AgentTrajectory,
+        decisions: list[AgentDecision],
+        *,
+        signals: DeterministicReflectionSignals | None = None,
+    ) -> ReflectionReasoningRequest:
+        extracted = signals or self._extract_signals(
+            trajectory,
+            decisions,
+        )
+        return ReflectionReasoningRequest(
+            deterministic_signals=extracted,
+            trajectory_summary=ReflectionTrajectorySummary(
+                run_id=trajectory.run_id,
+                tool_call_count=len(trajectory.tool_calls),
+                node_transition_count=len(trajectory.node_transitions),
+                decision_types=tuple(
+                    sorted({item.decision_type for item in decisions})
+                ),
+                node_names=tuple(
+                    item.node for item in trajectory.node_transitions
+                ),
+            ),
         )
 
     def signal_extraction_decision(
@@ -243,3 +393,13 @@ def _domain(value: Any) -> str:
         return ""
     parsed = urlsplit(value)
     return parsed.netloc.lower() or parsed.scheme.lower()
+
+
+def reflection_request_key(request: ReflectionReasoningRequest) -> str:
+    encoded = json.dumps(
+        request.model_dump(mode="json"),
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()

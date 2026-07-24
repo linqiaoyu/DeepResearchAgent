@@ -9,7 +9,14 @@ from deepresearch_agent.orchestration import (
     SufficiencyThresholds,
     evaluate_research_sufficiency,
 )
-from deepresearch_agent.reflection import Reflector, ReflectionResult
+from deepresearch_agent.reflection import (
+    RecordedReflectionReasoner,
+    ReflectionLLMInsight,
+    ReflectionResult,
+    Reflector,
+    StrategyInsight,
+    reflection_request_key,
+)
 from deepresearch_agent.schemas import (
     AgentDecision,
     Evidence,
@@ -43,10 +50,7 @@ class ReflectionSkeletonTest(unittest.TestCase):
         )
 
     def test_result_has_dual_track_pending_structure(self) -> None:
-        result = Reflector().reflect(
-            self._trajectory(),
-            [self._decision()],
-        )
+        result = ReflectionResult()
 
         self.assertIsInstance(result, ReflectionResult)
         self.assertEqual(
@@ -132,7 +136,7 @@ class ReflectionSkeletonTest(unittest.TestCase):
                 state.metadata["reflection_result"]["llm_insight"][
                     "status"
                 ],
-                "pending_llm_reasoning",
+                "recorded_placeholder",
             )
             self.assertEqual(
                 state.agent_decisions[-1].decision_type,
@@ -379,6 +383,138 @@ class DeterministicSignalExtractionTest(unittest.TestCase):
             reflection.deterministic_signals.persistently_weak_subquestions,
             [],
         )
+
+
+class ReflectionReasoningInterfaceTest(unittest.TestCase):
+    def test_synthetic_placeholder_pipeline_has_typed_input_and_output(
+        self,
+    ) -> None:
+        reflector = Reflector()
+        trajectory = AgentTrajectory(
+            run_id="synthetic",
+            request={"topic": "synthetic"},
+        )
+        request = reflector.reasoning_request(trajectory, [])
+
+        first = reflector.reflect(
+            trajectory,
+            [],
+            reasoning_request=request,
+        )
+        second = reflector.reflect(
+            trajectory,
+            [],
+            reasoning_request=request,
+        )
+
+        self.assertEqual(
+            first.llm_insight.model_dump_json(),
+            second.llm_insight.model_dump_json(),
+        )
+        self.assertEqual(
+            first.llm_insight.status,
+            "recorded_placeholder",
+        )
+        self.assertEqual(
+            first.llm_insight.provider,
+            "synthetic_fixture",
+        )
+        self.assertEqual(
+            first.llm_insight.quality_validation,
+            "unverifiable_in_deterministic_mode",
+        )
+        self.assertEqual(
+            first.llm_insight.cache_key,
+            reflection_request_key(request),
+        )
+
+    def test_recorded_response_exact_match_returns_fixed_insight(
+        self,
+    ) -> None:
+        base = Reflector()
+        trajectory = AgentTrajectory(
+            run_id="recorded",
+            request={"topic": "recorded"},
+        )
+        request = base.reasoning_request(trajectory, [])
+        recorded = ReflectionLLMInsight(
+            status="recorded_placeholder",
+            insights=[
+                StrategyInsight(
+                    target_type="subquestion",
+                    target="sq-1",
+                    recommendation="prefer official sources",
+                    rationale="recorded fixture response",
+                )
+            ],
+            provider="recorded_replay",
+        )
+        reflector = Reflector(
+            RecordedReflectionReasoner(
+                {reflection_request_key(request): recorded}
+            )
+        )
+
+        result = reflector.reflect(
+            trajectory,
+            [],
+            reasoning_request=request,
+        )
+
+        self.assertEqual(
+            result.llm_insight.insights[0].recommendation,
+            "prefer official sources",
+        )
+        self.assertEqual(
+            result.llm_insight.cache_key,
+            reflection_request_key(request),
+        )
+
+    def test_recorded_response_cache_miss_stops_without_insight(
+        self,
+    ) -> None:
+        reflector = Reflector(RecordedReflectionReasoner({}))
+        trajectory = AgentTrajectory(
+            run_id="missing",
+            request={"topic": "missing"},
+        )
+
+        result = reflector.reflect(trajectory, [])
+
+        self.assertEqual(result.llm_insight.status, "cache_miss")
+        self.assertTrue(result.llm_insight.must_stop)
+        self.assertEqual(result.llm_insight.insights, [])
+        self.assertIn(
+            "rather than fabricate",
+            result.llm_insight.cache_miss_reason or "",
+        )
+
+    def test_engine_cache_miss_pauses_and_reports_key(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            engine = DeepResearchEngine(
+                settings=Settings(
+                    storage_path=root / "cache-miss.db",
+                    runs_root=root / "runs",
+                    reflection_enabled=True,
+                    structured_logging_enabled=False,
+                )
+            )
+            engine.reflector = Reflector(RecordedReflectionReasoner({}))
+
+            state = engine.run(
+                topic="AI Agent 在财富管理行业的落地机会研究",
+                depth_level=1,
+            )
+            engine._checkpoint_conn.close()
+
+        self.assertEqual(state.status, "paused")
+        self.assertIn("reflection_cache_miss", state.metadata)
+        self.assertEqual(
+            state.metadata["reflection_result"]["llm_insight"]["status"],
+            "cache_miss",
+        )
+        self.assertIsNone(state.final_report)
 
 
 if __name__ == "__main__":
