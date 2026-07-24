@@ -185,6 +185,13 @@ class DeepResearchEngine:
         self.critic = CriticAgent(
             today=self.settings.as_of,
             injection_guard_enabled=self.settings.injection_guard_enabled,
+            numeric_check_enabled=self.settings.numeric_check_enabled,
+            numeric_relative_tolerance=(
+                self.settings.numeric_check_relative_tolerance
+            ),
+            numeric_check_absolute_tolerance=(
+                self.settings.numeric_check_absolute_tolerance
+            ),
         )
         self.reporter = ReporterAgent(llm_client=self.llm_client)
         self.evaluator = Evaluator()
@@ -576,8 +583,33 @@ class DeepResearchEngine:
                         "research_state.retry_queue",
                         "research_state.current_phase",
                     }
+                    | (
+                        {"research_state.agent_decisions"}
+                        if self.settings.numeric_check_enabled
+                        else set()
+                    )
                 ),
-                invariants=(identity,),
+                invariants=(
+                    identity,
+                    *(
+                        (
+                            ContractInvariant(
+                                name="numeric_issues_complete",
+                                predicate=(
+                                    self._numeric_issues_complete
+                                ),
+                                expectation=(
+                                    "every numeric_inconsistency carries "
+                                    "claimed_value, calculated_value, "
+                                    "formula, and evidence_ids"
+                                ),
+                            ),
+                        )
+                        if self.settings.numeric_check_enabled
+                        else ()
+                    ),
+                ),
+                decision_node=self.settings.numeric_check_enabled,
             ),
             "research_loop_decide": NodeContract(
                 name="research_loop_decide",
@@ -731,6 +763,27 @@ class DeepResearchEngine:
         }
         mapping = state.get("report_footnote_evidence")
         return isinstance(mapping, dict) and set(mapping.values()).issubset(evidence_ids)
+
+    def _numeric_issues_complete(
+        self,
+        _before: dict[str, Any],
+        after: dict[str, Any],
+    ) -> bool:
+        state = after.get("research_state")
+        if not isinstance(state, dict):
+            return False
+        report = state.get("critic_report")
+        if not isinstance(report, dict):
+            return False
+        return all(
+            issue.get("claimed_value") is not None
+            and issue.get("calculated_value") is not None
+            and bool(issue.get("formula"))
+            and bool(issue.get("evidence_ids"))
+            for issue in report.get("issues", [])
+            if isinstance(issue, dict)
+            and issue.get("issue_type") == "numeric_inconsistency"
+        )
 
     def _graph_node(self, name: str, node):
         contracted = enforce_node_contract(self.node_contracts[name], node)

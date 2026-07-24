@@ -54,6 +54,9 @@ class Settings:
     decision_weaving_enabled: bool = False
     decision_weaving_budget_remaining_ratio: float = 0.2
     decision_weaving_verify_min_allocation: int = 1
+    numeric_check_enabled: bool = False
+    numeric_check_relative_tolerance: float = 0.01
+    numeric_check_absolute_tolerance: float = 0.01
 
     @property
     def research_loop_active(self) -> bool:
@@ -190,6 +193,19 @@ def load_settings() -> Settings:
             os.getenv(
                 "DEEPRESEARCH_DECISION_WEAVING_VERIFY_MIN_ALLOCATION",
                 "1",
+            )
+        ),
+        numeric_check_enabled=_env_flag("NUMERIC_CHECK_ENABLED"),
+        numeric_check_relative_tolerance=float(
+            os.getenv(
+                "DEEPRESEARCH_NUMERIC_CHECK_RELATIVE_TOLERANCE",
+                "0.01",
+            )
+        ),
+        numeric_check_absolute_tolerance=float(
+            os.getenv(
+                "DEEPRESEARCH_NUMERIC_CHECK_ABSOLUTE_TOLERANCE",
+                "0.01",
             )
         ),
     )

@@ -12,6 +12,9 @@ from deepresearch_agent.memory import (
     numeric_evidence_key,
     snapshot_claim_key,
 )
+from deepresearch_agent.agents.numeric_checker import (
+    NumericConsistencyChecker,
+)
 from deepresearch_agent.research_snapshot import ResearchSnapshot
 from deepresearch_agent.schemas import CriticReport, Evidence, Issue, ResearchState, RetryTask
 from deepresearch_agent.settings import project_root
@@ -36,13 +39,21 @@ class CriticAgent:
         metric_table_path: Path | None = None,
         numeric_relative_tolerance: float = 0.01,
         injection_guard_enabled: bool = False,
+        numeric_check_enabled: bool = False,
+        numeric_check_absolute_tolerance: float = 0.01,
     ) -> None:
         self.today = today or date.today()
         self.max_source_age_days = max_source_age_days
         self.numeric_relative_tolerance = numeric_relative_tolerance
         self.injection_guard_enabled = injection_guard_enabled
+        self.numeric_check_enabled = numeric_check_enabled
         self.metric_table = self._load_metric_table(
             metric_table_path or project_root() / "data" / "finance_metric_normalization.json"
+        )
+        self.numeric_checker = NumericConsistencyChecker(
+            self.metric_table,
+            relative_tolerance=numeric_relative_tolerance,
+            absolute_tolerance=numeric_check_absolute_tolerance,
         )
 
     def critique(self, state: ResearchState) -> CriticReport:
@@ -55,6 +66,8 @@ class CriticAgent:
         issues.extend(self._missing_counterargument(state))
         issues.extend(self._unverified_projections(evidence))
         issues.extend(self._contradicts_prior(state))
+        if self.numeric_check_enabled:
+            issues.extend(self.numeric_checker.check(state))
         if self.injection_guard_enabled:
             issues.extend(self._injection_risks(evidence))
 
