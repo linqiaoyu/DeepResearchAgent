@@ -216,6 +216,108 @@ class ExpandedTrajectoryTest(unittest.TestCase):
             "mcp",
         )
 
+    def test_expanded_017_configuration_captures_and_strictly_replays(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            settings = Settings(
+                storage_path=root / "record.db",
+                runs_root=root / "runs",
+                as_of=date(2026, 7, 9),
+                trajectory_record_enabled=True,
+                structured_logging_enabled=False,
+                max_critic_iter=1,
+                research_loop_enabled=True,
+                research_loop_max_iterations=2,
+                research_loop_budget_ceiling=20,
+                research_loop_no_progress_window=5,
+                research_min_evidence_count=99,
+                decision_weaving_enabled=True,
+                numeric_check_enabled=True,
+                dynamic_capability_enabled=True,
+                reflection_enabled=True,
+            )
+            engine = DeepResearchEngine(
+                settings=settings,
+                structured_data_provider=NumericRelationProvider(),
+            )
+            engine.planner = StructuredPlanner(engine.planner)
+            state = engine.run(
+                topic="宁德时代 2024 年业绩与欧洲工厂扩张研究",
+                depth_level=1,
+            )
+            engine._checkpoint_conn.close()
+            trajectory = load_trajectory(
+                root
+                / "runs"
+                / state.research_id
+                / "trajectory.json"
+            )
+
+            decision_types = {
+                item.decision_type
+                for item in trajectory.agent_decisions
+            }
+            signal_types = {
+                item.signal_type for item in trajectory.signal_reads
+            }
+            llm_roles = {item.role for item in trajectory.llm_calls}
+            node_names = {
+                item.node for item in trajectory.node_transitions
+            }
+
+            self.assertIn("reflector", node_names)
+            self.assertIn(
+                "reflection_signal_extraction",
+                decision_types,
+            )
+            self.assertIn("procedural_memory_write", decision_types)
+            self.assertEqual(
+                signal_types,
+                {
+                    "persistent_weakness",
+                    "ineffective_source",
+                    "repeated_critic_issue",
+                    "ineffective_replanning",
+                },
+            )
+            self.assertEqual(
+                {item.memory_type for item in trajectory.memory_writes},
+                {"procedural"},
+            )
+            self.assertEqual(
+                {
+                    item.lifecycle
+                    for item in trajectory.memory_writes
+                },
+                {"cross_run"},
+            )
+            self.assertEqual(
+                llm_roles,
+                {"reflector_placeholder"},
+            )
+            self.assertTrue(
+                all(
+                    item.total_tokens == 0
+                    and item.model == "synthetic_fixture"
+                    for item in trajectory.llm_calls
+                )
+            )
+
+            replay = replay_trajectory(
+                trajectory,
+                mode="strict",
+                required_calls=["llm:reflector_placeholder"],
+            )
+
+        self.assertEqual(
+            replay.status,
+            "reproduced",
+            replay.cache_miss,
+        )
+        self.assertEqual(replay.artifact_matches, {"report.md": True})
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -97,6 +97,7 @@ FLAG_CLASSIFICATIONS: dict[str, FlagClassification] = {
     "DECISION_WEAVING_ENABLED": "content_affecting",
     "NUMERIC_CHECK_ENABLED": "content_affecting",
     "DYNAMIC_CAPABILITY_ENABLED": "content_affecting",
+    "REFLECTION_ENABLED": "content_affecting",
 }
 
 
@@ -241,6 +242,8 @@ def settings_flag_snapshot(
         flags["DYNAMIC_CAPABILITY_ENABLED"] = (
             settings.dynamic_capability_enabled
         )
+    if settings.reflection_enabled or include_disabled_experimental:
+        flags["REFLECTION_ENABLED"] = settings.reflection_enabled
     return flags
 
 
@@ -295,6 +298,8 @@ def _config_hash(settings: Settings) -> str:
     if not settings.dynamic_capability_enabled:
         payload.pop("dynamic_capability_enabled", None)
         payload.pop("dynamic_capability_rules_json", None)
+    if not settings.reflection_enabled:
+        payload.pop("reflection_enabled", None)
     encoded = json.dumps(payload, sort_keys=True, ensure_ascii=False, default=str)
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
