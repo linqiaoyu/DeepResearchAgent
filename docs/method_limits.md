@@ -26,12 +26,12 @@ Context packer 修复了同一 URL 下不同摘录被错误合并的问题。修
 
 因此下降不是“更多证据降低质量”的证据，而是脚注映射顺序漂移的可重复产物。
 
-## 实际机制：跨节点脚注顺序漂移
+## 已修复机制：跨节点脚注顺序漂移
 
 Evidence ID 在一次运行内不会因 packer 过滤或重排而改变。deterministic Reporter
 也不是罐装报告；它会从传入的 Evidence 动态生成正文、脚注和参考来源。
 
-问题发生在两个节点之间：
+历史问题发生在两个节点之间：
 
 1. packer 按质量分重排 Evidence，Reporter 按这个顺序分配脚注号。
 2. Evaluator 开始前把 Evidence 恢复为规范排序。
@@ -41,6 +41,11 @@ Evidence ID 在一次运行内不会因 packer 过滤或重排而改变。determ
 仍然存在的 Evidence。引用解析率可以保持满分，但词面支持检查会对着错误 Evidence
 执行，从而制造引用准确率下降。fixture 指标在这里测到的是内部顺序契约，而不是
 packer 的证据选择质量。
+
+本轮修复后，Reporter 把脚注到 Evidence ID 的映射随报告持久化，Evaluator 和
+审计导出直接复用；默认、只重排、只删除、packer 排序和同映射五组对照在两个
+题面上均为 1.000。历史伪信号已消除，但这只证明引用解析不再依赖顺序，不能把
+fixture 中保留更多 Evidence 解释为真实研究质量提升。
 
 ## 对转正决策的后果
 

@@ -2,7 +2,7 @@
 
 一个把“检索—证据—批判—重试—报告—评测”做成可回放工程闭环的金融投研多 Agent 框架。
 
-[静态演示站](https://deepresearch-agent.jacksonyu1109.workers.dev/) · [评测方法](docs/evaluation.md) · [方法边界](docs/method_limits.md) · [系统架构](docs/architecture.md)
+[静态演示站](https://deepresearch-agent.jacksonyu1109.workers.dev/) · [评测方法](docs/evaluation.md) · [Agent 决策](docs/agent_decisions.md) · [轨迹回放](docs/trajectory_harness.md) · [系统架构](docs/architecture.md)
 
 ## Golden v1.1：先看数字
 
@@ -67,7 +67,7 @@ gold v1.0 历史测量拆为 `0.6134 + 0.1865 - 0.0585 = 0.7414`：先固定 jud
 
 ### 3. Context packer 没有在零费用路径静默丢证据
 
-011 时 packer 的 8 个单测全绿、实现看似合理、排在启用顺序第 4 位；若没有产物级快照，它会默认开启并因错误的同 URL 去重静默丢弃约 80% Evidence。这个证据丢失是真缺陷，拦截发生在任何 API 费用产生前，成本 ¥0。修复后两个 fixture 题面分别保留 12/21、13/29 条 Evidence；此时 citation accuracy 的下降经对照实验归因为 Reporter 与 Evaluator 对证据排序不同造成的脚注映射漂移，是质量测量伪信号，不能继续归因给 packer。去重缺陷虽已修复，packer 仍保持 dark，等待 014 的真实模式定向验证；详见 [`method_limits.md`](docs/method_limits.md)。
+011 时 packer 的 8 个单测全绿、实现看似合理、排在启用顺序第 4 位；若没有产物级快照，它会默认开启并因错误的同 URL 去重静默丢弃约 80% Evidence。这个证据丢失是真缺陷，拦截发生在任何 API 费用产生前，成本 ¥0。修复后两个 fixture 题面分别保留 12/21、13/29 条 Evidence；citation accuracy 的历史下降经对照实验归因为 Reporter 与 Evaluator 的脚注映射漂移。本轮把映射固化为 Reporter 一等产物，五组对照均恢复为 1.000。该修复消除了伪信号，但 fixture 仍不能证明 packer 提升真实研究质量，因此 packer 保持 dark，等待后续真实模式定向验证；详见 [`method_limits.md`](docs/method_limits.md)。
 
 ![判官效应分解](docs/assets/readme/methodology_judge.png)
 
@@ -85,12 +85,24 @@ gold v1.0 历史测量拆为 `0.6134 + 0.1865 - 0.0585 = 0.7414`：先固定 jud
 | 行为基线：双题面规范化产物、逐字 characterization、节点摘要 | 默认 CI 保护 | [`snapshot_run.py`](scripts/snapshot_run.py) · [`golden_output/`](tests/golden_output/) |
 | Demo 服务：`/healthz`、`/readyz`、在途请求收敛、非 root 多阶段镜像、离线 CI | 已启用 | [`api/main.py`](src/deepresearch_agent/api/main.py) · [`ci.yml`](.github/workflows/ci.yml) |
 | 离线评测：run delta、运维 P50/P90、Golden schema 与共享事实校验 | 已启用 | [`compare_runs.py`](scripts/compare_runs.py) · [`offline_metrics.py`](scripts/offline_metrics.py) |
-| 业务产物：结构化表、审计包、ResearchSnapshot、六类变更追踪、章节轮询 | 结构化产出、导出与快照 active；章节轮询仍 dark | `STRUCTURED_OUTPUT_ENABLED=true`，归类为 `additive_content`；additive 仅在 deterministic 路径证明，014 须验证 LLM 路径，若改变散文则回滚为 false；`PROGRESSIVE_DELIVERY_ENABLED=false` · [`use_case.md`](docs/use_case.md) |
+| 业务产物：结构化表、审计包、ResearchSnapshot、六类变更追踪、章节轮询 | 结构化产出、导出与快照 active；章节轮询仍 dark | `STRUCTURED_OUTPUT_ENABLED=true`，归类为 `additive_content`；additive 仅在 deterministic 路径证明，后续须验证 LLM 路径；`PROGRESSIVE_DELIVERY_ENABLED=false` · [`use_case.md`](docs/use_case.md) |
+| 脚注映射契约 | active | Reporter 持久化 footnote → Evidence ID；Evaluator 与审计包禁止按 Evidence 顺序重建；乱序回归仍为 1.000 |
+| Agent 决策记录 | 基础设施 active | `AgentDecision` 同时进入 trace、manifest 摘要和报告；本轮未新增研究策略 · [`agent_decisions.md`](docs/agent_decisions.md) |
+| 轨迹录制与回放 | 实现完成，仍 dark | `TRAJECTORY_RECORD_ENABLED=false`；两题面 fixture 严格回放报告逐字一致，策略 cache miss 显式停止；真实轨迹待后续任务 · [`trajectory_harness.md`](docs/trajectory_harness.md) |
 | MCP adapter | 仅设计 | 零新增依赖约束下未实现 server · [`mcp_adapter_design.md`](docs/mcp_adapter_design.md) |
+| Skill packs | 未实现 | 本轮未建立加载器或抽取规则；金融逻辑仍硬编码，不能宣称领域解耦 |
 
 010 的阶段 A/C/D/B/F/G/H 共通过 172 项无 key 测试；011 默认点灯后的全量回归为 187 项。Docker/Compose 文件完成静态检查，但任务主机没有 Docker/Podman，未做本机镜像构建或 Compose 引擎级验证。
 
 跨代比较必须先经 [`verify_manifest.py`](scripts/verify_manifest.py) 判定；flags、模型、prompt、as-of 或依赖不一致时，不得把分数差描述为质量改进或回归。
+
+## Agent 的决策面
+
+Planner 决定题目拆解、查询、来源类型和结构化数据请求；Critic 决定 issue、定向
+retry 与有界收敛。新增 `AgentDecision` 把依据、判据、结果、替代项和迭代号同步
+写入 trace、manifest 与报告。研究充分性循环、跨期记忆、数值自洽和 skill
+选择仍未实现；人工继续负责题目、来源许可、费用、发布与投资判断。完整边界见
+[`agent_decisions.md`](docs/agent_decisions.md)。
 
 ## 快速开始：本地 venv
 
@@ -136,6 +148,8 @@ PYTHONPATH=src .venv/bin/python scripts/build_site.py
 - [`docs/evaluation.md`](docs/evaluation.md)：指标、judge 校准、噪声带、Golden v1.1 与三代结果
 - [`docs/method_limits.md`](docs/method_limits.md)：characterization 能检出什么、证据集变更场景下的质量测量盲区
 - [`docs/architecture.md`](docs/architecture.md)：LangGraph 拓扑、状态、存储与 hardening layers
+- [`docs/agent_decisions.md`](docs/agent_decisions.md)：Agent 当前决定什么、如何记录，以及仍由人决定什么
+- [`docs/trajectory_harness.md`](docs/trajectory_harness.md)：轨迹字段、严格/策略回放与 cache miss 语义
 - [`docs/use_case.md`](docs/use_case.md)：投研持续跟踪场景、fixture 产物走查与人工判断边界
 - [`docs/threat_model.md`](docs/threat_model.md)：不可信内容、证据不篡改取舍与残余风险
 - [`docs/production_readiness.md`](docs/production_readiness.md)：Done / Partial / Not done 生产清单
