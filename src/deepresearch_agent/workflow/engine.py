@@ -30,6 +30,12 @@ from deepresearch_agent.tools import (
     build_structured_data_provider,
 )
 from deepresearch_agent.tools.contract_adapter import ContractSearchProvider
+from deepresearch_agent.trajectory import (
+    NodeTransitionTrace,
+    TrajectoryRecorder,
+    active_trajectory_recorder,
+    trajectory_recording,
+)
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Send
@@ -56,6 +62,30 @@ class ResearchGraphState(TypedDict, total=False):
     research_symbol_resolutions: Annotated[dict[str, list[dict[str, Any]]], _merge_dicts]
     retry_sources: Annotated[dict[str, list[dict[str, Any]]], _merge_dicts]
     retry_records: Annotated[dict[str, dict[str, Any]], _merge_dicts]
+
+
+def _trace_graph_summary(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {"type": type(value).__name__}
+    raw_state = value.get("research_state", {})
+    if hasattr(raw_state, "model_dump"):
+        raw_state = raw_state.model_dump(mode="json")
+    if not isinstance(raw_state, dict):
+        raw_state = {}
+    summary: dict[str, Any] = {
+        "phase": raw_state.get("current_phase"),
+        "status": raw_state.get("status"),
+        "source_count": len(raw_state.get("sources", [])),
+        "evidence_count": len(raw_state.get("evidence_store", [])),
+        "retry_count": len(raw_state.get("retry_queue", [])),
+    }
+    sub_question = value.get("fanout_sub_question")
+    if isinstance(sub_question, dict):
+        summary["sub_question_id"] = sub_question.get("id")
+    retry_task = value.get("fanout_retry_task")
+    if isinstance(retry_task, dict):
+        summary["retry_task_id"] = retry_task.get("id")
+    return summary
 
 
 class DeepResearchEngine:
@@ -152,13 +182,31 @@ class DeepResearchEngine:
             self.logger.event("run_started", mode=self.settings.execution_mode)
             if self.llm_client:
                 self.llm_client.start_run(research_id)
-            try:
-                result = self.graph.invoke(
-                    graph_input,
-                    config=config,
-                    interrupt_before=interrupt_before,
-                    interrupt_after=interrupt_after,
+            recorder = (
+                TrajectoryRecorder(
+                    run_id=research_id,
+                    request={
+                        "topic": state.topic,
+                        "depth_level": state.depth_level,
+                        "as_of": (
+                            self.settings.as_of.isoformat()
+                            if self.settings.as_of
+                            else None
+                        ),
+                        "mode": self.settings.execution_mode,
+                    },
                 )
+                if self.settings.trajectory_record_enabled
+                else None
+            )
+            try:
+                with trajectory_recording(recorder):
+                    result = self.graph.invoke(
+                        graph_input,
+                        config=config,
+                        interrupt_before=interrupt_before,
+                        interrupt_after=interrupt_after,
+                    )
             except BudgetExceededError:
                 state = self.load_state(research_id) or state
                 state.status = "budget_exceeded"
@@ -170,6 +218,7 @@ class DeepResearchEngine:
                 self.logger.event("run_finished", status=state.status)
                 return state
         state = self._state_from_graph_values(result)
+        manifest_path = None
         if self.settings.run_manifest_enabled:
             try:
                 manifest = build_run_manifest(
@@ -177,7 +226,10 @@ class DeepResearchEngine:
                     self.settings,
                     started_at=manifest_started_at,
                 )
-                write_run_manifest(manifest, self.settings.runs_root)
+                manifest_path = write_run_manifest(
+                    manifest,
+                    self.settings.runs_root,
+                )
             except Exception as exc:
                 state.metadata.setdefault("degradation_events", []).append(
                     {
@@ -191,6 +243,15 @@ class DeepResearchEngine:
                     "manifest_write_failed",
                     error_type=type(exc).__name__,
                 )
+        if recorder:
+            artifacts = {"report.md": state.final_report or ""}
+            recorder.finalize(
+                manifest_ref=str(manifest_path) if manifest_path else None,
+                artifacts=artifacts,
+            )
+            recorder.write(
+                self.settings.runs_root / research_id / "trajectory.json"
+            )
         with correlation_context(run_id=research_id, node="workflow"):
             self.logger.event("run_finished", status=state.status)
         return state
@@ -203,18 +264,45 @@ class DeepResearchEngine:
 
     def _build_graph(self):
         graph = StateGraph(ResearchGraphState)
-        graph.add_node("entry", self._entry_node)
-        graph.add_node("planner", self._planner_node)
-        graph.add_node("research_prepare", self._research_prepare_node)
-        graph.add_node("research_one", self._research_one_node)
-        graph.add_node("research_join", self._research_join_node)
-        graph.add_node("extractor", self._extractor_node)
-        graph.add_node("critic", self._critic_node)
-        graph.add_node("retry_prepare", self._retry_prepare_node)
-        graph.add_node("retry_one", self._retry_one_node)
-        graph.add_node("retry_join", self._retry_join_node)
-        graph.add_node("reporter", self._reporter_node)
-        graph.add_node("evaluator", self._evaluator_node)
+        graph.add_node("entry", self._traced_node("entry", self._entry_node))
+        graph.add_node("planner", self._traced_node("planner", self._planner_node))
+        graph.add_node(
+            "research_prepare",
+            self._traced_node("research_prepare", self._research_prepare_node),
+        )
+        graph.add_node(
+            "research_one",
+            self._traced_node("research_one", self._research_one_node),
+        )
+        graph.add_node(
+            "research_join",
+            self._traced_node("research_join", self._research_join_node),
+        )
+        graph.add_node(
+            "extractor",
+            self._traced_node("extractor", self._extractor_node),
+        )
+        graph.add_node("critic", self._traced_node("critic", self._critic_node))
+        graph.add_node(
+            "retry_prepare",
+            self._traced_node("retry_prepare", self._retry_prepare_node),
+        )
+        graph.add_node(
+            "retry_one",
+            self._traced_node("retry_one", self._retry_one_node),
+        )
+        graph.add_node(
+            "retry_join",
+            self._traced_node("retry_join", self._retry_join_node),
+        )
+        graph.add_node(
+            "reporter",
+            self._traced_node("reporter", self._reporter_node),
+        )
+        graph.add_node(
+            "evaluator",
+            self._traced_node("evaluator", self._evaluator_node),
+        )
 
         graph.add_edge(START, "entry")
         graph.add_conditional_edges("entry", self._route_entry)
@@ -230,6 +318,22 @@ class DeepResearchEngine:
         graph.add_conditional_edges("reporter", self._route_after_reporting)
         graph.add_edge("evaluator", END)
         return graph.compile(checkpointer=self.checkpointer)
+
+    def _traced_node(self, name: str, node):
+        def traced(graph_state: ResearchGraphState):
+            result = node(graph_state)
+            recorder = active_trajectory_recorder()
+            if recorder:
+                recorder.record_node_transition(
+                    NodeTransitionTrace(
+                        node=name,
+                        input_summary=_trace_graph_summary(graph_state),
+                        output_summary=_trace_graph_summary(result),
+                    )
+                )
+            return result
+
+        return traced
 
     def _entry_node(self, graph_state: ResearchGraphState) -> ResearchGraphState:
         return graph_state

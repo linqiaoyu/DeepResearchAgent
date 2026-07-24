@@ -89,6 +89,8 @@ FLAG_CLASSIFICATIONS: dict[str, FlagClassification] = {
     # reassembles to the byte-identical final report. It changes polling
     # sidecars only, so it is operational rather than content-affecting.
     "PROGRESSIVE_DELIVERY_ENABLED": "operational",
+    # Recording writes a redacted sidecar and does not alter report content.
+    "TRAJECTORY_RECORD_ENABLED": "operational",
 }
 
 
@@ -212,6 +214,8 @@ def settings_flag_snapshot(
         flags["PROGRESSIVE_DELIVERY_ENABLED"] = (
             settings.progressive_delivery_enabled
         )
+    if settings.trajectory_record_enabled or include_disabled_experimental:
+        flags["TRAJECTORY_RECORD_ENABLED"] = settings.trajectory_record_enabled
     return flags
 
 

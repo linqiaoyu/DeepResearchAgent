@@ -15,6 +15,11 @@ def record_agent_decision(
     trace.setdefault("agent_decisions", []).append(
         decision.model_dump(mode="json")
     )
+    from deepresearch_agent.trajectory import active_trajectory_recorder
+
+    recorder = active_trajectory_recorder()
+    if recorder:
+        recorder.record_decision(decision)
 
 
 def canonical_decision_json(decision: AgentDecision) -> str:

@@ -13,6 +13,7 @@ from pydantic import BaseModel, ValidationError
 from deepresearch_agent.llm_config import DEFAULT_LLM_CONFIG, LLMConfig
 from deepresearch_agent.observability import JsonLogger, correlation_context
 from deepresearch_agent.settings import project_root
+from deepresearch_agent.trajectory import LLMCallTrace, active_trajectory_recorder
 
 SchemaT = TypeVar("SchemaT", bound=BaseModel)
 
@@ -281,7 +282,7 @@ class LLMClient:
                     content = self._message_content(response)
                     usage = self._usage(response)
                     cost_cny = self._cost_cny(usage)
-                    return LLMCallResult(
+                    result = LLMCallResult(
                         content=content,
                         parsed=None,
                         model=candidate_model,
@@ -297,8 +298,42 @@ class LLMClient:
                         cache_hit=self._cache_hit(response),
                         repair_attempts=1 if is_repair else 0,
                     )
+                    recorder = active_trajectory_recorder()
+                    if recorder:
+                        recorder.record_llm_call(
+                            LLMCallTrace(
+                                role=role,
+                                prompt=messages,
+                                response=content,
+                                prompt_tokens=result.prompt_tokens,
+                                completion_tokens=result.completion_tokens,
+                                total_tokens=result.total_tokens,
+                                latency_seconds=result.latency_seconds,
+                                model=result.model,
+                                attempt=attempt + 1,
+                                repair=is_repair,
+                            )
+                        )
+                    return result
                 except Exception as exc:  # litellm exceptions are provider-specific.
                     last_error = exc
+                    recorder = active_trajectory_recorder()
+                    if recorder:
+                        recorder.record_llm_call(
+                            LLMCallTrace(
+                                role=role,
+                                prompt=messages,
+                                response="",
+                                prompt_tokens=0,
+                                completion_tokens=0,
+                                total_tokens=0,
+                                latency_seconds=max(0.0, time.perf_counter() - started),
+                                model=candidate_model,
+                                attempt=attempt + 1,
+                                repair=is_repair,
+                                error=type(exc).__name__,
+                            )
+                        )
                     if attempt >= self.config.max_retries:
                         break
                     self._sleep(2**attempt)

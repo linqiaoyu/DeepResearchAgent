@@ -11,6 +11,7 @@ from deepresearch_agent.tools.reliable_execution import (
     RetryBudget,
     RunToolContext,
 )
+from deepresearch_agent.trajectory import ToolCallTrace, active_trajectory_recorder
 
 
 SEARCH_TOOL_SPEC = ToolSpec(
@@ -71,6 +72,28 @@ class ContractSearchProvider:
                 elapsed_ms=result.elapsed_ms,
                 degraded=result.degraded,
             )
+            recorder = active_trajectory_recorder()
+            if recorder:
+                recorder.record_tool_call(
+                    ToolCallTrace(
+                        tool_spec=SEARCH_TOOL_SPEC.model_dump(mode="json"),
+                        inputs={
+                            "query": query,
+                            "top_k": top_k,
+                            "source_type": source_type,
+                        },
+                        result=[
+                            item.model_dump(mode="json")
+                            for item in list(result.value or [])
+                        ],
+                        error=(
+                            result.error.model_dump(mode="json")
+                            if result.error
+                            else None
+                        ),
+                        attempts=result.attempts,
+                    )
+                )
         return list(result.value or [])
 
     def fetch(self, url: str) -> Source | None:
