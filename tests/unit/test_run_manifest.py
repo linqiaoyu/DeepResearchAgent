@@ -13,6 +13,7 @@ from deepresearch_agent.provenance import (
     build_run_manifest,
     compare_manifests,
     format_manifest_comparison,
+    settings_flag_snapshot,
     write_run_manifest,
 )
 from deepresearch_agent.schemas import ResearchState
@@ -264,6 +265,77 @@ class RunManifestTests(unittest.TestCase):
             "dependency_versions",
             compare_manifests(manifest(), changed).differences,
         )
+
+    def test_016_flags_are_content_affecting_and_omitted_when_off(
+        self,
+    ) -> None:
+        settings = Settings(storage_path=Path("test.db"))
+        default_flags = settings_flag_snapshot(settings)
+        expanded = settings_flag_snapshot(
+            settings,
+            include_disabled_experimental=True,
+        )
+
+        for name in (
+            "DECISION_WEAVING_ENABLED",
+            "NUMERIC_CHECK_ENABLED",
+            "DYNAMIC_CAPABILITY_ENABLED",
+        ):
+            self.assertEqual(
+                FLAG_CLASSIFICATIONS[name],
+                "content_affecting",
+            )
+            self.assertNotIn(name, default_flags)
+            self.assertIs(expanded[name], False)
+
+    def test_each_enabled_016_flag_makes_historical_run_incomparable(
+        self,
+    ) -> None:
+        baseline = manifest()
+        for name in (
+            "DECISION_WEAVING_ENABLED",
+            "NUMERIC_CHECK_ENABLED",
+            "DYNAMIC_CAPABILITY_ENABLED",
+        ):
+            with self.subTest(flag=name):
+                changed = baseline.model_copy(
+                    update={
+                        "flags": {
+                            **baseline.flags,
+                            name: True,
+                        }
+                    }
+                )
+                comparison = compare_manifests(baseline, changed)
+                self.assertFalse(comparison.comparable)
+                self.assertIn(
+                    f"flags.{name}",
+                    comparison.incomparable_reasons,
+                )
+
+    def test_disabled_016_parameters_do_not_change_config_hash(
+        self,
+    ) -> None:
+        started = datetime(2026, 7, 24, tzinfo=timezone.utc)
+        baseline = build_run_manifest(
+            ResearchState(topic="hash"),
+            Settings(storage_path=Path("test.db")),
+            started_at=started,
+        )
+        changed = build_run_manifest(
+            ResearchState(topic="hash"),
+            Settings(
+                storage_path=Path("test.db"),
+                decision_weaving_budget_remaining_ratio=0.9,
+                decision_weaving_verify_min_allocation=9,
+                numeric_check_relative_tolerance=0.5,
+                numeric_check_absolute_tolerance=5.0,
+                dynamic_capability_rules_json='{"narrative":[]}',
+            ),
+            started_at=started,
+        )
+
+        self.assertEqual(baseline.config_hash, changed.config_hash)
 
 
 if __name__ == "__main__":

@@ -2,11 +2,16 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Literal, TypedDict
+from typing import TYPE_CHECKING, Literal, TypedDict
 
 from deepresearch_agent.decisions import record_agent_decision
 from deepresearch_agent.schemas import AgentDecision, ResearchState
 from langgraph.graph import END, START, StateGraph
+
+if TYPE_CHECKING:
+    from deepresearch_agent.orchestration.decision_context import (
+        DecisionContext,
+    )
 
 ProgressMetric = Callable[[ResearchState], float]
 ExhaustedHandler = Callable[[ResearchState, str], None]
@@ -158,7 +163,14 @@ class BoundedLoop:
         state: ResearchState,
         tracker: LoopTracker,
         result: LoopIterationResult,
+        *,
+        decision_context: DecisionContext | None = None,
+        budget_remaining_ratio_threshold: float = 0.0,
     ) -> LoopOutcome:
+        if not 0 <= budget_remaining_ratio_threshold <= 1:
+            raise ValueError(
+                "budget_remaining_ratio_threshold must be between 0 and 1"
+            )
         remaining = self.spec.budget_ceiling - tracker.budget_used
         if result.budget_consumed > remaining:
             raise ValueError(
@@ -181,6 +193,10 @@ class BoundedLoop:
         route, stop_boundary, outcome = self._evaluate_outcome(
             advanced,
             result,
+            decision_context=decision_context,
+            budget_remaining_ratio_threshold=(
+                budget_remaining_ratio_threshold
+            ),
         )
         self._record_decision(
             state,
@@ -190,6 +206,7 @@ class BoundedLoop:
             route=route,
             stop_boundary=stop_boundary,
             outcome=outcome,
+            decision_context=decision_context,
         )
         if stop_boundary:
             self._exhaust(state, stop_boundary)
@@ -269,6 +286,9 @@ class BoundedLoop:
         self,
         tracker: LoopTracker,
         result: LoopIterationResult,
+        *,
+        decision_context: DecisionContext | None = None,
+        budget_remaining_ratio_threshold: float = 0.0,
     ) -> tuple[Literal["continue", "stop"], str | None, str]:
         boundaries: list[str] = []
         if tracker.budget_used >= self.spec.budget_ceiling:
@@ -277,11 +297,24 @@ class BoundedLoop:
             boundaries.append("max_iterations")
         if tracker.no_progress_count >= self.spec.no_progress_window:
             boundaries.append("no_progress_window")
+        budget_constrained = (
+            decision_context is not None
+            and decision_context.budget.total > 0
+            and (
+                decision_context.budget.remaining
+                / decision_context.budget.total
+            )
+            <= budget_remaining_ratio_threshold
+        )
 
         if boundaries:
             route: Literal["continue", "stop"] = "stop"
             stop_boundary = "+".join(boundaries)
             outcome = f"stop_exhausted:{stop_boundary}"
+        elif budget_constrained:
+            route = "stop"
+            stop_boundary = "decision_context_budget_threshold"
+            outcome = "stop_budget_constrained:因预算约束提前收敛"
         elif result.stop_requested:
             route = "stop"
             stop_boundary = None
@@ -303,25 +336,33 @@ class BoundedLoop:
         route: Literal["continue", "stop"],
         stop_boundary: str | None,
         outcome: str,
+        decision_context: DecisionContext | None = None,
     ) -> None:
         boundaries = stop_boundary.split("+") if stop_boundary else []
+        inputs: dict[str, object] = {
+            "metric_before": metric_before,
+            "metric_after": tracker.last_metric,
+            "budget_used": tracker.budget_used,
+            "budget_ceiling": self.spec.budget_ceiling,
+            "budget_unit": self.spec.budget_unit,
+            "retry_budget_consumed": result.retry_budget_consumed,
+            "iteration": tracker.iteration,
+            "max_iterations": self.spec.max_iterations,
+            "no_progress_count": tracker.no_progress_count,
+            "no_progress_window": self.spec.no_progress_window,
+            "boundaries_triggered": boundaries,
+            "route": route,
+        }
+        if decision_context:
+            fields = ("iteration", "budget", "sufficiency")
+            inputs["decision_context_fields"] = list(fields)
+            inputs["decision_context"] = decision_context.field_snapshot(
+                *fields
+            )
         decision = AgentDecision(
             decision_type="bounded_loop_control",
             made_by="BoundedLoop",
-            inputs={
-                "metric_before": metric_before,
-                "metric_after": tracker.last_metric,
-                "budget_used": tracker.budget_used,
-                "budget_ceiling": self.spec.budget_ceiling,
-                "budget_unit": self.spec.budget_unit,
-                "retry_budget_consumed": result.retry_budget_consumed,
-                "iteration": tracker.iteration,
-                "max_iterations": self.spec.max_iterations,
-                "no_progress_count": tracker.no_progress_count,
-                "no_progress_window": self.spec.no_progress_window,
-                "boundaries_triggered": boundaries,
-                "route": route,
-            },
+            inputs=inputs,
             criterion=(
                 "stop when the strategy reports sufficiency or any of "
                 "max_iterations, budget_ceiling, no_progress_window is reached"
@@ -343,7 +384,11 @@ class BoundedLoop:
         return graph_state["route"]
 
     def _exhaust(self, state: ResearchState, boundary: str) -> None:
-        notice = f"因 {boundary} 边界停止，覆盖可能不足。"
+        notice = (
+            "因预算约束提前收敛，覆盖可能不足。"
+            if boundary == "decision_context_budget_threshold"
+            else f"因 {boundary} 边界停止，覆盖可能不足。"
+        )
         loop_metadata = state.metadata.setdefault("research_loop", {})
         loop_metadata["stop_boundary"] = boundary
         loop_metadata["coverage_warning"] = notice

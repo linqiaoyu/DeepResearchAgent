@@ -8,6 +8,10 @@ DeepResearchAgent 是一个多 Agent 深度研究框架，金融投研为首个�
 
 本项目是作品集和演示导向项目，但实现选择仍应能解释为生产化工程决策。
 
+016 已新增只读 `DecisionContext` 编织预算、充分性、跨期分类与 Critic 问题，加入四类
+数值自洽校验、基于 `CapabilityRegistry` 的确定性动态能力选择和扩展轨迹严格回放。
+三项新增 `content_affecting` 开关均默认关闭；017–019 的既定后续路线见第 13 节。
+
 ## 2. 仓库结构
 
 - `.env.example`：环境变量示例文件。
@@ -29,7 +33,7 @@ DeepResearchAgent 是一个多 Agent 深度研究框架，金融投研为首个�
 
 领域目录约定（尚未实施）：目标 domain pack 包含 `tools/`、`prompts/`、`templates/`、`eval/`、`domain.yaml` 五类；新增领域前必须先完成 finance 等价抽取、旧路径兼容、资源 SHA-256 与默认 E2E 行为证明。
 
-当前默认开关：`TOOL_CONTRACT_ENABLED=true`、`INJECTION_GUARD_ENABLED=false`、`RUN_MANIFEST_ENABLED=true`、`CONTEXT_PACKER_ENABLED=false`、`STRUCTURED_LOGGING_ENABLED=true`、`CONFIG_FAIL_FAST_ENABLED=true`、`STRUCTURED_OUTPUT_ENABLED=true`、`PROGRESSIVE_DELIVERY_ENABLED=false`、`TRAJECTORY_RECORD_ENABLED=false`、`BRANCH_BUDGET_ENABLED=false`、`RESEARCH_LOOP_ENABLED=false`（max iterations 默认 1）、`PRIOR_MEMORY_ENABLED=false`。任何跨代比较必须先经 `scripts/verify_manifest.py` 判定。
+当前默认开关：`TOOL_CONTRACT_ENABLED=true`、`INJECTION_GUARD_ENABLED=false`、`RUN_MANIFEST_ENABLED=true`、`CONTEXT_PACKER_ENABLED=false`、`STRUCTURED_LOGGING_ENABLED=true`、`CONFIG_FAIL_FAST_ENABLED=true`、`STRUCTURED_OUTPUT_ENABLED=true`、`PROGRESSIVE_DELIVERY_ENABLED=false`、`TRAJECTORY_RECORD_ENABLED=false`、`BRANCH_BUDGET_ENABLED=false`、`RESEARCH_LOOP_ENABLED=false`（max iterations 默认 1）、`PRIOR_MEMORY_ENABLED=false`、`DECISION_WEAVING_ENABLED=false`、`NUMERIC_CHECK_ENABLED=false`、`DYNAMIC_CAPABILITY_ENABLED=false`。任何跨代比较必须先经 `scripts/verify_manifest.py` 判定。
 
 ## 3. 技术栈与版本
 
@@ -199,3 +203,31 @@ Goal 或自治模式下绝对禁止 push、force push、历史改写、批量文
 - Checkpoint recovery。
 - Evaluation Harness。
 - Demo packaging and deployment path。
+
+## 13. 既定后续路线（不可默默取消）
+
+本节使 017/018/019 成为仓库事实源的一部分。任何后续任务若要跳过或缩减它们，必须显式在报告中申报并给出理由，禁止无声推迟。
+
+### 017（认知与记忆轮，零成本）
+
+- 反思器 Reflector：运行结束后读取 AgentTrajectory 与全部 AgentDecision，提取结构化策略信号——哪些子问题充分性始终偏低、哪些来源反复无效、Critic 反复提哪类 issue、哪几轮重规划未带来进展。开关 REFLECTION_ENABLED 默认 false，content_affecting。可 fixture 验证的部分：信号提取的正确性、信号进入下一轮重规划输入的接线。标注待 019 验证的部分：反思出的策略调整在真实世界是否改善下一轮
+- 反思驱动重规划：把 015 的确定性精化规则升级为可接纳反思信号；反思结论进入 DecisionContext 并影响下一轮检索意图。复用 015 的重规划接口与 BoundedLoop，不另造循环
+- 程序性记忆 ProceduralMemory：实现 015 锁定的 MemoryStore 协议，lifecycle=cross_run。存储"哪类问题下哪种策略产生了何种充分性结果"的结构化记录，按问题类型索引，供后续运行的规划阶段查询。可 fixture 验证的部分：存储、检索、按问题类型索引、确定性查询。标注待 019 验证的部分：跨真实运行积累的策略偏好是否真的更优
+- 契约要求：Reflector 与 ProceduralMemory 涉及的新节点必须声明 NodeContract；反思与记忆写入若构成决策必须经 DecisionGate
+
+### 018（生态接口轮，零成本）
+
+- MCP server：Python 标准库实现 stdio JSON-RPC 2.0，至少 initialize/tools/list/tools/call，把 CapabilityRegistry 机械映射为 MCP tool schema，暴露发起研究/取回证据/导出审计包/比较两期快照
+- 真实客户端握手：与本机已装的 MCP 客户端实际连通一次并留存原始交互记录，这是"懂协议"与"读过文档"的分界
+- MCP client：消费外部 MCP server 的工具并注册进 CapabilityRegistry，使工具集从硬编码变为动态发现，接入 016 的动态能力选择
+- Skill packs：SKILL.md + 资源包渐进披露（先读描述判定适用再加载资源），skill 能力注册进同一 CapabilityRegistry，选择与加载记为 AgentDecision；抽出首个 skill（金融数值口径归一规则表）作为 010 领域耦合债的首付，等价重构 + 迁移前后 sha256 对照，不声称领域解耦完成
+- 约束：全程零新增依赖，MCP server 必须标准库实现
+
+### 019（付费验证轮）
+
+- 每笔支出前须在 preregistration.md 写明：支出项、预算上限、可证伪假设、测量方法、决策规则（满足条件A则点亮/回滚/接受，条件B则另一动作，两者都不满足则停止交 PM）。无预登记的支出一律禁止
+- 顺序：预飞行（tool contract 真实 provider 验证，¥1–2）→ 录制超集轨迹（016 阶段 6 给出配置，¥5–8）→ 离线回放验证全部可离线开关（¥0）→ 仅 cache_miss 且必要时申请新支出
+- 每项点亮必须同时定义回滚触发条件
+- 硬熔断三层：单项预算上限、全轮总预算上限（建议 ¥20）、意外支出检测（单次实际成本超预估 2 倍即停止）
+- 禁止无假设的全量 G4：除非确实点亮了改变内容生成的开关，否则不跑三十题全量回归；若点亮则跑针对性定向对照
+- 整轮成功判据：产出一份真实模式完整研究包、至少两个 dark 开关依据预登记规则得到明确处置、产出一条可严格回放的真实轨迹、总花费在预算内且每笔可追溯到预登记假设

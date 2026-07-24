@@ -93,8 +93,9 @@ gold v1.0 历史测量拆为 `0.6134 + 0.1865 - 0.0585 = 0.7414`：先固定 jud
 | 编排契约与有界循环 | 契约 active；研究循环仍 dark | 每个节点声明 consumes / produces / invariants / decision gate；`LoopSpec` 约束轮次、预算与无进展，首次使用 LangGraph 原生条件回边 · [`orchestration_contracts.md`](docs/orchestration_contracts.md) |
 | 分支预算调度 | 实现完成，仍 dark | `BRANCH_BUDGET_ENABLED=false`；Send 前均分、join 后向低充分性分支再分配，总量与单支上限均 fail closed |
 | 研究记忆 | 情景/语义实现；跨期行为仍 dark | 四键精确语义检索；`PRIOR_MEMORY_ENABLED=false`；只比较最近两期，verify 仍保留独立检索 · [`memory.md`](docs/memory.md) |
-| Capability registry | active 固定解析 | web search、fetch、结构化 provider 均携带 ToolSpec 注册；016 才做动态选择，017 才注册 skill 能力 |
-| Agent 决策记录 | active；策略默认关闭 | 循环停止、预算划拨、verify/explore/watch 与检索精化均复用 `AgentDecision`，进入 trace、manifest 摘要和报告 · [`agent_decisions.md`](docs/agent_decisions.md) |
+| Capability registry 与动态选择 | registry active；动态选择仍 dark | web search、fetch、结构化 provider 均携带 ToolSpec 注册；`DYNAMIC_CAPABILITY_ENABLED=false`，开启后按子问题类型记录候选、选中、拒绝与 fallback；017 才注册 skill 能力 · [`dynamic_capabilities.md`](docs/dynamic_capabilities.md) |
+| 决策编织与数值自洽 | 实现完成，仍 dark | `DECISION_WEAVING_ENABLED=false`、`NUMERIC_CHECK_ENABLED=false`；预算、循环、上期分类、Critic 数值问题和重规划共享只读上下文，四类算式错误进入 retry · [`decision_weaving.md`](docs/decision_weaving.md) · [`numeric_consistency.md`](docs/numeric_consistency.md) |
+| Agent 决策记录 | active；策略默认关闭 | 所有策略决定复用 `AgentDecision`，进入 trace、manifest 摘要和报告决策链；`DecisionGate` 阻止无记录决策 · [`agent_decisions.md`](docs/agent_decisions.md) |
 | 轨迹录制与回放 | 实现完成，仍 dark | `TRAJECTORY_RECORD_ENABLED=false`；两题面 fixture 严格回放报告逐字一致，策略 cache miss 显式停止；真实轨迹待后续任务 · [`trajectory_harness.md`](docs/trajectory_harness.md) |
 | MCP adapter | 仅设计 | 零新增依赖约束下未实现 server · [`mcp_adapter_design.md`](docs/mcp_adapter_design.md) |
 | Skill packs | 未实现 | 本轮未建立加载器或抽取规则；金融逻辑仍硬编码，不能宣称领域解耦 |
@@ -105,18 +106,23 @@ gold v1.0 历史测量拆为 `0.6134 + 0.1865 - 0.0585 = 0.7414`：先固定 jud
 
 ## Agent 的决策面与循环
 
-除 Planner 题目拆解和 Critic 定向 retry 外，系统现在具备四类有判据的决定：研究
-是否继续、剩余预算拨给哪个弱分支、子问题属于 `verify` / `watch` / `explore`、
-以及下一轮如何根据缺口改写检索意图。每个决定把测量输入、判据、结果、替代项和
-迭代号同步写入 trace、manifest 与报告；声明为决策节点却没有新增
-`AgentDecision` 会被契约层拦截。
+除 Planner 题目拆解和 Critic 定向 retry 外，系统会在开启相应 dark 开关后决定：研究
+是否继续、预算拨给哪个弱分支、子问题属于 `verify` / `watch` / `explore`、下一轮如何
+补缺、数字能否由证据自洽计算，以及当前子问题应调用哪些注册能力。
 
-三项新策略开关均默认关闭：`BRANCH_BUDGET_ENABLED=false`、
-`RESEARCH_LOOP_ENABLED=false`（max iterations 默认 1）和
-`PRIOR_MEMORY_ENABLED=false`。因此默认 fixture 路径逐字不变；现有验证证明边界
-确定、可回放，不证明真实 LLM 研究质量提升。人工继续负责题目、来源许可、费用、
-发布与投资判断。完整判据见 [`agent_decisions.md`](docs/agent_decisions.md)，控制面
-见 [`orchestration_contracts.md`](docs/orchestration_contracts.md)。
+016 用只读 `DecisionContext` 把这些决定编成依赖链：上期 `verify` 分类保留复核预算，
+剩余预算可触发提前收敛，Critic 的 `numeric_inconsistency` 直接成为定向重规划输入，
+能力选择只读取 `CapabilityRegistry`。每个决定把测量输入、判据、结果、替代项和迭代号
+同步写入 trace、manifest 与报告决策链；声明为决策节点却没有新增 `AgentDecision` 会被
+契约层拦截。
+
+`DECISION_WEAVING_ENABLED`、`NUMERIC_CHECK_ENABLED` 与
+`DYNAMIC_CAPABILITY_ENABLED` 均默认 false，并归类为 `content_affecting`；015 的三项
+策略开关也保持关闭。因此默认 fixture 路径逐字不变。离线验证证明接线、边界和回放，
+不证明真实 LLM 研究质量提升；该效果留给 019 的预登记、预算化验证。人工继续负责题目、
+来源许可、费用、发布与投资判断。完整说明见
+[`agent_decisions.md`](docs/agent_decisions.md) 与
+[`decision_weaving.md`](docs/decision_weaving.md)。
 
 ## 快速开始：本地 venv
 
@@ -165,6 +171,10 @@ PYTHONPATH=src .venv/bin/python scripts/build_site.py
 - [`docs/orchestration_contracts.md`](docs/orchestration_contracts.md)：节点契约、有界循环、分支预算与 capability registry
 - [`docs/memory.md`](docs/memory.md)：四类记忆、四键检索、跨期核实与向量检索触发条件
 - [`docs/agent_decisions.md`](docs/agent_decisions.md)：Agent 当前决定什么、如何记录，以及仍由人决定什么
+- [`docs/decision_weaving.md`](docs/decision_weaving.md)：预算、循环、历史、Critic 与能力选择如何共享只读决策上下文
+- [`docs/numeric_consistency.md`](docs/numeric_consistency.md)：同比/环比、份额、加总与单位换算的自洽校验
+- [`docs/dynamic_capabilities.md`](docs/dynamic_capabilities.md)：基于 CapabilityRegistry 的确定性能力选择与 fallback
+- [`docs/trajectory_superset.md`](docs/trajectory_superset.md)：016 超集轨迹配置、字段与严格回放边界
 - [`docs/trajectory_harness.md`](docs/trajectory_harness.md)：轨迹字段、严格/策略回放与 cache miss 语义
 - [`docs/use_case.md`](docs/use_case.md)：投研持续跟踪场景、fixture 产物走查与人工判断边界
 - [`docs/threat_model.md`](docs/threat_model.md)：不可信内容、证据不篡改取舍与残余风险

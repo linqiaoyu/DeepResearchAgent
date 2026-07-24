@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
 from pydantic import Field
@@ -12,6 +13,11 @@ from deepresearch_agent.schemas import (
     ResearchState,
     StrictModel,
 )
+
+if TYPE_CHECKING:
+    from deepresearch_agent.orchestration.decision_context import (
+        DecisionContext,
+    )
 
 COUNTERARGUMENT_TERMS = {
     "risk",
@@ -163,6 +169,7 @@ def refine_research_plan(
     *,
     as_of: date,
     iteration: int,
+    decision_context: DecisionContext | None = None,
 ) -> dict[str, list[str]]:
     if not state.plan:
         raise ValueError("Research re-planning requires an existing plan")
@@ -176,6 +183,20 @@ def refine_research_plan(
         metrics = metrics_by_id[sub_question.id]
         gaps_by_id[sub_question.id] = list(metrics.gaps)
         queries: list[str] = []
+        targeted_issues = (
+            [
+                issue
+                for issue in decision_context.unresolved_critic_issues
+                if sub_question.id in issue.sub_question_ids
+            ]
+            if decision_context
+            else []
+        )
+        for issue in targeted_issues:
+            queries.append(
+                f"{sub_question.question} resolve {issue.issue_type}: "
+                f"{issue.message}"
+            )
         if "independent_source_domains" in metrics.gaps:
             queries.append(
                 f"{sub_question.question} independent alternative source"
@@ -207,20 +228,36 @@ def refine_research_plan(
         sub_question.search_queries = list(dict.fromkeys(queries))[:3]
         refined[sub_question.id] = list(sub_question.search_queries)
 
+    inputs: dict[str, object] = {
+        "iteration": iteration,
+        "sufficiency_score": sufficiency.score,
+        "gaps_by_sub_question": gaps_by_id,
+        "as_of": as_of.isoformat(),
+    }
+    if decision_context:
+        fields = (
+            "iteration",
+            "sufficiency",
+            "unresolved_critic_issues",
+        )
+        inputs["decision_context_fields"] = list(fields)
+        inputs["decision_context"] = decision_context.field_snapshot(
+            *fields
+        )
     record_agent_decision(
         state,
         AgentDecision(
             decision_type="research_replan",
             made_by="PlannerAgent",
-            inputs={
-                "iteration": iteration,
-                "sufficiency_score": sufficiency.score,
-                "gaps_by_sub_question": gaps_by_id,
-                "as_of": as_of.isoformat(),
-            },
+            inputs=inputs,
             criterion=(
                 "replace the next-round search intent with deterministic "
                 "queries targeted at measured sufficiency gaps"
+                + (
+                    " and unresolved DecisionContext critic issues"
+                    if decision_context
+                    else ""
+                )
             ),
             outcome=f"refined_queries={refined}",
             alternatives_considered=[

@@ -9,6 +9,7 @@ from typing import Annotated, Any, TypedDict
 
 from deepresearch_agent.agents import CriticAgent, Evaluator, ExtractorAgent, PlannerAgent, ReporterAgent, ResearcherAgent
 from deepresearch_agent.config_validation import validate_required_configuration
+from deepresearch_agent.decisions import append_decision_chain
 from deepresearch_agent.llm import BudgetExceededError, LLMClient
 from deepresearch_agent.memory import (
     ContextWorkingMemory,
@@ -32,6 +33,7 @@ from deepresearch_agent.orchestration import (
     LoopTracker,
     ResearchSufficiency,
     SufficiencyThresholds,
+    build_decision_context,
     enforce_node_contract,
     evaluate_research_sufficiency,
     refine_research_plan,
@@ -56,8 +58,11 @@ from deepresearch_agent.settings import Settings, load_settings
 from deepresearch_agent.storage import SQLiteStore
 from deepresearch_agent.tools import (
     CapabilityRegistry,
+    DeterministicCapabilitySelector,
+    FIXED_CAPABILITY_SET,
     SearchProvider,
     StructuredDataProvider,
+    TrajectoryStructuredDataProvider,
     build_capability_registry,
     build_search_provider,
     build_structured_data_provider,
@@ -148,6 +153,11 @@ class DeepResearchEngine:
         configured_structured_provider = (
             structured_data_provider or build_structured_data_provider()
         )
+        configured_structured_provider = (
+            TrajectoryStructuredDataProvider(
+                configured_structured_provider
+            )
+        )
         self.capability_registry: CapabilityRegistry = (
             build_capability_registry(
                 search_provider=configured_search_tool,
@@ -157,6 +167,12 @@ class DeepResearchEngine:
         self.search_tool = self.capability_registry.resolve("web_search")
         self.structured_data_provider = self.capability_registry.resolve(
             "structured_data_provider"
+        )
+        self.capability_selector = (
+            DeterministicCapabilitySelector.from_json(
+                self.capability_registry,
+                self.settings.dynamic_capability_rules_json,
+            )
         )
         self.llm_client = (
             LLMClient(
@@ -183,6 +199,13 @@ class DeepResearchEngine:
         self.critic = CriticAgent(
             today=self.settings.as_of,
             injection_guard_enabled=self.settings.injection_guard_enabled,
+            numeric_check_enabled=self.settings.numeric_check_enabled,
+            numeric_relative_tolerance=(
+                self.settings.numeric_check_relative_tolerance
+            ),
+            numeric_check_absolute_tolerance=(
+                self.settings.numeric_check_absolute_tolerance
+            ),
         )
         self.reporter = ReporterAgent(llm_client=self.llm_client)
         self.evaluator = Evaluator()
@@ -287,6 +310,71 @@ class DeepResearchEngine:
                             else None
                         ),
                         "mode": self.settings.execution_mode,
+                        "strategy_config": {
+                            "max_critic_iter": (
+                                self.settings.max_critic_iter
+                            ),
+                            "branch_budget_enabled": (
+                                self.settings.branch_budget_enabled
+                            ),
+                            "branch_total_budget": (
+                                self.settings.branch_total_budget
+                            ),
+                            "branch_single_cap": (
+                                self.settings.branch_single_cap
+                            ),
+                            "research_loop_enabled": (
+                                self.settings.research_loop_enabled
+                            ),
+                            "research_loop_max_iterations": (
+                                self.settings.research_loop_max_iterations
+                            ),
+                            "research_loop_budget_ceiling": (
+                                self.settings.research_loop_budget_ceiling
+                            ),
+                            "research_loop_no_progress_window": (
+                                self.settings.research_loop_no_progress_window
+                            ),
+                            "research_min_evidence_count": (
+                                self.settings.research_min_evidence_count
+                            ),
+                            "research_min_independent_domains": (
+                                self.settings.research_min_independent_domains
+                            ),
+                            "research_min_average_confidence": (
+                                self.settings.research_min_average_confidence
+                            ),
+                            "research_max_freshness_age_days": (
+                                self.settings.research_max_freshness_age_days
+                            ),
+                            "research_max_unresolved_critic_issues": (
+                                self.settings.research_max_unresolved_critic_issues
+                            ),
+                            "decision_weaving_enabled": (
+                                self.settings.decision_weaving_enabled
+                            ),
+                            "decision_weaving_budget_remaining_ratio": (
+                                self.settings.decision_weaving_budget_remaining_ratio
+                            ),
+                            "decision_weaving_verify_min_allocation": (
+                                self.settings.decision_weaving_verify_min_allocation
+                            ),
+                            "numeric_check_enabled": (
+                                self.settings.numeric_check_enabled
+                            ),
+                            "numeric_check_relative_tolerance": (
+                                self.settings.numeric_check_relative_tolerance
+                            ),
+                            "numeric_check_absolute_tolerance": (
+                                self.settings.numeric_check_absolute_tolerance
+                            ),
+                            "dynamic_capability_enabled": (
+                                self.settings.dynamic_capability_enabled
+                            ),
+                            "dynamic_capability_rules_json": (
+                                self.settings.dynamic_capability_rules_json
+                            ),
+                        },
                     },
                 )
                 if self.settings.trajectory_record_enabled
@@ -505,8 +593,32 @@ class DeepResearchEngine:
                         "research_state",
                         "active_sub_question_ids",
                     }
+                    | (
+                        {"research_state.agent_decisions"}
+                        if self.settings.dynamic_capability_enabled
+                        else set()
+                    )
                 ),
-                invariants=(identity,),
+                invariants=(
+                    identity,
+                    *(
+                        (
+                            ContractInvariant(
+                                name="selected_capabilities_registered",
+                                predicate=(
+                                    self._selected_capabilities_registered
+                                ),
+                                expectation=(
+                                    "every selected capability resolves from "
+                                    "CapabilityRegistry"
+                                ),
+                            ),
+                        )
+                        if self.settings.dynamic_capability_enabled
+                        else ()
+                    ),
+                ),
+                decision_node=self.settings.dynamic_capability_enabled,
             ),
             "research_one": NodeContract(
                 name="research_one",
@@ -574,8 +686,33 @@ class DeepResearchEngine:
                         "research_state.retry_queue",
                         "research_state.current_phase",
                     }
+                    | (
+                        {"research_state.agent_decisions"}
+                        if self.settings.numeric_check_enabled
+                        else set()
+                    )
                 ),
-                invariants=(identity,),
+                invariants=(
+                    identity,
+                    *(
+                        (
+                            ContractInvariant(
+                                name="numeric_issues_complete",
+                                predicate=(
+                                    self._numeric_issues_complete
+                                ),
+                                expectation=(
+                                    "every numeric_inconsistency carries "
+                                    "claimed_value, calculated_value, "
+                                    "formula, and evidence_ids"
+                                ),
+                            ),
+                        )
+                        if self.settings.numeric_check_enabled
+                        else ()
+                    ),
+                ),
+                decision_node=self.settings.numeric_check_enabled,
             ),
             "research_loop_decide": NodeContract(
                 name="research_loop_decide",
@@ -730,6 +867,55 @@ class DeepResearchEngine:
         mapping = state.get("report_footnote_evidence")
         return isinstance(mapping, dict) and set(mapping.values()).issubset(evidence_ids)
 
+    def _numeric_issues_complete(
+        self,
+        _before: dict[str, Any],
+        after: dict[str, Any],
+    ) -> bool:
+        state = after.get("research_state")
+        if not isinstance(state, dict):
+            return False
+        report = state.get("critic_report")
+        if not isinstance(report, dict):
+            return False
+        return all(
+            issue.get("claimed_value") is not None
+            and issue.get("calculated_value") is not None
+            and bool(issue.get("formula"))
+            and bool(issue.get("evidence_ids"))
+            for issue in report.get("issues", [])
+            if isinstance(issue, dict)
+            and issue.get("issue_type") == "numeric_inconsistency"
+        )
+
+    def _selected_capabilities_registered(
+        self,
+        _before: dict[str, Any],
+        after: dict[str, Any],
+    ) -> bool:
+        state = after.get("research_state")
+        if not isinstance(state, dict):
+            return False
+        metadata = state.get("metadata", {})
+        selections = (
+            metadata.get("capability_selections", {})
+            if isinstance(metadata, dict)
+            else {}
+        )
+        if not isinstance(selections, dict) or not selections:
+            return False
+        registered = {
+            item.name for item in self.capability_registry.query()
+        }
+        return all(
+            isinstance(selection, dict)
+            and bool(selection.get("selected_capabilities"))
+            and set(
+                selection.get("selected_capabilities", [])
+            ).issubset(registered)
+            for selection in selections.values()
+        )
+
     def _graph_node(self, name: str, node):
         contracted = enforce_node_contract(self.node_contracts[name], node)
         return self._traced_node(name, contracted)
@@ -781,6 +967,14 @@ class DeepResearchEngine:
         if not state.plan:
             raise ValueError("Researching requires a plan.")
         branch_ids = [item.id for item in state.plan.sub_questions]
+        if self.settings.dynamic_capability_enabled:
+            state.metadata["capability_selections"] = {
+                item.id: self.capability_selector.select(
+                    state,
+                    item,
+                ).model_dump(mode="json")
+                for item in state.plan.sub_questions
+            }
         if self.settings.research_loop_active:
             raw_tracker = state.metadata.get("research_loop_tracker")
             if not isinstance(raw_tracker, dict):
@@ -847,6 +1041,22 @@ class DeepResearchEngine:
     def _research_one_node(self, graph_state: ResearchGraphState) -> ResearchGraphState:
         state = self._state_from_graph_values(graph_state)
         sub_question = SubQuestion.model_validate(graph_state["fanout_sub_question"])
+        selected_capabilities = set(FIXED_CAPABILITY_SET)
+        if self.settings.dynamic_capability_enabled:
+            raw_selections = state.metadata.get(
+                "capability_selections",
+                {},
+            )
+            raw_selection = (
+                raw_selections.get(sub_question.id, {})
+                if isinstance(raw_selections, dict)
+                else {}
+            )
+            selected_capabilities = set(
+                raw_selection.get("selected_capabilities", [])
+                if isinstance(raw_selection, dict)
+                else []
+            )
         priority_urls: list[str] = []
         if self.settings.prior_memory_enabled:
             prior_metadata = state.metadata.get("prior_memory", {})
@@ -865,6 +1075,8 @@ class DeepResearchEngine:
                 ),
                 [],
             )
+        if "web_fetch" not in selected_capabilities:
+            priority_urls = []
         budget_metadata = state.metadata.get("branch_budget", {})
         allocated_calls = budget_metadata.get("allocated_calls", {})
         if self._branch_budget_enabled() and isinstance(
@@ -881,6 +1093,9 @@ class DeepResearchEngine:
                 sub_question,
                 max_search_calls=allocation,
                 priority_urls=priority_urls,
+                enable_web_search=(
+                    "web_search" in selected_capabilities
+                ),
             )
         elif priority_urls:
             (
@@ -892,12 +1107,45 @@ class DeepResearchEngine:
                 sub_question,
                 max_search_calls=None,
                 priority_urls=priority_urls,
+                enable_web_search=(
+                    "web_search" in selected_capabilities
+                ),
             )
         else:
-            sources, records = self.researcher.research(sub_question)
-            search_calls = len(records)
-            branch_exhausted = False
-        structured_evidence = self.researcher.structured_evidence(state.research_id, sub_question)
+            if "web_search" in selected_capabilities:
+                sources, records = self.researcher.research(sub_question)
+                search_calls = len(records)
+                branch_exhausted = False
+            else:
+                sources = []
+                records = []
+                search_calls = 0
+                branch_exhausted = False
+        structured_evidence = (
+            self.researcher.structured_evidence(
+                state.research_id,
+                sub_question,
+            )
+            if "structured_data_provider" in selected_capabilities
+            else []
+        )
+        structured_stats = (
+            dict(self.researcher.last_structured_stats)
+            if "structured_data_provider" in selected_capabilities
+            else {
+                "requests": len(
+                    sub_question.structured_data_requests
+                ),
+                "records": 0,
+                "symbol_resolution_failures": 0,
+                "execution_failures": 0,
+            }
+        )
+        symbol_resolutions = (
+            list(self.researcher.last_symbol_resolutions)
+            if "structured_data_provider" in selected_capabilities
+            else []
+        )
         output: ResearchGraphState = {
             "research_sources": {
                 sub_question.id: [source.model_dump(mode="json") for source in sources]
@@ -909,10 +1157,10 @@ class DeepResearchEngine:
                 sub_question.id: [item.model_dump(mode="json") for item in structured_evidence]
             },
             "research_structured_stats": {
-                sub_question.id: dict(self.researcher.last_structured_stats)
+                sub_question.id: structured_stats
             },
             "research_symbol_resolutions": {
-                sub_question.id: list(self.researcher.last_symbol_resolutions)
+                sub_question.id: symbol_resolutions
             },
         }
         if self._branch_budget_enabled():
@@ -1073,9 +1321,35 @@ class DeepResearchEngine:
                 )
                 for item in sufficiency.by_sub_question
             }
+            context = (
+                build_decision_context(
+                    state,
+                    iteration=(
+                        int(
+                            state.metadata.get(
+                                "research_loop_tracker",
+                                {},
+                            ).get("iteration", 0)
+                        )
+                        + 1
+                    ),
+                    budget_total=self.branch_budget.total_budget,
+                    budget_used=self.branch_budget.total_used,
+                    budget_snapshot=self.branch_budget.snapshot(),
+                    sufficiency=sufficiency,
+                )
+                if self.settings.decision_weaving_enabled
+                else None
+            )
             allocations = self.branch_budget.reallocate(
                 branch_metrics,
                 state,
+                decision_context=context,
+                verify_min_allocation=(
+                    self.settings.decision_weaving_verify_min_allocation
+                    if context
+                    else 0
+                ),
             )
             state.metadata["branch_budget"].update(
                 {
@@ -1100,10 +1374,40 @@ class DeepResearchEngine:
             stop_requested=sufficiency.sufficient,
             stop_reason="sufficiency_thresholds_met",
         )
+        loop_context = (
+            build_decision_context(
+                state,
+                iteration=tracker.iteration + 1,
+                budget_total=(
+                    self.branch_budget.total_budget
+                    if self.branch_budget
+                    else self.settings.research_loop_budget_ceiling
+                ),
+                budget_used=(
+                    self.branch_budget.total_used
+                    if self.branch_budget
+                    else tracker.budget_used
+                ),
+                budget_snapshot=(
+                    self.branch_budget.snapshot()
+                    if self.branch_budget
+                    else None
+                ),
+                sufficiency=sufficiency,
+            )
+            if self.settings.decision_weaving_enabled
+            else None
+        )
         outcome = self.research_loop.advance(
             state,
             tracker,
             iteration_result,
+            decision_context=loop_context,
+            budget_remaining_ratio_threshold=(
+                self.settings.decision_weaving_budget_remaining_ratio
+                if loop_context
+                else 0.0
+            ),
         )
         state.metadata["research_loop_tracker"] = asdict(outcome.tracker)
         state.metadata["research_loop_route"] = outcome.route
@@ -1168,6 +1472,30 @@ class DeepResearchEngine:
             sufficiency,
             as_of=self.research_as_of,
             iteration=tracker.iteration + 1,
+            decision_context=(
+                build_decision_context(
+                    state,
+                    iteration=tracker.iteration + 1,
+                    budget_total=(
+                        self.branch_budget.total_budget
+                        if self.branch_budget
+                        else 0
+                    ),
+                    budget_used=(
+                        self.branch_budget.total_used
+                        if self.branch_budget
+                        else 0
+                    ),
+                    budget_snapshot=(
+                        self.branch_budget.snapshot()
+                        if self.branch_budget
+                        else None
+                    ),
+                    sufficiency=sufficiency,
+                )
+                if self.settings.decision_weaving_enabled
+                else None
+            ),
         )
         state.metadata["next_research_intent"] = refined
         state.critic_report = None
@@ -1202,7 +1530,39 @@ class DeepResearchEngine:
         return sends or "retry_join"
 
     def _retry_one_node(self, graph_state: ResearchGraphState) -> ResearchGraphState:
+        state = self._state_from_graph_values(graph_state)
         task = RetryTask.model_validate(graph_state["fanout_retry_task"])
+        if (
+            self.settings.dynamic_capability_enabled
+            and task.sub_question_id
+        ):
+            selections = state.metadata.get(
+                "capability_selections",
+                {},
+            )
+            selection = (
+                selections.get(task.sub_question_id, {})
+                if isinstance(selections, dict)
+                else {}
+            )
+            selected = (
+                selection.get("selected_capabilities", [])
+                if isinstance(selection, dict)
+                else []
+            )
+            if "web_search" not in selected:
+                return {
+                    "retry_sources": {task.id: []},
+                    "retry_records": {
+                        task.id: SearchRecord(
+                            query=(
+                                "[capability_not_selected] "
+                                f"{task.query}"
+                            ),
+                            source_ids=[],
+                        ).model_dump(mode="json")
+                    },
+                }
         sources, record = self.researcher.retry(task.query, task.source_type)
         return {
             "retry_sources": {task.id: [source.model_dump(mode="json") for source in sources]},
@@ -1248,6 +1608,12 @@ class DeepResearchEngine:
 
     def _reporter_node(self, graph_state: ResearchGraphState) -> ResearchGraphState:
         state = self._state_from_graph_values(graph_state)
+        if (
+            self.settings.decision_weaving_enabled
+            or self.settings.numeric_check_enabled
+            or self.settings.dynamic_capability_enabled
+        ):
+            state.metadata["stable_reader_evidence_refs"] = True
         self._sync_tool_degradation(state)
         state.evidence_store = self._sorted_evidence(state.evidence_store)
         if self.settings.context_packer_enabled:
@@ -1270,6 +1636,11 @@ class DeepResearchEngine:
                 packed.context_event(node="reporter")
             )
         state.final_report = self.reporter.report(state)
+        if self.settings.decision_weaving_enabled:
+            state.final_report = append_decision_chain(
+                state.final_report,
+                state.agent_decisions,
+            )
         if self.settings.structured_output_enabled:
             state.structured_output = self.reporter.structured_output(state)
         state.final_report = self._append_degradation_notice(state.final_report, state)
@@ -1308,6 +1679,11 @@ class DeepResearchEngine:
 
     def _planning(self, state: ResearchState) -> None:
         state.plan = self.planner.plan(state.topic, state.depth_level, research_id=state.research_id)
+        recorder = active_trajectory_recorder()
+        if recorder:
+            recorder.trajectory.request["recorded_plan"] = (
+                state.plan.model_dump(mode="json")
+            )
         if self.settings.prior_memory_enabled:
             prior_records = [
                 item
@@ -1325,6 +1701,11 @@ class DeepResearchEngine:
                     prior,
                     watch_confidence_threshold=(
                         self.settings.prior_watch_confidence_threshold
+                    ),
+                    decision_context=(
+                        build_decision_context(state, iteration=0)
+                        if self.settings.decision_weaving_enabled
+                        else None
                     ),
                 )
         if self.settings.execution_mode == "llm":

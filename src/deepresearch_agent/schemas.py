@@ -223,11 +223,32 @@ class Issue(StrictModel):
         "unverified_projection",
         "injection_risk",
         "contradicts_prior",
+        "numeric_inconsistency",
     ]
     severity: Literal["low", "medium", "high"]
     affected_claims: list[str] = Field(default_factory=list)
     message: str
     suggested_retry_task: RetryTask | None = None
+    claimed_value: float | None = None
+    calculated_value: float | None = None
+    formula: str | None = None
+    evidence_ids: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def require_numeric_inconsistency_audit_fields(self) -> Issue:
+        if self.issue_type != "numeric_inconsistency":
+            return self
+        if (
+            self.claimed_value is None
+            or self.calculated_value is None
+            or not self.formula
+            or not self.evidence_ids
+        ):
+            raise ValueError(
+                "numeric_inconsistency requires claimed_value, "
+                "calculated_value, formula, and evidence_ids"
+            )
+        return self
 
 
 class CriticReport(StrictModel):

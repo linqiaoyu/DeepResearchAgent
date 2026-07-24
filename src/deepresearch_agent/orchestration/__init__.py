@@ -12,6 +12,15 @@ from deepresearch_agent.orchestration.budget import (
     BranchAllocation,
     BranchBudget,
 )
+from deepresearch_agent.orchestration.decision_context import (
+    BranchBalance,
+    BudgetContext,
+    CriticIssueContext,
+    DecisionContext,
+    PriorClassificationContext,
+    SufficiencyContext,
+    build_decision_context,
+)
 from deepresearch_agent.orchestration.loops import (
     BoundedLoop,
     LoopContext,
@@ -37,6 +46,13 @@ __all__ = [
     "NodeContract",
     "BranchAllocation",
     "BranchBudget",
+    "BranchBalance",
+    "BudgetContext",
+    "CriticIssueContext",
+    "DecisionContext",
+    "PriorClassificationContext",
+    "SufficiencyContext",
+    "build_decision_context",
     "BoundedLoop",
     "LoopContext",
     "LoopIterationResult",

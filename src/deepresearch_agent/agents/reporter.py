@@ -93,7 +93,15 @@ class ReporterAgent:
         lines.extend(["", "## 风险与限制"])
         if state.critic_report and state.critic_report.issues:
             for issue in state.critic_report.issues[:6]:
-                affected = ", ".join(issue.affected_claims) or "n/a"
+                affected = self._affected_claims(
+                    issue.affected_claims,
+                    ref_map,
+                    stable=bool(
+                        state.metadata.get(
+                            "stable_reader_evidence_refs"
+                        )
+                    ),
+                )
                 lines.append(f"- {issue.issue_type} ({issue.severity}): {issue.message} Affected: {affected}.")
         else:
             lines.append("- Critic 未发现高优先级事实、引用或反方观点问题。")
@@ -343,7 +351,15 @@ class ReporterAgent:
                 lines.append(f"- {risk}")
         elif state.critic_report and state.critic_report.issues:
             for issue in state.critic_report.issues[:6]:
-                affected = ", ".join(issue.affected_claims) or "n/a"
+                affected = self._affected_claims(
+                    issue.affected_claims,
+                    ref_map,
+                    stable=bool(
+                        state.metadata.get(
+                            "stable_reader_evidence_refs"
+                        )
+                    ),
+                )
                 lines.append(f"- {issue.issue_type} ({issue.severity}): {issue.message} Affected: {affected}.")
         else:
             lines.append("- Critic 未发现高优先级事实、引用或反方观点问题。")
@@ -448,3 +464,23 @@ class ReporterAgent:
         if fields.unit:
             parts.append(f"单位: {fields.unit}")
         return f"{item.claim}（{'; '.join(parts)}）" if parts else item.claim
+
+    def _affected_claims(
+        self,
+        affected_claims: list[str],
+        ref_map: dict[str, int],
+        *,
+        stable: bool,
+    ) -> str:
+        if not affected_claims:
+            return "n/a"
+        if not stable:
+            return ", ".join(affected_claims)
+        return ", ".join(
+            (
+                f"footnote-{ref_map[item]}"
+                if item in ref_map
+                else "non-evidence-claim"
+            )
+            for item in affected_claims
+        )

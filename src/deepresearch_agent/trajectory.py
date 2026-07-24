@@ -33,6 +33,8 @@ class ToolCallTrace(StrictModel):
     result: Any = None
     error: dict[str, Any] | None = None
     attempts: int = Field(ge=0)
+    transport: Literal["local", "mcp"] = "local"
+    server: str | None = None
 
 
 class NodeTransitionTrace(StrictModel):
@@ -41,8 +43,25 @@ class NodeTransitionTrace(StrictModel):
     output_summary: dict[str, Any]
 
 
+class SignalReadTrace(StrictModel):
+    """Reserved 017 slot for Reflector trajectory-signal reads."""
+
+    signal_type: str
+    source: str
+    keys: tuple[str, ...] = ()
+
+
+class MemoryWriteTrace(StrictModel):
+    """Reserved 017 slot for cross-run procedural-memory writes."""
+
+    memory_type: str
+    lifecycle: str
+    key: dict[str, Any]
+    value_summary: dict[str, Any]
+
+
 class AgentTrajectory(StrictModel):
-    schema_version: int = 1
+    schema_version: int = 2
     run_id: str
     recorded_at: datetime = Field(default_factory=utc_now)
     request: dict[str, Any]
@@ -50,6 +69,8 @@ class AgentTrajectory(StrictModel):
     tool_calls: list[ToolCallTrace] = Field(default_factory=list)
     node_transitions: list[NodeTransitionTrace] = Field(default_factory=list)
     agent_decisions: list[AgentDecision] = Field(default_factory=list)
+    signal_reads: list[SignalReadTrace] = Field(default_factory=list)
+    memory_writes: list[MemoryWriteTrace] = Field(default_factory=list)
     run_manifest_ref: str | None = None
     artifacts: dict[str, str] = Field(default_factory=dict)
 
@@ -76,6 +97,12 @@ class TrajectoryRecorder:
 
     def record_decision(self, decision: AgentDecision) -> None:
         self.trajectory.agent_decisions.append(decision)
+
+    def record_signal_read(self, signal: SignalReadTrace) -> None:
+        self.trajectory.signal_reads.append(signal)
+
+    def record_memory_write(self, write: MemoryWriteTrace) -> None:
+        self.trajectory.memory_writes.append(write)
 
     def finalize(
         self,

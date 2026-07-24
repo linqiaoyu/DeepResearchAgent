@@ -51,6 +51,7 @@ class ResearcherAgent:
         top_k_per_query: int = 1,
         max_search_calls: int | None,
         priority_urls: list[str] | None = None,
+        enable_web_search: bool = True,
     ) -> tuple[list[Source], list[SearchRecord], int, bool]:
         seen: dict[str, Source] = {}
         records: list[SearchRecord] = []
@@ -96,7 +97,9 @@ class ResearcherAgent:
             if source:
                 seen[source.url] = source
 
-        for idx, query in enumerate(sub_question.search_queries):
+        for idx, query in enumerate(
+            sub_question.search_queries if enable_web_search else []
+        ):
             if not consume_call():
                 marker = (
                     "branch_budget_exceeded"

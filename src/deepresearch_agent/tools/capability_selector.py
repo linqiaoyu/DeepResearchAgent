@@ -1,0 +1,188 @@
+from __future__ import annotations
+
+import json
+from collections.abc import Mapping, Sequence
+
+from deepresearch_agent.decisions import record_agent_decision
+from deepresearch_agent.schemas import (
+    AgentDecision,
+    ResearchState,
+    StrictModel,
+    SubQuestion,
+)
+from deepresearch_agent.tools.capability_registry import (
+    CapabilityRegistry,
+)
+
+DEFAULT_CAPABILITY_RULES: dict[str, tuple[str, ...]] = {
+    "financial_metric": (
+        "structured_data_provider",
+        "web_search",
+    ),
+    "market_price": (
+        "structured_data_provider",
+        "web_search",
+    ),
+    "verify": ("web_fetch", "web_search"),
+    "narrative": ("web_search",),
+}
+FIXED_CAPABILITY_SET = (
+    "web_search",
+    "web_fetch",
+    "structured_data_provider",
+)
+
+
+class CapabilitySelection(StrictModel):
+    sub_question_id: str
+    sub_question_type: str
+    candidate_capabilities: tuple[str, ...]
+    selected_capabilities: tuple[str, ...]
+    rejected_capabilities: tuple[str, ...]
+    criterion: str
+    fallback: bool = False
+
+
+class DeterministicCapabilitySelector:
+    """Select registered capabilities with explicit deterministic rules."""
+
+    def __init__(
+        self,
+        registry: CapabilityRegistry,
+        rules: Mapping[str, Sequence[str]] | None = None,
+    ) -> None:
+        self.registry = registry
+        self.rules = {
+            str(question_type): tuple(str(name) for name in names)
+            for question_type, names in (
+                DEFAULT_CAPABILITY_RULES
+                if rules is None
+                else rules
+            ).items()
+        }
+
+    @classmethod
+    def from_json(
+        cls,
+        registry: CapabilityRegistry,
+        payload: str,
+    ) -> DeterministicCapabilitySelector:
+        try:
+            raw = json.loads(payload)
+        except json.JSONDecodeError as exc:
+            raise ValueError(
+                "dynamic capability rules must be valid JSON"
+            ) from exc
+        if not isinstance(raw, dict) or not all(
+            isinstance(key, str)
+            and isinstance(value, list)
+            and all(isinstance(item, str) for item in value)
+            for key, value in raw.items()
+        ):
+            raise ValueError(
+                "dynamic capability rules must map strings to string lists"
+            )
+        return cls(registry, raw)
+
+    def select(
+        self,
+        state: ResearchState,
+        sub_question: SubQuestion,
+    ) -> CapabilitySelection:
+        question_type = classify_subquestion(sub_question)
+        candidates = tuple(
+            item.name for item in self.registry.query()
+        )
+        configured = self.rules.get(question_type)
+        selected = tuple(
+            name
+            for name in (configured or ())
+            if name in candidates
+            and _is_applicable(
+                self.registry,
+                name,
+                question_type,
+            )
+        )
+        fallback = configured is None or not selected
+        if fallback:
+            selected = tuple(
+                name
+                for name in FIXED_CAPABILITY_SET
+                if name in candidates
+            )
+            criterion = (
+                f"no usable rule matched type={question_type}; "
+                "fall back to the 015 fixed capability set"
+            )
+        else:
+            criterion = (
+                f"apply configured rule for type={question_type} and keep "
+                "only capabilities declared applicable by the registry"
+            )
+        rejected = tuple(
+            name for name in candidates if name not in selected
+        )
+        selection = CapabilitySelection(
+            sub_question_id=sub_question.id,
+            sub_question_type=question_type,
+            candidate_capabilities=candidates,
+            selected_capabilities=selected,
+            rejected_capabilities=rejected,
+            criterion=criterion,
+            fallback=fallback,
+        )
+        record_agent_decision(
+            state,
+            AgentDecision(
+                decision_type="capability_selection",
+                made_by="ResearcherAgent",
+                inputs={
+                    "sub_question_id": sub_question.id,
+                    "sub_question_type": question_type,
+                    "candidate_capabilities": list(candidates),
+                    "selected_capabilities": list(selected),
+                    "rejected_capabilities": list(rejected),
+                    "fallback": fallback,
+                },
+                criterion=criterion,
+                outcome=f"selected={list(selected)}",
+                alternatives_considered=list(candidates),
+            ),
+        )
+        return selection
+
+
+def classify_subquestion(sub_question: SubQuestion) -> str:
+    capabilities = {
+        request.capability
+        for request in sub_question.structured_data_requests
+    }
+    if "price_history" in capabilities:
+        return "market_price"
+    if capabilities.intersection(
+        {"financial_indicators", "symbol_resolve"}
+    ):
+        return "financial_metric"
+    joined = " ".join(
+        [
+            sub_question.id,
+            sub_question.question,
+            *sub_question.search_queries,
+        ]
+    ).lower()
+    if any(term in joined for term in ("verify", "核实", "验证")):
+        return "verify"
+    return "narrative"
+
+
+def _is_applicable(
+    registry: CapabilityRegistry,
+    name: str,
+    subquestion_type: str,
+) -> bool:
+    metadata = registry.get(name)
+    return (
+        "*" in metadata.applicable_subquestion_types
+        or subquestion_type in metadata.applicable_subquestion_types
+    )

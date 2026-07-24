@@ -5,8 +5,14 @@ from typing import Any, Literal
 from pydantic import Field, model_validator
 
 from deepresearch_agent.schemas import StrictModel
-from deepresearch_agent.tools.contract_adapter import SEARCH_TOOL_SPEC
+from deepresearch_agent.tools.contract_adapter import (
+    FETCH_TOOL_SPEC,
+    SEARCH_TOOL_SPEC,
+)
 from deepresearch_agent.tools.contracts import ToolSpec
+from deepresearch_agent.tools.structured_trace import (
+    STRUCTURED_DATA_TOOL_SPEC,
+)
 
 CapabilityCostLevel = Literal["free", "low", "medium", "high"]
 
@@ -77,56 +83,6 @@ class CapabilityRegistry:
             if "*" in item.applicable_subquestion_types
             or subquestion_type in item.applicable_subquestion_types
         ]
-
-
-FETCH_TOOL_SPEC = ToolSpec(
-    name="web_fetch",
-    version="1.0.0",
-    input_schema={
-        "type": "object",
-        "required": ["url"],
-        "properties": {"url": {"type": "string", "format": "uri"}},
-    },
-    output_schema={
-        "oneOf": [{"$ref": "Source"}, {"type": "null"}],
-    },
-    timeout_s=60.0,
-    cost_class="low",
-    idempotent=True,
-    has_side_effect=False,
-)
-
-STRUCTURED_DATA_TOOL_SPEC = ToolSpec(
-    name="structured_data_provider",
-    version="1.0.0",
-    input_schema={
-        "type": "object",
-        "required": ["operation"],
-        "properties": {
-            "operation": {
-                "enum": [
-                    "symbol_resolve",
-                    "financial_indicators",
-                    "price_history",
-                ]
-            }
-        },
-    },
-    output_schema={
-        "oneOf": [
-            {"$ref": "SymbolInfo"},
-            {"type": "null"},
-            {
-                "type": "array",
-                "items": {"$ref": "StructuredDataRecord"},
-            },
-        ]
-    },
-    timeout_s=60.0,
-    cost_class="free",
-    idempotent=True,
-    has_side_effect=False,
-)
 
 
 def build_capability_registry(
