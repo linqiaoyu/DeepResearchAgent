@@ -42,6 +42,7 @@ class ManifestComparison(StrictModel):
     # It contains only differences that make the runs incomparable.
     differences: dict[str, dict[str, Any]] = Field(default_factory=dict)
     incomparable_reasons: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    additive_differences: dict[str, dict[str, Any]] = Field(default_factory=dict)
     informational_differences: dict[str, dict[str, Any]] = Field(default_factory=dict)
     conclusion: str
 
@@ -60,12 +61,21 @@ COMPARABILITY_FIELDS = (
 # `_collab/011_baseline-and-activation/flag_impact/`, not an implementation
 # claim. Context packing changed evidence and reports; injection guarding was
 # inert on the held-in fixtures but can alter confidence, Critic routing, and
-# content when a pattern matches. Structured output is additive business
-# content introduced in 012 and therefore conservatively content-affecting.
-FLAG_CLASSIFICATIONS: dict[str, Literal["content_affecting", "operational"]] = {
+# content when a pattern matches.
+FlagClassification = Literal[
+    "content_affecting",
+    "additive_content",
+    "operational",
+]
+FLAG_CLASSIFICATIONS: dict[str, FlagClassification] = {
     "CONTEXT_PACKER_ENABLED": "content_affecting",
     "INJECTION_GUARD_ENABLED": "content_affecting",
-    "STRUCTURED_OUTPUT_ENABLED": "content_affecting",
+    # 013 proved additive behavior only in deterministic mode: enabling this
+    # flag added a structured object without changing the existing report,
+    # claims, Evidence, Critic routing, metrics, or node summaries. Whether an
+    # LLM Reporter generating both objects changes prose remains a 014
+    # validation item and is not claimed here.
+    "STRUCTURED_OUTPUT_ENABLED": "additive_content",
     # 011 replay showed no report/claim/evidence/metric changes for these
     # flags. RUN_MANIFEST changed only its sidecar; logging changed stdout;
     # fail-fast is startup validation; tool contracts were inert on fixture
@@ -90,6 +100,7 @@ def compare_manifests(left: RunManifest, right: RunManifest) -> ManifestComparis
     """
 
     incomparable: dict[str, dict[str, Any]] = {}
+    additive: dict[str, dict[str, Any]] = {}
     informational: dict[str, dict[str, Any]] = {}
     for field_name in COMPARABILITY_FIELDS:
         left_value = getattr(left, field_name)
@@ -109,11 +120,13 @@ def compare_manifests(left: RunManifest, right: RunManifest) -> ManifestComparis
         category = FLAG_CLASSIFICATIONS.get(flag_name, "content_affecting")
         if category == "operational":
             informational[field_name] = difference
+        elif category == "additive_content":
+            additive[field_name] = difference
         else:
             incomparable[field_name] = difference
     comparable = not incomparable
     conclusion = (
-        "comparable: only operational or no differences detected"
+        "comparable: only additive content, operational, or no differences detected"
         if comparable
         else "not comparable: content or run-identity differences detected"
     )
@@ -121,16 +134,18 @@ def compare_manifests(left: RunManifest, right: RunManifest) -> ManifestComparis
         comparable=comparable,
         differences=incomparable,
         incomparable_reasons=incomparable,
+        additive_differences=additive,
         informational_differences=informational,
         conclusion=conclusion,
     )
 
 
 def format_manifest_comparison(comparison: ManifestComparison) -> dict[str, Any]:
-    """Return the CLI's three-section, human-scannable result."""
+    """Return the CLI's four-section, human-scannable result."""
 
     return {
         "incomparable_reasons": comparison.incomparable_reasons,
+        "additive_differences": comparison.additive_differences,
         "informational_differences": comparison.informational_differences,
         "conclusion": {
             "comparable": comparison.comparable,

@@ -72,6 +72,10 @@ class RunManifestTests(unittest.TestCase):
             FLAG_CLASSIFICATIONS["PROGRESSIVE_DELIVERY_ENABLED"],
             "operational",
         )
+        self.assertEqual(
+            FLAG_CLASSIFICATIONS["STRUCTURED_OUTPUT_ENABLED"],
+            "additive_content",
+        )
 
     def test_manifest_write_failure_degrades_without_losing_completed_run(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -182,6 +186,27 @@ class RunManifestTests(unittest.TestCase):
             comparison.incomparable_reasons,
         )
 
+    def test_additive_content_flag_change_is_explicit_and_comparable(self) -> None:
+        changed = manifest().model_copy(
+            update={
+                "flags": {
+                    "RUN_MANIFEST_ENABLED": True,
+                    "STRUCTURED_OUTPUT_ENABLED": True,
+                }
+            }
+        )
+        comparison = compare_manifests(manifest(), changed)
+        self.assertTrue(comparison.comparable)
+        self.assertEqual(comparison.incomparable_reasons, {})
+        self.assertIn(
+            "flags.STRUCTURED_OUTPUT_ENABLED",
+            comparison.additive_differences,
+        )
+        self.assertNotIn(
+            "flags.STRUCTURED_OUTPUT_ENABLED",
+            comparison.informational_differences,
+        )
+
     def test_unknown_flag_change_is_conservatively_not_comparable(self) -> None:
         changed = manifest().model_copy(
             update={
@@ -195,13 +220,14 @@ class RunManifestTests(unittest.TestCase):
         self.assertFalse(comparison.comparable)
         self.assertIn("flags.NEW_UNCLASSIFIED_FLAG", comparison.differences)
 
-    def test_mixed_differences_are_split_into_three_output_sections(self) -> None:
+    def test_mixed_differences_are_split_into_four_output_sections(self) -> None:
         changed = manifest().model_copy(
             update={
                 "model_strings": {"judge": "openai/another-judge"},
                 "flags": {
                     "RUN_MANIFEST_ENABLED": False,
                     "CONTEXT_PACKER_ENABLED": True,
+                    "STRUCTURED_OUTPUT_ENABLED": True,
                 },
             }
         )
@@ -210,6 +236,7 @@ class RunManifestTests(unittest.TestCase):
             list(payload),
             [
                 "incomparable_reasons",
+                "additive_differences",
                 "informational_differences",
                 "conclusion",
             ],
@@ -222,6 +249,10 @@ class RunManifestTests(unittest.TestCase):
         self.assertIn(
             "flags.RUN_MANIFEST_ENABLED",
             payload["informational_differences"],
+        )
+        self.assertIn(
+            "flags.STRUCTURED_OUTPUT_ENABLED",
+            payload["additive_differences"],
         )
         self.assertFalse(payload["conclusion"]["comparable"])
 
