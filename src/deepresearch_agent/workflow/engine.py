@@ -10,6 +10,14 @@ from deepresearch_agent.context import pack_evidence
 from deepresearch_agent.config_validation import validate_required_configuration
 from deepresearch_agent.llm import BudgetExceededError, LLMClient
 from deepresearch_agent.observability import JsonLogger, correlation_context
+from deepresearch_agent.orchestration import (
+    ContractField,
+    ContractGraph,
+    ContractInvariant,
+    NodeContract,
+    enforce_node_contract,
+    validate_contract_graph,
+)
 from deepresearch_agent.provenance import build_run_manifest, write_run_manifest
 from deepresearch_agent.schemas import (
     Evidence,
@@ -263,45 +271,47 @@ class DeepResearchEngine:
         return self._state_from_graph_values(snapshot.values)
 
     def _build_graph(self):
+        self.node_contracts = self._node_contracts()
+        validate_contract_graph(self.node_contracts, self._contract_graph())
         graph = StateGraph(ResearchGraphState)
-        graph.add_node("entry", self._traced_node("entry", self._entry_node))
-        graph.add_node("planner", self._traced_node("planner", self._planner_node))
+        graph.add_node("entry", self._graph_node("entry", self._entry_node))
+        graph.add_node("planner", self._graph_node("planner", self._planner_node))
         graph.add_node(
             "research_prepare",
-            self._traced_node("research_prepare", self._research_prepare_node),
+            self._graph_node("research_prepare", self._research_prepare_node),
         )
         graph.add_node(
             "research_one",
-            self._traced_node("research_one", self._research_one_node),
+            self._graph_node("research_one", self._research_one_node),
         )
         graph.add_node(
             "research_join",
-            self._traced_node("research_join", self._research_join_node),
+            self._graph_node("research_join", self._research_join_node),
         )
         graph.add_node(
             "extractor",
-            self._traced_node("extractor", self._extractor_node),
+            self._graph_node("extractor", self._extractor_node),
         )
-        graph.add_node("critic", self._traced_node("critic", self._critic_node))
+        graph.add_node("critic", self._graph_node("critic", self._critic_node))
         graph.add_node(
             "retry_prepare",
-            self._traced_node("retry_prepare", self._retry_prepare_node),
+            self._graph_node("retry_prepare", self._retry_prepare_node),
         )
         graph.add_node(
             "retry_one",
-            self._traced_node("retry_one", self._retry_one_node),
+            self._graph_node("retry_one", self._retry_one_node),
         )
         graph.add_node(
             "retry_join",
-            self._traced_node("retry_join", self._retry_join_node),
+            self._graph_node("retry_join", self._retry_join_node),
         )
         graph.add_node(
             "reporter",
-            self._traced_node("reporter", self._reporter_node),
+            self._graph_node("reporter", self._reporter_node),
         )
         graph.add_node(
             "evaluator",
-            self._traced_node("evaluator", self._evaluator_node),
+            self._graph_node("evaluator", self._evaluator_node),
         )
 
         graph.add_edge(START, "entry")
@@ -318,6 +328,274 @@ class DeepResearchEngine:
         graph.add_conditional_edges("reporter", self._route_after_reporting)
         graph.add_edge("evaluator", END)
         return graph.compile(checkpointer=self.checkpointer)
+
+    def _contract_graph(self) -> ContractGraph:
+        return ContractGraph(
+            edges=(
+                ("entry", "planner"),
+                ("entry", "research_prepare"),
+                ("entry", "extractor"),
+                ("entry", "critic"),
+                ("entry", "reporter"),
+                ("entry", "evaluator"),
+                ("planner", "research_prepare"),
+                ("research_prepare", "research_one"),
+                ("research_prepare", "research_join"),
+                ("research_one", "research_join"),
+                ("research_join", "extractor"),
+                ("extractor", "critic"),
+                ("critic", "retry_prepare"),
+                ("critic", "reporter"),
+                ("retry_prepare", "retry_one"),
+                ("retry_prepare", "retry_join"),
+                ("retry_one", "retry_join"),
+                ("retry_join", "critic"),
+                ("reporter", "evaluator"),
+            ),
+            injected_paths=frozenset(
+                {
+                    "research_state",
+                    "fanout_sub_question",
+                    "fanout_retry_task",
+                }
+            ),
+        )
+
+    def _node_contracts(self) -> dict[str, NodeContract]:
+        state_field = ContractField(dict)
+        optional_dict = ContractField(dict, required=False)
+        identity = ContractInvariant(
+            name="research_identity_preserved",
+            predicate=self._research_identity_preserved,
+            expectation="research_id and topic remain unchanged across the node",
+        )
+        return {
+            "entry": NodeContract(
+                name="entry",
+                consumes={"research_state": state_field},
+                produces=frozenset({"research_state"}),
+                invariants=(identity,),
+            ),
+            "planner": NodeContract(
+                name="planner",
+                consumes={"research_state": state_field},
+                produces=frozenset(
+                    {
+                        "research_state.plan",
+                        "research_state.todo_list",
+                        "research_state.pending_tasks",
+                        "research_state.current_phase",
+                    }
+                ),
+                invariants=(identity,),
+            ),
+            "research_prepare": NodeContract(
+                name="research_prepare",
+                consumes={
+                    "research_state": state_field,
+                    "research_state.plan": ContractField(dict),
+                },
+                produces=frozenset(
+                    {
+                        "research_state",
+                        "active_sub_question_ids",
+                    }
+                ),
+                invariants=(identity,),
+            ),
+            "research_one": NodeContract(
+                name="research_one",
+                consumes={
+                    "research_state": state_field,
+                    "fanout_sub_question": ContractField(dict),
+                },
+                produces=frozenset(
+                    {
+                        "research_sources",
+                        "research_records",
+                        "research_structured_evidence",
+                        "research_structured_stats",
+                        "research_symbol_resolutions",
+                    }
+                ),
+                invariants=(identity,),
+            ),
+            "research_join": NodeContract(
+                name="research_join",
+                consumes={
+                    "research_state": state_field,
+                    "research_state.plan": ContractField(dict),
+                    "research_sources": optional_dict,
+                    "research_records": optional_dict,
+                    "research_structured_evidence": optional_dict,
+                    "research_structured_stats": optional_dict,
+                    "research_symbol_resolutions": optional_dict,
+                },
+                produces=frozenset(
+                    {
+                        "research_state.sources",
+                        "research_state.search_records",
+                        "research_state.evidence_store",
+                        "research_state.current_phase",
+                    }
+                ),
+                invariants=(identity,),
+            ),
+            "extractor": NodeContract(
+                name="extractor",
+                consumes={
+                    "research_state": state_field,
+                    "research_state.plan": ContractField(dict),
+                    "research_state.sources": ContractField(list),
+                },
+                produces=frozenset(
+                    {
+                        "research_state.evidence_store",
+                        "research_state.current_phase",
+                    }
+                ),
+                invariants=(identity,),
+            ),
+            "critic": NodeContract(
+                name="critic",
+                consumes={
+                    "research_state": state_field,
+                    "research_state.plan": ContractField(dict),
+                    "research_state.evidence_store": ContractField(list),
+                },
+                produces=frozenset(
+                    {
+                        "research_state.critic_report",
+                        "research_state.retry_queue",
+                        "research_state.current_phase",
+                    }
+                ),
+                invariants=(identity,),
+            ),
+            "retry_prepare": NodeContract(
+                name="retry_prepare",
+                consumes={
+                    "research_state": state_field,
+                    "research_state.retry_queue": ContractField(list),
+                },
+                produces=frozenset(
+                    {
+                        "research_state",
+                        "active_retry_task_ids",
+                    }
+                ),
+                invariants=(identity,),
+            ),
+            "retry_one": NodeContract(
+                name="retry_one",
+                consumes={
+                    "research_state": state_field,
+                    "fanout_retry_task": ContractField(dict),
+                },
+                produces=frozenset(
+                    {
+                        "retry_sources",
+                        "retry_records",
+                    }
+                ),
+                invariants=(identity,),
+            ),
+            "retry_join": NodeContract(
+                name="retry_join",
+                consumes={
+                    "research_state": state_field,
+                    "research_state.retry_queue": ContractField(list),
+                    "retry_sources": optional_dict,
+                    "retry_records": optional_dict,
+                },
+                produces=frozenset(
+                    {
+                        "research_state.evidence_store",
+                        "research_state.retry_queue",
+                        "research_state.current_phase",
+                    }
+                ),
+                invariants=(identity,),
+            ),
+            "reporter": NodeContract(
+                name="reporter",
+                consumes={
+                    "research_state": state_field,
+                    "research_state.plan": ContractField(dict),
+                    "research_state.evidence_store": ContractField(list),
+                },
+                produces=frozenset(
+                    {
+                        "research_state.final_report",
+                        "research_state.draft_report",
+                        "research_state.report_footnote_evidence",
+                        "research_state.current_phase",
+                    }
+                ),
+                invariants=(
+                    identity,
+                    ContractInvariant(
+                        name="footnotes_reference_known_evidence",
+                        predicate=self._footnotes_reference_known_evidence,
+                        expectation=(
+                            "every report footnote maps to an evidence id in "
+                            "research_state.evidence_store"
+                        ),
+                    ),
+                ),
+            ),
+            "evaluator": NodeContract(
+                name="evaluator",
+                consumes={
+                    "research_state": state_field,
+                    "research_state.final_report": ContractField(str),
+                    "research_state.evidence_store": ContractField(list),
+                    "research_state.report_footnote_evidence": ContractField(dict),
+                },
+                produces=frozenset(
+                    {
+                        "research_state.evaluation",
+                        "research_state.current_phase",
+                        "research_state.status",
+                    }
+                ),
+                invariants=(identity,),
+            ),
+        }
+
+    def _research_identity_preserved(
+        self,
+        before: dict[str, Any],
+        after: dict[str, Any],
+    ) -> bool:
+        before_state = before.get("research_state")
+        after_state = after.get("research_state")
+        if not isinstance(before_state, dict) or not isinstance(after_state, dict):
+            return False
+        return (
+            before_state.get("research_id") == after_state.get("research_id")
+            and before_state.get("topic") == after_state.get("topic")
+        )
+
+    def _footnotes_reference_known_evidence(
+        self,
+        _before: dict[str, Any],
+        after: dict[str, Any],
+    ) -> bool:
+        state = after.get("research_state")
+        if not isinstance(state, dict):
+            return False
+        evidence_ids = {
+            item.get("id")
+            for item in state.get("evidence_store", [])
+            if isinstance(item, dict)
+        }
+        mapping = state.get("report_footnote_evidence")
+        return isinstance(mapping, dict) and set(mapping.values()).issubset(evidence_ids)
+
+    def _graph_node(self, name: str, node):
+        contracted = enforce_node_contract(self.node_contracts[name], node)
+        return self._traced_node(name, contracted)
 
     def _traced_node(self, name: str, node):
         def traced(graph_state: ResearchGraphState):
