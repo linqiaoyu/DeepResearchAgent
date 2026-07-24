@@ -12,6 +12,10 @@ from deepresearch_agent.llm.client import (
     LLMClientError,
 )
 from deepresearch_agent.llm_config import LLMConfig, RoleModelConfig
+from deepresearch_agent.evaluation.judge import (
+    EXPERIMENT_CONDITION_TERMS,
+    redact_judge_report,
+)
 from deepresearch_agent.reflection import (
     ReflectionLLMInsight,
     ReflectionReasoningRequest,
@@ -53,6 +57,29 @@ class StubLLMReflectionReasoner:
 
 
 class SpendingEligibilityAuditTests(unittest.TestCase):
+    def test_judge_report_redaction_removes_experiment_condition(self) -> None:
+        report = (
+            "# Report\n\n"
+            "## 摘要\n"
+            "Reader-visible conclusion remains.\n\n"
+            "## Agent 决策记录\n\n"
+            "- `reflection_signal_extraction` by `Reflector`: made_by=Reflector\n"
+            "- REFLECTION_ENABLED=true; experimental_arm=treatment_arm\n\n"
+            "## 决策链\n\n"
+            "- reflection_result came from reflector_placeholder.\n\n"
+            "## 风险\n"
+            "- Reader-visible risk remains; not the control_arm or 对照组.\n"
+        )
+
+        blinded = redact_judge_report(report)
+
+        self.assertIn("Reader-visible conclusion remains.", blinded)
+        self.assertIn("Reader-visible risk remains", blinded)
+        self.assertNotIn("Agent 决策记录", blinded)
+        self.assertNotIn("决策链", blinded)
+        for term in EXPERIMENT_CONDITION_TERMS:
+            self.assertNotIn(term.lower(), blinded.lower())
+
     def test_environment_secret_is_redacted_from_provider_error(self) -> None:
         secret = "019A-SECRET-abcdefgh123456"
         with tempfile.TemporaryDirectory() as tmp, patch.dict(

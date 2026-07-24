@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from statistics import median
 from typing import Literal
 
@@ -16,6 +17,21 @@ JUDGE_WEIGHTS = {
     "citation_support": 0.25,
     "synthesis_balance": 0.15,
 }
+EXPERIMENT_CONDITION_TERMS = (
+    "Reflector",
+    "REFLECTION_ENABLED",
+    "reflection_result",
+    "reflector_placeholder",
+    "made_by",
+    "experimental_arm",
+    "treatment_arm",
+    "control_arm",
+    "实验组",
+    "对照组",
+)
+_DECISION_SECTION_RE = re.compile(
+    r"(?ms)^## (?:Agent 决策记录|决策链)\s*$.*?(?=^## |\Z)"
+)
 
 
 class JudgeScore(StrictModel):
@@ -70,6 +86,20 @@ def median_judge_score(samples: list[JudgeScore]) -> JudgeScore:
     )
 
 
+def redact_judge_report(report: str) -> str:
+    """Blind the judge to experiment-arm metadata while retaining prose."""
+
+    cleaned = _DECISION_SECTION_RE.sub("", report)
+    for term in EXPERIMENT_CONDITION_TERMS:
+        cleaned = re.sub(
+            re.escape(term),
+            "[CONDITION_REDACTED]",
+            cleaned,
+            flags=re.IGNORECASE,
+        )
+    return cleaned.strip()
+
+
 class JudgeClient:
     def __init__(self, llm_client: LLMClient) -> None:
         self.llm_client = llm_client
@@ -85,7 +115,11 @@ class JudgeClient:
                 {
                     "role": "user",
                     "content": json.dumps(
-                        {"case": case, "report": report, "evidence": evidence},
+                        {
+                            "case": case,
+                            "report": redact_judge_report(report),
+                            "evidence": evidence,
+                        },
                         ensure_ascii=False,
                     ),
                 },
