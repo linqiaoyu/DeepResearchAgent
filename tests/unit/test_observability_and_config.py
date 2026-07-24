@@ -14,6 +14,12 @@ from deepresearch_agent.settings import Settings
 
 
 class ObservabilityAndConfigTests(unittest.TestCase):
+    def test_structured_logging_is_enabled_by_default(self) -> None:
+        self.assertTrue(Settings(storage_path=Path("test.db")).structured_logging_enabled)
+
+    def test_configuration_validation_is_enabled_by_default(self) -> None:
+        self.assertTrue(Settings(storage_path=Path("test.db")).config_fail_fast_enabled)
+
     def test_json_logger_carries_correlation_and_redacts(self) -> None:
         stream = io.StringIO()
         logger = JsonLogger(enabled=True, stream=stream)
@@ -35,6 +41,16 @@ class ObservabilityAndConfigTests(unittest.TestCase):
         stream = io.StringIO()
         JsonLogger(enabled=False, stream=stream).event("ignored")
         self.assertEqual(stream.getvalue(), "")
+
+    def test_logger_sink_failure_does_not_break_the_caller(self) -> None:
+        class BrokenStream:
+            def write(self, _: str) -> int:
+                raise OSError("sink unavailable")
+
+            def flush(self) -> None:
+                raise AssertionError("flush must not run after write failure")
+
+        JsonLogger(enabled=True, stream=BrokenStream()).event("ignored_sink_failure")
 
     def test_fail_fast_lists_all_missing_configuration(self) -> None:
         settings = Settings(

@@ -107,20 +107,22 @@ class ToolContractTests(unittest.TestCase):
         self.assertEqual(context.degradation_events[0].reason, ToolErrorKind.AUTH)
         self.assertEqual(context.degradation_events[0].impact, "no sources")
 
-    def test_flag_defaults_off_and_preserves_provider_path(self) -> None:
+    def test_explicit_flag_off_preserves_provider_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             engine = DeepResearchEngine(
-                settings=Settings(storage_path=Path(tmp) / "research.db"),
+                settings=Settings(
+                    storage_path=Path(tmp) / "research.db",
+                    tool_contract_enabled=False,
+                ),
                 search_tool=FixtureSearchTool(),
             )
         self.assertIsInstance(engine.search_tool, FixtureSearchTool)
         self.assertNotIsInstance(engine.search_tool, ContractSearchProvider)
 
-    def test_flag_on_wraps_provider(self) -> None:
+    def test_flag_defaults_on_and_wraps_provider(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             settings = Settings(
                 storage_path=Path(tmp) / "research.db",
-                tool_contract_enabled=True,
             )
             engine = DeepResearchEngine(settings=settings, search_tool=FixtureSearchTool())
         self.assertIsInstance(engine.search_tool, ContractSearchProvider)

@@ -26,14 +26,14 @@ class Settings:
     demo_job_path: Path = Path("data/runtime/demo_jobs.json")
     demo_queue_limit: int = 3
     demo_as_of: date = date(2026, 7, 9)
-    tool_contract_enabled: bool = False
+    tool_contract_enabled: bool = True
     injection_guard_enabled: bool = False
-    run_manifest_enabled: bool = False
+    run_manifest_enabled: bool = True
     runs_root: Path = Path("runs")
     context_packer_enabled: bool = False
     reporter_context_token_budget: int = 200_000
-    structured_logging_enabled: bool = False
-    config_fail_fast_enabled: bool = False
+    structured_logging_enabled: bool = True
+    config_fail_fast_enabled: bool = True
 
 
 def project_root() -> Path:
@@ -88,16 +88,16 @@ def load_settings() -> Settings:
         demo_job_path=demo_jobs,
         demo_queue_limit=int(os.getenv("DEEPRESEARCH_DEMO_QUEUE_LIMIT", "3")),
         demo_as_of=date.fromisoformat(os.getenv("DEEPRESEARCH_DEMO_AS_OF", "2026-07-09")),
-        tool_contract_enabled=_env_flag("TOOL_CONTRACT_ENABLED"),
+        tool_contract_enabled=_env_flag("TOOL_CONTRACT_ENABLED", default=True),
         injection_guard_enabled=_env_flag("INJECTION_GUARD_ENABLED"),
-        run_manifest_enabled=_env_flag("RUN_MANIFEST_ENABLED"),
+        run_manifest_enabled=_env_flag("RUN_MANIFEST_ENABLED", default=True),
         runs_root=runs_root,
         context_packer_enabled=_env_flag("CONTEXT_PACKER_ENABLED"),
         reporter_context_token_budget=int(
             os.getenv("DEEPRESEARCH_REPORTER_CONTEXT_TOKEN_BUDGET", "200000")
         ),
-        structured_logging_enabled=_env_flag("STRUCTURED_LOGGING_ENABLED"),
-        config_fail_fast_enabled=_env_flag("CONFIG_FAIL_FAST_ENABLED"),
+        structured_logging_enabled=_env_flag("STRUCTURED_LOGGING_ENABLED", default=True),
+        config_fail_fast_enabled=_env_flag("CONFIG_FAIL_FAST_ENABLED", default=True),
     )
 
 

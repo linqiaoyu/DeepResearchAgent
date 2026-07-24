@@ -63,20 +63,23 @@ v1.1 同一 judge 下，G1/G2/G3 weighted score 为 `0.8337 → 0.7714 → 0.798
 
 ## 工程化加固一览
 
-所有会改变运行行为的新增能力默认关闭；“dark”表示实现与离线测试已就位，但没有计入当前生产控制。
+011 先用产物级快照证明旧默认路径等价，再逐项点灯；“dark”表示实现与离线测试已就位，但没有计入当前生产控制。
 
 | 能力 | 状态 | 证据 |
 | --- | --- | --- |
-| 可靠执行：Pydantic ToolSpec/Result、错误分类、run retry budget、三态熔断、显式降级 | 已实现默认关闭（dark） | `TOOL_CONTRACT_ENABLED=false` · [`tools/`](src/deepresearch_agent/tools/) |
-| 不可信内容：prompt 边界、注入检测、置信度下调、脱敏、威胁模型 | 已实现默认关闭（dark） | `INJECTION_GUARD_ENABLED=false` · [`threat_model.md`](docs/threat_model.md) |
-| 运行血统：manifest sidecar、可比性判定、prompt 漂移守卫 | 已实现默认关闭（dark） | `RUN_MANIFEST_ENABLED=false`；prompt guard 已进 CI · [`provenance/`](src/deepresearch_agent/provenance/) |
-| 上下文工程：可插拔 token 估算、证据去重/排序/预算、溢出事件 | 已实现默认关闭（dark） | `CONTEXT_PACKER_ENABLED=false` · [`context_engineering.md`](docs/context_engineering.md) |
-| 可观测：run → node → tool/LLM correlation JSON log 与配置聚合校验 | 已实现默认关闭（dark） | `STRUCTURED_LOGGING_ENABLED=false`、`CONFIG_FAIL_FAST_ENABLED=false` |
+| 可靠执行：Pydantic ToolSpec/Result、错误分类、run retry budget、三态熔断、显式降级 | 默认启用，离线故障演练通过 | `TOOL_CONTRACT_ENABLED=true` · [`reliability.md`](docs/reliability.md) |
+| 不可信内容：prompt 边界、注入检测、置信度下调、脱敏、威胁模型 | 已校准，仍 dark | `INJECTION_GUARD_ENABLED=false`；离线召回 100.00%、误报 15.00% · [`threat_model.md`](docs/threat_model.md) |
+| 运行血统：manifest sidecar、可比性判定、prompt 漂移守卫 | 默认启用 | `RUN_MANIFEST_ENABLED=true`；六个 flags 全量入 manifest · [`provenance/`](src/deepresearch_agent/provenance/) |
+| 上下文工程：可插拔 token 估算、证据去重/排序/预算、溢出事件 | 实测质量回归，仍 dark | `CONTEXT_PACKER_ENABLED=false` · [`context_engineering.md`](docs/context_engineering.md) |
+| 可观测：run → node → tool/LLM correlation JSON log 与配置聚合校验 | 默认启用 | `STRUCTURED_LOGGING_ENABLED=true`、`CONFIG_FAIL_FAST_ENABLED=true` |
+| 行为基线：双题面规范化产物、逐字 characterization、节点摘要 | 默认 CI 保护 | [`snapshot_run.py`](scripts/snapshot_run.py) · [`golden_output/`](tests/golden_output/) |
 | Demo 服务：`/healthz`、`/readyz`、在途请求收敛、非 root 多阶段镜像、离线 CI | 已启用 | [`api/main.py`](src/deepresearch_agent/api/main.py) · [`ci.yml`](.github/workflows/ci.yml) |
 | 离线评测：run delta、运维 P50/P90、Golden schema 与共享事实校验 | 已启用 | [`compare_runs.py`](scripts/compare_runs.py) · [`offline_metrics.py`](scripts/offline_metrics.py) |
 | MCP adapter | 仅设计 | 零新增依赖约束下未实现 server · [`mcp_adapter_design.md`](docs/mcp_adapter_design.md) |
 
-阶段 A/C/D/B/F/G/H 共通过 172 项无 key 测试。Docker/Compose 文件完成静态检查，但任务主机没有 Docker/Podman，未做本机镜像构建或 Compose 引擎级验证。
+010 的阶段 A/C/D/B/F/G/H 共通过 172 项无 key 测试；011 默认点灯后的全量回归为 187 项。Docker/Compose 文件完成静态检查，但任务主机没有 Docker/Podman，未做本机镜像构建或 Compose 引擎级验证。
+
+跨代比较必须先经 [`verify_manifest.py`](scripts/verify_manifest.py) 判定；flags、模型、prompt、as-of 或依赖不一致时，不得把分数差描述为质量改进或回归。
 
 ## 快速开始：Docker Compose 三步
 
@@ -127,4 +130,5 @@ PYTHONPATH=src .venv/bin/python scripts/build_site.py
 - [`docs/threat_model.md`](docs/threat_model.md)：不可信内容、证据不篡改取舍与残余风险
 - [`docs/production_readiness.md`](docs/production_readiness.md)：Done / Partial / Not done 生产清单
 - [`docs/slo.md`](docs/slo.md)：目标值、实测值与缺失的在线遥测
+- [`docs/reliability.md`](docs/reliability.md)：离线故障注入场景、实测与明确不处理项
 - [`AGENTS.md`](AGENTS.md)：仓库事实、约束、验证与协作规则

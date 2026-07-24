@@ -43,5 +43,8 @@ class JsonLogger:
             **fields,
         }
         encoded = json.dumps(payload, ensure_ascii=False, default=str)
-        self.stream.write(redact(encoded) + "\n")
-        self.stream.flush()
+        try:
+            self.stream.write(redact(encoded) + "\n")
+            self.stream.flush()
+        except (OSError, ValueError):
+            return

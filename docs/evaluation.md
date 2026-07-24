@@ -2,6 +2,11 @@
 
 The harness treats evaluation as a first-class subsystem, not a screenshot.
 
+Cross-generation comparisons must first pass `scripts/verify_manifest.py`.
+Runs with different flags, models, prompts, evaluation clocks, or dependency
+identities are not comparable and must not be described as quality improvement
+or regression.
+
 ## Metrics
 
 - `task_success_rate`: report generated with at least one evidence record

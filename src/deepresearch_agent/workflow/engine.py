@@ -171,12 +171,26 @@ class DeepResearchEngine:
                 return state
         state = self._state_from_graph_values(result)
         if self.settings.run_manifest_enabled:
-            manifest = build_run_manifest(
-                state,
-                self.settings,
-                started_at=manifest_started_at,
-            )
-            write_run_manifest(manifest, self.settings.runs_root)
+            try:
+                manifest = build_run_manifest(
+                    state,
+                    self.settings,
+                    started_at=manifest_started_at,
+                )
+                write_run_manifest(manifest, self.settings.runs_root)
+            except Exception as exc:
+                state.metadata.setdefault("degradation_events", []).append(
+                    {
+                        "tool": "run_manifest",
+                        "reason": "write_failed",
+                        "impact": "run manifest sidecar unavailable",
+                        "attempts": 1,
+                    }
+                )
+                self.logger.event(
+                    "manifest_write_failed",
+                    error_type=type(exc).__name__,
+                )
         with correlation_context(run_id=research_id, node="workflow"):
             self.logger.event("run_finished", status=state.status)
         return state
@@ -449,6 +463,7 @@ class DeepResearchEngine:
 
     def _reporter_node(self, graph_state: ResearchGraphState) -> ResearchGraphState:
         state = self._state_from_graph_values(graph_state)
+        self._sync_tool_degradation(state)
         state.evidence_store = self._sorted_evidence(state.evidence_store)
         if self.settings.context_packer_enabled:
             packed = pack_evidence(
@@ -462,6 +477,7 @@ class DeepResearchEngine:
                 packed.context_event(node="reporter")
             )
         state.final_report = self.reporter.report(state)
+        state.final_report = self._append_degradation_notice(state.final_report, state)
         state.draft_report = state.final_report
         if self.settings.execution_mode == "llm":
             state.metadata.setdefault("llm_stats", {})["reporter"] = self.reporter.last_stats
@@ -598,3 +614,51 @@ class DeepResearchEngine:
             evidence,
             key=lambda item: (item.sub_question_id, item.source_url, item.claim),
         )
+
+    def _sync_tool_degradation(self, state: ResearchState) -> None:
+        provider_events = getattr(self.search_tool, "degradation_events", [])
+        if not provider_events:
+            return
+        existing = list(state.metadata.get("degradation_events", []))
+        signatures = {
+            (
+                str(item.get("tool")),
+                str(item.get("reason")),
+                str(item.get("impact")),
+                int(item.get("attempts", 0)),
+            )
+            for item in existing
+            if isinstance(item, dict)
+        }
+        for event in provider_events:
+            if not isinstance(event, dict):
+                continue
+            signature = (
+                str(event.get("tool")),
+                str(event.get("reason")),
+                str(event.get("impact")),
+                int(event.get("attempts", 0)),
+            )
+            if signature not in signatures:
+                existing.append(event)
+                signatures.add(signature)
+        state.metadata["degradation_events"] = existing
+        summary: dict[str, int] = {}
+        for event in existing:
+            reason = str(event.get("reason", "unknown"))
+            summary[reason] = summary.get(reason, 0) + 1
+        state.metadata["tool_error_summary"] = summary
+
+    def _append_degradation_notice(self, report: str, state: ResearchState) -> str:
+        events = state.metadata.get("degradation_events", [])
+        if not events:
+            return report
+        lines = [report.rstrip(), "", "## 数据获取降级"]
+        for event in events:
+            lines.append(
+                "- "
+                f"{event.get('tool', 'tool')} / {event.get('reason', 'unknown')}: "
+                f"{event.get('impact', 'tool output unavailable')} "
+                f"(attempts={int(event.get('attempts', 0))})"
+            )
+        return "\n".join(lines)
