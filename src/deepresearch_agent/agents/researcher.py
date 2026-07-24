@@ -4,7 +4,13 @@ import hashlib
 import time
 
 from deepresearch_agent.schemas import Evidence, NumericFields, SearchRecord, Source, StructuredDataRecord, SubQuestion
-from deepresearch_agent.tools import FixtureSearchTool, FixtureStructuredDataProvider, SearchProvider, StructuredDataProvider
+from deepresearch_agent.tools import (
+    FetchProvider,
+    FixtureSearchTool,
+    FixtureStructuredDataProvider,
+    SearchProvider,
+    StructuredDataProvider,
+)
 
 
 class ResearcherAgent:
@@ -13,8 +19,10 @@ class ResearcherAgent:
         search_tool: SearchProvider | None = None,
         structured_data_provider: StructuredDataProvider | None = None,
         max_searches_per_run: int = 20,
+        fetch_tool: FetchProvider | None = None,
     ) -> None:
         self.search_tool = search_tool or FixtureSearchTool()
+        self.fetch_tool = fetch_tool or self.search_tool
         self.structured_data_provider = structured_data_provider or FixtureStructuredDataProvider()
         self.max_searches_per_run = max_searches_per_run
         self.searches_used = 0
@@ -24,25 +32,96 @@ class ResearcherAgent:
     def reset_search_budget(self) -> None:
         self.searches_used = 0
 
-    def research(self, sub_question: SubQuestion, top_k_per_query: int = 1) -> tuple[list[Source], list[SearchRecord]]:
+    def research(
+        self,
+        sub_question: SubQuestion,
+        top_k_per_query: int = 1,
+    ) -> tuple[list[Source], list[SearchRecord]]:
+        sources, records, _, _ = self.research_with_budget(
+            sub_question,
+            top_k_per_query=top_k_per_query,
+            max_search_calls=None,
+        )
+        return sources, records
+
+    def research_with_budget(
+        self,
+        sub_question: SubQuestion,
+        *,
+        top_k_per_query: int = 1,
+        max_search_calls: int | None,
+        priority_urls: list[str] | None = None,
+    ) -> tuple[list[Source], list[SearchRecord], int, bool]:
         seen: dict[str, Source] = {}
         records: list[SearchRecord] = []
-        for idx, query in enumerate(sub_question.search_queries):
+        branch_calls = 0
+        branch_exhausted = False
+
+        def consume_call() -> bool:
+            nonlocal branch_calls, branch_exhausted
+            if (
+                max_search_calls is not None
+                and branch_calls >= max_search_calls
+            ):
+                branch_exhausted = True
+                return False
             if not self._consume_search_budget_if_needed():
-                records.append(SearchRecord(query=f"[search_limit_exceeded] {query}", source_ids=[]))
+                return False
+            branch_calls += 1
+            return True
+
+        # Prior URLs are re-check targets, never the entire retrieval plan.
+        # When a branch ceiling exists, at least one call is reserved for an
+        # independent query to avoid confirmation bias.
+        priority_call_limit = (
+            max(0, max_search_calls - 1)
+            if max_search_calls is not None and sub_question.search_queries
+            else max_search_calls
+        )
+        for url in priority_urls or []:
+            if (
+                priority_call_limit is not None
+                and branch_calls >= priority_call_limit
+            ):
+                break
+            if not consume_call():
+                break
+            source = self.fetch_tool.fetch(url)
+            records.append(
+                SearchRecord(
+                    query=f"[priority_url] {url}",
+                    source_ids=[source.id] if source else [],
+                )
+            )
+            if source:
+                seen[source.url] = source
+
+        for idx, query in enumerate(sub_question.search_queries):
+            if not consume_call():
+                marker = (
+                    "branch_budget_exceeded"
+                    if branch_exhausted
+                    else "search_limit_exceeded"
+                )
+                records.append(
+                    SearchRecord(
+                        query=f"[{marker}] {query}",
+                        source_ids=[],
+                    )
+                )
                 break
             started = time.perf_counter()
             source_type = None
             if sub_question.expected_source_types:
                 source_type = sub_question.expected_source_types[idx % len(sub_question.expected_source_types)]
             results = self.search_tool.search(query, top_k=top_k_per_query, source_type=source_type)
-            if not results and source_type and self._consume_search_budget_if_needed():
+            if not results and source_type and consume_call():
                 results = self.search_tool.search(query, top_k=top_k_per_query)
             latency_ms = int((time.perf_counter() - started) * 1000)
             records.append(SearchRecord(query=query, source_ids=[source.id for source in results], latency_ms=latency_ms))
             for source in results:
                 seen[source.url] = source
-        return list(seen.values()), records
+        return list(seen.values()), records, branch_calls, branch_exhausted
 
     def retry(self, query: str, source_type: str | None = None, top_k: int = 2) -> tuple[list[Source], SearchRecord]:
         if not self._consume_search_budget_if_needed():

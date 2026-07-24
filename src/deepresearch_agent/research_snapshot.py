@@ -211,7 +211,7 @@ def build_research_snapshot(
         )
     claims = _merge_duplicate_claims(claims)
     return ResearchSnapshot(
-        question_id=question_id or _question_id(state.topic),
+        question_id=question_id or research_question_id(state.topic),
         question=state.topic,
         as_of=as_of,
         claims=claims,
@@ -836,7 +836,7 @@ def _claim_id(key: NormalizedClaimKey, text: str) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:20]
 
 
-def _question_id(question: str) -> str:
+def research_question_id(question: str) -> str:
     return hashlib.sha256(_normalize(question).encode("utf-8")).hexdigest()[:20]
 
 

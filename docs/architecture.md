@@ -2,6 +2,33 @@
 
 DeepResearchAgent is organized as a deterministic long-horizon research workflow with explicit quality gates and source-backed evidence.
 
+## 编排控制面
+
+```mermaid
+flowchart TB
+    NC["NodeContract + DecisionGate"] -. validates .-> G["LangGraph StateGraph"]
+    LS["LoopSpec / BoundedLoop"] --> G
+    BB["BranchBudget"] --> G
+    EM[("EpisodicMemory")] --> P["Planner"]
+    SM[("SemanticMemory")] -. exact four-key facts .-> P
+    WM["ContextWorkingMemory"] -. CONTEXT_PACKER_ENABLED .-> RP["Reporter"]
+    CR["CapabilityRegistry"] --> R["Researcher"]
+    G --> P
+    G --> R
+    R --> J["Send fan-out / join"]
+    J --> X["Extractor"]
+    X --> C["Critic"]
+    C --> D{"research_loop_decide"}
+    D -->|continue| RF["research_refine"]
+    RF --> J
+    D -->|stop| RP
+```
+
+`NodeContract` 在图构建和每个节点边界强制消费、生产、不变式与决策记录；
+LangGraph 仍是唯一执行器。`BranchBudget` 在 `Send` 前分配并在 join 后再分配。
+`MemoryStore` 的情景/语义实现保持确定性，工作记忆适配既有 context packer。
+`CapabilityRegistry` 只注册和查询能力，本轮不做动态选择。
+
 ## Current Execution Flow
 
 ```mermaid
@@ -70,7 +97,12 @@ sequenceDiagram
     Engine-->>User: ResearchState
 ```
 
-The engine builds a LangGraph `StateGraph` in `src/deepresearch_agent/workflow/engine.py`. The graph has nodes for `planner`, `researcher`, `extractor`, `critic`, `reporter`, and `evaluator`, with small prepare/join nodes around fan-out. The graph state uses a `TypedDict` wrapper containing JSON-serializable `ResearchState` data so checkpoints do not depend on pickled Pydantic instances.
+The engine builds a LangGraph `StateGraph` in `src/deepresearch_agent/workflow/engine.py`.
+The graph has domain nodes for Planner, Researcher, Extractor, Critic, Reporter,
+and Evaluator; prepare/join nodes surround both fan-out paths, and
+`research_loop_decide` / `research_refine` form the optional research back-edge.
+The graph state uses a `TypedDict` wrapper containing JSON-serializable
+`ResearchState` data so checkpoints do not depend on pickled Pydantic instances.
 
 The runtime has two modes:
 
@@ -88,8 +120,13 @@ The runtime has two modes:
 - `ResearchSnapshot`: business question/as-of, normalized claims, structured objects, manifest reference, and flag snapshot
 - `AgentDecision`: actor, measured inputs, explicit criterion, outcome, alternatives, iteration, and timestamp
 - `AgentTrajectory`: LLM/tool calls, node summaries, decisions, manifest reference, and recorded artifacts
+- `NodeContract`: node consumes, produces, invariants, and optional decision gate
+- `LoopSpec`: iteration, budget, no-progress bounds, progress metric, and exhaustion handler
+- `MemoryStore`: typed write/query protocol with scope and lifecycle declarations
+- `CapabilityRegistry`: capability metadata, deterministic query, and implementation resolution
 
-All cross-agent contracts are Pydantic models in `src/deepresearch_agent/schemas.py`.
+Cross-agent data contracts are Pydantic models in `src/deepresearch_agent/schemas.py`;
+control-plane protocols live under `orchestration/`, `memory/`, and `tools/`.
 
 ## Business Output And Follow-up Data Flow
 
@@ -144,24 +181,27 @@ they do not rebuild it from a later Evidence order. Historical states without
 the field degrade explicitly instead of silently inferring a positional map.
 
 `AgentDecision` has three audit landing points: structured run trace, manifest
-summary, and a reader-visible report section. This task adds the contract, not
-new research policy. `TRAJECTORY_RECORD_ENABLED=false` attaches a redacted
-recorder at the LLM, ToolSpec search, and graph-node boundaries. Strict replay
-uses recorded fixture search responses and compares report bytes; strategy
-replay stops on an unrecorded call.
+summary, and a reader-visible report section. The current bounded policies decide
+whether research continues, how branch capacity is allocated, whether a
+sub-question is `verify` / `watch` / `explore`, and how the next query is refined.
+`TRAJECTORY_RECORD_ENABLED=false` attaches a redacted recorder at the LLM,
+ToolSpec search, and graph-node boundaries. Strict replay uses recorded fixture
+search responses and compares report bytes; strategy replay stops on an
+unrecorded call.
 
-The intended future topology places a research-sufficiency loop between
-Extractor and Critic, prior-period memory at Planner/Researcher/Critic/Reporter,
-and arithmetic checks inside Critic. A future MCP server would enter above the
-engine boundary, while skill selection would occur before domain resources are
-loaded. These placements are design context only: none of those runtime
-capabilities was implemented in this task.
+The research-sufficiency back-edge and prior-period Planner/Researcher/Critic/
+Reporter path now exist behind default-off `content_affecting` flags. A future
+MCP server would still enter above the engine boundary. 016 may add dynamic
+capability selection and procedural memory; 017 skill packs may register
+capabilities in the same registry. Neither behavior exists yet.
 
 ## Current MVP Boundaries
 
 - Search is behind a `SearchProvider` boundary. The default implementation is a deterministic `FixtureSearchTool`; Tavily is available as an opt-in adapter, while Serper is not implemented.
 - Structured finance data is behind a `StructuredDataProvider` boundary. The default implementation is recorded fixture data; the live adapter uses AKShare only through whitelisted capabilities: `symbol_resolve`, `financial_indicators`, and `price_history`.
 - Fetch has only a local fixture implementation through `FixtureSearchTool.fetch`; there is no robust live `web_fetch` yet.
+- Search, fetch, and structured data are registered in `CapabilityRegistry`; nodes currently resolve fixed names, not a learned or LLM-selected capability.
+- Episodic and semantic memory are in-process deterministic stores. They are not durable multi-process memory, vector retrieval, or an automatic forgetting system.
 - `rag_search` is not implemented.
 - Graph checkpoints are persisted by LangGraph's official `SqliteSaver`; evidence rows and evaluations are persisted with `SQLiteStore` for the local MVP. `docs/postgres_schema.sql` documents a production storage path, but there is no Postgres adapter yet.
 - The primary FastAPI and fallback stdlib research endpoints execute runs synchronously. Demo Golden reruns use a process-local worker and JSON polling store; this is not a durable distributed queue.
@@ -182,7 +222,15 @@ LangGraph checkpoints store the next graph node, current phase, evidence collect
 
 LangGraph 1.2.2 is installed and active in the runtime path. `langgraph-checkpoint-sqlite` 3.1.0 provides `langgraph.checkpoint.sqlite.SqliteSaver`, which is used for orchestration checkpoints.
 
-Researcher fan-out uses LangGraph `Send` per sub-question, then joins sources in plan order before extraction. Critic routing uses conditional edges: passed reports continue to Reporter, failed reports under the hard iteration limit fan out only the retry queue, and failed reports at the hard limit preserve the force-pass behavior.
+Researcher fan-out uses LangGraph `Send` per sub-question, then joins sources in
+plan order before extraction. Critic routing uses conditional edges: failed
+reports under the hard iteration limit fan out only the retry queue, and failed
+reports at the hard limit preserve the force-pass behavior. When
+`RESEARCH_LOOP_ENABLED=true` and max iterations is greater than 1, a passed
+Critic report enters `research_loop_decide`; insufficient research passes
+through `research_refine` back to `research_prepare`. This is the project's first
+native LangGraph conditional research loop. `LoopSpec` enforces maximum
+iterations, total loop budget and no-progress bounds.
 
 ## LLM Layer, Ledger, And Budget Fuse
 
@@ -234,8 +282,11 @@ The hardening modules are additive. Default-off modules do not change the determ
 | Context packing | `context/packer.py` | `CONTEXT_PACKER_ENABLED` | `false` | Deduplicates/ranks evidence under Reporter budget and records drops |
 | JSON logging | `observability/logging.py` | `STRUCTURED_LOGGING_ENABLED` | `true` | Emits redacted correlation-aware JSON events |
 | Config fail-fast | `config_validation.py` | `CONFIG_FAIL_FAST_ENABLED` | `true` | Aggregates missing required configuration before engine construction |
-| Structured business output | `structured_output.py` | `STRUCTURED_OUTPUT_ENABLED` | `false` | Adds tables/timeline/risk objects without replacing prose |
+| Structured business output | `structured_output.py` | `STRUCTURED_OUTPUT_ENABLED` | `true` | Adds tables/timeline/risk objects without replacing prose |
 | API section progress | `progressive_delivery.py`, `api/demo.py` | `PROGRESSIVE_DELIVERY_ENABLED` | `false` | Adds polling sidecars; final report is byte-identical |
 | Trajectory recording | `trajectory.py`, `trajectory_replay.py` | `TRAJECTORY_RECORD_ENABLED` | `false` | Writes a redacted replay sidecar; fixture strict replay only |
+| Branch budget | `orchestration/budget.py` | `BRANCH_BUDGET_ENABLED` | `false` | Bounds per-run and per-branch search calls; records allocation decisions |
+| Research sufficiency loop | `orchestration/loops.py`, `orchestration/research_loop.py` | `RESEARCH_LOOP_ENABLED` | `false` | Refines weak queries through a bounded native LangGraph back-edge |
+| Prior research memory | `memory/prior.py` | `PRIOR_MEMORY_ENABLED` | `false` | Uses only the latest earlier snapshot to classify and verify sub-questions |
 
 Prompt drift validation is enabled in CI because it is a build-time guard, not a runtime behavior change. Read-only offline evaluation tools in `scripts/compare_runs.py`, `scripts/offline_metrics.py`, and `scripts/validate_golden_schema.py` never initiate research or modify Golden assets.

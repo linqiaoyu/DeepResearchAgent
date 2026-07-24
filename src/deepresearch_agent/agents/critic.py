@@ -7,6 +7,12 @@ from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
+from deepresearch_agent.memory import (
+    evidence_explains_change,
+    numeric_evidence_key,
+    snapshot_claim_key,
+)
+from deepresearch_agent.research_snapshot import ResearchSnapshot
 from deepresearch_agent.schemas import CriticReport, Evidence, Issue, ResearchState, RetryTask
 from deepresearch_agent.settings import project_root
 
@@ -48,6 +54,7 @@ class CriticAgent:
         issues.extend(self._outdated_sources(evidence))
         issues.extend(self._missing_counterargument(state))
         issues.extend(self._unverified_projections(evidence))
+        issues.extend(self._contradicts_prior(state))
         if self.injection_guard_enabled:
             issues.extend(self._injection_risks(evidence))
 
@@ -62,6 +69,64 @@ class CriticAgent:
             retry_tasks=retry_tasks,
             iteration=state.critic_iteration + 1,
         )
+
+    def _contradicts_prior(self, state: ResearchState) -> list[Issue]:
+        prior_metadata = state.metadata.get("prior_memory", {})
+        raw_snapshot = (
+            prior_metadata.get("snapshot")
+            if isinstance(prior_metadata, dict)
+            else None
+        )
+        if not isinstance(raw_snapshot, dict):
+            return []
+        snapshot = ResearchSnapshot.model_validate(raw_snapshot)
+        prior_by_key = {
+            key: claim
+            for claim in snapshot.claims
+            for key in [snapshot_claim_key(claim)]
+            if key is not None and claim.value is not None
+        }
+        issues: list[Issue] = []
+        for evidence in state.evidence_store:
+            key = numeric_evidence_key(evidence)
+            if key is None or key not in prior_by_key:
+                continue
+            claim = prior_by_key[key]
+            current_value = (
+                evidence.numeric_fields.value
+                if evidence.numeric_fields
+                else None
+            )
+            if current_value is None or claim.value is None:
+                continue
+            if not self._meaningfully_different(current_value, claim.value):
+                continue
+            if evidence_explains_change(evidence):
+                continue
+            task = RetryTask(
+                reason="Current fact contradicts prior period without explanation",
+                query=(
+                    f"{key[0]} {key[1]} {key[2]} {key[3]} "
+                    "official change explanation"
+                ),
+                source_type="official",
+                sub_question_id=evidence.sub_question_id,
+                severity="high",
+            )
+            issues.append(
+                Issue(
+                    issue_type="contradicts_prior",
+                    severity="high",
+                    affected_claims=[claim.claim_id, evidence.id],
+                    message=(
+                        "Current value contradicts the prior snapshot on the "
+                        f"same four-key fact: prior={claim.value}, "
+                        f"current={current_value}; no change explanation found."
+                    ),
+                    suggested_retry_task=task,
+                )
+            )
+        return issues[:5]
 
     def _injection_risks(self, evidence: list[Evidence]) -> list[Issue]:
         return [

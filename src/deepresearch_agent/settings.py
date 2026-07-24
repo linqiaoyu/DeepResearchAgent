@@ -37,6 +37,27 @@ class Settings:
     structured_output_enabled: bool = True
     progressive_delivery_enabled: bool = False
     trajectory_record_enabled: bool = False
+    branch_budget_enabled: bool = False
+    branch_total_budget: int = 20
+    branch_single_cap: int = 10
+    research_loop_enabled: bool = False
+    research_loop_max_iterations: int = 1
+    research_loop_budget_ceiling: int = 20
+    research_loop_no_progress_window: int = 2
+    research_min_evidence_count: int = 2
+    research_min_independent_domains: int = 2
+    research_min_average_confidence: float = 0.7
+    research_max_freshness_age_days: int = 365
+    research_max_unresolved_critic_issues: int = 0
+    prior_memory_enabled: bool = False
+    prior_watch_confidence_threshold: float = 0.7
+
+    @property
+    def research_loop_active(self) -> bool:
+        return (
+            self.research_loop_enabled
+            and self.research_loop_max_iterations > 1
+        )
 
 
 def project_root() -> Path:
@@ -104,6 +125,57 @@ def load_settings() -> Settings:
         structured_output_enabled=_env_flag("STRUCTURED_OUTPUT_ENABLED", default=True),
         progressive_delivery_enabled=_env_flag("PROGRESSIVE_DELIVERY_ENABLED"),
         trajectory_record_enabled=_env_flag("TRAJECTORY_RECORD_ENABLED"),
+        branch_budget_enabled=_env_flag("BRANCH_BUDGET_ENABLED"),
+        branch_total_budget=int(
+            os.getenv("DEEPRESEARCH_BRANCH_TOTAL_BUDGET", "20")
+        ),
+        branch_single_cap=int(
+            os.getenv("DEEPRESEARCH_BRANCH_SINGLE_CAP", "10")
+        ),
+        research_loop_enabled=_env_flag("RESEARCH_LOOP_ENABLED"),
+        research_loop_max_iterations=int(
+            os.getenv("DEEPRESEARCH_RESEARCH_LOOP_MAX_ITERATIONS", "1")
+        ),
+        research_loop_budget_ceiling=int(
+            os.getenv("DEEPRESEARCH_RESEARCH_LOOP_BUDGET_CEILING", "20")
+        ),
+        research_loop_no_progress_window=int(
+            os.getenv("DEEPRESEARCH_RESEARCH_LOOP_NO_PROGRESS_WINDOW", "2")
+        ),
+        research_min_evidence_count=int(
+            os.getenv("DEEPRESEARCH_RESEARCH_MIN_EVIDENCE_COUNT", "2")
+        ),
+        research_min_independent_domains=int(
+            os.getenv(
+                "DEEPRESEARCH_RESEARCH_MIN_INDEPENDENT_DOMAINS",
+                "2",
+            )
+        ),
+        research_min_average_confidence=float(
+            os.getenv(
+                "DEEPRESEARCH_RESEARCH_MIN_AVERAGE_CONFIDENCE",
+                "0.7",
+            )
+        ),
+        research_max_freshness_age_days=int(
+            os.getenv(
+                "DEEPRESEARCH_RESEARCH_MAX_FRESHNESS_AGE_DAYS",
+                "365",
+            )
+        ),
+        research_max_unresolved_critic_issues=int(
+            os.getenv(
+                "DEEPRESEARCH_RESEARCH_MAX_UNRESOLVED_CRITIC_ISSUES",
+                "0",
+            )
+        ),
+        prior_memory_enabled=_env_flag("PRIOR_MEMORY_ENABLED"),
+        prior_watch_confidence_threshold=float(
+            os.getenv(
+                "DEEPRESEARCH_PRIOR_WATCH_CONFIDENCE_THRESHOLD",
+                "0.7",
+            )
+        ),
     )
 
 
