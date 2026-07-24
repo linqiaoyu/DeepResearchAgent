@@ -933,7 +933,7 @@
         "CONTEXT_PACKER_ENABLED": false,
         "INJECTION_GUARD_ENABLED": false,
         "RUN_MANIFEST_ENABLED": true,
-        "STRUCTURED_LOGGING_ENABLED": false,
+        "STRUCTURED_LOGGING_ENABLED": true,
         "TOOL_CONTRACT_ENABLED": false
       },
       "mode": "deterministic",
