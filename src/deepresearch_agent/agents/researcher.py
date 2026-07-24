@@ -4,7 +4,13 @@ import hashlib
 import time
 
 from deepresearch_agent.schemas import Evidence, NumericFields, SearchRecord, Source, StructuredDataRecord, SubQuestion
-from deepresearch_agent.tools import FixtureSearchTool, FixtureStructuredDataProvider, SearchProvider, StructuredDataProvider
+from deepresearch_agent.tools import (
+    FetchProvider,
+    FixtureSearchTool,
+    FixtureStructuredDataProvider,
+    SearchProvider,
+    StructuredDataProvider,
+)
 
 
 class ResearcherAgent:
@@ -13,8 +19,10 @@ class ResearcherAgent:
         search_tool: SearchProvider | None = None,
         structured_data_provider: StructuredDataProvider | None = None,
         max_searches_per_run: int = 20,
+        fetch_tool: FetchProvider | None = None,
     ) -> None:
         self.search_tool = search_tool or FixtureSearchTool()
+        self.fetch_tool = fetch_tool or self.search_tool
         self.structured_data_provider = structured_data_provider or FixtureStructuredDataProvider()
         self.max_searches_per_run = max_searches_per_run
         self.searches_used = 0
@@ -78,7 +86,7 @@ class ResearcherAgent:
                 break
             if not consume_call():
                 break
-            source = self.search_tool.fetch(url)
+            source = self.fetch_tool.fetch(url)
             records.append(
                 SearchRecord(
                     query=f"[priority_url] {url}",

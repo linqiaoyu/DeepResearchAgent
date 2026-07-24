@@ -55,8 +55,10 @@ from deepresearch_agent.schemas import (
 from deepresearch_agent.settings import Settings, load_settings
 from deepresearch_agent.storage import SQLiteStore
 from deepresearch_agent.tools import (
+    CapabilityRegistry,
     SearchProvider,
     StructuredDataProvider,
+    build_capability_registry,
     build_search_provider,
     build_structured_data_provider,
 )
@@ -135,10 +137,27 @@ class DeepResearchEngine:
             validate_required_configuration(self.settings)
         self.logger = JsonLogger(enabled=self.settings.structured_logging_enabled)
         self.store = store or SQLiteStore(self.settings.storage_path)
-        self.search_tool = search_tool or build_search_provider(as_of=self.settings.as_of)
+        configured_search_tool = search_tool or build_search_provider(
+            as_of=self.settings.as_of
+        )
         if self.settings.tool_contract_enabled:
-            self.search_tool = ContractSearchProvider(self.search_tool, logger=self.logger)
-        self.structured_data_provider = structured_data_provider or build_structured_data_provider()
+            configured_search_tool = ContractSearchProvider(
+                configured_search_tool,
+                logger=self.logger,
+            )
+        configured_structured_provider = (
+            structured_data_provider or build_structured_data_provider()
+        )
+        self.capability_registry: CapabilityRegistry = (
+            build_capability_registry(
+                search_provider=configured_search_tool,
+                structured_data_provider=configured_structured_provider,
+            )
+        )
+        self.search_tool = self.capability_registry.resolve("web_search")
+        self.structured_data_provider = self.capability_registry.resolve(
+            "structured_data_provider"
+        )
         self.llm_client = (
             LLMClient(
                 ledger_path=self.settings.llm_ledger_path,
@@ -150,9 +169,12 @@ class DeepResearchEngine:
         )
         self.planner = PlannerAgent(llm_client=self.llm_client, settings=self.settings)
         self.researcher = ResearcherAgent(
-            self.search_tool,
-            self.structured_data_provider,
+            search_tool=self.capability_registry.resolve("web_search"),
+            structured_data_provider=self.capability_registry.resolve(
+                "structured_data_provider"
+            ),
             max_searches_per_run=self.settings.max_searches_per_run,
+            fetch_tool=self.capability_registry.resolve("web_fetch"),
         )
         self.extractor = ExtractorAgent(
             llm_client=self.llm_client,
@@ -1437,7 +1459,11 @@ class DeepResearchEngine:
         )
 
     def _sync_tool_degradation(self, state: ResearchState) -> None:
-        provider_events = getattr(self.search_tool, "degradation_events", [])
+        provider_events = getattr(
+            self.capability_registry.resolve("web_search"),
+            "degradation_events",
+            [],
+        )
         if not provider_events:
             return
         existing = list(state.metadata.get("degradation_events", []))

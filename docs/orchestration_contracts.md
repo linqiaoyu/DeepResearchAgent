@@ -110,3 +110,18 @@ Critic 通过后进入 `research_loop_decide`：充分则进入 Reporter，不�
 
 启用时报告新增“研究过程”，逐轮展示查询、六项度量、循环决策、预算和停止边界。
 轮次、调用预算、无进展任一边界耗尽都会保留既有工作，并明确写出“覆盖可能不足”。
+
+## CapabilityRegistry
+
+`CapabilityRegistry` 是工具能力的确定性目录。每项注册包含名称、适用的子问题类型、
+成本等级、是否有副作用以及完整 `ToolSpec`，并绑定一个实现。名称、成本与副作用
+标记必须和 `ToolSpec` 一致；重复注册与未知名称查询均 fail closed。查询结果按名称
+排序，因此相同 registry 上的相同查询结果稳定。
+
+当前 `web_search`、`web_fetch` 和结构化数据 provider 均已注册，Researcher 的搜索、
+旧来源复核与结构化数据依赖通过 registry 的固定名称解析，不再直接把构造出的
+provider 传给节点。本轮没有能力选择策略，也没有修改任何工具实现或引入插件加载。
+
+016 可在此契约上根据子问题类型实现动态能力选择；017 的 skill packs 可把 skill
+提供的能力注册到同一 registry。届时选择策略是 registry 的消费者，不应把策略塞入
+注册与查询这两个基础操作。

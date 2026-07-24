@@ -2,6 +2,13 @@ from deepresearch_agent.tools.akshare_structured_data import (
     AKShareStructuredDataError,
     AKShareStructuredDataProvider,
 )
+from deepresearch_agent.tools.capability_registry import (
+    FETCH_TOOL_SPEC,
+    STRUCTURED_DATA_TOOL_SPEC,
+    CapabilityMetadata,
+    CapabilityRegistry,
+    build_capability_registry,
+)
 from deepresearch_agent.tools.contract_adapter import ContractSearchProvider
 from deepresearch_agent.tools.contracts import (
     ERROR_RETRY_POLICIES,
@@ -34,6 +41,8 @@ from deepresearch_agent.tools.tavily_search import TavilySearchError, TavilySear
 __all__ = [
     "AKShareStructuredDataError",
     "AKShareStructuredDataProvider",
+    "CapabilityMetadata",
+    "CapabilityRegistry",
     "ConfiguredSearchProvider",
     "ContractSearchProvider",
     "CircuitBreaker",
@@ -41,6 +50,7 @@ __all__ = [
     "DegradationEvent",
     "ERROR_RETRY_POLICIES",
     "FetchProvider",
+    "FETCH_TOOL_SPEC",
     "FixtureSearchTool",
     "FixtureStructuredDataProvider",
     "RecordingSearchProvider",
@@ -50,6 +60,7 @@ __all__ = [
     "RunToolContext",
     "SearchProvider",
     "StructuredDataProvider",
+    "STRUCTURED_DATA_TOOL_SPEC",
     "TavilySearchError",
     "TavilySearchProvider",
     "ToolError",
@@ -57,6 +68,7 @@ __all__ = [
     "ToolResult",
     "ToolSpec",
     "build_search_provider",
+    "build_capability_registry",
     "build_structured_data_provider",
     "normalize_query_key",
     "recording_corpus_fingerprint",
