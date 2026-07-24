@@ -809,7 +809,7 @@
       "ended_at": "<normalized-timestamp>",
       "evaluation_as_of": "2026-07-09",
       "flags": {
-        "CONFIG_FAIL_FAST_ENABLED": false,
+        "CONFIG_FAIL_FAST_ENABLED": true,
         "CONTEXT_PACKER_ENABLED": false,
         "INJECTION_GUARD_ENABLED": false,
         "RUN_MANIFEST_ENABLED": true,
