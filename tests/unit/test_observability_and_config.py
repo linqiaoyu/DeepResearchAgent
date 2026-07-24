@@ -17,6 +17,9 @@ class ObservabilityAndConfigTests(unittest.TestCase):
     def test_structured_logging_is_enabled_by_default(self) -> None:
         self.assertTrue(Settings(storage_path=Path("test.db")).structured_logging_enabled)
 
+    def test_configuration_validation_is_enabled_by_default(self) -> None:
+        self.assertTrue(Settings(storage_path=Path("test.db")).config_fail_fast_enabled)
+
     def test_json_logger_carries_correlation_and_redacts(self) -> None:
         stream = io.StringIO()
         logger = JsonLogger(enabled=True, stream=stream)
