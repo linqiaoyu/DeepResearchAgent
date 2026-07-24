@@ -19,6 +19,9 @@ from deepresearch_agent.memory import (
     ContextWorkingMemory,
     EpisodicMemory,
     EpisodicQuery,
+    ProceduralMemory,
+    ProceduralRecord,
+    ProceduralSufficiencyResult,
     WorkingMemoryQuery,
     WorkingMemoryWrite,
     classify_subquestions_from_prior,
@@ -50,6 +53,7 @@ from deepresearch_agent.research_snapshot import (
     research_question_id,
 )
 from deepresearch_agent.schemas import (
+    AgentDecision,
     Evidence,
     ResearchState,
     RetryTask,
@@ -71,10 +75,12 @@ from deepresearch_agent.tools import (
     build_capability_registry,
     build_search_provider,
     build_structured_data_provider,
+    classify_subquestion,
 )
 from deepresearch_agent.tools.contract_adapter import ContractSearchProvider
 from deepresearch_agent.trajectory import (
     LLMCallTrace,
+    MemoryWriteTrace,
     NodeTransitionTrace,
     SignalReadTrace,
     TrajectoryRecorder,
@@ -161,6 +167,7 @@ class DeepResearchEngine:
         search_tool: SearchProvider | None = None,
         structured_data_provider: StructuredDataProvider | None = None,
         episodic_memory: EpisodicMemory | None = None,
+        procedural_memory: ProceduralMemory | None = None,
     ) -> None:
         self.settings = settings or load_settings()
         if self.settings.config_fail_fast_enabled:
@@ -238,6 +245,7 @@ class DeepResearchEngine:
         self.branch_budget: BranchBudget | None = None
         self.working_memory = ContextWorkingMemory()
         self.episodic_memory = episodic_memory or EpisodicMemory()
+        self.procedural_memory = procedural_memory or ProceduralMemory()
         self.research_as_of = self.settings.as_of or self.critic.today
         self.sufficiency_thresholds = SufficiencyThresholds(
             min_evidence_count=self.settings.research_min_evidence_count,
@@ -1430,6 +1438,11 @@ class DeepResearchEngine:
                 result.deterministic_signals,
             ),
         )
+        self._write_procedural_memory(
+            state,
+            result.deterministic_signals,
+            recorder,
+        )
         state.metadata["reflection_result"] = result.model_dump(mode="json")
         if result.llm_insight.must_stop:
             state.status = "paused"
@@ -1438,6 +1451,99 @@ class DeepResearchEngine:
                 "reason": result.llm_insight.cache_miss_reason,
             }
         return self._state_output(state)
+
+    def _write_procedural_memory(
+        self,
+        state: ResearchState,
+        signals,
+        recorder: TrajectoryRecorder,
+    ) -> None:
+        if not state.plan:
+            return
+        raw_sufficiency = state.metadata.get("research_sufficiency", {})
+        rows = (
+            raw_sufficiency.get("by_sub_question", [])
+            if isinstance(raw_sufficiency, dict)
+            else []
+        )
+        sufficiency_by_id = {
+            str(item.get("sub_question_id")): item
+            for item in rows
+            if isinstance(item, dict)
+        }
+        iteration = int(
+            state.metadata.get("research_loop_tracker", {}).get(
+                "iteration",
+                0,
+            )
+        )
+        written: list[dict[str, object]] = []
+        for sub_question in state.plan.sub_questions:
+            raw_result = sufficiency_by_id.get(sub_question.id, {})
+            gaps = tuple(str(item) for item in raw_result.get("gaps", []))
+            score = round(1.0 - len(gaps) / 6, 6)
+            record = ProceduralRecord(
+                question_type=classify_subquestion(sub_question),
+                strategy=tuple(sub_question.search_queries),
+                sufficiency_result=ProceduralSufficiencyResult(
+                    score=score,
+                    sufficient=bool(raw_result.get("sufficient", False)),
+                    gaps=gaps,
+                ),
+                reflection_signals=signals,
+                run_id=state.research_id,
+                sub_question_id=sub_question.id,
+                iteration=iteration,
+            )
+            self.procedural_memory.write(record)
+            key = {
+                "question_type": record.question_type,
+                "run_id": record.run_id,
+                "sub_question_id": record.sub_question_id,
+                "iteration": record.iteration,
+            }
+            recorder.record_memory_write(
+                MemoryWriteTrace(
+                    memory_type="procedural",
+                    lifecycle=self.procedural_memory.lifecycle,
+                    key=key,
+                    value_summary={
+                        "strategy": list(record.strategy),
+                        "sufficiency_score": (
+                            record.sufficiency_result.score
+                        ),
+                        "sufficient": (
+                            record.sufficiency_result.sufficient
+                        ),
+                        "validation_status": record.validation_status,
+                    },
+                )
+            )
+            written.append(key)
+        record_agent_decision(
+            state,
+            AgentDecision(
+                decision_type="procedural_memory_write",
+                made_by="Reflector",
+                inputs={
+                    "records": written,
+                    "lifecycle": self.procedural_memory.lifecycle,
+                    "index_key": "question_type",
+                },
+                criterion=(
+                    "write deterministic strategy-effect observations under "
+                    "the MemoryStore cross_run scope without selecting a "
+                    "future strategy"
+                ),
+                outcome=f"procedural_records_written={len(written)}",
+                alternatives_considered=[
+                    "skip_empty_signal_records",
+                    "auto_select_historical_strategy",
+                    "store_observation_without_auto_selection",
+                ],
+                iteration=iteration,
+            ),
+        )
 
     def _route_after_reflection(
         self,

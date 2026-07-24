@@ -16,6 +16,13 @@ from deepresearch_agent.memory.prior import (
     prior_difference_rows,
     snapshot_claim_key,
 )
+from deepresearch_agent.memory.procedural import (
+    ProceduralHistory,
+    ProceduralMemory,
+    ProceduralQuery,
+    ProceduralRecord,
+    ProceduralSufficiencyResult,
+)
 from deepresearch_agent.memory.semantic import (
     SemanticFact,
     SemanticMemory,
@@ -37,6 +44,11 @@ __all__ = [
     "MemoryScope",
     "MemoryStore",
     "PriorQuestionClassification",
+    "ProceduralHistory",
+    "ProceduralMemory",
+    "ProceduralQuery",
+    "ProceduralRecord",
+    "ProceduralSufficiencyResult",
     "SemanticFact",
     "SemanticMemory",
     "SemanticQuery",

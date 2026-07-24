@@ -9,6 +9,7 @@ from deepresearch_agent.orchestration import (
     SufficiencyThresholds,
     evaluate_research_sufficiency,
 )
+from deepresearch_agent.memory import ProceduralMemory, ProceduralQuery
 from deepresearch_agent.reflection import (
     RecordedReflectionReasoner,
     ReflectionLLMInsight,
@@ -118,13 +119,15 @@ class ReflectionSkeletonTest(unittest.TestCase):
     ) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
+            memory = ProceduralMemory()
             engine = DeepResearchEngine(
                 settings=Settings(
                     storage_path=root / "reflection.db",
                     runs_root=root / "runs",
                     reflection_enabled=True,
                     structured_logging_enabled=False,
-                )
+                ),
+                procedural_memory=memory,
             )
             state = engine.run(
                 topic="AI Agent 在财富管理行业的落地机会研究",
@@ -140,7 +143,19 @@ class ReflectionSkeletonTest(unittest.TestCase):
             )
             self.assertEqual(
                 state.agent_decisions[-1].decision_type,
+                "procedural_memory_write",
+            )
+            self.assertIn(
                 "reflection_signal_extraction",
+                {
+                    item.decision_type
+                    for item in state.agent_decisions
+                },
+            )
+            self.assertTrue(
+                memory.query(
+                    ProceduralQuery(question_type="narrative")
+                ).records
             )
             self.assertFalse(
                 (
