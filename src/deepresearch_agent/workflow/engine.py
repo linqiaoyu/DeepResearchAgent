@@ -58,6 +58,8 @@ from deepresearch_agent.settings import Settings, load_settings
 from deepresearch_agent.storage import SQLiteStore
 from deepresearch_agent.tools import (
     CapabilityRegistry,
+    DeterministicCapabilitySelector,
+    FIXED_CAPABILITY_SET,
     SearchProvider,
     StructuredDataProvider,
     build_capability_registry,
@@ -159,6 +161,12 @@ class DeepResearchEngine:
         self.search_tool = self.capability_registry.resolve("web_search")
         self.structured_data_provider = self.capability_registry.resolve(
             "structured_data_provider"
+        )
+        self.capability_selector = (
+            DeterministicCapabilitySelector.from_json(
+                self.capability_registry,
+                self.settings.dynamic_capability_rules_json,
+            )
         )
         self.llm_client = (
             LLMClient(
@@ -514,8 +522,32 @@ class DeepResearchEngine:
                         "research_state",
                         "active_sub_question_ids",
                     }
+                    | (
+                        {"research_state.agent_decisions"}
+                        if self.settings.dynamic_capability_enabled
+                        else set()
+                    )
                 ),
-                invariants=(identity,),
+                invariants=(
+                    identity,
+                    *(
+                        (
+                            ContractInvariant(
+                                name="selected_capabilities_registered",
+                                predicate=(
+                                    self._selected_capabilities_registered
+                                ),
+                                expectation=(
+                                    "every selected capability resolves from "
+                                    "CapabilityRegistry"
+                                ),
+                            ),
+                        )
+                        if self.settings.dynamic_capability_enabled
+                        else ()
+                    ),
+                ),
+                decision_node=self.settings.dynamic_capability_enabled,
             ),
             "research_one": NodeContract(
                 name="research_one",
@@ -785,6 +817,34 @@ class DeepResearchEngine:
             and issue.get("issue_type") == "numeric_inconsistency"
         )
 
+    def _selected_capabilities_registered(
+        self,
+        _before: dict[str, Any],
+        after: dict[str, Any],
+    ) -> bool:
+        state = after.get("research_state")
+        if not isinstance(state, dict):
+            return False
+        metadata = state.get("metadata", {})
+        selections = (
+            metadata.get("capability_selections", {})
+            if isinstance(metadata, dict)
+            else {}
+        )
+        if not isinstance(selections, dict) or not selections:
+            return False
+        registered = {
+            item.name for item in self.capability_registry.query()
+        }
+        return all(
+            isinstance(selection, dict)
+            and bool(selection.get("selected_capabilities"))
+            and set(
+                selection.get("selected_capabilities", [])
+            ).issubset(registered)
+            for selection in selections.values()
+        )
+
     def _graph_node(self, name: str, node):
         contracted = enforce_node_contract(self.node_contracts[name], node)
         return self._traced_node(name, contracted)
@@ -836,6 +896,14 @@ class DeepResearchEngine:
         if not state.plan:
             raise ValueError("Researching requires a plan.")
         branch_ids = [item.id for item in state.plan.sub_questions]
+        if self.settings.dynamic_capability_enabled:
+            state.metadata["capability_selections"] = {
+                item.id: self.capability_selector.select(
+                    state,
+                    item,
+                ).model_dump(mode="json")
+                for item in state.plan.sub_questions
+            }
         if self.settings.research_loop_active:
             raw_tracker = state.metadata.get("research_loop_tracker")
             if not isinstance(raw_tracker, dict):
@@ -902,6 +970,22 @@ class DeepResearchEngine:
     def _research_one_node(self, graph_state: ResearchGraphState) -> ResearchGraphState:
         state = self._state_from_graph_values(graph_state)
         sub_question = SubQuestion.model_validate(graph_state["fanout_sub_question"])
+        selected_capabilities = set(FIXED_CAPABILITY_SET)
+        if self.settings.dynamic_capability_enabled:
+            raw_selections = state.metadata.get(
+                "capability_selections",
+                {},
+            )
+            raw_selection = (
+                raw_selections.get(sub_question.id, {})
+                if isinstance(raw_selections, dict)
+                else {}
+            )
+            selected_capabilities = set(
+                raw_selection.get("selected_capabilities", [])
+                if isinstance(raw_selection, dict)
+                else []
+            )
         priority_urls: list[str] = []
         if self.settings.prior_memory_enabled:
             prior_metadata = state.metadata.get("prior_memory", {})
@@ -920,6 +1004,8 @@ class DeepResearchEngine:
                 ),
                 [],
             )
+        if "web_fetch" not in selected_capabilities:
+            priority_urls = []
         budget_metadata = state.metadata.get("branch_budget", {})
         allocated_calls = budget_metadata.get("allocated_calls", {})
         if self._branch_budget_enabled() and isinstance(
@@ -936,6 +1022,9 @@ class DeepResearchEngine:
                 sub_question,
                 max_search_calls=allocation,
                 priority_urls=priority_urls,
+                enable_web_search=(
+                    "web_search" in selected_capabilities
+                ),
             )
         elif priority_urls:
             (
@@ -947,12 +1036,45 @@ class DeepResearchEngine:
                 sub_question,
                 max_search_calls=None,
                 priority_urls=priority_urls,
+                enable_web_search=(
+                    "web_search" in selected_capabilities
+                ),
             )
         else:
-            sources, records = self.researcher.research(sub_question)
-            search_calls = len(records)
-            branch_exhausted = False
-        structured_evidence = self.researcher.structured_evidence(state.research_id, sub_question)
+            if "web_search" in selected_capabilities:
+                sources, records = self.researcher.research(sub_question)
+                search_calls = len(records)
+                branch_exhausted = False
+            else:
+                sources = []
+                records = []
+                search_calls = 0
+                branch_exhausted = False
+        structured_evidence = (
+            self.researcher.structured_evidence(
+                state.research_id,
+                sub_question,
+            )
+            if "structured_data_provider" in selected_capabilities
+            else []
+        )
+        structured_stats = (
+            dict(self.researcher.last_structured_stats)
+            if "structured_data_provider" in selected_capabilities
+            else {
+                "requests": len(
+                    sub_question.structured_data_requests
+                ),
+                "records": 0,
+                "symbol_resolution_failures": 0,
+                "execution_failures": 0,
+            }
+        )
+        symbol_resolutions = (
+            list(self.researcher.last_symbol_resolutions)
+            if "structured_data_provider" in selected_capabilities
+            else []
+        )
         output: ResearchGraphState = {
             "research_sources": {
                 sub_question.id: [source.model_dump(mode="json") for source in sources]
@@ -964,10 +1086,10 @@ class DeepResearchEngine:
                 sub_question.id: [item.model_dump(mode="json") for item in structured_evidence]
             },
             "research_structured_stats": {
-                sub_question.id: dict(self.researcher.last_structured_stats)
+                sub_question.id: structured_stats
             },
             "research_symbol_resolutions": {
-                sub_question.id: list(self.researcher.last_symbol_resolutions)
+                sub_question.id: symbol_resolutions
             },
         }
         if self._branch_budget_enabled():
@@ -1337,7 +1459,39 @@ class DeepResearchEngine:
         return sends or "retry_join"
 
     def _retry_one_node(self, graph_state: ResearchGraphState) -> ResearchGraphState:
+        state = self._state_from_graph_values(graph_state)
         task = RetryTask.model_validate(graph_state["fanout_retry_task"])
+        if (
+            self.settings.dynamic_capability_enabled
+            and task.sub_question_id
+        ):
+            selections = state.metadata.get(
+                "capability_selections",
+                {},
+            )
+            selection = (
+                selections.get(task.sub_question_id, {})
+                if isinstance(selections, dict)
+                else {}
+            )
+            selected = (
+                selection.get("selected_capabilities", [])
+                if isinstance(selection, dict)
+                else []
+            )
+            if "web_search" not in selected:
+                return {
+                    "retry_sources": {task.id: []},
+                    "retry_records": {
+                        task.id: SearchRecord(
+                            query=(
+                                "[capability_not_selected] "
+                                f"{task.query}"
+                            ),
+                            source_ids=[],
+                        ).model_dump(mode="json")
+                    },
+                }
         sources, record = self.researcher.retry(task.query, task.source_type)
         return {
             "retry_sources": {task.id: [source.model_dump(mode="json") for source in sources]},

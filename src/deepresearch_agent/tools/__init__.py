@@ -9,6 +9,13 @@ from deepresearch_agent.tools.capability_registry import (
     CapabilityRegistry,
     build_capability_registry,
 )
+from deepresearch_agent.tools.capability_selector import (
+    DEFAULT_CAPABILITY_RULES,
+    FIXED_CAPABILITY_SET,
+    CapabilitySelection,
+    DeterministicCapabilitySelector,
+    classify_subquestion,
+)
 from deepresearch_agent.tools.contract_adapter import ContractSearchProvider
 from deepresearch_agent.tools.contracts import (
     ERROR_RETRY_POLICIES,
@@ -43,14 +50,18 @@ __all__ = [
     "AKShareStructuredDataProvider",
     "CapabilityMetadata",
     "CapabilityRegistry",
+    "CapabilitySelection",
     "ConfiguredSearchProvider",
     "ContractSearchProvider",
     "CircuitBreaker",
     "CircuitState",
     "DegradationEvent",
+    "DeterministicCapabilitySelector",
+    "DEFAULT_CAPABILITY_RULES",
     "ERROR_RETRY_POLICIES",
     "FetchProvider",
     "FETCH_TOOL_SPEC",
+    "FIXED_CAPABILITY_SET",
     "FixtureSearchTool",
     "FixtureStructuredDataProvider",
     "RecordingSearchProvider",
@@ -70,6 +81,7 @@ __all__ = [
     "build_search_provider",
     "build_capability_registry",
     "build_structured_data_provider",
+    "classify_subquestion",
     "normalize_query_key",
     "recording_corpus_fingerprint",
 ]
