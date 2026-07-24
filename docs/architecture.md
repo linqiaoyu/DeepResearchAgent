@@ -86,6 +86,8 @@ The runtime has two modes:
 - `EvaluationResult`: task success, citation accuracy, critic catch rate, relevance, faithfulness, latency, cost, tokens
 - `StructuredResearchOutput`: traceable comparison table, event timeline, and risk matrix
 - `ResearchSnapshot`: business question/as-of, normalized claims, structured objects, manifest reference, and flag snapshot
+- `AgentDecision`: actor, measured inputs, explicit criterion, outcome, alternatives, iteration, and timestamp
+- `AgentTrajectory`: LLM/tool calls, node summaries, decisions, manifest reference, and recorded artifacts
 
 All cross-agent contracts are Pydantic models in `src/deepresearch_agent/schemas.py`.
 
@@ -112,7 +114,7 @@ flowchart LR
 ```
 
 `StructuredResearchOutput` is additive and gated by
-`STRUCTURED_OUTPUT_ENABLED=false`. Every row carries `evidence_ids`; a row
+`STRUCTURED_OUTPUT_ENABLED=true`. Every row carries `evidence_ids`; a row
 without evidence must be marked `unverified`. Metric aliases reuse
 `data/finance_metric_normalization.json`, and mixed scopes for one normalized
 metric are surfaced as a table conflict.
@@ -132,6 +134,28 @@ job polling payload only after the report is complete, then byte-reassembles it
 and checks citation closure. True per-section Reporter generation remains
 unimplemented because it would change LLM calls, prompt semantics, and repair
 behavior.
+
+## Footnote mapping, decisions, and trajectory
+
+Reporter assigns footnotes from the Evidence view it actually receives and
+persists `report_footnote_evidence` with the report. Evaluator, audit export,
+and characterization claim extraction resolve citations through that mapping;
+they do not rebuild it from a later Evidence order. Historical states without
+the field degrade explicitly instead of silently inferring a positional map.
+
+`AgentDecision` has three audit landing points: structured run trace, manifest
+summary, and a reader-visible report section. This task adds the contract, not
+new research policy. `TRAJECTORY_RECORD_ENABLED=false` attaches a redacted
+recorder at the LLM, ToolSpec search, and graph-node boundaries. Strict replay
+uses recorded fixture search responses and compares report bytes; strategy
+replay stops on an unrecorded call.
+
+The intended future topology places a research-sufficiency loop between
+Extractor and Critic, prior-period memory at Planner/Researcher/Critic/Reporter,
+and arithmetic checks inside Critic. A future MCP server would enter above the
+engine boundary, while skill selection would occur before domain resources are
+loaded. These placements are design context only: none of those runtime
+capabilities was implemented in this task.
 
 ## Current MVP Boundaries
 
@@ -212,5 +236,6 @@ The hardening modules are additive. Default-off modules do not change the determ
 | Config fail-fast | `config_validation.py` | `CONFIG_FAIL_FAST_ENABLED` | `true` | Aggregates missing required configuration before engine construction |
 | Structured business output | `structured_output.py` | `STRUCTURED_OUTPUT_ENABLED` | `false` | Adds tables/timeline/risk objects without replacing prose |
 | API section progress | `progressive_delivery.py`, `api/demo.py` | `PROGRESSIVE_DELIVERY_ENABLED` | `false` | Adds polling sidecars; final report is byte-identical |
+| Trajectory recording | `trajectory.py`, `trajectory_replay.py` | `TRAJECTORY_RECORD_ENABLED` | `false` | Writes a redacted replay sidecar; fixture strict replay only |
 
 Prompt drift validation is enabled in CI because it is a build-time guard, not a runtime behavior change. Read-only offline evaluation tools in `scripts/compare_runs.py`, `scripts/offline_metrics.py`, and `scripts/validate_golden_schema.py` never initiate research or modify Golden assets.

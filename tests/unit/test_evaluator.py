@@ -23,6 +23,7 @@ class EvaluatorTests(unittest.TestCase):
             )
         ]
         state.final_report = "- Advisor productivity improved 18%. [^1]\n\n[^1]: A"
+        state.report_footnote_evidence = {1: state.evidence_store[0].id}
         return state
 
     def _critic_issue(self, index: int) -> Issue:
@@ -48,6 +49,7 @@ class EvaluatorTests(unittest.TestCase):
             )
         ]
         state.final_report = "- Advisor productivity improved 18%. [^1]\n\n[^1]: A"
+        state.report_footnote_evidence = {1: state.evidence_store[0].id}
         result = Evaluator().evaluate(state)
         self.assertEqual(result.citation_accuracy, 1.0)
         self.assertEqual(result.task_success_rate, 1.0)
@@ -67,6 +69,7 @@ class EvaluatorTests(unittest.TestCase):
             )
         ]
         state.final_report = "- Assets under management doubled in one quarter. [^1]\n\n[^1]: A"
+        state.report_footnote_evidence = {1: state.evidence_store[0].id}
 
         result = Evaluator().evaluate(state)
 
@@ -88,6 +91,7 @@ class EvaluatorTests(unittest.TestCase):
             )
         ]
         state.final_report = "- Advisor productivity improved 18%. [^2]\n\n[^1]: A"
+        state.report_footnote_evidence = {1: state.evidence_store[0].id}
 
         result = Evaluator().evaluate(state)
 
@@ -114,6 +118,7 @@ class EvaluatorTests(unittest.TestCase):
             )
         ]
         state.final_report = "- Assets under management doubled in one quarter. [^1]\n\n[^1]: A"
+        state.report_footnote_evidence = {1: state.evidence_store[0].id}
 
         result = Evaluator().evaluate(state)
 
@@ -157,6 +162,7 @@ class EvaluatorTests(unittest.TestCase):
             )
         ]
         state.final_report = "- Advisor productivity improved 18%. [^1]\n\n[^1]: A"
+        state.report_footnote_evidence = {1: state.evidence_store[0].id}
         state.critic_report = CriticReport(
             passed=False,
             overall_quality=0.4,
@@ -188,6 +194,20 @@ class EvaluatorTests(unittest.TestCase):
         self.assertEqual(result.bad_case_categories["numeric_conflict"], 2)
         self.assertEqual(result.bad_case_categories["outdated_source"], 1)
         self.assertNotIn("citation_error", result.bad_case_categories)
+
+    def test_missing_historical_mapping_degrades_without_positional_inference(self) -> None:
+        state = self._state_with_supported_report()
+        state.report_footnote_evidence = {}
+
+        result = Evaluator().evaluate(state)
+
+        self.assertEqual(result.citation_accuracy, 0.0)
+        self.assertEqual(result.citation_resolution_rate, 0.0)
+        self.assertEqual(result.bad_case_categories["citation_error"], 1)
+        self.assertEqual(
+            state.metadata["degradation_events"][-1]["reason"],
+            "report_footnote_evidence_missing",
+        )
 
     def test_critic_catch_rate_matches_issue_count_heuristic(self) -> None:
         cases = [

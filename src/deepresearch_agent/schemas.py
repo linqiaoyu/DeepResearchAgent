@@ -266,6 +266,17 @@ class EvaluationResult(StrictModel):
     created_at: datetime = Field(default_factory=utc_now)
 
 
+class AgentDecision(StrictModel):
+    decision_type: str
+    made_by: str
+    inputs: dict[str, Any] = Field(default_factory=dict)
+    criterion: str
+    outcome: str
+    alternatives_considered: list[str] = Field(default_factory=list)
+    iteration: int | None = Field(default=None, ge=0)
+    timestamp: datetime = Field(default_factory=utc_now)
+
+
 class ResearchState(StrictModel):
     research_id: str = Field(default_factory=lambda: str(uuid4()))
     topic: str
@@ -292,6 +303,8 @@ class ResearchState(StrictModel):
     critic_report: CriticReport | None = None
     draft_report: str | None = None
     final_report: str | None = None
+    report_footnote_evidence: dict[int, str] = Field(default_factory=dict)
+    agent_decisions: list[AgentDecision] = Field(default_factory=list)
     structured_output: StructuredResearchOutput | None = None
     evaluation: EvaluationResult | None = None
     token_used: int = 0

@@ -29,7 +29,7 @@ DeepResearchAgent 是一个多 Agent 深度研究框架，金融投研为首个�
 
 领域目录约定（尚未实施）：目标 domain pack 包含 `tools/`、`prompts/`、`templates/`、`eval/`、`domain.yaml` 五类；新增领域前必须先完成 finance 等价抽取、旧路径兼容、资源 SHA-256 与默认 E2E 行为证明。
 
-当前默认开关：`TOOL_CONTRACT_ENABLED=true`、`INJECTION_GUARD_ENABLED=false`、`RUN_MANIFEST_ENABLED=true`、`CONTEXT_PACKER_ENABLED=false`、`STRUCTURED_LOGGING_ENABLED=true`、`CONFIG_FAIL_FAST_ENABLED=true`、`STRUCTURED_OUTPUT_ENABLED=true`、`PROGRESSIVE_DELIVERY_ENABLED=false`。任何跨代比较必须先经 `scripts/verify_manifest.py` 判定。
+当前默认开关：`TOOL_CONTRACT_ENABLED=true`、`INJECTION_GUARD_ENABLED=false`、`RUN_MANIFEST_ENABLED=true`、`CONTEXT_PACKER_ENABLED=false`、`STRUCTURED_LOGGING_ENABLED=true`、`CONFIG_FAIL_FAST_ENABLED=true`、`STRUCTURED_OUTPUT_ENABLED=true`、`PROGRESSIVE_DELIVERY_ENABLED=false`、`TRAJECTORY_RECORD_ENABLED=false`。任何跨代比较必须先经 `scripts/verify_manifest.py` 判定。
 
 ## 3. 技术栈与版本
 
@@ -161,6 +161,8 @@ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/build_site.py
 - 发现提示词与仓库现实冲突时，停止该项、在报告中说明，不得自行扩大范围或自行决策。
 - 一个 Codex 执行者负责每轮任务端到端闭环；不要使用 `.agent_handoff` 式交接，不要拆分为 Architect/Executor 多 Codex 角色，不要把任务扩展到无关模块。
 - 产品内部的 Planner、Researcher、Extractor、Critic、Reporter、Evaluator 是领域组件，不是 Codex 开发角色。
+- Reporter 产生的 `report_footnote_evidence` 是引用解析契约；Evaluator、审计导出与其他消费者不得根据当前 Evidence 顺序重建脚注映射。历史状态缺少映射时必须显式降级。
+- 新增 Agent 决策能力必须复用 `AgentDecision`，并同步进入结构化 trace、manifest 决策摘要和读者可见报告。轨迹录制默认关闭，真实轨迹须经单独授权。
 
 ## 9. 验证纪律
 

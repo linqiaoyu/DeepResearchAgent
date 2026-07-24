@@ -55,6 +55,7 @@ def audit_state(*, invalid_citation: bool = False) -> ResearchState:
             "## 关键发现\n"
             f"- Verified claim {citation}\n"
         ),
+        report_footnote_evidence={1: evidence.id},
         token_used=42,
         cost_used=0.017,
         started_at=now,

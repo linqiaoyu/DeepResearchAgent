@@ -36,6 +36,7 @@ class Settings:
     config_fail_fast_enabled: bool = True
     structured_output_enabled: bool = True
     progressive_delivery_enabled: bool = False
+    trajectory_record_enabled: bool = False
 
 
 def project_root() -> Path:
@@ -102,6 +103,7 @@ def load_settings() -> Settings:
         config_fail_fast_enabled=_env_flag("CONFIG_FAIL_FAST_ENABLED", default=True),
         structured_output_enabled=_env_flag("STRUCTURED_OUTPUT_ENABLED", default=True),
         progressive_delivery_enabled=_env_flag("PROGRESSIVE_DELIVERY_ENABLED"),
+        trajectory_record_enabled=_env_flag("TRAJECTORY_RECORD_ENABLED"),
     )
 
 

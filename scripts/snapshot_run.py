@@ -16,7 +16,6 @@ SRC = Path(os.environ.get("DEEPRESEARCH_SOURCE_ROOT", ROOT / "src")).resolve()
 if str(SRC) not in os.sys.path:
     os.sys.path.insert(0, str(SRC))
 
-from deepresearch_agent.citations import build_footnote_maps  # noqa: E402
 from deepresearch_agent.schemas import ResearchState  # noqa: E402
 from deepresearch_agent.settings import load_settings  # noqa: E402
 from deepresearch_agent.workflow import DeepResearchEngine  # noqa: E402
@@ -161,6 +160,11 @@ def _snapshot_payload(
         "depth_level": state.depth_level,
         "status": state.status,
         "final_report": state.final_report or "",
+        "report_footnote_evidence": {
+            str(number): evidence_ids[evidence_id]
+            for number, evidence_id in sorted(state.report_footnote_evidence.items())
+            if evidence_id in evidence_ids
+        },
         "report_claims": report_claims,
         "evidence": [
             {
@@ -255,7 +259,6 @@ def _report_claims(
     evidence_ids: dict[str, str],
 ) -> list[dict[str, Any]]:
     report = state.final_report or ""
-    footnotes = build_footnote_maps(state.evidence_store).footnote_to_evidence
     claims: list[dict[str, Any]] = []
     section = ""
     for line in report.splitlines():
@@ -266,9 +269,9 @@ def _report_claims(
             continue
         referenced = []
         for match in re.findall(r"\[\^(\d+)\]", line):
-            evidence = footnotes.get(int(match))
-            if evidence and evidence.id in evidence_ids:
-                referenced.append(evidence_ids[evidence.id])
+            evidence_id = state.report_footnote_evidence.get(int(match))
+            if evidence_id in evidence_ids:
+                referenced.append(evidence_ids[evidence_id])
         claims.append(
             {
                 "section": section,

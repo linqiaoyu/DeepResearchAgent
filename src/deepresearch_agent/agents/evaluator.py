@@ -4,7 +4,6 @@ import re
 import time
 from collections import Counter
 
-from deepresearch_agent.citations import build_footnote_maps
 from deepresearch_agent.schemas import EvaluationResult, Evidence, ResearchState
 
 CITATION_RE = re.compile(r"\[\^(\d+)\]")
@@ -20,7 +19,20 @@ class Evaluator:
         citation_total, supported_citations, unresolved_citations = self._score_citations(
             claim_lines,
             state.evidence_store,
+            state.report_footnote_evidence,
         )
+        if citation_total and not state.report_footnote_evidence:
+            state.metadata.setdefault("degradation_events", []).append(
+                {
+                    "tool": "citation_mapping",
+                    "reason": "report_footnote_evidence_missing",
+                    "impact": (
+                        "citation resolution and deterministic citation accuracy "
+                        "are unavailable; positional inference is prohibited"
+                    ),
+                    "attempts": 1,
+                }
+            )
         citation_resolution_rate = (
             (citation_total - unresolved_citations) / citation_total if citation_total else 0.0
         )
@@ -108,8 +120,14 @@ class Evaluator:
         self,
         claim_lines: list[str],
         evidence_store: list[Evidence],
+        report_footnote_evidence: dict[int, str] | None = None,
     ) -> tuple[int, int, int]:
-        footnote_to_evidence = build_footnote_maps(evidence_store).footnote_to_evidence
+        evidence_by_id = {item.id: item for item in evidence_store}
+        footnote_to_evidence = {
+            number: evidence_by_id[evidence_id]
+            for number, evidence_id in (report_footnote_evidence or {}).items()
+            if evidence_id in evidence_by_id
+        }
         citation_total = 0
         supported_citations = 0
         unresolved_citations = 0

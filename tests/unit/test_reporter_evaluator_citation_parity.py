@@ -103,6 +103,57 @@ class ReporterEvaluatorCitationParityTests(unittest.TestCase):
         self.assertEqual(result.citation_accuracy, 1.0)
         self.assertNotIn("citation_error", result.bad_case_categories)
 
+    def test_reporter_mapping_survives_intentional_evidence_reordering(self) -> None:
+        state = ResearchState(
+            research_id="research-reordered",
+            topic="order-independent citation contract",
+            plan=ResearchPlan(
+                topic="order-independent citation contract",
+                depth_level=1,
+                sub_questions=[
+                    SubQuestion(
+                        id="sq",
+                        question="What does each source establish?",
+                        search_queries=["citation contract"],
+                    )
+                ],
+            ),
+            evidence_store=[
+                Evidence(
+                    id="evidence-a",
+                    research_id="research-reordered",
+                    sub_question_id="sq",
+                    claim="Alpha evidence establishes the first finding.",
+                    claim_type="fact",
+                    source_url="https://example.com/a",
+                    source_title="A",
+                    source_pub_date=date(2026, 1, 1),
+                    extract_text="Alpha evidence establishes the first finding.",
+                ),
+                Evidence(
+                    id="evidence-b",
+                    research_id="research-reordered",
+                    sub_question_id="sq",
+                    claim="Beta evidence establishes the second finding.",
+                    claim_type="fact",
+                    source_url="https://example.com/b",
+                    source_title="B",
+                    source_pub_date=date(2026, 1, 2),
+                    extract_text="Beta evidence establishes the second finding.",
+                ),
+            ],
+        )
+
+        state.final_report = ReporterAgent().report(state)
+        emitted_mapping = dict(state.report_footnote_evidence)
+        state.evidence_store.reverse()
+        result = Evaluator().evaluate(state)
+
+        self.assertEqual(emitted_mapping, {1: "evidence-a", 2: "evidence-b"})
+        self.assertEqual(state.report_footnote_evidence, emitted_mapping)
+        self.assertEqual(result.citation_accuracy, 1.0)
+        self.assertEqual(result.citation_resolution_rate, 1.0)
+
 
 if __name__ == "__main__":
     unittest.main()

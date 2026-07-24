@@ -786,6 +786,20 @@
       "text": "本轮报告未单独引入低置信度预测性结论。"
     }
   ],
+  "report_footnote_evidence": {
+    "1": "evidence-001",
+    "10": "evidence-016",
+    "11": "evidence-017",
+    "12": "evidence-018",
+    "2": "evidence-002",
+    "3": "evidence-003",
+    "4": "evidence-004",
+    "5": "evidence-005",
+    "6": "evidence-006",
+    "7": "evidence-012",
+    "8": "evidence-013",
+    "9": "evidence-014"
+  },
   "retry_queue_events": [],
   "schema_version": 1,
   "side_effects": {
