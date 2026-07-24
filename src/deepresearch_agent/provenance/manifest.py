@@ -94,6 +94,9 @@ FLAG_CLASSIFICATIONS: dict[str, FlagClassification] = {
     "BRANCH_BUDGET_ENABLED": "content_affecting",
     "RESEARCH_LOOP_ENABLED": "content_affecting",
     "PRIOR_MEMORY_ENABLED": "content_affecting",
+    "DECISION_WEAVING_ENABLED": "content_affecting",
+    "NUMERIC_CHECK_ENABLED": "content_affecting",
+    "DYNAMIC_CAPABILITY_ENABLED": "content_affecting",
 }
 
 
@@ -225,6 +228,19 @@ def settings_flag_snapshot(
         flags["RESEARCH_LOOP_ENABLED"] = settings.research_loop_active
     if settings.prior_memory_enabled or include_disabled_experimental:
         flags["PRIOR_MEMORY_ENABLED"] = settings.prior_memory_enabled
+    if settings.decision_weaving_enabled or include_disabled_experimental:
+        flags["DECISION_WEAVING_ENABLED"] = (
+            settings.decision_weaving_enabled
+        )
+    if settings.numeric_check_enabled or include_disabled_experimental:
+        flags["NUMERIC_CHECK_ENABLED"] = settings.numeric_check_enabled
+    if (
+        settings.dynamic_capability_enabled
+        or include_disabled_experimental
+    ):
+        flags["DYNAMIC_CAPABILITY_ENABLED"] = (
+            settings.dynamic_capability_enabled
+        )
     return flags
 
 
@@ -268,6 +284,17 @@ def _config_hash(settings: Settings) -> str:
     if not settings.prior_memory_enabled:
         payload.pop("prior_memory_enabled", None)
         payload.pop("prior_watch_confidence_threshold", None)
+    if not settings.decision_weaving_enabled:
+        payload.pop("decision_weaving_enabled", None)
+        payload.pop("decision_weaving_budget_remaining_ratio", None)
+        payload.pop("decision_weaving_verify_min_allocation", None)
+    if not settings.numeric_check_enabled:
+        payload.pop("numeric_check_enabled", None)
+        payload.pop("numeric_check_relative_tolerance", None)
+        payload.pop("numeric_check_absolute_tolerance", None)
+    if not settings.dynamic_capability_enabled:
+        payload.pop("dynamic_capability_enabled", None)
+        payload.pop("dynamic_capability_rules_json", None)
     encoded = json.dumps(payload, sort_keys=True, ensure_ascii=False, default=str)
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
