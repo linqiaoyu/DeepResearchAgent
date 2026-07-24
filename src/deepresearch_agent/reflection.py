@@ -398,8 +398,14 @@ def _domain(value: Any) -> str:
 
 
 def reflection_request_key(request: ReflectionReasoningRequest) -> str:
+    payload = request.model_dump(mode="json")
+    trajectory_summary = payload.get("trajectory_summary", {})
+    if isinstance(trajectory_summary, dict):
+        # A run id identifies an execution, not the reflection intent. Keeping
+        # it in the key made byte-identical reasoning inputs miss across runs.
+        trajectory_summary.pop("run_id", None)
     encoded = json.dumps(
-        request.model_dump(mode="json"),
+        payload,
         ensure_ascii=False,
         separators=(",", ":"),
         sort_keys=True,

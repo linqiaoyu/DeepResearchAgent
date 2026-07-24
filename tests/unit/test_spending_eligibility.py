@@ -11,6 +11,7 @@ from deepresearch_agent.reflection import (
     ReflectionLLMInsight,
     ReflectionReasoningRequest,
     Reflector,
+    reflection_request_key,
 )
 from deepresearch_agent.trajectory import (
     AgentTrajectory,
@@ -47,6 +48,33 @@ class StubLLMReflectionReasoner:
 
 
 class SpendingEligibilityAuditTests(unittest.TestCase):
+    def test_reflection_replay_key_is_stable_across_run_ids(self) -> None:
+        first = Reflector().reasoning_request(
+            AgentTrajectory(
+                run_id="run-a",
+                request={"topic": "same semantic input"},
+            ),
+            [],
+        )
+        second = Reflector().reasoning_request(
+            AgentTrajectory(
+                run_id="run-b",
+                request={"topic": "same semantic input"},
+            ),
+            [],
+        )
+
+        first_key = reflection_request_key(first)
+        repeated_key = reflection_request_key(first)
+        second_key = reflection_request_key(second)
+
+        self.assertEqual(first_key, repeated_key)
+        self.assertEqual(first_key, second_key)
+        self.assertNotEqual(
+            first.trajectory_summary.run_id,
+            second.trajectory_summary.run_id,
+        )
+
     def test_reflector_llm_call_records_replayable_costed_trace(self) -> None:
         response = {
             "choices": [
