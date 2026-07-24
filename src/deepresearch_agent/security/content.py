@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from dataclasses import dataclass
 
 from pydantic import Field
@@ -16,12 +17,31 @@ class InjectionFinding(StrictModel):
 _INJECTION_PATTERNS: tuple[tuple[str, re.Pattern[str], float], ...] = (
     (
         "ignore_previous_instructions",
-        re.compile(r"(?:ignore|disregard|forget).{0,40}(?:previous|above|prior).{0,20}instructions?", re.I | re.S),
+        re.compile(r"(?:ignore|disregard|forget).{0,320}(?:previous|above|prior).{0,60}instructions?", re.I | re.S),
         0.55,
     ),
     (
         "ignore_previous_instructions_zh",
-        re.compile(r"(?:忽略|无视|忘掉).{0,20}(?:上述|以上|之前).{0,20}(?:指令|要求|规则)", re.S),
+        re.compile(r"(?:忽略|无视|忘掉).{0,100}(?:上述|以上|之前).{0,40}(?:指令|要求|规则)", re.S),
+        0.55,
+    ),
+    (
+        "ignore_previous_instructions_multilingual",
+        re.compile(
+            r"(?:ignore|ignora|ignorez|ignoriere|игнорируй|無視|무시).{0,100}"
+            r"(?:instrucciones|instruções|instructions|anweisungen|инструкции|指示|지시)",
+            re.I | re.S,
+        ),
+        0.55,
+    ),
+    (
+        "ignore_previous_instructions_cjk_reverse",
+        re.compile(r"(?:以前|이전).{0,30}(?:指示|지시).{0,30}(?:無視|무시)", re.S),
+        0.55,
+    ),
+    (
+        "ignore_previous_instructions_mixed",
+        re.compile(r"(?:ignore).{0,80}(?:previous).{0,40}(?:指令|规则)", re.I | re.S),
         0.55,
     ),
     (
@@ -58,6 +78,16 @@ _INJECTION_PATTERNS: tuple[tuple[str, re.Pattern[str], float], ...] = (
         0.25,
     ),
     (
+        "encoded_instruction",
+        re.compile(r"(?:base64|hex|rot13)\s*[:=]\s*[A-Za-z0-9+/=\s]{16,}", re.I),
+        0.35,
+    ),
+    (
+        "obfuscated_ignore",
+        re.compile(r"(?:1gn0re|ign0re).{0,80}(?:prev10us|previous).{0,40}(?:instruct10ns|instructions)", re.I | re.S),
+        0.45,
+    ),
+    (
         "prompt_exfiltration",
         re.compile(r"(?:reveal|print|show|泄露|输出|展示).{0,30}(?:system prompt|hidden prompt|系统提示词)", re.I | re.S),
         0.5,
@@ -71,7 +101,8 @@ _INJECTION_PATTERNS: tuple[tuple[str, re.Pattern[str], float], ...] = (
 
 
 def detect_injection(text: str) -> InjectionFinding:
-    matches = [name for name, pattern, _ in _INJECTION_PATTERNS if pattern.search(text)]
+    normalized = unicodedata.normalize("NFKC", text)
+    matches = [name for name, pattern, _ in _INJECTION_PATTERNS if pattern.search(normalized)]
     score = min(
         1.0,
         sum(weight for name, _, weight in _INJECTION_PATTERNS if name in matches),
