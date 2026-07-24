@@ -16,6 +16,10 @@ flowchart TB
     PM[("ProceduralMemory")]
     WM["ContextWorkingMemory"] -. CONTEXT_PACKER_ENABLED .-> RP["Reporter"]
     CR["CapabilityRegistry"] --> CS["CapabilitySelector"]
+    MC["MCP client<br/>runtime discovery"] --> CR
+    CR --> MS["MCP server<br/>4 tool schemas"]
+    SK["SkillPackLoader<br/>metadata first"] --> CR
+    SK --> C
     CS --> R["Researcher"]
     G --> P
     G --> R
@@ -39,6 +43,9 @@ LangGraph 仍是唯一执行器。`BranchBudget` 在 `Send` 前分配并在 join
 `DecisionContext` 是预算、充分性、上期分类与 Critic issue 的深只读快照，预算器、
 循环器和重规划器读取同一事实视图。`CapabilityRegistry` 注册和查询能力；默认关闭的
 确定性 selector 在 Researcher fan-out 前按子问题类型选择当前可用能力。
+MCP client 把外部 `tools/list` 结果命名空间化后注册到同一 registry；MCP server 则把
+本地 `ToolSpec` 机械映射为 stdio tool schema。`SkillPackLoader` 只在题面适用后读取
+资源并注册 skill 能力；MCP 发现、skill 选择和加载均形成 `AgentDecision`。
 Reflector 位于充分性决定与重规划/报告之间：只把机械信号送入 `DecisionContext`，
 独立 LLM 推理接口待 019；程序记忆写入策略效果观察但不自动选策。
 
@@ -173,7 +180,8 @@ flowchart LR
 `StructuredResearchOutput` is additive and gated by
 `STRUCTURED_OUTPUT_ENABLED=true`. Every row carries `evidence_ids`; a row
 without evidence must be marked `unverified`. Metric aliases reuse
-`data/finance_metric_normalization.json`, and mixed scopes for one normalized
+`skills/finance-metric-normalization/resources/finance_metric_normalization.json`,
+and mixed scopes for one normalized
 metric are surfaced as a table conflict.
 
 `scripts/export_audit_bundle.py` refuses to write an incomplete directory:
@@ -219,8 +227,9 @@ The research-sufficiency back-edge, prior-period path, decision weaving, numeric
 consistency checking, and dynamic capability selection exist behind default-off
 `content_affecting` flags. Numeric checking sits inside Critic so an inconsistency
 uses the existing retry path. Capability selection sits in `research_prepare`,
-before fan-out, and the Researcher only consumes that selection. A future MCP
-server and 018 skill packs must register through the same registry.
+before fan-out, and the Researcher only consumes that selection. The 018 MCP
+client and first skill pack now register through that same registry; their
+content-affecting policies remain default-off.
 
 ## Current MVP Boundaries
 
@@ -228,6 +237,8 @@ server and 018 skill packs must register through the same registry.
 - Structured finance data is behind a `StructuredDataProvider` boundary. The default implementation is recorded fixture data; the live adapter uses AKShare only through whitelisted capabilities: `symbol_resolve`, `financial_indicators`, and `price_history`.
 - Fetch has only a local fixture implementation through `FixtureSearchTool.fetch`; there is no robust live `web_fetch` yet.
 - Search, fetch, and structured data are registered in `CapabilityRegistry`; default execution resolves the fixed 015 set. The optional 016 selector is deterministic, not learned or LLM-selected.
+- The stdio MCP server exposes four fixture tools; the MCP client can discover and register external tools, but the third-party handshake containing `tools/call` remains incomplete. There is no HTTP transport, authentication, or arbitrary filesystem/command tool.
+- Skill loading is metadata-first and default-off. The first finance normalization pack is one 100%-rename equivalence extraction, not a completed domain architecture.
 - Episodic and semantic memory are in-process deterministic stores. They are not durable multi-process memory, vector retrieval, or an automatic forgetting system.
 - Procedural memory is also an in-process deterministic `cross_run` index; it records strategy effects but does not learn, rank, or adopt a strategy.
 - `rag_search` is not implemented.
@@ -278,15 +289,29 @@ Planner can attach optional `structured_data_requests` to sub-questions in LLM m
 
 Extractor can attach `numeric_fields` to numeric text claims. The five-element fact-checking key is entity, metric, period/timepoint, dimension, and value/unit. Missing entity, metric, or value on a data claim marks the evidence `numeric_fields_incomplete` but does not discard the claim.
 
-Critic loads `data/finance_metric_normalization.json` to normalize finance terms. Revenue aliases such as `营收` and `营业总收入` map to `营业收入`; `归母净利润`, `净利润`, and `扣非净利润` remain distinct; `单季` and `累计` remain incomparable. `numeric_conflict` fires only when entity, normalized metric, period, and dimension all match and values differ beyond the configured relative tolerance. Text-vs-structured mismatches on the same four keys are high severity and label the official structured source inconsistency. `temporal_conflict` detects same-event claims with conflicting dates or periods.
+Critic loads the byte-identical rule resource from
+`skills/finance-metric-normalization/resources/finance_metric_normalization.json`
+to normalize finance terms. Revenue aliases such as `营收` and `营业总收入` map to
+`营业收入`; `归母净利润`, `净利润`, and `扣非净利润` remain distinct; `单季` and
+`累计` remain incomparable. `numeric_conflict` fires only when entity,
+normalized metric, period, and dimension all match and values differ beyond the
+configured relative tolerance. Text-vs-structured mismatches on the same four
+keys are high severity and label the official structured source inconsistency.
+`temporal_conflict` detects same-event claims with conflicting dates or periods.
 
 ## Why Evidence Store Is First-Class
 
 The project does not rely on vector memory as the source of truth. Each final claim must be backed by a structured `Evidence` row with an extract from the source. This makes citation verification, numeric conflict detection, and interview explanations concrete.
 
-## Domain Pack Boundary: Proposed, Not Yet Extracted
+## Domain Pack Boundary: First Rule Extracted, Domain Still Proposed
 
 Task 010's coupling audit found financial behavior hard-coded in core Planner, Critic, Reporter, Researcher, and Golden audit code. There is therefore no `domains/finance` or `domains/competitive` package in the current implementation, and the repository does not claim domain independence yet.
+
+Task 018 moved only the 1299-byte finance normalization rule table into
+`skills/finance-metric-normalization/` with identical SHA-256 and default
+characterization. Planner queries, Researcher dispatch, Critic policy,
+structured-output regexes, provider aliases, report language, and evaluation
+assets remain finance-coupled; this is the first debt payment, not a domain pack.
 
 The target domain contract has five file classes:
 
@@ -317,5 +342,7 @@ The hardening modules are additive. Default-off modules do not change the determ
 | Research sufficiency loop | `orchestration/loops.py`, `orchestration/research_loop.py` | `RESEARCH_LOOP_ENABLED` | `false` | Refines weak queries through a bounded native LangGraph back-edge |
 | Prior research memory | `memory/prior.py` | `PRIOR_MEMORY_ENABLED` | `false` | Uses only the latest earlier snapshot to classify and verify sub-questions |
 | Reflection skeleton | `reflection.py`, `memory/procedural.py` | `REFLECTION_ENABLED` | `false` | Extracts mechanical signals, invokes a zero-API reasoning placeholder, writes procedural observations, and can inform existing replanning |
+| Skill packs | `skills/loader.py`, `skills/finance.py` | `SKILL_PACKS_ENABLED` | `false` | Selects from `SKILL.md` metadata, then loads resources and registers one capability |
+| MCP integration | `mcp/server.py`, `mcp/client.py` | none | local fixture only | Exposes four stdio tools and discovers external tools through the existing registry and tool contract |
 
 Prompt drift validation is enabled in CI because it is a build-time guard, not a runtime behavior change. Read-only offline evaluation tools in `scripts/compare_runs.py`, `scripts/offline_metrics.py`, and `scripts/validate_golden_schema.py` never initiate research or modify Golden assets.

@@ -16,6 +16,12 @@ DeepResearchAgent 是一个多 Agent 深度研究框架，金融投研为首个�
 占位、严格 cache miss、程序性记忆与反思驱动重规划接线均已落位。该轮只证明管道，
 反思判断质量与跨运行策略偏好优劣待 019 真实验证。
 
+018 已完成零依赖 MCP 双向边界与首个 Skill pack：标准库 stdio server 暴露四个
+fixture 工具，标准库 client 可发现外部工具并注册回 `CapabilityRegistry`；skill loader
+按 metadata-first 渐进披露，金融口径规则以相同 SHA-256 等价迁移。Claude Code
+完成 `initialize` / `initialized` / `tools/list` 健康检查，但第三方客户端的完整
+`tools/call` 握手仍为 INCOMPLETE；完整调用序列仅由自建最小客户端验证，不得混称。
+
 ## 2. 仓库结构
 
 - `.env.example`：环境变量示例文件。
@@ -27,17 +33,18 @@ DeepResearchAgent 是一个多 Agent 深度研究框架，金融投研为首个�
 - `_collab/`：任务提示词、执行报告和本地验证产物目录。
 - `artifacts/`：已有 demo、eval、checkpoint 等运行产物。
 - `data/`：评测集、Golden Set v1、bad cases、mock source fixture、demo 展示资产和 runtime 数据。
-- `docs/`：架构、评估、方法边界、部署、provider、威胁模型、SLO、生产就绪度与 MCP 设计文档。
+- `docs/`：架构、评估、方法边界、部署、provider、威胁模型、SLO、生产就绪度、MCP 与 skill 文档。
 - `prompts/`：当前存在五个角色 prompt 与 `registry.json` 漂移登记表。
 - `scripts/`：除运行入口外，包含 manifest 比对、prompt 漂移、只读 run 对比、离线指标、Golden schema 校验、审计包导出、业务快照创建与快照差异工具。
-- `src/deepresearch_agent/`：包源码，包含 `agents/`、`api/`、`context/`、`evaluation/`、`memory/`、`observability/`、`orchestration/`、`provenance/`、`security/`、`storage/`、`tools/`、`workflow/`。
+- `skills/`：metadata-first 运行时 skill packs；当前仅有金融数值口径归一 pack。
+- `src/deepresearch_agent/`：包源码，包含 `agents/`、`api/`、`context/`、`evaluation/`、`mcp/`、`memory/`、`observability/`、`orchestration/`、`provenance/`、`security/`、`skills/`、`storage/`、`tools/`、`workflow/`。
 - `tests/`：`unit/`、`integration/`、`evaluation/`、`chaos/` 四类 unittest 测试，并以 `golden_output/` 固化双题面行为快照。
 - `ui/app.py`：Streamlit UI 入口。
 - `pyproject.toml`：项目元数据、依赖、脚本入口和 Ruff 配置。
 
 领域目录约定（尚未实施）：目标 domain pack 包含 `tools/`、`prompts/`、`templates/`、`eval/`、`domain.yaml` 五类；新增领域前必须先完成 finance 等价抽取、旧路径兼容、资源 SHA-256 与默认 E2E 行为证明。
 
-当前默认开关：`TOOL_CONTRACT_ENABLED=true`、`INJECTION_GUARD_ENABLED=false`、`RUN_MANIFEST_ENABLED=true`、`CONTEXT_PACKER_ENABLED=false`、`STRUCTURED_LOGGING_ENABLED=true`、`CONFIG_FAIL_FAST_ENABLED=true`、`STRUCTURED_OUTPUT_ENABLED=true`、`PROGRESSIVE_DELIVERY_ENABLED=false`、`TRAJECTORY_RECORD_ENABLED=false`、`BRANCH_BUDGET_ENABLED=false`、`RESEARCH_LOOP_ENABLED=false`（max iterations 默认 1）、`PRIOR_MEMORY_ENABLED=false`、`DECISION_WEAVING_ENABLED=false`、`NUMERIC_CHECK_ENABLED=false`、`DYNAMIC_CAPABILITY_ENABLED=false`、`REFLECTION_ENABLED=false`。任何跨代比较必须先经 `scripts/verify_manifest.py` 判定。
+当前默认开关：`TOOL_CONTRACT_ENABLED=true`、`INJECTION_GUARD_ENABLED=false`、`RUN_MANIFEST_ENABLED=true`、`CONTEXT_PACKER_ENABLED=false`、`STRUCTURED_LOGGING_ENABLED=true`、`CONFIG_FAIL_FAST_ENABLED=true`、`STRUCTURED_OUTPUT_ENABLED=true`、`PROGRESSIVE_DELIVERY_ENABLED=false`、`TRAJECTORY_RECORD_ENABLED=false`、`BRANCH_BUDGET_ENABLED=false`、`RESEARCH_LOOP_ENABLED=false`（max iterations 默认 1）、`PRIOR_MEMORY_ENABLED=false`、`DECISION_WEAVING_ENABLED=false`、`NUMERIC_CHECK_ENABLED=false`、`DYNAMIC_CAPABILITY_ENABLED=false`、`REFLECTION_ENABLED=false`、`SKILL_PACKS_ENABLED=false`。任何跨代比较必须先经 `scripts/verify_manifest.py` 判定。
 
 ## 3. 技术栈与版本
 
@@ -228,13 +235,13 @@ Goal 或自治模式下绝对禁止 push、force push、历史改写、批量文
 - ProceduralMemory 已实现 MemoryStore，`lifecycle=cross_run`，按问题类型索引策略—充分性—反思观察；不自动选择策略，跨真实运行偏好优劣待 019
 - Reflector 已声明 NodeContract；信号提取与程序记忆写入均形成 AgentDecision 并经 DecisionGate；扩张轨迹可严格逐字回放
 
-### 018（生态接口轮，零成本）
+### 018（实现已完成；第三方完整 tools/call 握手 INCOMPLETE）
 
-- MCP server：Python 标准库实现 stdio JSON-RPC 2.0，至少 initialize/tools/list/tools/call，把 CapabilityRegistry 机械映射为 MCP tool schema，暴露发起研究/取回证据/导出审计包/比较两期快照
-- 真实客户端握手：与本机已装的 MCP 客户端实际连通一次并留存原始交互记录，这是"懂协议"与"读过文档"的分界
-- MCP client：消费外部 MCP server 的工具并注册进 CapabilityRegistry，使工具集从硬编码变为动态发现，接入 016 的动态能力选择
-- Skill packs：SKILL.md + 资源包渐进披露（先读描述判定适用再加载资源），skill 能力注册进同一 CapabilityRegistry，选择与加载记为 AgentDecision；抽出首个 skill（金融数值口径归一规则表）作为 010 领域耦合债的首付，等价重构 + 迁移前后 sha256 对照，不声称领域解耦完成
-- 约束：全程零新增依赖，MCP server 必须标准库实现
+- MCP server 已用 Python 标准库实现 stdio JSON-RPC 2.0，目标协议 `2025-06-18`；把 `CapabilityRegistry` 机械映射为 tool schema，暴露发起研究、取回证据、导出审计包、比较两期快照四个 deterministic fixture 工具
+- 本机 Claude Code 已实际完成 `initialize` / `notifications/initialized` / `tools/list` 健康检查；因其没有零模型直接 `tools/call` 命令，第三方完整握手为 INCOMPLETE。自建标准库客户端已完成含一次成功 `tools/call` 的全序列，但不得表述为第三方握手
+- MCP client 已消费外部 stdio server 的工具并命名空间化注册进同一 `CapabilityRegistry`；发现形成 `AgentDecision`，调用沿用 ToolSpec、超时、重试、降级与付费确认边界
+- Skill packs 已实现 metadata-first 渐进披露，选择与加载均形成 `AgentDecision`；首个金融数值口径 pack 是 1299 字节、SHA-256 不变的等价迁移，只是 010 领域耦合债的首付
+- `SKILL_PACKS_ENABLED=false` 且分类为 `content_affecting`；MCP 与 skill 扩张轨迹已在 fixture 下严格回放。全轮零新增依赖、零真实 API、零费用
 
 ### 019（付费验证轮）
 

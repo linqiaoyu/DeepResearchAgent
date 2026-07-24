@@ -1,7 +1,8 @@
 # 数值自洽校验
 
 `NUMERIC_CHECK_ENABLED` 默认关闭。开启后，Critic 会在既有 Evidence 与
-`finance_metric_normalization.json` 归一边界内做确定性算术校验，不访问外部数据源。
+[`finance_metric_normalization.json`](../skills/finance-metric-normalization/resources/finance_metric_normalization.json)
+归一边界内做确定性算术校验，不访问外部数据源。
 
 ## 支持的关系
 

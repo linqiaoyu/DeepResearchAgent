@@ -118,7 +118,7 @@ flowchart LR
 
 ### Skill pack 是领域债务的首付
 
-金融数值口径表从 `data/` 迁到 [finance-metric-normalization](skills/finance-metric-normalization/SKILL.md)，迁移前后 SHA-256 一致。开启 pack 后，系统先读 `SKILL.md` 的 name/description，判定涉及金融数值后才读取资源并注册能力；非金融用例的 resource reads 为 0。Critic、Reporter 模板、检索意图和其他金融逻辑仍在核心模块，因此这不是“领域解耦完成”，完整边界待 [skills.md](docs/mcp_adapter_design.md) 所述后续抽取。
+金融数值口径表从 `data/` 迁到 [finance-metric-normalization](skills/finance-metric-normalization/SKILL.md)，迁移前后 SHA-256 一致。开启 pack 后，系统先读 `SKILL.md` 的 name/description，判定涉及金融数值后才读取资源并注册能力；非金融用例的 resource reads 为 0。Critic、Reporter 模板、检索意图和其他金融逻辑仍在核心模块，因此这不是“领域解耦完成”，完整边界见 [skills.md](docs/skills.md)。
 
 ## 工程质量
 
@@ -149,6 +149,8 @@ flowchart LR
 - [Provider 集成](docs/provider_integration.md)
 - [部署说明](docs/deployment.md)
 - [Postgres 目标 schema](docs/postgres_schema.sql)
+- [MCP 双向集成](docs/mcp.md)
+- [Skill packs](docs/skills.md)
 - [MCP adapter 原设计](docs/mcp_adapter_design.md)
 
 ### 研究、决策与记忆

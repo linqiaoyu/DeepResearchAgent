@@ -65,6 +65,29 @@ Evidence IDs 和校验器；口径不可比则沿用 `numeric_conflict`，不伪
 `CapabilityRegistry` 中选择已注册且满足 ToolSpec 的能力。决策记录候选、选中、拒绝及
 fallback 理由；没有可用匹配时回退到 015 的固定三能力路径，不绕过预算、契约或工具边界。
 
+### MCP 工具发现
+
+`MCPStdioClient` 完成 `initialize` / `notifications/initialized` / `tools/list`
+后产生 `mcp_tool_discovery` 决定。该决定记录 server 名、发现的远端工具、命名空间化后的
+本地能力名，以及 trusted / untrusted 注解策略；注册动作声明
+`MCP_DISCOVERY_NODE_CONTRACT` 并通过 `DecisionGate`。外部能力进入既有
+`CapabilityRegistry`，调用继续受 ToolSpec、预算、超时、重试与降级约束。
+
+未信任服务端的 annotations 不作为事实：cost、side effect 与 idempotency 均
+fail-closed。这个决定只证明发现和注册过程可审计，不证明远端工具安全或提高研究质量。
+协议和安全边界见 [`mcp.md`](mcp.md)。
+
+### Skill 选择与加载
+
+`SKILL_PACKS_ENABLED` 开启后，loader 先只读 `SKILL.md` metadata 并产生
+`skill_selection` 决定；只有适用策略为 true 才读取 resources、注册能力，并产生
+`skill_load` 决定。两步分别声明 `SKILL_SELECTION_NODE_CONTRACT` 与
+`SKILL_LOAD_NODE_CONTRACT`，都通过 `DecisionGate`。选择记录适用判据和未选原因，
+加载记录资源路径、能力名与读取结果，因此可以证明不适用路径没有资源读取。
+
+首个 pack 只迁移金融指标归一规则表，不表示领域解耦完成。机制和剩余耦合见
+[`skills.md`](skills.md)。
+
 ### 反思信号、程序性记忆与重规划
 
 `REFLECTION_ENABLED` 开启后，Reflector 的两个新决定都复用 `AgentDecision`：
@@ -92,7 +115,8 @@ token 合成/录制占位，`llm_insight` 不参与行为。反思判断质量�
 `DECISION_WEAVING_ENABLED=false`、`NUMERIC_CHECK_ENABLED=false`、
 `DYNAMIC_CAPABILITY_ENABLED=false`；015 的 `BRANCH_BUDGET_ENABLED`、
 `RESEARCH_LOOP_ENABLED` 与 `PRIOR_MEMORY_ENABLED` 也保持默认关闭；
-`REFLECTION_ENABLED=false`。三项 016 与一项 017 开关均为
+`REFLECTION_ENABLED=false`、`SKILL_PACKS_ENABLED=false`。三项 016、一项 017
+与一项 018 开关均为
 `content_affecting`，关闭时不会进入 manifest 配置 payload，也不改变默认两题面产物。
 
 零 API fixture 测试可以证明决策依赖被读取、算式检出可重复、能力选择不越过 registry、
