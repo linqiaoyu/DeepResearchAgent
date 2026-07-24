@@ -8,6 +8,12 @@ from deepresearch_agent.orchestration.contracts import (
     enforce_node_contract,
     validate_contract_graph,
 )
+from deepresearch_agent.orchestration.loops import (
+    BoundedLoop,
+    LoopContext,
+    LoopIterationResult,
+    LoopSpec,
+)
 
 __all__ = [
     "ContractField",
@@ -16,6 +22,10 @@ __all__ = [
     "ContractViolationError",
     "DecisionGate",
     "NodeContract",
+    "BoundedLoop",
+    "LoopContext",
+    "LoopIterationResult",
+    "LoopSpec",
     "enforce_node_contract",
     "validate_contract_graph",
 ]

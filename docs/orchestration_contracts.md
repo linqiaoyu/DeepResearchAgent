@@ -43,3 +43,22 @@ LangGraph 负责节点执行、条件边、`Send` 扇出和 checkpoint；它并�
 `DecisionGate`。017 的 skill 节点同样在注册进图时提供消费、生产和不变式声明。
 未来若节点可能裁剪或重排 Evidence，应声明 Evidence 身份/覆盖不变式，而不能只用
 节点内部单测证明安全。
+
+## LoopSpec 与 BoundedLoop
+
+`LoopSpec` 声明 `max_iterations`、`budget_ceiling`、`no_progress_window`、
+可注入的 `progress_metric` 和 `on_exhausted`。`BoundedLoop` 把具体研究策略作为
+`step` 注入，并用 LangGraph `StateGraph` 的 conditional edge 从
+`loop_decide` 回到 `loop_iteration`。此前项目虽然使用 LangGraph，但研究主路径
+实际上是 DAG；这是项目首次使用其原生的带条件循环能力。控制器没有自建调度器。
+
+每轮都记录一个 `bounded_loop_control` 类型的 `AgentDecision`，包括前后度量、预算、
+无进展计数、触发边界、判据、结果和备选项。轮次、循环预算、连续无进展三条边界
+任一触发即停止；已完成工作保留在 `ResearchState`。耗尽会写入
+`metadata.research_loop.coverage_warning`，若报告已经存在也会附加“因 X 边界停止，
+覆盖可能不足”。
+
+循环预算与工具层 `RetryBudget` 是两套正交账本：前者只计研究轮的主调用或 token，
+后者只计一次工具主调用内部的重试。`LoopIterationResult.retry_budget_consumed` 仅作
+决策审计输入，不会再次累加进循环预算，因此不双重计费；循环剩余预算为零时不会
+调用策略，所以低层重试也不能绕过循环边界。阶段 5 才会把充分性策略接入该控制器。
