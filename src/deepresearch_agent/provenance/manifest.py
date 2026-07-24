@@ -91,6 +91,7 @@ FLAG_CLASSIFICATIONS: dict[str, FlagClassification] = {
     "PROGRESSIVE_DELIVERY_ENABLED": "operational",
     # Recording writes a redacted sidecar and does not alter report content.
     "TRAJECTORY_RECORD_ENABLED": "operational",
+    "BRANCH_BUDGET_ENABLED": "content_affecting",
 }
 
 
@@ -216,6 +217,8 @@ def settings_flag_snapshot(
         )
     if settings.trajectory_record_enabled or include_disabled_experimental:
         flags["TRAJECTORY_RECORD_ENABLED"] = settings.trajectory_record_enabled
+    if settings.branch_budget_enabled or include_disabled_experimental:
+        flags["BRANCH_BUDGET_ENABLED"] = settings.branch_budget_enabled
     return flags
 
 
@@ -242,6 +245,10 @@ def _config_hash(settings: Settings) -> str:
         key: str(value) if isinstance(value, Path) else value
         for key, value in asdict(settings).items()
     }
+    if not settings.branch_budget_enabled:
+        payload.pop("branch_budget_enabled", None)
+        payload.pop("branch_total_budget", None)
+        payload.pop("branch_single_cap", None)
     encoded = json.dumps(payload, sort_keys=True, ensure_ascii=False, default=str)
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 

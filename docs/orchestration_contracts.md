@@ -62,3 +62,18 @@ LangGraph 负责节点执行、条件边、`Send` 扇出和 checkpoint；它并�
 后者只计一次工具主调用内部的重试。`LoopIterationResult.retry_budget_consumed` 仅作
 决策审计输入，不会再次累加进循环预算，因此不双重计费；循环剩余预算为零时不会
 调用策略，所以低层重试也不能绕过循环边界。阶段 5 才会把充分性策略接入该控制器。
+
+## BranchBudget 与 Send 扇出
+
+`BranchBudget(total_budget, per_branch_cap)` 是一次运行内的并行分支账本。当前接入以
+`search_calls` 为预算单位。`research_prepare` 在 LangGraph `Send` 扇出之前按分支
+均分；每个 `research_one` 只能执行其获配的搜索调用数；`research_join` 汇总实际
+用量和每支来源/结构化证据数，再调用 `reallocate`。再分配保留已用额度，把剩余容量
+优先给度量较低的分支，并始终受单支上限与总上限约束，不做运行中的动态抢占。
+
+初始分配与再分配分别记录 `branch_budget_allocate` 和
+`branch_budget_reallocate` 决策，输入包含每支度量、逐支额度、总量、已用量、单支
+上限和理由。分支额度耗尽只停止该分支并标注覆盖不足；总额度耗尽让全部分支收敛，
+已完成结果仍进入 join。该行为由默认关闭、归类为 `content_affecting` 的
+`BRANCH_BUDGET_ENABLED` 控制；关闭时不创建账本、决策或产物差异。阶段 5 将在研究
+轮次之间复用 join 后的再分配结果。

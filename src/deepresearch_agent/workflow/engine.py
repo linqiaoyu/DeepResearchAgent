@@ -11,6 +11,7 @@ from deepresearch_agent.config_validation import validate_required_configuration
 from deepresearch_agent.llm import BudgetExceededError, LLMClient
 from deepresearch_agent.observability import JsonLogger, correlation_context
 from deepresearch_agent.orchestration import (
+    BranchBudget,
     ContractField,
     ContractGraph,
     ContractInvariant,
@@ -68,6 +69,8 @@ class ResearchGraphState(TypedDict, total=False):
     research_structured_evidence: Annotated[dict[str, list[dict[str, Any]]], _merge_dicts]
     research_structured_stats: Annotated[dict[str, dict[str, int]], _merge_dicts]
     research_symbol_resolutions: Annotated[dict[str, list[dict[str, Any]]], _merge_dicts]
+    research_budget_usage: Annotated[dict[str, int], _merge_dicts]
+    research_branch_coverage: Annotated[dict[str, dict[str, Any]], _merge_dicts]
     retry_sources: Annotated[dict[str, list[dict[str, Any]]], _merge_dicts]
     retry_records: Annotated[dict[str, dict[str, Any]], _merge_dicts]
 
@@ -138,6 +141,7 @@ class DeepResearchEngine:
         )
         self.reporter = ReporterAgent(llm_client=self.llm_client)
         self.evaluator = Evaluator()
+        self.branch_budget: BranchBudget | None = None
         self._checkpoint_conn = sqlite3.connect(self.settings.storage_path, check_same_thread=False)
         self.checkpointer = SqliteSaver(self._checkpoint_conn)
         self.graph = self._build_graph()
@@ -155,6 +159,7 @@ class DeepResearchEngine:
         started = time.perf_counter()
         manifest_started_at = utc_now()
         self.researcher.reset_search_budget()
+        self.branch_budget = None
         if resume:
             if not research_id:
                 raise ValueError("research_id is required when resume=True")
@@ -643,9 +648,24 @@ class DeepResearchEngine:
         state = self._state_from_graph_values(graph_state)
         if not state.plan:
             raise ValueError("Researching requires a plan.")
+        branch_ids = [item.id for item in state.plan.sub_questions]
+        if self.settings.branch_budget_enabled:
+            self.branch_budget = BranchBudget(
+                total_budget=self.settings.branch_total_budget,
+                per_branch_cap=self.settings.branch_single_cap,
+            )
+            allocations = self.branch_budget.allocate(branch_ids, state)
+            state.metadata["branch_budget"] = {
+                "unit": "search_calls",
+                "total_budget": self.settings.branch_total_budget,
+                "per_branch_cap": self.settings.branch_single_cap,
+                "allocations": self.branch_budget.snapshot(),
+                "phase": "before_send",
+            }
+            state.metadata["branch_budget"]["allocated_calls"] = allocations
         return {
             "research_state": self._dump_state(state),
-            "active_sub_question_ids": [item.id for item in state.plan.sub_questions],
+            "active_sub_question_ids": branch_ids,
         }
 
     def _send_research_tasks(self, graph_state: ResearchGraphState) -> list[Send] | str:
@@ -667,9 +687,28 @@ class DeepResearchEngine:
     def _research_one_node(self, graph_state: ResearchGraphState) -> ResearchGraphState:
         state = self._state_from_graph_values(graph_state)
         sub_question = SubQuestion.model_validate(graph_state["fanout_sub_question"])
-        sources, records = self.researcher.research(sub_question)
+        budget_metadata = state.metadata.get("branch_budget", {})
+        allocated_calls = budget_metadata.get("allocated_calls", {})
+        if self.settings.branch_budget_enabled and isinstance(
+            allocated_calls,
+            dict,
+        ):
+            allocation = int(allocated_calls.get(sub_question.id, 0))
+            (
+                sources,
+                records,
+                search_calls,
+                branch_exhausted,
+            ) = self.researcher.research_with_budget(
+                sub_question,
+                max_search_calls=allocation,
+            )
+        else:
+            sources, records = self.researcher.research(sub_question)
+            search_calls = len(records)
+            branch_exhausted = False
         structured_evidence = self.researcher.structured_evidence(state.research_id, sub_question)
-        return {
+        output: ResearchGraphState = {
             "research_sources": {
                 sub_question.id: [source.model_dump(mode="json") for source in sources]
             },
@@ -686,6 +725,17 @@ class DeepResearchEngine:
                 sub_question.id: list(self.researcher.last_symbol_resolutions)
             },
         }
+        if self.settings.branch_budget_enabled:
+            output["research_budget_usage"] = {
+                sub_question.id: search_calls,
+            }
+            output["research_branch_coverage"] = {
+                sub_question.id: {
+                    "budget_exhausted": branch_exhausted,
+                    "search_calls": search_calls,
+                }
+            }
+        return output
 
     def _research_join_node(self, graph_state: ResearchGraphState) -> ResearchGraphState:
         state = self._state_from_graph_values(graph_state)
@@ -698,6 +748,8 @@ class DeepResearchEngine:
         structured_batches = graph_state.get("research_structured_evidence", {})
         structured_stats_batches = graph_state.get("research_structured_stats", {})
         symbol_resolution_batches = graph_state.get("research_symbol_resolutions", {})
+        budget_usage = graph_state.get("research_budget_usage", {})
+        branch_coverage = graph_state.get("research_branch_coverage", {})
         evidence_by_id = {item.id: item for item in state.evidence_store}
 
         for sub_question in state.plan.sub_questions:
@@ -724,6 +776,28 @@ class DeepResearchEngine:
         state.metadata["sources_by_subquestion"] = sources_by_subquestion
         state.metadata["structured_data_stats"] = structured_stats_batches
         state.metadata["symbol_resolutions"] = symbol_resolution_batches
+        if self.settings.branch_budget_enabled and self.branch_budget:
+            for sub_question in state.plan.sub_questions:
+                used = int(budget_usage.get(sub_question.id, 0))
+                self.branch_budget.consume(sub_question.id, used, state)
+            metrics = {
+                sub_question.id: float(
+                    len(source_batches.get(sub_question.id, []))
+                    + len(structured_batches.get(sub_question.id, []))
+                )
+                for sub_question in state.plan.sub_questions
+            }
+            reallocated = self.branch_budget.reallocate(metrics, state)
+            state.metadata["branch_budget"].update(
+                {
+                    "allocations": self.branch_budget.snapshot(),
+                    "allocated_calls": reallocated,
+                    "metrics": metrics,
+                    "branch_coverage": branch_coverage,
+                    "phase": "after_join",
+                    "total_used": self.branch_budget.total_used,
+                }
+            )
         state.pending_tasks = []
         for item in state.todo_list:
             item.status = "done"

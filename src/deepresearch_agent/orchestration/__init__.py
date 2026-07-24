@@ -8,6 +8,10 @@ from deepresearch_agent.orchestration.contracts import (
     enforce_node_contract,
     validate_contract_graph,
 )
+from deepresearch_agent.orchestration.budget import (
+    BranchAllocation,
+    BranchBudget,
+)
 from deepresearch_agent.orchestration.loops import (
     BoundedLoop,
     LoopContext,
@@ -22,6 +26,8 @@ __all__ = [
     "ContractViolationError",
     "DecisionGate",
     "NodeContract",
+    "BranchAllocation",
+    "BranchBudget",
     "BoundedLoop",
     "LoopContext",
     "LoopIterationResult",
