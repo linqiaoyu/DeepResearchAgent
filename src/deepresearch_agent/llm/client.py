@@ -310,6 +310,10 @@ class LLMClient:
                                 total_tokens=result.total_tokens,
                                 latency_seconds=result.latency_seconds,
                                 model=result.model,
+                                cost_usd=result.cost_usd,
+                                cost_cny=result.cost_cny,
+                                price_source=result.price_source,
+                                cache_hit=result.cache_hit,
                                 attempt=attempt + 1,
                                 repair=is_repair,
                             )
