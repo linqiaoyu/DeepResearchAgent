@@ -5,6 +5,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 
 from deepresearch_agent.citations import build_footnote_maps
+from deepresearch_agent.decisions import append_decision_record
 from deepresearch_agent.llm import LLMClient, LLMClientError, StructuredOutputError
 from deepresearch_agent.schemas import (
     Evidence,
@@ -45,10 +46,13 @@ class ReporterAgent:
         }
         if self.llm_client:
             try:
-                return self._llm_report(state)
+                report = self._llm_report(state)
             except (LLMClientError, StructuredOutputError, ValueError) as exc:
                 self.last_stats = {"fallback": True, "error_type": type(exc).__name__}
-        return self._deterministic_report(state)
+                report = self._deterministic_report(state)
+        else:
+            report = self._deterministic_report(state)
+        return append_decision_record(report, state.agent_decisions)
 
     def structured_output(self, state: ResearchState) -> StructuredResearchOutput:
         return build_structured_output(state)

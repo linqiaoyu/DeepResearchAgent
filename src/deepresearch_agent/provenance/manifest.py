@@ -11,7 +11,7 @@ from typing import Any, Literal
 from pydantic import Field
 
 from deepresearch_agent.llm_config import DEFAULT_LLM_CONFIG
-from deepresearch_agent.schemas import ResearchState, StrictModel, utc_now
+from deepresearch_agent.schemas import AgentDecision, ResearchState, StrictModel, utc_now
 from deepresearch_agent.security import redact
 from deepresearch_agent.settings import Settings, project_root
 
@@ -34,6 +34,7 @@ class RunManifest(StrictModel):
     degradation_events: list[dict[str, Any]] = Field(default_factory=list)
     context_events: list[dict[str, Any]] = Field(default_factory=list)
     tool_error_summary: dict[str, int] = Field(default_factory=dict)
+    decision_summary: list[AgentDecision] = Field(default_factory=list)
 
 
 class ManifestComparison(StrictModel):
@@ -188,6 +189,7 @@ def build_run_manifest(
         degradation_events=degradation_events,
         context_events=context_events,
         tool_error_summary={str(key): int(value) for key, value in tool_errors.items()},
+        decision_summary=list(state.agent_decisions),
     )
 
 
@@ -216,7 +218,10 @@ def settings_flag_snapshot(
 def write_run_manifest(manifest: RunManifest, runs_root: Path) -> Path:
     output = runs_root / manifest.run_id / "manifest.json"
     output.parent.mkdir(parents=True, exist_ok=True)
-    encoded = json.dumps(manifest.model_dump(mode="json"), ensure_ascii=False, indent=2)
+    payload = manifest.model_dump(mode="json")
+    if not manifest.decision_summary:
+        payload.pop("decision_summary", None)
+    encoded = json.dumps(payload, ensure_ascii=False, indent=2)
     output.write_text(redact(encoded) + "\n", encoding="utf-8")
     return output
 
