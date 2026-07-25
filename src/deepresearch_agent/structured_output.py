@@ -26,6 +26,9 @@ from deepresearch_agent.skills.finance import (
 
 _FIXED_WORKBOOK_TIME = datetime(2026, 7, 9, tzinfo=timezone.utc)
 _FIXED_ZIP_TIME = (2026, 7, 9, 0, 0, 0)
+_MODIFIED_PROPERTY_RE = re.compile(
+    rb"(<dcterms:modified\b[^>]*>)[^<]*(</dcterms:modified>)"
+)
 _CHINESE_METRIC_RE = re.compile(
     r"(?P<entity>[\u4e00-\u9fffA-Za-z0-9]+)\s*"
     r"(?P<period>\d{4})\s*年?\s*"
@@ -329,7 +332,13 @@ def _xlsx_bytes(output: StructuredResearchOutput) -> bytes:
                 info = ZipInfo(name, date_time=_FIXED_ZIP_TIME)
                 info.compress_type = ZIP_DEFLATED
                 info.external_attr = source.getinfo(name).external_attr
-                target.writestr(info, source.read(name))
+                content = source.read(name)
+                if name == "docProps/core.xml":
+                    content = _MODIFIED_PROPERTY_RE.sub(
+                        rb"\g<1>2026-07-09T00:00:00Z\g<2>",
+                        content,
+                    )
+                target.writestr(info, content)
     return normalized.getvalue()
 
 

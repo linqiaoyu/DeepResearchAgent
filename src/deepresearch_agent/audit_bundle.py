@@ -72,6 +72,8 @@ def export_audit_bundle(
             "extract_truncated": (
                 len(item.extract_text) > PUBLIC_EXCERPT_CHAR_LIMIT
             ),
+            "source_tier": item.source_tier,
+            "source_content_truncated": item.content_truncated,
             "credibility": source_credibility.get(item.source_url, item.confidence),
         }
         for item in sorted(state.evidence_store, key=lambda item: item.id)

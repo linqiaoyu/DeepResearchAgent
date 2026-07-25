@@ -7,10 +7,22 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+from deepresearch_agent.agents import ExtractorAgent, ReporterAgent
+from deepresearch_agent.schemas import ResearchPlan, ResearchState, SubQuestion
+from deepresearch_agent.tools import (
+    ContractSearchProvider,
+    ReliableToolExecutor,
+    RetryBudget,
+    RunToolContext,
+    ToolErrorKind,
+)
 from deepresearch_agent.tools.tavily_search import (
     UNKNOWN_PUBLISHED_AT,
     TavilySearchProvider,
 )
+
+ROOT = Path(__file__).resolve().parents[2]
+PDF_FIXTURE = ROOT / "tests" / "fixtures" / "catl_2022_070_excerpt.pdf"
 
 
 class FakeResponse:
@@ -19,10 +31,14 @@ class FakeResponse:
         payload: Any,
         should_raise: bool = False,
         text: str = "",
+        content: bytes | None = None,
+        headers: dict[str, str] | None = None,
     ) -> None:
         self.payload = payload
         self.should_raise = should_raise
         self.text = text
+        self.content = content if content is not None else text.encode()
+        self.headers = headers or {}
         self.raise_called = False
 
     def raise_for_status(self) -> None:
@@ -100,6 +116,81 @@ class RaisingHttpClient:
 
 
 class TavilySearchProviderTests(unittest.TestCase):
+    def _pdf_source(self, *, max_pages: int = 100):
+        response = FakeResponse(
+            {},
+            content=PDF_FIXTURE.read_bytes(),
+            headers={"content-type": "application/pdf"},
+        )
+        provider = TavilySearchProvider(
+            "test-key",
+            client=FakeHttpClient(response),
+            pdf_max_pages=max_pages,
+        )
+        return provider.fetch("https://issuer.example/notice.pdf")
+
+    def test_real_chinese_pdf_decodes_into_evidence(self) -> None:
+        source = self._pdf_source()
+        assert source is not None
+        self.assertIn("宁德时代新能源科技股份有限公司", source.content)
+        self.assertNotIn("\ufffd", source.content)
+        evidence = ExtractorAgent().extract(
+            "pdf-run",
+            SubQuestion(id="q1", question="匈牙利项目", search_queries=[]),
+            [source],
+        )
+        self.assertTrue(evidence)
+        self.assertIn("宁德时代", evidence[0].extract_text)
+
+    def test_pdf_decode_failure_is_a_structured_permanent_error(self) -> None:
+        response = FakeResponse(
+            {},
+            content=b"%PDF-1.7 broken",
+            headers={"content-type": "application/pdf"},
+        )
+        provider = ContractSearchProvider(
+            TavilySearchProvider("test-key", client=FakeHttpClient(response)),
+            executor=ReliableToolExecutor(sleep=lambda _: None),
+            context=RunToolContext(retry_budget=RetryBudget(max_retries=2)),
+        )
+        self.assertIsNone(provider.fetch("https://issuer.example/broken.pdf"))
+        self.assertEqual(provider.degradation_events[0]["reason"], ToolErrorKind.PERMANENT)
+        self.assertEqual(provider.degradation_events[0]["attempts"], 1)
+
+    def test_pdf_page_limit_marks_source_and_evidence_truncated(self) -> None:
+        source = self._pdf_source(max_pages=1)
+        assert source is not None
+        self.assertTrue(source.content_truncated)
+        evidence = ExtractorAgent().extract(
+            "pdf-truncated",
+            SubQuestion(id="q1", question="匈牙利项目", search_queries=[]),
+            [source],
+        )
+        self.assertTrue(evidence)
+        self.assertTrue(all(item.content_truncated for item in evidence))
+
+    def test_pdf_evidence_closes_report_footnote_mapping(self) -> None:
+        source = self._pdf_source()
+        assert source is not None
+        sub_question = SubQuestion(id="q1", question="匈牙利项目", search_queries=[])
+        state = ResearchState(
+            research_id="pdf-footnote",
+            topic="宁德时代匈牙利项目",
+            plan=ResearchPlan(topic="宁德时代匈牙利项目", sub_questions=[sub_question]),
+            evidence_store=ExtractorAgent().extract(
+                "pdf-footnote",
+                sub_question,
+                [source],
+            ),
+        )
+        state.final_report = ReporterAgent().report(state)
+        self.assertTrue(state.report_footnote_evidence)
+        self.assertEqual(
+            set(state.report_footnote_evidence.values()),
+            {item.id for item in state.evidence_store},
+        )
+        self.assertIn("[^1]", state.final_report)
+
     def test_fetch_hydrates_publisher_html_body(self) -> None:
         response = FakeResponse(
             {},

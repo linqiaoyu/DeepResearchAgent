@@ -34,7 +34,7 @@ SEARCH_TOOL_SPEC = ToolSpec(
 )
 FETCH_TOOL_SPEC = ToolSpec(
     name="web_fetch",
-    version="1.0.0",
+    version="1.1.0",
     input_schema={
         "type": "object",
         "required": ["url"],
@@ -116,38 +116,42 @@ class ContractSearchProvider:
         fetch = getattr(self.provider, "fetch", None)
         if not callable(fetch):
             return None
-        try:
-            result = fetch(url)
-        except Exception as exc:
+        with correlation_context(tool_call=FETCH_TOOL_SPEC.name):
+            result = self.executor.execute(
+                FETCH_TOOL_SPEC,
+                lambda: fetch(url),
+                self.context,
+                degrade=True,
+                degraded_value=None,
+                impact="source body unavailable; evidence cannot claim primary-text closure",
+            )
+            self.logger.event(
+                "tool_call",
+                ok=result.ok,
+                attempts=result.attempts,
+                elapsed_ms=result.elapsed_ms,
+                degraded=result.degraded,
+            )
             recorder = active_trajectory_recorder()
             if recorder:
                 recorder.record_tool_call(
                     ToolCallTrace(
                         tool_spec=FETCH_TOOL_SPEC.model_dump(mode="json"),
                         inputs={"url": url},
-                        error={
-                            "kind": type(exc).__name__,
-                            "message": str(exc),
-                        },
-                        attempts=1,
+                        result=(
+                            result.value.model_dump(mode="json")
+                            if result.value
+                            else None
+                        ),
+                        error=(
+                            result.error.model_dump(mode="json")
+                            if result.error
+                            else None
+                        ),
+                        attempts=result.attempts,
                     )
                 )
-            raise
-        recorder = active_trajectory_recorder()
-        if recorder:
-            recorder.record_tool_call(
-                ToolCallTrace(
-                    tool_spec=FETCH_TOOL_SPEC.model_dump(mode="json"),
-                    inputs={"url": url},
-                    result=(
-                        result.model_dump(mode="json")
-                        if result
-                        else None
-                    ),
-                    attempts=1,
-                )
-            )
-        return result
+        return result.value
 
     @property
     def degradation_events(self) -> list[dict[str, Any]]:

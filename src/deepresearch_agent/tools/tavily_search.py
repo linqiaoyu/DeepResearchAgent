@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import html
+import io
 import json
 import re
 import time
@@ -9,11 +10,14 @@ from collections.abc import Mapping
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Protocol
+from urllib.parse import urlsplit
 
 import httpx
 
 from deepresearch_agent.schemas import Source
 from deepresearch_agent.settings import project_root
+from deepresearch_agent.tools.contracts import ToolErrorKind
+from deepresearch_agent.tools.reliable_execution import ToolExecutionError
 
 TAVILY_SEARCH_ENDPOINT = "https://api.tavily.com/search"
 UNKNOWN_PUBLISHED_AT = date(1970, 1, 1)
@@ -21,6 +25,13 @@ UNKNOWN_PUBLISHED_AT = date(1970, 1, 1)
 
 class TavilySearchError(RuntimeError):
     """Raised when Tavily search cannot return a provider payload."""
+
+
+class PdfDecodeError(ToolExecutionError):
+    """Fail-closed error for a response identified as PDF but not decodable."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(ToolErrorKind.PERMANENT, message)
 
 
 class HttpResponse(Protocol):
@@ -65,6 +76,7 @@ class TavilySearchProvider:
         search_depth: str = "basic",
         include_raw_content: bool = False,
         raw_content_char_limit: int = 40_000,
+        pdf_max_pages: int = 100,
         ledger_path: Path | None = None,
         credit_warning_threshold: int = 450,
         credit_hard_threshold: int = 520,
@@ -81,6 +93,7 @@ class TavilySearchProvider:
         self.search_depth = search_depth
         self.include_raw_content = include_raw_content
         self.raw_content_char_limit = raw_content_char_limit
+        self.pdf_max_pages = max(1, pdf_max_pages)
         self.ledger_path = ledger_path or project_root() / "data" / "runtime" / "search_ledger.jsonl"
         self.credit_warning_threshold = credit_warning_threshold
         self.credit_hard_threshold = credit_hard_threshold
@@ -181,6 +194,8 @@ class TavilySearchProvider:
                     follow_redirects=True,
                 )
                 response.raise_for_status()
+                if self._is_pdf_response(url, response):
+                    return self._pdf_source(url, bytes(response.content))
                 raw = str(response.text)
                 title_match = re.search(
                     r"<title[^>]*>(.*?)</title>",
@@ -204,6 +219,9 @@ class TavilySearchProvider:
                     content=content,
                     credibility=0.8,
                 )
+            except PdfDecodeError:
+                self.last_error_type = "PdfDecodeError"
+                raise
             except Exception as exc:
                 last_error = exc
                 if attempt < self.max_retries:
@@ -212,6 +230,38 @@ class TavilySearchProvider:
             type(last_error).__name__ if last_error else "unknown"
         )
         return None
+
+    def _is_pdf_response(self, url: str, response: Any) -> bool:
+        headers = getattr(response, "headers", {})
+        content_type = str(headers.get("content-type", "")).split(";", 1)[0].lower()
+        return content_type == "application/pdf" or urlsplit(url).path.lower().endswith(".pdf")
+
+    def _pdf_source(self, url: str, content: bytes) -> Source:
+        from pypdf import PdfReader
+
+        try:
+            reader = PdfReader(io.BytesIO(content), strict=False)
+            page_count = len(reader.pages)
+            selected_pages = reader.pages[: self.pdf_max_pages]
+            text = "\n".join(page.extract_text() or "" for page in selected_pages)
+        except Exception as exc:
+            raise PdfDecodeError(
+                f"pdf_decode_failed url={url} error_type={type(exc).__name__}"
+            ) from exc
+        if not text.strip():
+            raise PdfDecodeError(f"pdf_decode_empty url={url} pages={page_count}")
+        truncated = page_count > self.pdf_max_pages or len(text) > self.raw_content_char_limit
+        title = urlsplit(url).path.rsplit("/", 1)[-1] or url
+        return Source(
+            id=self._source_id(url, title),
+            title=title,
+            url=url,
+            source_type="web_fetch_pdf",
+            published_at=UNKNOWN_PUBLISHED_AT,
+            content=text[: self.raw_content_char_limit],
+            credibility=0.8,
+            content_truncated=truncated,
+        )
 
     def _search_error(self, query: str, error: Exception) -> TavilySearchError:
         query_label = query.strip()[:80] or "<empty>"

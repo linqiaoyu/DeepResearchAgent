@@ -61,6 +61,8 @@ class ExtractorAgent:
                             self._confidence(sentence, source.credibility),
                             finding.risk_score if finding else 0.0,
                         ),
+                        source_tier=source.source_tier,
+                        content_truncated=source.content_truncated,
                         injection_risk_score=finding.risk_score if finding else 0.0,
                         injection_patterns=finding.patterns if finding else [],
                     )
@@ -146,6 +148,8 @@ class ExtractorAgent:
                         claim.confidence,
                         finding.risk_score if finding else 0.0,
                     ),
+                    source_tier=source.source_tier,
+                    content_truncated=source.content_truncated,
                     numeric_fields=claim.numeric_fields,
                     numeric_fields_incomplete=numeric_fields_incomplete,
                     injection_risk_score=finding.risk_score if finding else 0.0,

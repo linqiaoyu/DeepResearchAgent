@@ -123,10 +123,17 @@ class AuditBundleTests(unittest.TestCase):
                     encoding="utf-8"
                 )
             )
+            bundle_evidence = json.loads(
+                (Path(tmp) / "first" / "evidence.json").read_text(
+                    encoding="utf-8"
+                )
+            )
             self.assertIn("未产生真实 API 账单", cover)
             self.assertIn("模拟估算", cover)
             self.assertNotIn("成本：0.017", cover)
             self.assertEqual(ledger["cost_usd"], 0.017)
+            self.assertEqual(bundle_evidence[0]["source_tier"], "unknown")
+            self.assertFalse(bundle_evidence[0]["source_content_truncated"])
             self.assertTrue(ledger["cost_usd_estimated"])
             self.assertEqual(
                 ledger["cost_usd_source"],

@@ -50,6 +50,11 @@ class Source(StrictModel):
     published_at: date
     content: str
     credibility: float = Field(default=0.8, ge=0, le=1)
+    source_tier: Literal["primary", "secondary", "unknown"] = Field(
+        default="unknown",
+        exclude_if=lambda value: value == "unknown",
+    )
+    content_truncated: bool = Field(default=False, exclude_if=lambda value: not value)
 
 
 class SearchRecord(StrictModel):
@@ -101,6 +106,11 @@ class Evidence(StrictModel):
     extract_text: str
     extract_offset_start: int = 0
     confidence: float = Field(default=0.75, ge=0, le=1)
+    source_tier: Literal["primary", "secondary", "unknown"] = Field(
+        default="unknown",
+        exclude_if=lambda value: value == "unknown",
+    )
+    content_truncated: bool = Field(default=False, exclude_if=lambda value: not value)
     structured_record: StructuredDataRecord | None = None
     numeric_fields: NumericFields | None = None
     numeric_fields_incomplete: bool = False

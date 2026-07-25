@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -140,6 +140,24 @@ class StructuredOutputTests(unittest.TestCase):
             workbook = load_workbook(first, read_only=True)
             self.assertEqual(workbook["metrics"]["C2"].value, "营业收入")
             workbook.close()
+
+    def test_excel_bytes_are_deterministic_across_modified_seconds(self) -> None:
+        class SaveDatetime(datetime):
+            current = datetime(2026, 7, 25, 12, 0, tzinfo=timezone.utc)
+
+            @classmethod
+            def now(cls, tz=None):
+                return cls.current.astimezone(tz) if tz else cls.current.replace(tzinfo=None)
+
+        output = build_structured_output(
+            ResearchState(topic="宁德时代对比", evidence_store=[evidence("a")])
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("openpyxl.writer.excel.datetime.datetime", SaveDatetime):
+                first = write_structured_table(output, Path(tmp) / "first")
+                SaveDatetime.current = datetime(2026, 7, 25, 12, 0, 1, tzinfo=timezone.utc)
+                second = write_structured_table(output, Path(tmp) / "second")
+                self.assertEqual(first.read_bytes(), second.read_bytes())
 
     def test_table_export_falls_back_to_deterministic_csv(self) -> None:
         output = build_structured_output(

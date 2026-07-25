@@ -103,6 +103,21 @@ def _merge_dicts(left: dict[str, Any] | None, right: dict[str, Any] | None) -> d
     return merged
 
 
+def _research_progress_metric(state: ResearchState) -> float:
+    evidence = {item.id: item for item in state.evidence_store}.values()
+    components = {
+        "unique_evidence": len({item.id for item in evidence}),
+        "independent_domains": len({urlsplit(item.source_url).netloc for item in evidence}),
+        "primary_sources": len({item.source_url for item in evidence if item.source_tier == "primary"}),
+        "unresolved_issues": len(state.critic_report.issues) if state.critic_report else 0,
+    }
+    state.metadata["research_progress_components"] = components
+    return float(
+        components["unique_evidence"] + components["independent_domains"]
+        + components["primary_sources"] - components["unresolved_issues"]
+    )
+
+
 class ResearchGraphState(TypedDict, total=False):
     research_state: dict[str, Any]
     started_at: float
@@ -116,6 +131,7 @@ class ResearchGraphState(TypedDict, total=False):
     research_structured_evidence: Annotated[dict[str, list[dict[str, Any]]], _merge_dicts]
     research_structured_stats: Annotated[dict[str, dict[str, int]], _merge_dicts]
     research_symbol_resolutions: Annotated[dict[str, list[dict[str, Any]]], _merge_dicts]
+    research_decisions: Annotated[dict[str, list[dict[str, Any]]], _merge_dicts]
     research_budget_usage: Annotated[dict[str, int], _merge_dicts]
     research_branch_coverage: Annotated[dict[str, dict[str, Any]], _merge_dicts]
     retry_sources: Annotated[dict[str, list[dict[str, Any]]], _merge_dicts]
@@ -277,9 +293,7 @@ class DeepResearchEngine:
                 no_progress_window=(
                     self.settings.research_loop_no_progress_window
                 ),
-                progress_metric=lambda state: float(
-                    state.metadata.get("research_loop_score", 0.0)
-                ),
+                progress_metric=_research_progress_metric,
                 on_exhausted=self._on_research_loop_exhausted,
                 budget_unit="calls",
             ),
@@ -696,6 +710,7 @@ class DeepResearchEngine:
                         "research_structured_evidence",
                         "research_structured_stats",
                         "research_symbol_resolutions",
+                        "research_decisions",
                     }
                 ),
                 invariants=(identity,),
@@ -710,6 +725,7 @@ class DeepResearchEngine:
                     "research_structured_evidence": optional_dict,
                     "research_structured_stats": optional_dict,
                     "research_symbol_resolutions": optional_dict,
+                    "research_decisions": optional_dict,
                 },
                 produces=frozenset(
                     {
@@ -717,9 +733,15 @@ class DeepResearchEngine:
                         "research_state.search_records",
                         "research_state.evidence_store",
                         "research_state.current_phase",
+                        *(
+                            {"research_state.agent_decisions"}
+                            if self.settings.dynamic_capability_enabled
+                            else set()
+                        ),
                     }
                 ),
                 invariants=(identity,),
+                decision_node=self.settings.dynamic_capability_enabled,
             ),
             "extractor": NodeContract(
                 name="extractor",
@@ -1192,6 +1214,7 @@ class DeepResearchEngine:
                 records,
                 search_calls,
                 branch_exhausted,
+                source_decisions,
             ) = self.researcher.research_with_budget(
                 sub_question,
                 max_search_calls=allocation,
@@ -1203,13 +1226,19 @@ class DeepResearchEngine:
                     self.settings.dynamic_capability_enabled
                     and "web_fetch" in selected_capabilities
                 ),
+                source_decision_enabled=self.settings.dynamic_capability_enabled,
             )
-        elif priority_urls or "web_fetch" in selected_capabilities:
+        elif (
+            priority_urls
+            or "web_fetch" in selected_capabilities
+            or self.settings.dynamic_capability_enabled
+        ):
             (
                 sources,
                 records,
                 search_calls,
                 branch_exhausted,
+                source_decisions,
             ) = self.researcher.research_with_budget(
                 sub_question,
                 max_search_calls=None,
@@ -1221,17 +1250,20 @@ class DeepResearchEngine:
                     self.settings.dynamic_capability_enabled
                     and "web_fetch" in selected_capabilities
                 ),
+                source_decision_enabled=self.settings.dynamic_capability_enabled,
             )
         else:
             if "web_search" in selected_capabilities:
                 sources, records = self.researcher.research(sub_question)
                 search_calls = len(records)
                 branch_exhausted = False
+                source_decisions = []
             else:
                 sources = []
                 records = []
                 search_calls = 0
                 branch_exhausted = False
+                source_decisions = []
         structured_evidence = (
             self.researcher.structured_evidence(
                 state.research_id,
@@ -1273,6 +1305,12 @@ class DeepResearchEngine:
             "research_symbol_resolutions": {
                 sub_question.id: symbol_resolutions
             },
+            "research_decisions": {
+                sub_question.id: [
+                    item.model_dump(mode="json")
+                    for item in source_decisions
+                ]
+            },
         }
         if self._branch_budget_enabled():
             output["research_budget_usage"] = {
@@ -1297,9 +1335,14 @@ class DeepResearchEngine:
         structured_batches = graph_state.get("research_structured_evidence", {})
         structured_stats_batches = graph_state.get("research_structured_stats", {})
         symbol_resolution_batches = graph_state.get("research_symbol_resolutions", {})
+        decision_batches = graph_state.get("research_decisions", {})
         budget_usage = graph_state.get("research_budget_usage", {})
         branch_coverage = graph_state.get("research_branch_coverage", {})
         evidence_by_id = {item.id: item for item in state.evidence_store}
+
+        for sub_question in state.plan.sub_questions:
+            for item in decision_batches.get(sub_question.id, []):
+                record_agent_decision(state, AgentDecision.model_validate(item))
 
         for sub_question in state.plan.sub_questions:
             sources = [

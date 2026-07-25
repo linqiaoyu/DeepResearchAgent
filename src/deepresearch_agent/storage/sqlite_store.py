@@ -47,6 +47,8 @@ class SQLiteStore:
                     structured_record_json TEXT,
                     numeric_fields_json TEXT,
                     numeric_fields_incomplete INTEGER NOT NULL DEFAULT 0,
+                    source_tier TEXT NOT NULL DEFAULT 'unknown',
+                    content_truncated INTEGER NOT NULL DEFAULT 0,
                     confidence REAL NOT NULL
                 );
 
@@ -61,6 +63,8 @@ class SQLiteStore:
             self._ensure_column(conn, "evidence", "structured_record_json", "TEXT")
             self._ensure_column(conn, "evidence", "numeric_fields_json", "TEXT")
             self._ensure_column(conn, "evidence", "numeric_fields_incomplete", "INTEGER NOT NULL DEFAULT 0")
+            self._ensure_column(conn, "evidence", "source_tier", "TEXT NOT NULL DEFAULT 'unknown'")
+            self._ensure_column(conn, "evidence", "content_truncated", "INTEGER NOT NULL DEFAULT 0")
 
     def _ensure_column(self, conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:
         columns = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
@@ -74,9 +78,10 @@ class SQLiteStore:
                 INSERT OR REPLACE INTO evidence (
                     id, research_id, sub_question_id, claim, claim_type, source_kind, source_url,
                     source_title, source_pub_date, extract_text, structured_record_json,
-                    numeric_fields_json, numeric_fields_incomplete, confidence
+                    numeric_fields_json, numeric_fields_incomplete, source_tier,
+                    content_truncated, confidence
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -93,6 +98,8 @@ class SQLiteStore:
                         item.structured_record.model_dump_json() if item.structured_record else None,
                         item.numeric_fields.model_dump_json() if item.numeric_fields else None,
                         int(item.numeric_fields_incomplete),
+                        item.source_tier,
+                        int(item.content_truncated),
                         item.confidence,
                     )
                     for item in items
@@ -120,6 +127,8 @@ class SQLiteStore:
                 structured_record=self._structured_record(row["structured_record_json"]),
                 numeric_fields=self._numeric_fields(row["numeric_fields_json"]),
                 numeric_fields_incomplete=bool(row["numeric_fields_incomplete"]),
+                source_tier=row["source_tier"],
+                content_truncated=bool(row["content_truncated"]),
                 confidence=row["confidence"],
             )
             for row in rows

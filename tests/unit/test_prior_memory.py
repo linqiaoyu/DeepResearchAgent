@@ -219,7 +219,7 @@ class PriorMemoryTest(unittest.TestCase):
             search_queries=["independent revenue search"],
         )
 
-        _, records, calls, _ = researcher.research_with_budget(
+        _, records, calls, _, _decisions = researcher.research_with_budget(
             sub_question,
             max_search_calls=2,
             priority_urls=["https://prior.example/revenue"],
