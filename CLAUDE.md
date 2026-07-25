@@ -6,7 +6,9 @@
 ## 环境
 
 - 解释器：`.venv/bin/python`（Python 3.12.10）。不要用系统 `python`。
-- 每条命令都要带 `PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1`。
+- `pip install -e ".[dev]"` 成功后，`PYTHONPATH=src` 不再是导入本包的必要条件；为兼容现有 CI、脚本和文档，保留该写法。每条命令仍应带 `PYTHONDONTWRITEBYTECODE=1`。
+- 环境自检：`.venv/bin/python -c "import deepresearch_agent, sys; print(sys.executable); print(deepresearch_agent.__file__)"`。若失败，先检查 editable 安装和 `.pth` 文件，而不是把导入错误当作测试断言失败。
+- macOS 陷阱：若自检失败，执行 `ls -lO .venv/lib/python3.12/site-packages/__editable__*.pth`；若显示 `hidden`，Python 会跳过该 `.pth`。清除该本机文件的 hidden 标记后重新运行自检。
 - Ruff 精确版本 `0.15.15`（`.venv` 与 CI 一致）。注意 `pyproject.toml` 写的是
   `ruff>=0.5`，精确版本只钉在 `.github/workflows/ci.yml`，两处不一致是已知状况。
 
