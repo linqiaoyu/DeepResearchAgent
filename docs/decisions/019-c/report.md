@@ -113,7 +113,7 @@ LLM provider 调用：`0`
     ]
   },
   "trajectory_summary": {
-    "run_id": "b47bee69-9d61-4ac8-8478-fe1383dbcd4a",
+    "run_id": "<run-id>",
     "tool_call_count": 9,
     "node_transition_count": 16,
     "decision_types": [
@@ -531,3 +531,59 @@ graph_contract_validation=passed_at_engine_init
  tests/unit/test_tavily_search.py                   |  51 ++-
  23 files changed, 1657 insertions(+), 39 deletions(-)
 ```
+
+## 最终提交后 Git 原始证据
+
+`git status --short`
+
+```text
+（无输出，工作树 clean）
+```
+
+`git log --oneline main..HEAD` 与 `git diff main --stat` 的连续原始输出：
+
+```text
+479d135 docs: record 019-c viability decision
+058e824 feat: add zero-cost primary evidence probe
+364b283 docs: freeze primary evidence closure metric
+084740a fix: close first-party evidence retrieval loop
+0115a99 test: guard research instrument sensitivity
+ docs/decisions/019-a/deliverable_checklist.md      |   2 +-
+ docs/decisions/019-c/acceptance.md                 |  91 ++++
+ docs/decisions/019-c/impact_on_019d.md             |  43 ++
+ docs/decisions/019-c/primary_evidence_closure.md   |  66 ++++
+ .../019-c/primary_evidence_closure_result.md       |  82 ++++
+ docs/decisions/019-c/report.md                     | 533 +++++++++++++++++++++
+ scripts/measure_primary_evidence_closure.py        | 343 ++++++++++++++
+ src/deepresearch_agent/agents/reporter.py          |  56 ++-
+ src/deepresearch_agent/agents/researcher.py        |  12 +
+ .../orchestration/research_loop.py                 |  70 ++-
+ src/deepresearch_agent/settings.py                 |   6 +-
+ .../tools/capability_registry.py                   |   6 +-
+ .../tools/capability_selector.py                   |  26 +-
+ src/deepresearch_agent/tools/tavily_search.py      |  65 +++
+ src/deepresearch_agent/workflow/engine.py          |  37 +-
+ tests/integration/test_expanded_trajectory.py      |   1 +
+ tests/unit/test_dynamic_capability.py              |  45 +-
+ tests/unit/test_numeric_consistency.py             |  32 ++
+ tests/unit/test_replan_query_guard.py              |  55 +++
+ tests/unit/test_report_reader_guard.py             |  28 +-
+ tests/unit/test_research_loop.py                   |  28 ++
+ tests/unit/test_researcher_search_budget.py        |  41 +-
+ tests/unit/test_tavily_search.py                   |  51 +-
+ 23 files changed, 1680 insertions(+), 39 deletions(-)
+```
+
+## 最终提交前闸门原始摘要
+
+```text
+Ran 357 tests in 15.951s
+
+OK
+ruff 0.15.15
+All checks passed!
+frozen_asset_diff=empty
+c9_documents=present
+```
+
+测试命令使用 deterministic fixture 与 ignored SQLite 路径；没有调用 LLM provider。C7 的唯一网络批次为 Tavily 18 次、HTTP fetch 18 次。
