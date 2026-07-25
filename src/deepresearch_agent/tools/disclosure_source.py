@@ -35,12 +35,35 @@ DISCLOSURE_TOOL_SPEC = ToolSpec(
 )
 
 
+def cninfo_exchange_for_security_code(security_code: str) -> tuple[str, str]:
+    """Return CNINFO's ``column`` and ``plate`` for a mainland A-share code.
+
+    Coverage is deliberately limited to Shanghai and Shenzhen A shares.  Beijing
+    Exchange, Hong Kong, funds, bonds, and unrecognised codes are rejected
+    instead of being silently searched with Shenzhen parameters.
+    """
+    if not re.fullmatch(r"\d{6}", security_code):
+        raise ValueError("security code must be a six-digit mainland A-share code")
+    if security_code.startswith(("600", "601", "603", "605", "688", "689")):
+        return "sse", "sh"
+    if security_code.startswith(("000", "001", "002", "003", "300", "301")):
+        return "szse", "sz"
+    raise ValueError(
+        "unsupported exchange for disclosure source: only Shanghai and Shenzhen A shares are covered"
+    )
+
+
 class DisclosureSourceError(ToolExecutionError):
     """Fail-closed error for the undocumented CNINFO endpoint."""
 
 
 class CninfoDisclosureSource:
-    """POST form: code/orgId + keyword + date range; then fetch announcement PDFs."""
+    """Fetch Shanghai/Shenzhen A-share CNINFO announcement PDFs by code and date.
+
+    The adapter does not cover Beijing Exchange, Hong Kong listings, funds,
+    bonds, or non-six-digit identifiers.  Unsupported codes fail closed before
+    a network request rather than being queried as Shenzhen securities.
+    """
 
     def __init__(
         self,
@@ -92,6 +115,7 @@ class CninfoDisclosureSource:
 
     def _request(self, inputs: Mapping[str, str]) -> list[Source]:
         try:
+            column, plate = cninfo_exchange_for_security_code(inputs["security_code"])
             self._consume_egress("fetch")
             stock = self.client.get(
                 CNINFO_STOCK_ENDPOINT, timeout=30.0, follow_redirects=True
@@ -109,8 +133,8 @@ class CninfoDisclosureSource:
             self._consume_egress("search")
             response = self.client.post(CNINFO_QUERY_ENDPOINT, data={
                 "pageNum": "1", "pageSize": str(self.max_results), "tabName": "fulltext",
-                "column": "szse", "stock": f"{inputs['security_code']},{org_id}",
-                "searchkey": inputs["keyword"], "plate": "sz", "category": "",
+                "column": column, "stock": f"{inputs['security_code']},{org_id}",
+                "searchkey": inputs["keyword"], "plate": plate, "category": "",
                 "seDate": f"{inputs['start_date']}~{inputs['end_date']}", "isHLtitle": "true",
             }, timeout=30.0)
             response.raise_for_status()

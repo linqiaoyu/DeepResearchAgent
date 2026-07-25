@@ -20,6 +20,7 @@ from deepresearch_agent.tools.disclosure_source import (
     CNINFO_QUERY_ENDPOINT,
     CNINFO_STOCK_ENDPOINT,
     DISCLOSURE_TOOL_SPEC,
+    cninfo_exchange_for_security_code,
 )
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -38,14 +39,15 @@ class Response:
 
 
 class Client:
-    def __init__(self, *, malformed: bool = False) -> None:
+    def __init__(self, *, malformed: bool = False, security_code: str = "300750") -> None:
         self.malformed = malformed
+        self.security_code = security_code
         self.calls: list[tuple[str, str, dict[str, Any]]] = []
 
     def get(self, url: str, **kwargs: Any) -> Response:
         self.calls.append(("GET", url, kwargs))
         if url == CNINFO_STOCK_ENDPOINT:
-            return Response({"stockList": [{"code": "300750", "orgId": "GD165627"}]})
+            return Response({"stockList": [{"code": self.security_code, "orgId": "GD165627"}]})
         return Response(content=PDF)
 
     def post(self, url: str, **kwargs: Any) -> Response:
@@ -56,7 +58,7 @@ class Client:
             {
                 "announcements": [
                     {
-                        "secCode": "300750",
+                        "secCode": self.security_code,
                         "announcementTitle": "关于投资建设<em>匈牙利</em>项目的公告",
                         "announcementTime": 1660320000000,
                         "adjunctUrl": "finalpage/2022-08-13/1214282839.PDF",
@@ -87,6 +89,21 @@ class DisclosureSourceTests(unittest.TestCase):
             CninfoDisclosureSource(client=Client(malformed=True)).search(
                 "300750", "匈牙利", date(2022, 1, 1), date(2026, 7, 25)
             )
+
+    def test_security_code_maps_to_cninfo_exchange_without_defaulting_to_shenzhen(self) -> None:
+        self.assertEqual(cninfo_exchange_for_security_code("600519"), ("sse", "sh"))
+        self.assertEqual(cninfo_exchange_for_security_code("300750"), ("szse", "sz"))
+        with self.assertRaisesRegex(ValueError, "only Shanghai and Shenzhen"):
+            cninfo_exchange_for_security_code("430047")
+
+    def test_shanghai_code_posts_shanghai_cninfo_parameters(self) -> None:
+        client = Client(security_code="600519")
+        CninfoDisclosureSource(client=client, max_results=1).search(
+            "600519", "年度报告", date(2024, 1, 1), date(2026, 7, 25)
+        )
+        query = next(call for call in client.calls if call[1] == CNINFO_QUERY_ENDPOINT)
+        self.assertEqual(query[2]["data"]["column"], "sse")
+        self.assertEqual(query[2]["data"]["plate"], "sh")
 
     def test_financial_entity_prioritizes_registered_disclosure_capability(self) -> None:
         registry = build_capability_registry(
