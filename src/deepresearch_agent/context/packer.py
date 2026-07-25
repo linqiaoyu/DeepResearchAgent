@@ -132,7 +132,9 @@ def _score(
 ) -> float:
     credibility = max(item.confidence, 1e-6)
     relevance = max(_relevance(topic, f"{item.claim} {item.extract_text}"), 1e-6)
-    age_days = max(0, (as_of - item.source_pub_date).days)
+    # An absent date is visible to readers but neutral for ranking: assigning it
+    # an epoch would fabricate an irreparable freshness penalty.
+    age_days = max(0, (as_of - item.source_pub_date).days) if item.source_pub_date else 0
     freshness = max(1 / (1 + age_days / 365), 1e-6)
     return (
         credibility**weights.credibility

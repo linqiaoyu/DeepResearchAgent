@@ -31,7 +31,13 @@ COUNTERARGUMENT_TERMS = {
     "风险",
     "反方",
 }
-MAX_REPLAN_QUERY_CHARS = 180
+# The 019-B hand-written probe set has a 15--42 Chinese-character range.  Forty
+# eight leaves room for an issuer name, ticker, metric, period and document type
+# while making a pasted sub-question visibly impossible.
+MAX_REPLAN_QUERY_CHARS = 48
+MAX_REPLAN_QUERY_CHINESE_CHARS = 48
+MAX_TITLE_COMMON_SUBSTRING_CHARS = 12
+DOCUMENT_TYPE_TOKENS = ("年度报告", "季度报告", "公告", "年报", "季报", "统计", "发布", "报告")
 _INTERNAL_QUERY_TERMS = re.compile(
     r"resolve\s+|unverified_[a-z_]+|[a-z]+_gap|confidence:|"
     r"Projection claim|critic|issue_id|"
@@ -62,9 +68,7 @@ def build_replan_query(
     """Build entity/facet/document queries without question-style prose."""
 
     sub_question = question if isinstance(question, SubQuestion) else None
-    question_text = (
-        sub_question.question if sub_question else str(question)
-    )
+    question_text = sub_question.question if sub_question else str(question)
     identifiers: list[str] = []
     metrics: list[str] = []
     periods: list[str] = []
@@ -80,22 +84,72 @@ def build_replan_query(
                 identifiers.append(request.symbol)
             metrics.extend(request.metrics)
             periods.extend(request.periods)
-    topic_facets = _QUESTION_STYLE_TERMS.sub(" ", question_text)
-    topic_facets = re.sub(r"[？?，,。：:；;、“”\"'（）()]", " ", topic_facets)
+    if not sub_question:
+        raise ValueError("Structured SubQuestion is required for a replan query")
+    # Non-financial legacy plans have no structured request.  Do not fall back
+    # to their prose title: retain a neutral structured entity placeholder so
+    # the query remains a field assembly and is visibly low-specificity.
+    if not identifiers:
+        identifiers.append("研究主体")
+    # Only the target document-type field is derived from `direction`: no title
+    # words, critic prose, or question text is allowed to enter the query.
+    document_type = _document_type_for_direction(direction)
+    metric_field = list(dict.fromkeys(metrics)) or ["事项"]
+    period_field = list(dict.fromkeys(periods))
     query = " ".join(
         dict.fromkeys(
             [
                 *identifiers,
-                *metrics,
-                *periods,
-                *topic_facets.split(),
-                direction,
+                *metric_field,
+                *period_field,
+                document_type,
             ]
         )
     )
     query = _INTERNAL_QUERY_TERMS.sub(" ", query)
     query = " ".join(query.split())
-    return query[:MAX_REPLAN_QUERY_CHARS].rstrip()
+    query = query[:MAX_REPLAN_QUERY_CHARS].rstrip()
+    _validate_replan_query(query, question_text)
+    return query
+
+
+def longest_common_substring_length(left: str, right: str) -> int:
+    """Return the longest contiguous shared string; intentionally deterministic."""
+    previous = [0] * (len(right) + 1)
+    longest = 0
+    for left_char in left:
+        current = [0]
+        for index, right_char in enumerate(right, start=1):
+            value = previous[index - 1] + 1 if left_char == right_char else 0
+            current.append(value)
+            longest = max(longest, value)
+        previous = current
+    return longest
+
+
+def _validate_replan_query(query: str, title: str) -> None:
+    chinese_count = len(re.findall(r"[\u4e00-\u9fff]", query))
+    if chinese_count > MAX_REPLAN_QUERY_CHINESE_CHARS:
+        raise ValueError("Replan query exceeds Chinese-character limit")
+    if not any(token in query for token in DOCUMENT_TYPE_TOKENS):
+        raise ValueError("Replan query requires a target document type")
+    if longest_common_substring_length(query, title) > MAX_TITLE_COMMON_SUBSTRING_CHARS:
+        raise ValueError("Replan query copies too much sub-question title text")
+
+
+def _document_type_for_direction(direction: str) -> str:
+    explicit = next((token for token in DOCUMENT_TYPE_TOKENS if token in direction), None)
+    if explicit:
+        return explicit
+    if any(token in direction for token in ("统计口径", "数据", "单位")):
+        return "统计"
+    if any(token in direction for token in ("其他", "不同", "独立")):
+        return "发布"
+    if any(token in direction for token in ("风险", "反方", "限制")):
+        return "报告"
+    if any(token in direction for token in ("原始", "证据")):
+        return "年报"
+    return "公告"
 
 
 class SufficiencyThresholds(StrictModel):
@@ -152,9 +206,10 @@ def evaluate_research_sufficiency(
             if evidence_count
             else 0.0
         )
+        dated_evidence = [item for item in evidence if item.source_pub_date]
         freshest_age = (
-            min(max(0, (as_of - item.source_pub_date).days) for item in evidence)
-            if evidence
+            min(max(0, (as_of - item.source_pub_date).days) for item in dated_evidence)
+            if dated_evidence
             else None
         )
         missing_counterargument = not _has_counterargument(evidence)
@@ -166,10 +221,9 @@ def evaluate_research_sufficiency(
             gaps.append("independent_source_domains")
         if average_confidence < thresholds.min_average_confidence:
             gaps.append("average_confidence")
-        if (
-            freshest_age is None
-            or freshest_age > thresholds.max_freshness_age_days
-        ):
+        # Unknown is an explicit neutral freshness value: it is visible in
+        # reports but does not create a permanent synthetic freshness gap.
+        if freshest_age is not None and freshest_age > thresholds.max_freshness_age_days:
             gaps.append("freshness")
         if unresolved > thresholds.max_unresolved_critic_issues:
             gaps.append("unresolved_critic_issues")

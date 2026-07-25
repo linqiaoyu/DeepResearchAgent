@@ -47,7 +47,7 @@ class Source(StrictModel):
     title: str
     url: str
     source_type: str
-    published_at: date
+    published_at: date | None = None
     content: str
     credibility: float = Field(default=0.8, ge=0, le=1)
     source_tier: Literal["primary", "secondary", "unknown"] = Field(
@@ -102,7 +102,7 @@ class Evidence(StrictModel):
     source_kind: Literal["text", "structured"] = "text"
     source_url: str
     source_title: str
-    source_pub_date: date
+    source_pub_date: date | None = None
     extract_text: str
     extract_offset_start: int = 0
     confidence: float = Field(default=0.75, ge=0, le=1)
@@ -182,7 +182,7 @@ class ComparisonTable(StrictModel):
 
 
 class TimelineEvent(TraceableRow):
-    occurred_at: date
+    occurred_at: date | None = None
     event: str
     source: str
     thesis_impact: Literal["positive", "negative", "neutral", "uncertain"]

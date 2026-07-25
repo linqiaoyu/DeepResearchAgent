@@ -20,7 +20,13 @@ from deepresearch_agent.tools.contracts import ToolErrorKind
 from deepresearch_agent.tools.reliable_execution import RunToolContext, ToolExecutionError
 
 TAVILY_SEARCH_ENDPOINT = "https://api.tavily.com/search"
-UNKNOWN_PUBLISHED_AT = date(1970, 1, 1)
+# `None` is intentionally propagated and rendered as `unknown`; epoch dates
+# look valid to downstream freshness logic and are therefore forbidden.
+UNKNOWN_PUBLISHED_AT: date | None = None
+_DATE_PATTERNS = (
+    re.compile(r"(?P<year>20\d{2})[/-](?P<month>0?[1-9]|1[0-2])[/-](?P<day>0?[1-9]|[12]\d|3[01])"),
+    re.compile(r"(?P<year>20\d{2})年(?P<month>0?[1-9]|1[0-2])月(?P<day>0?[1-9]|[12]\d|3[01])日"),
+)
 
 
 class TavilySearchError(RuntimeError):
@@ -72,7 +78,7 @@ def decode_pdf_source(
     source_id: str,
     title: str | None = None,
     source_type: str = "web_fetch_pdf",
-    published_at: date = UNKNOWN_PUBLISHED_AT,
+    published_at: date | None = UNKNOWN_PUBLISHED_AT,
     source_tier: str = "unknown",
 ) -> Source:
     """Decode PDF bytes through the single pypdf path used by all tools."""
@@ -268,7 +274,7 @@ class TavilySearchProvider:
                     title=title or url,
                     url=url,
                     source_type="web_fetch",
-                    published_at=UNKNOWN_PUBLISHED_AT,
+                    published_at=self._publication_date_from_html(raw, url),
                     content=content,
                     credibility=0.8,
                 )
@@ -295,12 +301,15 @@ class TavilySearchProvider:
 
     def _pdf_source(self, url: str, content: bytes) -> Source:
         title = urlsplit(url).path.rsplit("/", 1)[-1] or url
-        return decode_pdf_source(
+        source = decode_pdf_source(
             url,
             content,
             max_pages=self.pdf_max_pages,
             char_limit=self.raw_content_char_limit,
             source_id=self._source_id(url, title),
+        )
+        return source.model_copy(
+            update={"published_at": self._publication_date_from_text(source.content, url)}
         )
 
     def _search_error(self, query: str, error: Exception) -> TavilySearchError:
@@ -359,7 +368,7 @@ class TavilySearchProvider:
         content = raw_content or self._text(result.get("content"))
         return content or title
 
-    def _published_at(self, value: Any) -> date:
+    def _published_at(self, value: Any) -> date | None:
         if isinstance(value, datetime):
             return value.date()
         if isinstance(value, date):
@@ -370,6 +379,36 @@ class TavilySearchProvider:
             except ValueError:
                 return UNKNOWN_PUBLISHED_AT
         return UNKNOWN_PUBLISHED_AT
+
+    def _publication_date_from_html(self, raw: str, url: str) -> date | None:
+        for pattern in (
+            r'<meta[^>]+(?:property|name)=["\'](?:article:published_time|datePublished|publishdate|pubdate)["\'][^>]+content=["\']([^"\']+)',
+            r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\'](?:article:published_time|datePublished|publishdate|pubdate)["\']',
+        ):
+            match = re.search(pattern, raw, re.IGNORECASE)
+            if match and (parsed := self._published_at(match.group(1))):
+                return parsed
+        for block in re.findall(r'<script[^>]+type=["\']application/ld\+json["\'][^>]*>(.*?)</script>', raw, re.I | re.S):
+            try:
+                payload = json.loads(html.unescape(block))
+            except json.JSONDecodeError:
+                continue
+            rows = payload if isinstance(payload, list) else [payload]
+            for row in rows:
+                if isinstance(row, Mapping) and (parsed := self._published_at(row.get("datePublished"))):
+                    return parsed
+        return self._publication_date_from_text(raw, url)
+
+    def _publication_date_from_text(self, text: str, url: str) -> date | None:
+        for candidate in (url, text[:12_000]):
+            for pattern in _DATE_PATTERNS:
+                match = pattern.search(candidate)
+                if match:
+                    try:
+                        return date(**{key: int(value) for key, value in match.groupdict().items()})
+                    except ValueError:
+                        continue
+        return None
 
     def _credibility(self, value: Any) -> float:
         try:

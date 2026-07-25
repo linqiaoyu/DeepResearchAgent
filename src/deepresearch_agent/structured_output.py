@@ -5,7 +5,7 @@ import importlib.util
 import io
 import json
 import re
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
@@ -61,7 +61,7 @@ _ENGLISH_METRICS = (
 def build_structured_output(state: ResearchState) -> StructuredResearchOutput:
     aliases = _metric_aliases()
     data_as_of = max(
-        (item.source_pub_date for item in state.evidence_store),
+        (item.source_pub_date for item in state.evidence_store if item.source_pub_date),
         default=None,
     )
     metric_rows = [
@@ -94,7 +94,7 @@ def build_structured_output(state: ResearchState) -> StructuredResearchOutput:
         )
         for item in state.evidence_store
     ]
-    events.sort(key=lambda row: (row.occurred_at, row.event, row.source, row.evidence_ids))
+    events.sort(key=lambda row: (row.occurred_at is None, row.occurred_at or date.max, row.event, row.source, row.evidence_ids))
 
     evidence_by_claim = {item.claim: item.id for item in state.evidence_store}
     risks: list[RiskItem] = []
@@ -225,7 +225,7 @@ def render_structured_markdown(output: StructuredResearchOutput) -> str:
             "| "
             + " | ".join(
                 [
-                    row.occurred_at.isoformat(),
+                    row.occurred_at.isoformat() if row.occurred_at else "unknown",
                     _md(row.event),
                     _md(row.source),
                     row.thesis_impact,
@@ -298,7 +298,7 @@ def _xlsx_bytes(output: StructuredResearchOutput) -> bytes:
     for row in output.event_timeline.events:
         timeline_sheet.append(
             [
-                row.occurred_at.isoformat(),
+                row.occurred_at.isoformat() if row.occurred_at else "unknown",
                 row.event,
                 row.source,
                 row.thesis_impact,

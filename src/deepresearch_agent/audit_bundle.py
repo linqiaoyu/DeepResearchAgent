@@ -195,7 +195,7 @@ def _cover(
     accounting: dict[str, Any],
 ) -> str:
     data_as_of = max(
-        (item.source_pub_date for item in state.evidence_store),
+        (item.source_pub_date for item in state.evidence_store if item.source_pub_date),
         default=None,
     )
     as_of = data_as_of.isoformat() if data_as_of else "未标注"

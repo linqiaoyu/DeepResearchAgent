@@ -649,7 +649,7 @@ class ReflectionDrivenReplanningTest(unittest.TestCase):
 
         self.assertNotEqual(reflected, baseline)
         joined = " ".join(reflected["weak"])
-        self.assertIn("官方来源 补充核验", joined)
+        self.assertIn("公告", joined)
         self.assertNotIn("bad.example", joined)
         self.assertNotIn("THIS MUST NOT ENTER A QUERY", joined)
         decision = reflected_state.agent_decisions[-1]
