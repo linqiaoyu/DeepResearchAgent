@@ -60,6 +60,12 @@ class CninfoDisclosureSource:
         self.max_results = max(1, min(max_results, 30))
         self.pdf_max_pages, self.char_limit = max(1, pdf_max_pages), char_limit
 
+    def set_run_context(self, context: RunToolContext) -> None:
+        self.context = context
+
+    def _consume_egress(self, request_kind: str) -> None:
+        self.context.consume_external_request(request_kind, tool="disclosure_source")
+
     def search(
         self, security_code: str, keyword: str, start_date: date, end_date: date
     ) -> list[Source]:
@@ -86,6 +92,7 @@ class CninfoDisclosureSource:
 
     def _request(self, inputs: Mapping[str, str]) -> list[Source]:
         try:
+            self._consume_egress("fetch")
             stock = self.client.get(
                 CNINFO_STOCK_ENDPOINT, timeout=30.0, follow_redirects=True
             )
@@ -99,6 +106,7 @@ class CninfoDisclosureSource:
                     ToolErrorKind.NOT_FOUND,
                     f"cninfo_security_not_found code={inputs['security_code']}",
                 )
+            self._consume_egress("search")
             response = self.client.post(CNINFO_QUERY_ENDPOINT, data={
                 "pageNum": "1", "pageSize": str(self.max_results), "tabName": "fulltext",
                 "column": "szse", "stock": f"{inputs['security_code']},{org_id}",
@@ -135,6 +143,7 @@ class CninfoDisclosureSource:
                     ToolErrorKind.PERMANENT, "cninfo_contract_changed: security filter mismatch"
                 )
             url = CNINFO_PDF_ROOT + str(item["adjunctUrl"]).lstrip("/")
+            self._consume_egress("fetch")
             pdf = self.client.get(url, timeout=30.0, follow_redirects=True)
             pdf.raise_for_status()
             title = re.sub(r"<[^>]+>", "", html.unescape(str(item.get("announcementTitle", ""))))
