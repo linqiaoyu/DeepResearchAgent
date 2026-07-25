@@ -197,7 +197,7 @@ def build_research_snapshot(
                 display_key=DisplayClaimKey(
                     entity="论点",
                     metric=item.claim,
-                    period=item.source_pub_date.isoformat(),
+                    period=item.source_pub_date.isoformat() if item.source_pub_date else "unknown",
                     scope="定性",
                 ),
                 text=item.claim,

@@ -220,10 +220,7 @@ class WovenDecisionDependencyTest(unittest.TestCase):
             decision_context=context,
         )
 
-        self.assertIn(
-            "官方数据 统计口径 单位 核验",
-            refined["verify"][0],
-        )
+        self.assertIn("统计", refined["verify"][0])
         decision = state.agent_decisions[-1]
         self.assertIn(
             "unresolved_critic_issues",

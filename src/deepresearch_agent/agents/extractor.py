@@ -97,7 +97,7 @@ class ExtractorAgent:
                                     "title": source.title,
                                     "url": source.url,
                                     "source_type": source.source_type,
-                                    "published_at": source.published_at.isoformat(),
+                                    "published_at": source.published_at.isoformat() if source.published_at else "unknown",
                                     "content": (
                                         wrap_untrusted(source.content, source_url=source.url)
                                         if self.injection_guard_enabled

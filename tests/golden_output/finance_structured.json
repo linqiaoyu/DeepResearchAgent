@@ -19,12 +19,12 @@
     "cost_usd": 0.017,
     "created_at": "<normalized-timestamp>",
     "critic_catch_rate": 1.0,
-    "faithfulness": 0.882,
+    "faithfulness": 0.913,
     "faithfulness_reason": null,
     "latency_seconds": 0,
     "price_source": null,
     "task_success_rate": 1.0,
-    "token_used": 7263,
+    "token_used": 7456,
     "uncited_claim_rate": 0.0
   },
   "evidence": [
@@ -344,7 +344,7 @@
       "sub_question_id": "players"
     }
   ],
-  "final_report": "# 宁德时代 2024 年业绩与欧洲工厂扩张研究\n\n数据截至：2026-04-21\n\n免责声明：本报告为研究性输出，不构成投资建议。\n\n## 摘要\n本报告围绕“宁德时代 2024 年业绩与欧洲工厂扩张研究”拆解为 3 个子问题，累计抽取 21 条证据。当前 Critic 质量分为 1.00，首要结论可追溯到来源 [^1]。\n\n## 关键发现\n- 宁德时代 2024 年累计营业收入为 3620.13 亿元。宁德时代 2024 年累计归母净利润为 507.45 亿元。宁德时代 2024 年累计净利润为 520.00 亿元。宁德时代 2024 年单季归母净利润为 105.10 亿元。 [^1]\n- 宁德时代 2024 年累计归母净利润为 410.00 亿元。该数字与公司摘要存在差异，需要回到官方结构化数据源核查。宁德时代 2024 年累计扣非净利润为 450.00 亿元。 [^2]\n- Advisor productivity improved 18% in pilots that used AI agents for research summaries and client meeting preparation. [^3]\n- Assets under management growth remained 7% in the surveyed digital wealth cohort. [^4]\n- The report recommends traceable citations for every investment-related recommendation. [^5]\n- Wealth managers report fragmented client data, slow product comparison, and weak personalization as the top pain points. [^6]\n\n## 详细分析\n### What concrete pain points make 宁德时代 2024 年业绩与欧洲工厂扩张研究 valuable?\n- 宁德时代 2024 年累计归母净利润为 410.00 亿元。该数字与公司摘要存在差异，需要回到官方结构化数据源核查。宁德时代 2024 年累计扣非净利润为 450.00 亿元。 [^2]\n- Advisor productivity improved 18% in pilots that used AI agents for research summaries and client meeting preparation. [^3]\n- Assets under management growth remained 7% in the surveyed digital wealth cohort. [^4]\n### What is the current adoption state and production maturity of 宁德时代 2024 年业绩与欧洲工厂扩张研究?\n- 宁德时代 2024 年累计营业收入为 3620.13 亿元。宁德时代 2024 年累计归母净利润为 507.45 亿元。宁德时代 2024 年累计净利润为 520.00 亿元。宁德时代 2024 年单季归母净利润为 105.10 亿元。 [^1]\n- 宁德时代 2024 年累计归母净利润为 410.00 亿元。该数字与公司摘要存在差异，需要回到官方结构化数据源核查。宁德时代 2024 年累计扣非净利润为 450.00 亿元。 [^2]\n- Advisor productivity improved 18% in pilots that used AI agents for research summaries and client meeting preparation. [^3]\n### Which major players and implementation paths define 宁德时代 2024 年业绩与欧洲工厂扩张研究?\n- 宁德时代 2024 年累计营业收入为 3620.13 亿元。宁德时代 2024 年累计归母净利润为 507.45 亿元。宁德时代 2024 年累计净利润为 520.00 亿元。宁德时代 2024 年单季归母净利润为 105.10 亿元。 [^1]\n- Consumer fintech products are experimenting with AI guidance for budgeting, portfolio explanation, and financial education. [^10]\n- Product teams expect adoption to grow when citations, opt-outs, and audit logs become visible to users. [^11]\n\n## 风险与限制\n- Critic 未发现高优先级事实、引用或反方观点问题。\n\n## 未验证假设\n- 本轮报告未单独引入低置信度预测性结论。\n\n## 参考来源\n[^1]: 宁德时代 2024 年业绩摘要. https://example.com/finance/catl-annual-summary-2024 (2026-04-20)\n[^2]: 宁德时代 2024 年利润口径快评. https://example.com/finance/catl-profit-conflict-note-2024 (2026-04-21)\n[^3]: Wealth Management AI Pain Points 2026. https://example.com/reports/wealth-ai-pain-2026 (2026-04-10)\n[^4]: Wealth Management AI Pain Points 2026. https://example.com/reports/wealth-ai-pain-2026 (2026-04-10)\n[^5]: Wealth Management AI Pain Points 2026. https://example.com/reports/wealth-ai-pain-2026 (2026-04-10)\n[^6]: Wealth Management AI Pain Points 2026. https://example.com/reports/wealth-ai-pain-2026 (2026-04-10)\n[^7]: Digital Finance AI Implementation Guideline. https://example.gov/digital-finance-ai-guideline (2025-12-15)\n[^8]: Digital Finance AI Implementation Guideline. https://example.gov/digital-finance-ai-guideline (2025-12-15)\n[^9]: Digital Finance AI Implementation Guideline. https://example.gov/digital-finance-ai-guideline (2025-12-15)\n[^10]: Revolut AI Advisor Product Update. https://example.com/news/revolut-ai-advisor-update (2026-01-20)\n[^11]: Revolut AI Advisor Product Update. https://example.com/news/revolut-ai-advisor-update (2026-01-20)\n[^12]: Revolut AI Advisor Product Update. https://example.com/news/revolut-ai-advisor-update (2026-01-20)",
+  "final_report": "# 宁德时代 2024 年业绩与欧洲工厂扩张研究\n\n数据截至：2026-04-21\n\n免责声明：本报告为研究性输出，不构成投资建议。\n\n## 摘要\n本报告围绕“宁德时代 2024 年业绩与欧洲工厂扩张研究”拆解为 3 个子问题，累计抽取 21 条证据。当前 Critic 质量分为 1.00，首要结论可追溯到来源 [^1]。\n\n## 关键发现\n- 宁德时代 2024 年累计营业收入为 3620.13 亿元。宁德时代 2024 年累计归母净利润为 507.45 亿元。宁德时代 2024 年累计净利润为 520.00 亿元。宁德时代 2024 年单季归母净利润为 105.10 亿元。 [^1]\n- 宁德时代 2024 年累计归母净利润为 410.00 亿元。该数字与公司摘要存在差异，需要回到官方结构化数据源核查。宁德时代 2024 年累计扣非净利润为 450.00 亿元。 [^2]\n- Advisor productivity improved 18% in pilots that used AI agents for research summaries and client meeting preparation. [^3]\n- Assets under management growth remained 7% in the surveyed digital wealth cohort. [^4]\n- The report recommends traceable citations for every investment-related recommendation. [^5]\n- Wealth managers report fragmented client data, slow product comparison, and weak personalization as the top pain points. [^6]\n\n## 详细分析\n### What concrete pain points make 宁德时代 2024 年业绩与欧洲工厂扩张研究 valuable?\n- 宁德时代 2024 年累计归母净利润为 410.00 亿元。该数字与公司摘要存在差异，需要回到官方结构化数据源核查。宁德时代 2024 年累计扣非净利润为 450.00 亿元。 [^2]\n- Advisor productivity improved 18% in pilots that used AI agents for research summaries and client meeting preparation. [^3]\n- Assets under management growth remained 7% in the surveyed digital wealth cohort. [^4]\n### What is the current adoption state and production maturity of 宁德时代 2024 年业绩与欧洲工厂扩张研究?\n本节没有可追溯到关键发现的新增分析项。\n### Which major players and implementation paths define 宁德时代 2024 年业绩与欧洲工厂扩张研究?\n- 宁德时代 2024 年累计营业收入为 3620.13 亿元。宁德时代 2024 年累计归母净利润为 507.45 亿元。宁德时代 2024 年累计净利润为 520.00 亿元。宁德时代 2024 年单季归母净利润为 105.10 亿元。 [^1]\n\n## 补充事实\n- The report recommends traceable citations for every investment-related recommendation. [^5]\n- Wealth managers report fragmented client data, slow product comparison, and weak personalization as the top pain points. [^6]\n- AI systems in wealth management must keep auditable evidence, human review paths, and clear risk warnings. [^7]\n- Financial institutions should build centralized AI governance for model demand, testing, deployment, evaluation, and exit. [^8]\n- Regulatory constraints mean an AI agent cannot provide unqualified investment advice without suitability checks and compliance review. [^9]\n- Consumer fintech products are experimenting with AI guidance for budgeting, portfolio explanation, and financial education. [^10]\n- Product teams expect adoption to grow when citations, opt-outs, and audit logs become visible to users. [^11]\n- The stronger use cases are education and explanation rather than direct trade recommendations. [^12]\n- AI systems in wealth management must keep auditable evidence, human review paths, and clear risk warnings. [^7]\n- Financial institutions should build centralized AI governance for model demand, testing, deployment, evaluation, and exit. [^8]\n- Regulatory constraints mean an AI agent cannot provide unqualified investment advice without suitability checks and compliance review. [^9]\n\n## 风险与限制\n- Critic 未执行；本轮不提供质量判断。\n\n## 未验证假设\n- 本轮报告未单独引入低置信度预测性结论。\n\n## 参考来源\n[^1]: 宁德时代 2024 年业绩摘要. https://example.com/finance/catl-annual-summary-2024 (2026-04-20)\n[^2]: 宁德时代 2024 年利润口径快评. https://example.com/finance/catl-profit-conflict-note-2024 (2026-04-21)\n[^3]: Wealth Management AI Pain Points 2026. https://example.com/reports/wealth-ai-pain-2026 (2026-04-10)\n[^4]: Wealth Management AI Pain Points 2026. https://example.com/reports/wealth-ai-pain-2026 (2026-04-10)\n[^5]: Wealth Management AI Pain Points 2026. https://example.com/reports/wealth-ai-pain-2026 (2026-04-10)\n[^6]: Wealth Management AI Pain Points 2026. https://example.com/reports/wealth-ai-pain-2026 (2026-04-10)\n[^7]: Digital Finance AI Implementation Guideline. https://example.gov/digital-finance-ai-guideline (2025-12-15)\n[^8]: Digital Finance AI Implementation Guideline. https://example.gov/digital-finance-ai-guideline (2025-12-15)\n[^9]: Digital Finance AI Implementation Guideline. https://example.gov/digital-finance-ai-guideline (2025-12-15)\n[^10]: Revolut AI Advisor Product Update. https://example.com/news/revolut-ai-advisor-update (2026-01-20)\n[^11]: Revolut AI Advisor Product Update. https://example.com/news/revolut-ai-advisor-update (2026-01-20)\n[^12]: Revolut AI Advisor Product Update. https://example.com/news/revolut-ai-advisor-update (2026-01-20)",
   "node_summaries": [
     {
       "input": {
@@ -742,43 +742,85 @@
     },
     {
       "evidence_ids": [
-        "evidence-002"
+        "evidence-005"
       ],
-      "section": "详细分析",
-      "text": "宁德时代 2024 年累计归母净利润为 410.00 亿元。该数字与公司摘要存在差异，需要回到官方结构化数据源核查。宁德时代 2024 年累计扣非净利润为 450.00 亿元。"
+      "section": "补充事实",
+      "text": "The report recommends traceable citations for every investment-related recommendation."
     },
     {
       "evidence_ids": [
-        "evidence-003"
+        "evidence-006"
       ],
-      "section": "详细分析",
-      "text": "Advisor productivity improved 18% in pilots that used AI agents for research summaries and client meeting preparation."
+      "section": "补充事实",
+      "text": "Wealth managers report fragmented client data, slow product comparison, and weak personalization as the top pain points."
     },
     {
       "evidence_ids": [
-        "evidence-001"
+        "evidence-012"
       ],
-      "section": "详细分析",
-      "text": "宁德时代 2024 年累计营业收入为 3620.13 亿元。宁德时代 2024 年累计归母净利润为 507.45 亿元。宁德时代 2024 年累计净利润为 520.00 亿元。宁德时代 2024 年单季归母净利润为 105.10 亿元。"
+      "section": "补充事实",
+      "text": "AI systems in wealth management must keep auditable evidence, human review paths, and clear risk warnings."
+    },
+    {
+      "evidence_ids": [
+        "evidence-013"
+      ],
+      "section": "补充事实",
+      "text": "Financial institutions should build centralized AI governance for model demand, testing, deployment, evaluation, and exit."
+    },
+    {
+      "evidence_ids": [
+        "evidence-014"
+      ],
+      "section": "补充事实",
+      "text": "Regulatory constraints mean an AI agent cannot provide unqualified investment advice without suitability checks and compliance review."
     },
     {
       "evidence_ids": [
         "evidence-016"
       ],
-      "section": "详细分析",
+      "section": "补充事实",
       "text": "Consumer fintech products are experimenting with AI guidance for budgeting, portfolio explanation, and financial education."
     },
     {
       "evidence_ids": [
         "evidence-017"
       ],
-      "section": "详细分析",
+      "section": "补充事实",
       "text": "Product teams expect adoption to grow when citations, opt-outs, and audit logs become visible to users."
+    },
+    {
+      "evidence_ids": [
+        "evidence-018"
+      ],
+      "section": "补充事实",
+      "text": "The stronger use cases are education and explanation rather than direct trade recommendations."
+    },
+    {
+      "evidence_ids": [
+        "evidence-012"
+      ],
+      "section": "补充事实",
+      "text": "AI systems in wealth management must keep auditable evidence, human review paths, and clear risk warnings."
+    },
+    {
+      "evidence_ids": [
+        "evidence-013"
+      ],
+      "section": "补充事实",
+      "text": "Financial institutions should build centralized AI governance for model demand, testing, deployment, evaluation, and exit."
+    },
+    {
+      "evidence_ids": [
+        "evidence-014"
+      ],
+      "section": "补充事实",
+      "text": "Regulatory constraints mean an AI agent cannot provide unqualified investment advice without suitability checks and compliance review."
     },
     {
       "evidence_ids": [],
       "section": "风险与限制",
-      "text": "Critic 未发现高优先级事实、引用或反方观点问题。"
+      "text": "Critic 未执行；本轮不提供质量判断。"
     },
     {
       "evidence_ids": [],
@@ -849,7 +891,7 @@
       "retrieval_corpus_as_of": "2026-07-09",
       "run_id": "<normalized-id>",
       "started_at": "<normalized-timestamp>",
-      "token_total": 7263,
+      "token_total": 7456,
       "tool_error_summary": {}
     },
     "manifest_enabled": true,

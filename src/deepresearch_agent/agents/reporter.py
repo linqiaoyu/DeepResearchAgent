@@ -90,10 +90,17 @@ class ReporterAgent:
         for item in evidence[:6]:
             lines.append(f"- {self._evidence_claim_text(item)} [^{ref_map[item.id]}]")
 
+        key_evidence_ids = {item.id for item in evidence[:6]}
+        key_fact_keys = {
+            key
+            for item in evidence[:6]
+            for key in metric_fact_keys(evidence).get(item.id, set())
+        }
         by_subq: dict[str, list[Evidence]] = defaultdict(list)
         for item in evidence:
             by_subq[item.sub_question_id].append(item)
 
+        supplemental: list[Evidence] = []
         lines.extend(["", "## 详细分析"])
         for sub_question in state.plan.sub_questions:
             lines.append(f"### {sub_question.question}")
@@ -101,7 +108,22 @@ class ReporterAgent:
             if not items:
                 lines.append("当前没有足够证据，需要二次检索补齐。")
                 continue
-            for item in items[:3]:
+            rendered = 0
+            for item in items:
+                fact_keys = metric_fact_keys(evidence).get(item.id, set())
+                if item.id in key_evidence_ids:
+                    continue
+                if item.id not in key_evidence_ids and not (fact_keys & key_fact_keys):
+                    supplemental.append(item)
+                    continue
+                lines.append(f"- {self._evidence_claim_text(item)} [^{ref_map[item.id]}]")
+                rendered += 1
+            if not rendered:
+                lines.append("本节没有可追溯到关键发现的新增分析项。")
+
+        if supplemental:
+            lines.extend(["", "## 补充事实"])
+            for item in supplemental:
                 lines.append(f"- {self._evidence_claim_text(item)} [^{ref_map[item.id]}]")
 
         lines.extend(["", "## 风险与限制"])
@@ -118,7 +140,7 @@ class ReporterAgent:
                 )
                 lines.append(f"- {issue.issue_type} ({issue.severity}): {issue.message} Affected: {affected}.")
         else:
-            lines.append("- Critic 未发现高优先级事实、引用或反方观点问题。")
+            lines.append("- Critic 未执行；本轮不提供质量判断。")
 
         projections = [item for item in evidence if item.claim_type == "projection"]
         lines.extend(["", "## 未验证假设"])
@@ -142,7 +164,7 @@ class ReporterAgent:
             )
             lines.append(
                 f"[^{ref_map[item.id]}]: {item.source_title}. {item.source_url} "
-                f"({item.source_pub_date.isoformat()}){provenance}"
+                f"({item.source_pub_date.isoformat() if item.source_pub_date else 'unknown'}){provenance}"
             )
         return "\n".join(lines)
 
@@ -170,7 +192,7 @@ class ReporterAgent:
                                     "claim_type": item.claim_type,
                                     "source_url": item.source_url,
                                     "source_title": item.source_title,
-                                    "source_pub_date": item.source_pub_date.isoformat(),
+                                    "source_pub_date": item.source_pub_date.isoformat() if item.source_pub_date else "unknown",
                                     "extract_text": item.extract_text,
                                     "numeric_fields": item.numeric_fields.model_dump(mode="json")
                                     if item.numeric_fields
@@ -490,7 +512,7 @@ class ReporterAgent:
             )
             lines.append(
                 f"[^{ref_map[item.id]}]: {item.source_title}. {item.source_url} "
-                f"({item.source_pub_date.isoformat()}){provenance}"
+                f"({item.source_pub_date.isoformat() if item.source_pub_date else 'unknown'}){provenance}"
             )
         self.last_stats["claim_provenance"] = claim_provenance
         return "\n".join(lines), invalid_references, missing_reference_backfills
@@ -578,15 +600,19 @@ class ReporterAgent:
         if not evidence:
             return "本次研究尚未收集到足够证据。"
         first = evidence[0]
-        quality = state.critic_report.overall_quality if state.critic_report else 0.0
+        quality_text = (
+            f"当前 Critic 质量分为 {state.critic_report.overall_quality:.2f}，"
+            if state.critic_report
+            else "Critic 未执行，未提供质量分，"
+        )
         return (
             f"本报告围绕“{state.topic}”拆解为 {len(state.plan.sub_questions) if state.plan else 0} 个子问题，"
-            f"累计抽取 {len(evidence)} 条证据。当前 Critic 质量分为 {quality:.2f}，"
+            f"累计抽取 {len(evidence)} 条证据。{quality_text}"
             f"首要结论可追溯到来源 [^{ref_map[first.id]}]。"
         )
 
     def _data_as_of(self, evidence: list[Evidence]) -> str:
-        dates = [item.source_pub_date for item in evidence]
+        dates = [item.source_pub_date for item in evidence if item.source_pub_date]
         for item in evidence:
             if item.structured_record:
                 dates.append(item.structured_record.as_of)

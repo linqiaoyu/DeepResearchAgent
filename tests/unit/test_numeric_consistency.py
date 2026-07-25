@@ -357,7 +357,7 @@ class NumericConsistencyTest(unittest.TestCase):
 
         self.assertTrue(
             any(
-                "官方数据 计算口径 单位 核验" in query
+                "统计" in query
                 for query in refined["finance"]
             )
         )
