@@ -10,6 +10,7 @@ from deepresearch_agent.tools.contract_adapter import (
     SEARCH_TOOL_SPEC,
 )
 from deepresearch_agent.tools.contracts import ToolSpec
+from deepresearch_agent.tools.disclosure_source import DISCLOSURE_TOOL_SPEC
 from deepresearch_agent.tools.structured_trace import (
     STRUCTURED_DATA_TOOL_SPEC,
 )
@@ -89,6 +90,7 @@ def build_capability_registry(
     *,
     search_provider: Any,
     structured_data_provider: Any,
+    disclosure_source: Any | None = None,
 ) -> CapabilityRegistry:
     registry = CapabilityRegistry()
     registry.register(
@@ -128,4 +130,15 @@ def build_capability_registry(
         ),
         structured_data_provider,
     )
+    if disclosure_source is not None:
+        registry.register(
+            CapabilityMetadata(
+                name="disclosure_source",
+                applicable_subquestion_types=("financial_metric", "event"),
+                cost_level="free",
+                has_side_effect=False,
+                tool_spec=DISCLOSURE_TOOL_SPEC,
+            ),
+            disclosure_source,
+        )
     return registry

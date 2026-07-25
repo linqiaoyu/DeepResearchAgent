@@ -63,6 +63,44 @@ class SyncHttpClient(Protocol):
         """Fetch a source document by URL."""
 
 
+def decode_pdf_source(
+    url: str,
+    content: bytes,
+    *,
+    max_pages: int,
+    char_limit: int,
+    source_id: str,
+    title: str | None = None,
+    source_type: str = "web_fetch_pdf",
+    published_at: date = UNKNOWN_PUBLISHED_AT,
+    source_tier: str = "unknown",
+) -> Source:
+    """Decode PDF bytes through the single pypdf path used by all tools."""
+    from pypdf import PdfReader
+
+    try:
+        reader = PdfReader(io.BytesIO(content), strict=False)
+        pages = reader.pages[: max(1, max_pages)]
+        text = "\n".join(page.extract_text() or "" for page in pages)
+    except Exception as exc:
+        raise PdfDecodeError(
+            f"pdf_decode_failed url={url} error_type={type(exc).__name__}"
+        ) from exc
+    if not text.strip():
+        raise PdfDecodeError(f"pdf_decode_empty url={url} pages={len(reader.pages)}")
+    return Source(
+        id=source_id,
+        title=title or urlsplit(url).path.rsplit("/", 1)[-1] or url,
+        url=url,
+        source_type=source_type,
+        published_at=published_at,
+        content=text[:char_limit],
+        credibility=1.0 if source_tier == "primary" else 0.8,
+        source_tier=source_tier,
+        content_truncated=len(reader.pages) > max_pages or len(text) > char_limit,
+    )
+
+
 class TavilySearchProvider:
     """Tavily-backed search adapter behind the SearchProvider contract."""
 
@@ -237,30 +275,13 @@ class TavilySearchProvider:
         return content_type == "application/pdf" or urlsplit(url).path.lower().endswith(".pdf")
 
     def _pdf_source(self, url: str, content: bytes) -> Source:
-        from pypdf import PdfReader
-
-        try:
-            reader = PdfReader(io.BytesIO(content), strict=False)
-            page_count = len(reader.pages)
-            selected_pages = reader.pages[: self.pdf_max_pages]
-            text = "\n".join(page.extract_text() or "" for page in selected_pages)
-        except Exception as exc:
-            raise PdfDecodeError(
-                f"pdf_decode_failed url={url} error_type={type(exc).__name__}"
-            ) from exc
-        if not text.strip():
-            raise PdfDecodeError(f"pdf_decode_empty url={url} pages={page_count}")
-        truncated = page_count > self.pdf_max_pages or len(text) > self.raw_content_char_limit
         title = urlsplit(url).path.rsplit("/", 1)[-1] or url
-        return Source(
-            id=self._source_id(url, title),
-            title=title,
-            url=url,
-            source_type="web_fetch_pdf",
-            published_at=UNKNOWN_PUBLISHED_AT,
-            content=text[: self.raw_content_char_limit],
-            credibility=0.8,
-            content_truncated=truncated,
+        return decode_pdf_source(
+            url,
+            content,
+            max_pages=self.pdf_max_pages,
+            char_limit=self.raw_content_char_limit,
+            source_id=self._source_id(url, title),
         )
 
     def _search_error(self, query: str, error: Exception) -> TavilySearchError:

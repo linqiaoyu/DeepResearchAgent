@@ -189,6 +189,7 @@ class DeepResearchEngine:
         structured_data_provider: StructuredDataProvider | None = None,
         episodic_memory: EpisodicMemory | None = None,
         procedural_memory: ProceduralMemory | None = None,
+        disclosure_source: Any | None = None,
     ) -> None:
         self.settings = settings or load_settings()
         if self.settings.config_fail_fast_enabled:
@@ -215,6 +216,7 @@ class DeepResearchEngine:
             build_capability_registry(
                 search_provider=configured_search_tool,
                 structured_data_provider=configured_structured_provider,
+                disclosure_source=disclosure_source,
             )
         )
         self.skill_loader = SkillPackLoader(
@@ -247,6 +249,12 @@ class DeepResearchEngine:
             ),
             max_searches_per_run=self.settings.max_searches_per_run,
             fetch_tool=self.capability_registry.resolve("web_fetch"),
+            disclosure_source=(
+                self.capability_registry.resolve("disclosure_source")
+                if disclosure_source is not None
+                else None
+            ),
+            as_of=self.settings.as_of,
         )
         self.extractor = ExtractorAgent(
             llm_client=self.llm_client,
@@ -1227,6 +1235,9 @@ class DeepResearchEngine:
                     and "web_fetch" in selected_capabilities
                 ),
                 source_decision_enabled=self.settings.dynamic_capability_enabled,
+                enable_disclosure=(
+                    "disclosure_source" in selected_capabilities
+                ),
             )
         elif (
             priority_urls
@@ -1251,6 +1262,9 @@ class DeepResearchEngine:
                     and "web_fetch" in selected_capabilities
                 ),
                 source_decision_enabled=self.settings.dynamic_capability_enabled,
+                enable_disclosure=(
+                    "disclosure_source" in selected_capabilities
+                ),
             )
         else:
             if "web_search" in selected_capabilities:
