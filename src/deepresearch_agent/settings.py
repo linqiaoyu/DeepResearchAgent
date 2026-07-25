@@ -21,6 +21,7 @@ class Settings:
     as_of: date | None = None
     max_searches_per_run: int = 20
     tavily_raw_content_char_limit: int = 40_000
+    pdf_max_pages: int = 100
     demo_daily_llm_limit_cny: float = 5.0
     demo_guard_path: Path = Path("data/runtime/demo_guard.json")
     demo_job_path: Path = Path("data/runtime/demo_jobs.json")
@@ -123,6 +124,7 @@ def load_settings() -> Settings:
         as_of=as_of,
         max_searches_per_run=int(os.getenv("DEEPRESEARCH_MAX_SEARCHES_PER_RUN", "20")),
         tavily_raw_content_char_limit=int(os.getenv("DEEPRESEARCH_TAVILY_RAW_CONTENT_CHAR_LIMIT", "40000")),
+        pdf_max_pages=int(os.getenv("DEEPRESEARCH_PDF_MAX_PAGES", "100")),
         demo_daily_llm_limit_cny=float(os.getenv("DEEPRESEARCH_DEMO_DAILY_LLM_LIMIT_CNY", "5.0")),
         demo_guard_path=demo_guard,
         demo_job_path=demo_jobs,
