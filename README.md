@@ -172,6 +172,7 @@ flowchart LR
 - [方法适用性边界](docs/method_limits.md)
 - [轨迹录制与回放](docs/trajectory_harness.md)
 - [019 轨迹超集建议](docs/trajectory_superset.md)
+- [019 支出预登记与门禁决策记录](docs/decisions/README.md)
 - [威胁模型](docs/threat_model.md)
 - [可靠执行与故障演练](docs/reliability.md)
 - [生产就绪度](docs/production_readiness.md)
