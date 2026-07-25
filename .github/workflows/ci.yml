@@ -16,6 +16,8 @@ jobs:
       DEEPRESEARCH_MODE: deterministic
       DEEPRESEARCH_SEARCH_PROVIDER: fixture
       DEEPRESEARCH_STRUCTURED_DATA_PROVIDER: fixture
+      DEEPRESEARCH_STORAGE_PATH: artifacts/ci_runtime/research.db
+      DEEPRESEARCH_RUNS_ROOT: artifacts/ci_runtime/runs
 
     steps:
       - name: Checkout

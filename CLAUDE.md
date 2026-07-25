@@ -12,29 +12,11 @@
 - Ruff 精确版本 `0.15.15`（`.venv` 与 CI 一致）。注意 `pyproject.toml` 写的是
   `ruff>=0.5`，精确版本只钉在 `.github/workflows/ci.yml`，两处不一致是已知状况。
 
-## 闸门命令（全部本地实测通过，2026-07-25）
+## 闸门命令
 
 ```bash
-# 全量测试 —— 374 tests
-PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 DEEPRESEARCH_SEARCH_PROVIDER=fixture \
-DEEPRESEARCH_STRUCTURED_DATA_PROVIDER=fixture DEEPRESEARCH_MODE=deterministic \
-.venv/bin/python -m unittest discover -s tests
-
-# Ruff —— All checks passed!
-PYTHONPATH=src .venv/bin/python -m ruff check src tests scripts
-
-# prompt 漂移 —— prompt drift guard passed: 5 prompts
-PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/check_prompt_drift.py
-
-# characterization（两个题面逐字快照）—— Ran 2 tests, OK
-PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m unittest tests.unit.test_snapshot_run
-
-# chaos（8 场景端到端故障注入）—— Ran 8 tests, OK
-PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 DEEPRESEARCH_SEARCH_PROVIDER=fixture \
-DEEPRESEARCH_STRUCTURED_DATA_PROVIDER=fixture .venv/bin/python -m unittest discover -s tests/chaos
-
-# 静态站构建 —— built site/dist, files 13, validation ok
-PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/build_site.py
+# 唯一允许的本地 CI 闸门：它内置并校验 ci.yml 的环境，执行所有 CI 步骤。
+.venv/bin/python scripts/gate.py
 ```
 
 ## 目录约定

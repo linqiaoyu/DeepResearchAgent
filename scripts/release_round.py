@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 import argparse
-import os
 import subprocess
 import sys
 from dataclasses import dataclass
 from typing import Mapping, Sequence
 
 
-EXPECTED_RUFF_VERSION = "ruff 0.15.15"
 FROZEN_PATHS = ("data/golden_set", "docs/evaluation.md")
 
 
@@ -80,23 +78,7 @@ def _merge_if_needed(branch: str, message: str) -> None:
 
 
 def _run_gates() -> None:
-    gate_env = os.environ.copy()
-    gate_env["PYTHONPATH"] = "src"
-    gate_env["PYTHONDONTWRITEBYTECODE"] = "1"
-    _run(
-        "unittest",
-        [sys.executable, "-m", "unittest", "discover", "-s", "tests"],
-        env=gate_env,
-    )
-    ruff_version = _run("ruff_version", [sys.executable, "-m", "ruff", "--version"])
-    if ruff_version.stdout.strip() != EXPECTED_RUFF_VERSION:
-        print(
-            f"failed_step=ruff_version expected={EXPECTED_RUFF_VERSION!r} "
-            f"actual={ruff_version.stdout.strip()!r}",
-            file=sys.stderr,
-        )
-        raise ReleaseFailure(step="ruff_version", returncode=1)
-    _run("ruff_check", [sys.executable, "-m", "ruff", "check", "src", "tests", "scripts"])
+    _run("ci_gate", [sys.executable, "scripts/gate.py"])
     frozen = _run(
         "frozen_asset_diff",
         ["git", "diff", "--name-only", "origin/main..HEAD", "--", *FROZEN_PATHS],

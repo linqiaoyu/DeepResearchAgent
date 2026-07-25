@@ -5,6 +5,7 @@ import threading
 import unittest
 from collections.abc import Callable
 from pathlib import Path
+from unittest.mock import patch
 
 from deepresearch_agent.settings import Settings
 from deepresearch_agent.tools import (
@@ -14,6 +15,7 @@ from deepresearch_agent.tools import (
     FixtureSearchTool,
     ReliableToolExecutor,
     RetryBudget,
+    RunToolContext,
     ToolErrorKind,
 )
 from deepresearch_agent.tools.reliable_execution import ToolExecutionError
@@ -63,12 +65,20 @@ class ToolFailureChaosTests(unittest.TestCase):
                 sleep=delays.append,
                 random_source=lambda: 0.5,
             )
-            engine.search_tool.context.retry_budget = RetryBudget(max_retries=retry_budget)
-            engine.search_tool.context.breakers["web_search"] = CircuitBreaker(
-                failure_threshold=breaker_threshold,
+            run_context = RunToolContext(
+                retry_budget=RetryBudget(max_retries=retry_budget),
+                breakers={
+                    "web_search": CircuitBreaker(
+                        failure_threshold=breaker_threshold,
+                    )
+                },
             )
-            state = engine.run(topic="AI Agent 财富管理可靠性研究", depth_level=1)
-            breaker = engine.search_tool.context.breakers["web_search"]
+            with patch(
+                "deepresearch_agent.workflow.engine.RunToolContext.for_run",
+                return_value=run_context,
+            ):
+                state = engine.run(topic="AI Agent 财富管理可靠性研究", depth_level=1)
+            breaker = run_context.breakers["web_search"]
             engine._checkpoint_conn.close()
         self.assertEqual(state.status, "done")
         self.assertTrue(state.metadata.get("degradation_events"))
