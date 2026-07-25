@@ -649,8 +649,8 @@ class ReflectionDrivenReplanningTest(unittest.TestCase):
 
         self.assertNotEqual(reflected, baseline)
         joined = " ".join(reflected["weak"])
-        self.assertIn("persistent cross-round weakness", joined)
-        self.assertIn("bad.example", joined)
+        self.assertIn("官方来源 补充核验", joined)
+        self.assertNotIn("bad.example", joined)
         self.assertNotIn("THIS MUST NOT ENTER A QUERY", joined)
         decision = reflected_state.agent_decisions[-1]
         self.assertIn(
@@ -660,6 +660,12 @@ class ReflectionDrivenReplanningTest(unittest.TestCase):
         self.assertNotIn(
             "llm_insight",
             decision.inputs["decision_context"],
+        )
+        self.assertIn(
+            "bad.example",
+            decision.inputs["decision_context"]["reflection_signals"][
+                "repeatedly_ineffective_sources"
+            ],
         )
 
     def test_enabled_loop_report_explains_reflection_effect(self) -> None:
