@@ -203,7 +203,14 @@ class DynamicCapabilitySelectionTest(unittest.TestCase):
             if item.decision_type == "capability_selection"
         ]
         self.assertEqual(len(decisions), 3)
+        rerank_decisions = [
+            item
+            for item in state.agent_decisions
+            if item.decision_type == "source_rerank"
+        ]
+        self.assertEqual(len(rerank_decisions), 3)
         self.assertIn("capability_selection", state.final_report or "")
+        self.assertIn("source_rerank", state.final_report or "")
 
     def test_switch_off_keeps_fixed_researcher_tools(self) -> None:
         settings = Settings(storage_path=Path("test.db"))

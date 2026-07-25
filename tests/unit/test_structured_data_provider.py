@@ -55,6 +55,8 @@ class StructuredDataProviderTests(unittest.TestCase):
                 claim="宁德时代 2024 年累计归母净利润为 507.45 亿元。",
                 claim_type="data",
                 source_kind="structured",
+                source_tier="primary",
+                content_truncated=True,
                 source_url="akshare://financial_indicators/300750/20241231/归母净利润",
                 source_title="AKShare financial_indicators 300750 20241231 归母净利润",
                 source_pub_date=record.as_of,
@@ -74,6 +76,8 @@ class StructuredDataProviderTests(unittest.TestCase):
             loaded = store.list_evidence("run-1")[0]
 
         self.assertEqual(loaded.source_kind, "structured")
+        self.assertEqual(loaded.source_tier, "primary")
+        self.assertTrue(loaded.content_truncated)
         self.assertIsNotNone(loaded.structured_record)
         self.assertEqual(loaded.structured_record.metric_name, "归母净利润")
         self.assertIsNotNone(loaded.numeric_fields)

@@ -3,13 +3,25 @@ from __future__ import annotations
 import hashlib
 import time
 
-from deepresearch_agent.schemas import Evidence, NumericFields, SearchRecord, Source, StructuredDataRecord, SubQuestion
+from deepresearch_agent.schemas import (
+    AgentDecision,
+    Evidence,
+    NumericFields,
+    SearchRecord,
+    Source,
+    StructuredDataRecord,
+    SubQuestion,
+)
 from deepresearch_agent.tools import (
     FetchProvider,
     FixtureSearchTool,
     FixtureStructuredDataProvider,
     SearchProvider,
     StructuredDataProvider,
+)
+from deepresearch_agent.tools.source_ranking import (
+    rerank_sources,
+    source_rerank_decision,
 )
 
 
@@ -37,7 +49,7 @@ class ResearcherAgent:
         sub_question: SubQuestion,
         top_k_per_query: int = 1,
     ) -> tuple[list[Source], list[SearchRecord]]:
-        sources, records, _, _ = self.research_with_budget(
+        sources, records, _, _, _ = self.research_with_budget(
             sub_question,
             top_k_per_query=top_k_per_query,
             max_search_calls=None,
@@ -53,11 +65,16 @@ class ResearcherAgent:
         priority_urls: list[str] | None = None,
         enable_web_search: bool = True,
         enable_web_fetch: bool = False,
-    ) -> tuple[list[Source], list[SearchRecord], int, bool]:
+        source_decision_enabled: bool = False,
+    ) -> tuple[list[Source], list[SearchRecord], int, bool, list[AgentDecision]]:
         seen: dict[str, Source] = {}
         records: list[SearchRecord] = []
+        original_candidates: list[Source] = []
+        ranked_candidates: list[Source] = []
+        fetched_urls: list[str] = []
         branch_calls = 0
         branch_exhausted = False
+        primary_hydrated = False
 
         def consume_call() -> bool:
             nonlocal branch_calls, branch_exhausted
@@ -96,11 +113,17 @@ class ResearcherAgent:
                 )
             )
             if source:
-                seen[source.url] = source
+                classified = rerank_sources([source])[0]
+                seen[classified.url] = classified
+                original_candidates.append(classified)
+                ranked_candidates.append(classified)
+                fetched_urls.append(classified.url)
 
         for idx, query in enumerate(
             sub_question.search_queries if enable_web_search else []
         ):
+            if primary_hydrated:
+                break
             if not consume_call():
                 marker = (
                     "branch_budget_exceeded"
@@ -118,16 +141,43 @@ class ResearcherAgent:
             source_type = None
             if sub_question.expected_source_types:
                 source_type = sub_question.expected_source_types[idx % len(sub_question.expected_source_types)]
-            results = self.search_tool.search(query, top_k=top_k_per_query, source_type=source_type)
+            requested_top_k = max(top_k_per_query, 3) if enable_web_fetch else top_k_per_query
+            results = self.search_tool.search(
+                query,
+                top_k=requested_top_k,
+                source_type=source_type,
+            )
             if not results and source_type and consume_call():
-                results = self.search_tool.search(query, top_k=top_k_per_query)
+                results = self.search_tool.search(query, top_k=requested_top_k)
             latency_ms = int((time.perf_counter() - started) * 1000)
             records.append(SearchRecord(query=query, source_ids=[source.id for source in results], latency_ms=latency_ms))
-            for source in results:
+            ranking_enabled = enable_web_fetch or source_decision_enabled
+            ranked = rerank_sources(results) if ranking_enabled else results
+            if ranking_enabled:
+                original_candidates.extend(
+                    source
+                    for source in results
+                    if source.url not in {item.url for item in original_candidates}
+                )
+                ranked_candidates.extend(
+                    source
+                    for source in ranked
+                    if source.url not in {item.url for item in ranked_candidates}
+                )
+            for source in ranked:
                 seen[source.url] = source
-                if not enable_web_fetch or not consume_call():
+                if not enable_web_fetch:
                     continue
+                if not consume_call():
+                    records.append(
+                        SearchRecord(
+                            query=f"[fetch_budget_exceeded] {source.url}",
+                            source_ids=[],
+                        )
+                    )
+                    break
                 fetched = self.fetch_tool.fetch(source.url)
+                fetched_urls.append(source.url)
                 records.append(
                     SearchRecord(
                         query=f"[web_fetch] {source.url}",
@@ -135,8 +185,27 @@ class ResearcherAgent:
                     )
                 )
                 if fetched:
+                    fetched = fetched.model_copy(
+                        update={"source_tier": source.source_tier}
+                    )
                     seen[fetched.url] = fetched
-        return list(seen.values()), records, branch_calls, branch_exhausted
+                    if fetched.source_tier == "primary":
+                        primary_hydrated = True
+                        break
+        decisions = (
+            [
+                source_rerank_decision(
+                    sub_question,
+                    original_candidates,
+                    ranked_candidates,
+                    fetched_urls,
+                    fetch_enabled=enable_web_fetch,
+                )
+            ]
+            if enable_web_fetch or source_decision_enabled
+            else []
+        )
+        return list(seen.values()), records, branch_calls, branch_exhausted, decisions
 
     def retry(self, query: str, source_type: str | None = None, top_k: int = 2) -> tuple[list[Source], SearchRecord]:
         if not self._consume_search_budget_if_needed():

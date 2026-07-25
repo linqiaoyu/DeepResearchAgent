@@ -220,7 +220,7 @@ def run(output_dir: Path) -> dict[str, object]:
         selection = selector.select(state, sub_question)
         if "web_fetch" not in selection.selected_capabilities:
             raise AssertionError(f"{question_id} did not select web_fetch")
-        sources, records, _calls, _exhausted = researcher.research_with_budget(
+        sources, records, _calls, _exhausted, _decisions = researcher.research_with_budget(
             sub_question,
             top_k_per_query=1,
             max_search_calls=6,

@@ -71,6 +71,10 @@ class ReporterAgent:
         evidence = state.evidence_store
         footnotes = build_footnote_maps(evidence)
         ref_map = footnotes.evidence_id_to_footnote
+        show_source_tiers = any(
+            item.source_tier != "unknown" or item.content_truncated
+            for item in evidence
+        )
         lines: list[str] = [
             f"# {state.topic}",
             "",
@@ -126,9 +130,19 @@ class ReporterAgent:
 
         lines.extend(["", "## 参考来源"])
         for item in footnotes.unique_refs:
+            provenance = (
+                f" [source_tier={item.source_tier}]"
+                + (
+                    " [content_truncated=true]"
+                    if item.content_truncated
+                    else ""
+                )
+                if show_source_tiers
+                else ""
+            )
             lines.append(
                 f"[^{ref_map[item.id]}]: {item.source_title}. {item.source_url} "
-                f"({item.source_pub_date.isoformat()})"
+                f"({item.source_pub_date.isoformat()}){provenance}"
             )
         return "\n".join(lines)
 
@@ -299,6 +313,10 @@ class ReporterAgent:
         evidence = state.evidence_store
         footnotes = build_footnote_maps(evidence)
         ref_map = footnotes.evidence_id_to_footnote
+        show_source_tiers = any(
+            item.source_tier != "unknown" or item.content_truncated
+            for item in evidence
+        )
         evidence_ids = set(ref_map)
         invalid_references = 0
         missing_reference_backfills = 0
@@ -460,9 +478,19 @@ class ReporterAgent:
 
         lines.extend(["", "## 参考来源"])
         for item in footnotes.unique_refs:
+            provenance = (
+                f" [source_tier={item.source_tier}]"
+                + (
+                    " [content_truncated=true]"
+                    if item.content_truncated
+                    else ""
+                )
+                if show_source_tiers
+                else ""
+            )
             lines.append(
                 f"[^{ref_map[item.id]}]: {item.source_title}. {item.source_url} "
-                f"({item.source_pub_date.isoformat()})"
+                f"({item.source_pub_date.isoformat()}){provenance}"
             )
         self.last_stats["claim_provenance"] = claim_provenance
         return "\n".join(lines), invalid_references, missing_reference_backfills

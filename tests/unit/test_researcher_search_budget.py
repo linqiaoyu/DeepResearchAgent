@@ -55,7 +55,7 @@ class ResearcherSearchBudgetTests(unittest.TestCase):
             search_queries=["q1"],
         )
 
-        sources, records, calls, exhausted = (
+        sources, records, calls, exhausted, decisions = (
             researcher.research_with_budget(
                 sub_question,
                 max_search_calls=2,
@@ -66,6 +66,7 @@ class ResearcherSearchBudgetTests(unittest.TestCase):
         self.assertEqual(provider.fetched_urls, ["https://example.com/1"])
         self.assertEqual(calls, 2)
         self.assertFalse(exhausted)
+        self.assertEqual(len(decisions), 1)
         self.assertEqual(sources[0].content, "publisher body")
         self.assertEqual(records[-1].query, "[web_fetch] https://example.com/1")
 
