@@ -12,6 +12,7 @@ from deepresearch_agent.provenance import (
     settings_flag_snapshot,
 )
 from deepresearch_agent.schemas import ResearchState
+from deepresearch_agent.security import redact
 from deepresearch_agent.settings import Settings
 from deepresearch_agent.structured_output import (
     render_structured_json,
@@ -24,6 +25,7 @@ _BOUNDARY = (
     "本报告由自动化系统生成，不构成投资建议；前瞻性陈述已归入未验证假设；"
     "证据截至日为 {as_of}；系统已知局限见 docs/production_readiness.md。"
 )
+PUBLIC_EXCERPT_CHAR_LIMIT = 1_000
 
 
 class AuditBundleError(ValueError):
@@ -61,7 +63,15 @@ def export_audit_bundle(
             "evidence_id": item.id,
             "source_url": item.source_url,
             "captured_at": item.extracted_at.isoformat(),
-            "extract_text": item.extract_text,
+            "extract_text": item.extract_text[
+                :PUBLIC_EXCERPT_CHAR_LIMIT
+            ],
+            "extract_sha256": hashlib.sha256(
+                item.extract_text.encode("utf-8")
+            ).hexdigest(),
+            "extract_truncated": (
+                len(item.extract_text) > PUBLIC_EXCERPT_CHAR_LIMIT
+            ),
             "credibility": source_credibility.get(item.source_url, item.confidence),
         }
         for item in sorted(state.evidence_store, key=lambda item: item.id)
@@ -108,15 +118,18 @@ def export_audit_bundle(
         ),
     )
     if state.structured_output is not None:
+        structured_output = type(state.structured_output).model_validate_json(
+            redact(state.structured_output.model_dump_json())
+        )
         _write_text(
             output_dir / "structured.json",
-            render_structured_json(state.structured_output),
+            render_structured_json(structured_output),
         )
         _write_text(
             output_dir / "structured.md",
-            render_structured_markdown(state.structured_output),
+            render_structured_markdown(structured_output),
         )
-        write_structured_table(state.structured_output, output_dir / "structured")
+        write_structured_table(structured_output, output_dir / "structured")
 
     files = sorted(path.name for path in output_dir.iterdir() if path.is_file())
     return {
@@ -270,7 +283,7 @@ def _write_json(path: Path, payload: Any) -> None:
 
 
 def _write_text(path: Path, content: str) -> None:
-    path.write_text(content.rstrip() + "\n", encoding="utf-8")
+    path.write_text(redact(content).rstrip() + "\n", encoding="utf-8")
 
 
 def _directory_sha256(directory: Path) -> str:

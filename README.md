@@ -11,6 +11,7 @@
 [快速开始](#快速开始) ·
 [系统架构](docs/architecture.md) ·
 [评测方法](docs/evaluation.md) ·
+[决策记录](docs/decisions/README.md) ·
 [生产边界](docs/production_readiness.md)
 
 分析师经常要在分散网页、财务口径、历史结论和引用之间来回核对；普通聊天式回答很难说明“这句话来自哪里”和“这次与上次相比什么变了”。DeepResearchAgent 把这些结果整理成一套可保存、可追溯、可复查的研究资产。当前首个场景是金融投研，默认使用本地 fixture，零 API key 即可运行；项目尚未完成领域解耦，边界见 [use_case.md](docs/use_case.md)。

@@ -22,6 +22,10 @@ class LLMCallTrace(StrictModel):
     total_tokens: int = Field(ge=0)
     latency_seconds: float = Field(ge=0)
     model: str
+    cost_usd: float = Field(default=0.0, ge=0)
+    cost_cny: float = Field(default=0.0, ge=0)
+    price_source: str | None = None
+    cache_hit: bool | None = None
     attempt: int = Field(ge=1)
     repair: bool = False
     error: str | None = None
