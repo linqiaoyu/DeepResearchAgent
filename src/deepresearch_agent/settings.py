@@ -59,9 +59,10 @@ class Settings:
     numeric_check_absolute_tolerance: float = 0.01
     dynamic_capability_enabled: bool = False
     dynamic_capability_rules_json: str = (
-        '{"financial_metric":["structured_data_provider","web_search"],'
+        '{"financial_metric":["structured_data_provider","web_fetch","web_search"],'
         '"market_price":["structured_data_provider","web_search"],'
         '"verify":["web_fetch","web_search"],'
+        '"event":["web_fetch","web_search"],'
         '"narrative":["web_search"]}'
     )
     reflection_enabled: bool = False
@@ -224,10 +225,11 @@ def load_settings() -> Settings:
             "DEEPRESEARCH_DYNAMIC_CAPABILITY_RULES_JSON",
             (
                 '{"financial_metric":'
-                '["structured_data_provider","web_search"],'
+                '["structured_data_provider","web_fetch","web_search"],'
                 '"market_price":'
                 '["structured_data_provider","web_search"],'
                 '"verify":["web_fetch","web_search"],'
+                '"event":["web_fetch","web_search"],'
                 '"narrative":["web_search"]}'
             ),
         ),

@@ -1199,8 +1199,12 @@ class DeepResearchEngine:
                 enable_web_search=(
                     "web_search" in selected_capabilities
                 ),
+                enable_web_fetch=(
+                    self.settings.dynamic_capability_enabled
+                    and "web_fetch" in selected_capabilities
+                ),
             )
-        elif priority_urls:
+        elif priority_urls or "web_fetch" in selected_capabilities:
             (
                 sources,
                 records,
@@ -1212,6 +1216,10 @@ class DeepResearchEngine:
                 priority_urls=priority_urls,
                 enable_web_search=(
                     "web_search" in selected_capabilities
+                ),
+                enable_web_fetch=(
+                    self.settings.dynamic_capability_enabled
+                    and "web_fetch" in selected_capabilities
                 ),
             )
         else:
@@ -1328,22 +1336,20 @@ class DeepResearchEngine:
                 )
                 for sub_question in state.plan.sub_questions
             }
-            if self.settings.research_loop_active:
-                reallocated = {
-                    branch_id: int(item["allocated"])
-                    for branch_id, item in (
-                        self.branch_budget.snapshot().items()
-                    )
-                }
-            else:
-                reallocated = self.branch_budget.reallocate(
+            if not self.settings.research_loop_active:
+                self.branch_budget.reallocate(
                     metrics,
                     state,
                 )
             state.metadata["branch_budget"].update(
                 {
                     "allocations": self.branch_budget.snapshot(),
-                    "allocated_calls": reallocated,
+                    "allocated_calls": {
+                        branch_id: int(item["remaining"])
+                        for branch_id, item in (
+                            self.branch_budget.snapshot().items()
+                        )
+                    },
                     "metrics": metrics,
                     "branch_coverage": branch_coverage,
                     "phase": "after_join",
@@ -1633,7 +1639,7 @@ class DeepResearchEngine:
                 if self.settings.decision_weaving_enabled
                 else None
             )
-            allocations = self.branch_budget.reallocate(
+            self.branch_budget.reallocate(
                 branch_metrics,
                 state,
                 decision_context=context,
@@ -1646,7 +1652,12 @@ class DeepResearchEngine:
             state.metadata["branch_budget"].update(
                 {
                     "allocations": self.branch_budget.snapshot(),
-                    "allocated_calls": allocations,
+                    "allocated_calls": {
+                        branch_id: int(item["remaining"])
+                        for branch_id, item in (
+                            self.branch_budget.snapshot().items()
+                        )
+                    },
                     "metrics": branch_metrics,
                     "phase": "after_sufficiency",
                     "total_used": self.branch_budget.total_used,

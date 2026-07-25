@@ -63,6 +63,34 @@ def _evidence(
 
 
 class ResearchSufficiencyTest(unittest.TestCase):
+    def test_sufficiency_score_is_sensitive_before_components_saturate(
+        self,
+    ) -> None:
+        thresholds = SufficiencyThresholds()
+        one_source = evaluate_research_sufficiency(
+            _state([_evidence("a", claim="主要风险是监管限制")]),
+            as_of=date(2026, 7, 24),
+            thresholds=thresholds,
+        )
+        two_sources = evaluate_research_sufficiency(
+            _state(
+                [
+                    _evidence("a", claim="主要风险是监管限制"),
+                    _evidence(
+                        "b",
+                        url="https://two.example/b",
+                        claim="业绩改善",
+                    ),
+                ]
+            ),
+            as_of=date(2026, 7, 24),
+            thresholds=thresholds,
+        )
+
+        self.assertEqual(one_source.score, 0.833333)
+        self.assertEqual(two_sources.score, 1.0)
+        self.assertGreater(two_sources.score, one_source.score)
+
     def test_metric_evidence_count(self) -> None:
         result = evaluate_research_sufficiency(
             _state([_evidence("a")]),

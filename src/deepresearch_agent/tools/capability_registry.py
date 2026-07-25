@@ -104,7 +104,11 @@ def build_capability_registry(
     registry.register(
         CapabilityMetadata(
             name="web_fetch",
-            applicable_subquestion_types=("verify",),
+            applicable_subquestion_types=(
+                "event",
+                "financial_metric",
+                "verify",
+            ),
             cost_level="low",
             has_side_effect=False,
             tool_spec=FETCH_TOOL_SPEC,

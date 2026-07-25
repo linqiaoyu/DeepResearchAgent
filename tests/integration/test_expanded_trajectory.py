@@ -164,6 +164,7 @@ class ExpandedTrajectoryTest(unittest.TestCase):
             self.assertEqual(
                 len(trajectory.tool_calls),
                 tool_names.count("web_search")
+                + tool_names.count("web_fetch")
                 + tool_names.count("structured_data_provider"),
             )
 

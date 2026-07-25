@@ -87,6 +87,38 @@ def _numeric_issues(state: ResearchState):
 
 
 class NumericConsistencyTest(unittest.TestCase):
+    def test_complete_growth_relationship_triggers_a_numeric_check(
+        self,
+    ) -> None:
+        state = _state(
+            _evidence(
+                "growth",
+                "营业收入同比增长率",
+                20,
+                unit="%",
+            ),
+            _evidence("current", "营业收入", 120),
+            _evidence("prior", "营业收入", 100, period="2023"),
+        )
+
+        issues, _report = _numeric_issues(state)
+
+        self.assertEqual(issues, [])
+        checks = [
+            item
+            for item in state.agent_decisions
+            if item.decision_type == "numeric_consistency_check"
+        ]
+        self.assertEqual(len(checks), 1)
+        self.assertEqual(checks[0].inputs["relationship"], "growth_rate")
+        self.assertEqual(checks[0].outcome, "pass")
+        scan = next(
+            item
+            for item in state.agent_decisions
+            if item.decision_type == "numeric_consistency_scan"
+        )
+        self.assertEqual(scan.inputs["check_count"], 1)
+
     def test_detects_wrong_growth_rate_from_two_absolute_periods(self) -> None:
         state = _state(
             _evidence(
