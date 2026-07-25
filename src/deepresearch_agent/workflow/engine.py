@@ -103,6 +103,21 @@ def _merge_dicts(left: dict[str, Any] | None, right: dict[str, Any] | None) -> d
     return merged
 
 
+def _research_progress_metric(state: ResearchState) -> float:
+    evidence = {item.id: item for item in state.evidence_store}.values()
+    components = {
+        "unique_evidence": len({item.id for item in evidence}),
+        "independent_domains": len({urlsplit(item.source_url).netloc for item in evidence}),
+        "primary_sources": len({item.source_url for item in evidence if item.source_tier == "primary"}),
+        "unresolved_issues": len(state.critic_report.issues) if state.critic_report else 0,
+    }
+    state.metadata["research_progress_components"] = components
+    return float(
+        components["unique_evidence"] + components["independent_domains"]
+        + components["primary_sources"] - components["unresolved_issues"]
+    )
+
+
 class ResearchGraphState(TypedDict, total=False):
     research_state: dict[str, Any]
     started_at: float
@@ -278,9 +293,7 @@ class DeepResearchEngine:
                 no_progress_window=(
                     self.settings.research_loop_no_progress_window
                 ),
-                progress_metric=lambda state: float(
-                    state.metadata.get("research_loop_score", 0.0)
-                ),
+                progress_metric=_research_progress_metric,
                 on_exhausted=self._on_research_loop_exhausted,
                 budget_unit="calls",
             ),

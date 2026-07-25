@@ -353,6 +353,11 @@ class BoundedLoop:
             "boundaries_triggered": boundaries,
             "route": route,
         }
+        progress_components = state.metadata.get(
+            "research_progress_components"
+        )
+        if isinstance(progress_components, dict):
+            inputs["progress_components"] = progress_components
         if decision_context:
             fields = ("iteration", "budget", "sufficiency")
             inputs["decision_context_fields"] = list(fields)
@@ -364,7 +369,9 @@ class BoundedLoop:
             made_by="BoundedLoop",
             inputs=inputs,
             criterion=(
-                "stop when the strategy reports sufficiency or any of "
+                "measure progress as unique Evidence + independent domains + "
+                "primary sources - unresolved Critic issues; stop when the "
+                "strategy reports sufficiency or any of "
                 "max_iterations, budget_ceiling, no_progress_window is reached"
             ),
             outcome=outcome,

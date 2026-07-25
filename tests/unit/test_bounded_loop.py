@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import unittest
+from datetime import date
 
 from deepresearch_agent.orchestration import (
     BoundedLoop,
     LoopIterationResult,
     LoopSpec,
 )
-from deepresearch_agent.schemas import ResearchState
+from deepresearch_agent.schemas import Evidence, ResearchState
 from deepresearch_agent.tools import RetryBudget
+from deepresearch_agent.workflow.engine import _research_progress_metric
 
 
 class BoundedLoopTest(unittest.TestCase):
@@ -99,6 +101,71 @@ class BoundedLoopTest(unittest.TestCase):
             decision.outcome,
             "stop_exhausted:no_progress_window",
         )
+
+    def test_atomic_research_progress_prevents_early_no_progress_stop(self) -> None:
+        state = ResearchState(topic="atomic progress")
+
+        def step(state: ResearchState, context) -> LoopIterationResult:
+            state.evidence_store.append(
+                Evidence(
+                    id=f"e-{context.iteration}",
+                    research_id=state.research_id,
+                    sub_question_id="q1",
+                    claim=f"new evidence {context.iteration}",
+                    claim_type="fact",
+                    source_url=f"https://source-{context.iteration}.example/report",
+                    source_title="source",
+                    source_pub_date=date(2026, 7, 25),
+                    extract_text=f"new evidence {context.iteration}",
+                    source_tier="primary",
+                )
+            )
+            return LoopIterationResult(budget_consumed=1)
+
+        result = BoundedLoop(
+            LoopSpec(
+                max_iterations=4,
+                budget_ceiling=10,
+                no_progress_window=2,
+                progress_metric=_research_progress_metric,
+                on_exhausted=lambda _state, _boundary: None,
+            ),
+            step,
+        ).run(state)
+
+        self.assertEqual(len(result.evidence_store), 4)
+        self.assertEqual(
+            result.metadata["research_loop"]["stop_boundary"],
+            "max_iterations",
+        )
+        self.assertEqual(result.agent_decisions[-1].inputs["no_progress_count"], 0)
+        self.assertEqual(
+            result.agent_decisions[-1].inputs["progress_components"],
+            {
+                "unique_evidence": 4,
+                "independent_domains": 4,
+                "primary_sources": 4,
+                "unresolved_issues": 0,
+            },
+        )
+
+    def test_atomic_research_progress_still_stops_true_stagnation(self) -> None:
+        state = ResearchState(topic="atomic stagnation")
+        result = BoundedLoop(
+            LoopSpec(
+                max_iterations=4,
+                budget_ceiling=10,
+                no_progress_window=2,
+                progress_metric=_research_progress_metric,
+                on_exhausted=lambda _state, _boundary: None,
+            ),
+            lambda _state, _context: LoopIterationResult(budget_consumed=1),
+        ).run(state)
+        self.assertEqual(
+            result.metadata["research_loop"]["stop_boundary"],
+            "no_progress_window",
+        )
+        self.assertEqual(len(result.agent_decisions), 2)
 
     def test_each_round_records_metric_criterion_outcome_and_alternatives(self) -> None:
         exhausted: list[str] = []
