@@ -44,6 +44,7 @@ class PriorClassificationContext(FrozenDecisionModel):
 
 
 class CriticIssueContext(FrozenDecisionModel):
+    issue_id: str
     issue_type: str
     severity: str
     message: str
@@ -202,7 +203,7 @@ def _issue_rows(state: ResearchState) -> tuple[CriticIssueContext, ...]:
         item.id for item in state.plan.sub_questions
     )
     rows: list[CriticIssueContext] = []
-    for issue in state.critic_report.issues:
+    for index, issue in enumerate(state.critic_report.issues, 1):
         targets: set[str] = set()
         if (
             issue.suggested_retry_task
@@ -221,6 +222,11 @@ def _issue_rows(state: ResearchState) -> tuple[CriticIssueContext, ...]:
             targets.update(all_subquestions)
         rows.append(
             CriticIssueContext(
+                issue_id=(
+                    issue.suggested_retry_task.id
+                    if issue.suggested_retry_task
+                    else f"critic-{index}"
+                ),
                 issue_type=issue.issue_type,
                 severity=issue.severity,
                 message=issue.message,

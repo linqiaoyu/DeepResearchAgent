@@ -13,19 +13,18 @@ def main() -> None:
         description="Replay a recorded AgentTrajectory without provider calls."
     )
     parser.add_argument("trajectory")
-    parser.add_argument("--mode", choices=("strict", "strategy"), default="strict")
     parser.add_argument(
         "--require-call",
         action="append",
         default=[],
-        help="Strategy cache key such as tool:web_search or llm:reporter.",
+        help="Required recorded call such as tool:web_search or llm:reporter.",
     )
     args = parser.parse_args()
 
     trajectory = load_trajectory(Path(args.trajectory))
     result = replay_trajectory(
         trajectory,
-        mode=args.mode,
+        mode="strict",
         required_calls=args.require_call,
     )
     print(json.dumps(result.model_dump(mode="json"), ensure_ascii=False, indent=2))

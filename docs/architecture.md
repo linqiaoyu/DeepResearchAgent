@@ -220,8 +220,8 @@ write. Only deterministic signals enter `DecisionContext`; the placeholder `llm_
 cannot affect behavior before 019.
 `TRAJECTORY_RECORD_ENABLED=false` attaches a redacted recorder at the LLM,
 ToolSpec search, and graph-node boundaries. Strict replay uses recorded fixture
-search responses and compares report bytes; strategy replay stops on an
-unrecorded call.
+search responses, fails closed on an unrecorded call, and compares report bytes.
+Strategy-level replay is not implemented.
 
 The research-sufficiency back-edge, prior-period path, decision weaving, numeric
 consistency checking, and dynamic capability selection exist behind default-off

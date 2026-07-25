@@ -139,6 +139,30 @@ def build_structured_output(state: ResearchState) -> StructuredResearchOutput:
     )
 
 
+def metric_fact_keys(
+    evidence: list[Evidence],
+) -> dict[str, set[tuple[str, str, str, str]]]:
+    """Return reader-deduplication keys without changing structured values."""
+
+    aliases = _metric_aliases()
+    return {
+        item.id: {
+            (
+                row.entity,
+                row.normalized_metric,
+                (
+                    row.period[:4]
+                    if re.fullmatch(r"\d{4}1231", row.period)
+                    else row.period
+                ),
+                row.scope,
+            )
+            for row in _metric_rows_for_evidence(item, aliases)
+        }
+        for item in evidence
+    }
+
+
 def render_structured_json(output: StructuredResearchOutput) -> str:
     return json.dumps(
         output.model_dump(mode="json"),

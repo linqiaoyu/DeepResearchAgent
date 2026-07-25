@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import date
 from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
@@ -29,6 +30,32 @@ COUNTERARGUMENT_TERMS = {
     "风险",
     "反方",
 }
+MAX_REPLAN_QUERY_CHARS = 180
+_INTERNAL_QUERY_TERMS = re.compile(
+    r"resolve\s+|unverified_[a-z_]+|[a-z]+_gap|confidence:|"
+    r"Projection claim|critic|issue_id|"
+    r"\b[A-Za-z][A-Za-z0-9]*_[A-Za-z0-9_]+\b",
+    re.IGNORECASE,
+)
+_ISSUE_DIRECTIONS = {
+    "missing_citation": "官方来源 原始公告 核验",
+    "numeric_conflict": "官方数据 统计口径 单位 核验",
+    "temporal_conflict": "官方披露 时间线 日期 核验",
+    "outdated_source": "最新官方披露 更新",
+    "missing_counterargument": "风险 限制 反方证据",
+    "unverified_projection": "官方披露 建设进展 实际日期",
+    "injection_risk": "独立官方来源 交叉验证",
+    "contradicts_prior": "前后期官方披露 口径对比",
+    "numeric_inconsistency": "官方数据 计算口径 单位 核验",
+}
+
+
+def build_replan_query(question: str, direction: str) -> str:
+    """Build a bounded reader-like search query without audit vocabulary."""
+
+    query = _INTERNAL_QUERY_TERMS.sub(" ", f"{question} {direction}")
+    query = " ".join(query.split())
+    return query[:MAX_REPLAN_QUERY_CHARS].rstrip()
 
 
 class SufficiencyThresholds(StrictModel):
@@ -194,36 +221,34 @@ def refine_research_plan(
             in reflection.persistently_weak_subquestions
         ):
             queries.append(
-                f"{sub_question.question} targeted recovery for "
-                "persistent cross-round weakness"
+                build_replan_query(
+                    sub_question.question,
+                    "官方来源 补充核验",
+                )
             )
         if reflection and reflection.repeatedly_ineffective_sources:
-            excluded = " ".join(
-                reflection.repeatedly_ineffective_sources
-            )
             queries.append(
-                f"{sub_question.question} alternative primary sources "
-                f"excluding repeatedly ineffective domains {excluded}"
+                build_replan_query(
+                    sub_question.question,
+                    "其他一手来源 交叉验证",
+                )
             )
         if reflection and reflection.repeated_critic_issue_types:
-            repeated_types = " ".join(
-                item[0] for item in reflection.repeated_critic_issue_types
-            )
             queries.append(
-                f"{sub_question.question} resolve repeated critic patterns "
-                f"{repeated_types}"
+                build_replan_query(
+                    sub_question.question,
+                    "官方来源 定向补充证据",
+                )
             )
         if (
             reflection
             and reflection.ineffective_replanning_iterations
         ):
-            rounds = " ".join(
-                str(item)
-                for item in reflection.ineffective_replanning_iterations
-            )
             queries.append(
-                f"{sub_question.question} new evidence angle after "
-                f"no-progress replanning rounds {rounds}"
+                build_replan_query(
+                    sub_question.question,
+                    "不同一手来源 新证据角度",
+                )
             )
         targeted_issues = (
             [
@@ -236,36 +261,62 @@ def refine_research_plan(
         )
         for issue in targeted_issues:
             queries.append(
-                f"{sub_question.question} resolve {issue.issue_type}: "
-                f"{issue.message}"
+                build_replan_query(
+                    sub_question.question,
+                    _ISSUE_DIRECTIONS.get(
+                        issue.issue_type,
+                        "官方来源 补充核验",
+                    ),
+                )
             )
         if "independent_source_domains" in metrics.gaps:
             queries.append(
-                f"{sub_question.question} independent alternative source"
+                build_replan_query(
+                    sub_question.question,
+                    "独立一手来源 交叉验证",
+                )
             )
         if "counterargument" in metrics.gaps:
             queries.append(
-                f"{sub_question.question} risk constraint counterargument"
+                build_replan_query(
+                    sub_question.question,
+                    "风险 限制 反方证据",
+                )
             )
         if "freshness" in metrics.gaps:
             queries.append(
-                f"{sub_question.question} latest update as of {as_of.isoformat()}"
+                build_replan_query(
+                    sub_question.question,
+                    f"截至 {as_of.isoformat()} 最新官方披露",
+                )
             )
         if "evidence_count" in metrics.gaps:
             queries.append(
-                f"{sub_question.question} official evidence verification"
+                build_replan_query(
+                    sub_question.question,
+                    "官方公告 年报 补充证据",
+                )
             )
         if "average_confidence" in metrics.gaps:
             queries.append(
-                f"{sub_question.question} primary source confirmation"
+                build_replan_query(
+                    sub_question.question,
+                    "一手来源 原始披露 核验",
+                )
             )
         if "unresolved_critic_issues" in metrics.gaps:
             queries.append(
-                f"{sub_question.question} resolve critic evidence gap"
+                build_replan_query(
+                    sub_question.question,
+                    "官方来源 补充核验",
+                )
             )
         if not queries:
             queries.append(
-                f"{sub_question.question} unexplored evidence angle"
+                build_replan_query(
+                    sub_question.question,
+                    "一手来源 新证据角度",
+                )
             )
         sub_question.search_queries = list(dict.fromkeys(queries))[:3]
         refined[sub_question.id] = list(sub_question.search_queries)

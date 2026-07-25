@@ -221,7 +221,7 @@ class WovenDecisionDependencyTest(unittest.TestCase):
         )
 
         self.assertIn(
-            "resolve numeric_conflict",
+            "官方数据 统计口径 单位 核验",
             refined["verify"][0],
         )
         decision = state.agent_decisions[-1]
@@ -234,6 +234,12 @@ class WovenDecisionDependencyTest(unittest.TestCase):
                 "unresolved_critic_issues"
             ][0]["message"],
             "营收增长率与绝对值不一致",
+        )
+        self.assertEqual(
+            decision.inputs["decision_context"][
+                "unresolved_critic_issues"
+            ][0]["issue_id"],
+            task.id,
         )
 
 

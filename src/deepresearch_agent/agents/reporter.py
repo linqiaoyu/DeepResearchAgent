@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections import defaultdict
 from dataclasses import dataclass
 
@@ -15,7 +16,16 @@ from deepresearch_agent.schemas import (
     StructuredResearchOutput,
 )
 from deepresearch_agent.settings import project_root
-from deepresearch_agent.structured_output import build_structured_output
+from deepresearch_agent.structured_output import (
+    build_structured_output,
+    metric_fact_keys,
+)
+
+_RAW_PERIOD_RE = re.compile(r"(?<!\d)(\d{4})(\d{2})(\d{2})(?!\d)")
+_RMB_RE = re.compile(
+    r"(-?\d+(?:\.\d+)?(?:e[+-]?\d+)?)\s*元",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -294,20 +304,26 @@ class ReporterAgent:
         missing_reference_backfills = 0
         claim_provenance: list[dict[str, object]] = []
         repaired_claim_keys = repaired_claim_keys or set()
+        evidence_fact_keys = metric_fact_keys(evidence)
+        seen_fact_keys: set[tuple[str, str, str, str]] = set()
 
         lines: list[str] = [
-            f"# {state.topic}",
+            f"# {self._reader_text(state.topic)}",
             "",
             f"数据截至：{self._data_as_of(evidence)}",
             "",
             "免责声明：本报告为研究性输出，不构成投资建议。",
             "",
             "## 摘要",
-            draft.summary.strip() or self._summary(state, evidence, ref_map),
+            self._reader_text(draft.summary.strip())
+            or self._summary(state, evidence, ref_map),
             "",
             "## 关键发现",
         ]
         for index, claim in enumerate(draft.key_findings[:6]):
+            fact_keys = self._claim_fact_keys(claim, evidence_fact_keys)
+            if fact_keys and fact_keys <= seen_fact_keys:
+                continue
             path = _ClaimPath("key_findings", index)
             rendered, invalid, backfilled, provenance = self._render_claim(
                 claim,
@@ -320,6 +336,7 @@ class ReporterAgent:
             missing_reference_backfills += backfilled
             claim_provenance.append(provenance)
             lines.append(f"- {rendered}")
+            seen_fact_keys.update(fact_keys)
 
         by_section = {section.sub_question_id: section for section in draft.detailed_analysis}
         lines.extend(["", "## 详细分析"])
@@ -327,11 +344,17 @@ class ReporterAgent:
             raise ValueError("Cannot render detailed analysis without a plan.")
         for sub_question in state.plan.sub_questions:
             section = by_section.get(sub_question.id)
-            lines.append(f"### {sub_question.question}")
+            lines.append(f"### {self._reader_text(sub_question.question)}")
             if not section or not section.claims:
                 lines.append("当前没有足够证据，需要二次检索补齐。")
                 continue
             for index, claim in enumerate(section.claims[:3]):
+                fact_keys = self._claim_fact_keys(
+                    claim,
+                    evidence_fact_keys,
+                )
+                if fact_keys and fact_keys <= seen_fact_keys:
+                    continue
                 path = _ClaimPath("detailed_analysis", index, sub_question.id)
                 rendered, invalid, backfilled, provenance = self._render_claim(
                     claim,
@@ -344,11 +367,12 @@ class ReporterAgent:
                 missing_reference_backfills += backfilled
                 claim_provenance.append(provenance)
                 lines.append(f"- {rendered}")
+                seen_fact_keys.update(fact_keys)
 
         lines.extend(["", "## 风险与限制"])
         if draft.risks:
             for risk in draft.risks[:6]:
-                lines.append(f"- {risk}")
+                lines.append(f"- {self._reader_text(risk)}")
         elif state.critic_report and state.critic_report.issues:
             for issue in state.critic_report.issues[:6]:
                 affected = self._affected_claims(
@@ -409,7 +433,7 @@ class ReporterAgent:
                 invalid_count += 1
         backfilled = 0
         citations = " ".join(f"[^{ref_map[evidence_id]}]" for evidence_id in valid_ids)
-        text = claim.text.strip()
+        text = self._reader_text(claim.text.strip())
         provenance = {
             "path": path.key,
             "text": text,
@@ -419,6 +443,42 @@ class ReporterAgent:
             "invalid_reference_count": invalid_count,
         }
         return f"{text} {citations}".strip(), invalid_count, backfilled, provenance
+
+    def _claim_fact_keys(
+        self,
+        claim: ReportClaim,
+        evidence_fact_keys: dict[
+            str,
+            set[tuple[str, str, str, str]],
+        ],
+    ) -> set[tuple[str, str, str, str]]:
+        return {
+            key
+            for evidence_id in claim.evidence_ids
+            for key in evidence_fact_keys.get(evidence_id, set())
+        }
+
+    def _reader_text(self, text: str) -> str:
+        def readable_rmb(match: re.Match[str]) -> str:
+            value = float(match.group(1))
+            divisor, unit = (
+                (100_000_000, "亿元")
+                if abs(value) >= 100_000_000
+                else (10_000, "万元")
+                if abs(value) >= 10_000
+                else (1, "元")
+            )
+            rendered = f"{value / divisor:.4f}".rstrip("0").rstrip(".")
+            return f"{rendered}{unit}"
+
+        text = _RMB_RE.sub(readable_rmb, text)
+        return _RAW_PERIOD_RE.sub(
+            lambda match: (
+                f"{match.group(1)}年{int(match.group(2))}月"
+                f"{int(match.group(3))}日"
+            ),
+            text,
+        )
 
     def _draft_claims(self, draft: ReportDraft) -> list[tuple[_ClaimPath, ReportClaim]]:
         claims: list[tuple[_ClaimPath, ReportClaim]] = []
