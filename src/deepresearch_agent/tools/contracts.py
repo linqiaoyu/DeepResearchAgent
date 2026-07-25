@@ -24,6 +24,14 @@ class RetryPolicy(StrictModel):
     max_attempts: int = Field(ge=1)
 
 
+class CircuitBreakerPolicy(StrictModel):
+    """Per-tool circuit behavior, with the historical defaults preserved."""
+
+    failure_threshold: int = Field(default=3, ge=1)
+    cooldown_s: float = Field(default=30.0, gt=0)
+    half_open_max_calls: int = Field(default=1, ge=1)
+
+
 ERROR_RETRY_POLICIES: dict[ToolErrorKind, RetryPolicy] = {
     ToolErrorKind.TRANSIENT: RetryPolicy(retryable=True, base_backoff_s=0.5, max_attempts=3),
     ToolErrorKind.RATE_LIMITED: RetryPolicy(retryable=True, base_backoff_s=2.0, max_attempts=3),
@@ -47,6 +55,9 @@ class ToolSpec(StrictModel):
     timeout_s: float = Field(gt=0)
     retry_policy: dict[ToolErrorKind, RetryPolicy] = Field(
         default_factory=lambda: dict(ERROR_RETRY_POLICIES)
+    )
+    circuit_breaker: CircuitBreakerPolicy = Field(
+        default_factory=CircuitBreakerPolicy
     )
     cost_class: Literal["free", "low", "medium", "high"]
     idempotent: bool

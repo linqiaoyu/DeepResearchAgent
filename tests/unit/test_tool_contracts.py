@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -10,6 +11,7 @@ from deepresearch_agent.tools import (
     CircuitBreaker,
     CircuitState,
     ContractSearchProvider,
+    CircuitBreakerPolicy,
     ReliableToolExecutor,
     RetryBudget,
     RunToolContext,
@@ -18,6 +20,7 @@ from deepresearch_agent.tools import (
 from deepresearch_agent.tools.contract_adapter import SEARCH_TOOL_SPEC
 from deepresearch_agent.tools.fixture_search import FixtureSearchTool
 from deepresearch_agent.tools.reliable_execution import ToolExecutionError
+from deepresearch_agent.trajectory import TrajectoryRecorder, trajectory_recording
 from deepresearch_agent.workflow import DeepResearchEngine
 
 
@@ -90,6 +93,102 @@ class ToolContractTests(unittest.TestCase):
         self.assertFalse(breaker.allow_call())
         breaker.record_success()
         self.assertEqual(breaker.state, CircuitState.CLOSED)
+
+    def test_timeout_is_enforced_and_counts_as_a_breaker_failure(self) -> None:
+        timeout_policy = dict(SEARCH_TOOL_SPEC.retry_policy)
+        timeout_policy[ToolErrorKind.TIMEOUT] = ERROR_RETRY_POLICIES[
+            ToolErrorKind.TIMEOUT
+        ].model_copy(update={"max_attempts": 1})
+        spec = SEARCH_TOOL_SPEC.model_copy(
+            update={"timeout_s": 0.03, "retry_policy": timeout_policy}
+        )
+        context = RunToolContext(retry_budget=RetryBudget(max_retries=0))
+        started = time.monotonic()
+        result = ReliableToolExecutor().execute(
+            spec, lambda: time.sleep(0.3), context
+        )
+
+        self.assertFalse(result.ok)
+        self.assertEqual(result.error.kind, ToolErrorKind.TIMEOUT)
+        self.assertLess(time.monotonic() - started, 0.15)
+        self.assertEqual(context.breakers[spec.name].consecutive_failures, 1)
+
+        class SlowProvider:
+            def search(self, *_args: object, **_kwargs: object) -> list[object]:
+                raise ToolExecutionError(ToolErrorKind.TIMEOUT, "timed out")
+
+        traced_context = RunToolContext(retry_budget=RetryBudget(max_retries=3))
+        provider = ContractSearchProvider(
+            SlowProvider(),
+            executor=ReliableToolExecutor(sleep=lambda _: None),
+            context=traced_context,
+        )
+        recorder = TrajectoryRecorder(run_id="timeout", request={})
+        with trajectory_recording(recorder):
+            self.assertEqual(provider.search("slow"), [])
+        self.assertEqual(
+            recorder.trajectory.tool_calls[-1].error["kind"], "timeout"
+        )
+
+    def test_per_tool_circuit_policies_are_independent(self) -> None:
+        fast_open = SEARCH_TOOL_SPEC.model_copy(
+            update={
+                "name": "fast_open",
+                "circuit_breaker": CircuitBreakerPolicy(failure_threshold=1),
+            }
+        )
+        slow_open = SEARCH_TOOL_SPEC.model_copy(
+            update={
+                "name": "slow_open",
+                "circuit_breaker": CircuitBreakerPolicy(failure_threshold=2),
+            }
+        )
+        context = RunToolContext(retry_budget=RetryBudget(max_retries=0))
+        executor = ReliableToolExecutor()
+        def failure() -> None:
+            raise ConnectionError("down")
+
+        executor.execute(fast_open, failure, context)
+        executor.execute(slow_open, failure, context)
+        self.assertEqual(context.breakers["fast_open"].state, CircuitState.OPEN)
+        self.assertEqual(context.breakers["slow_open"].state, CircuitState.CLOSED)
+        executor.execute(slow_open, failure, context)
+        self.assertEqual(context.breakers["slow_open"].state, CircuitState.OPEN)
+
+    def test_run_context_factory_does_not_leak_retry_or_breaker_state(self) -> None:
+        spec = SEARCH_TOOL_SPEC.model_copy(update={"name": "run_scoped"})
+        first = RunToolContext.for_run(max_retries=0)
+        ReliableToolExecutor().execute(
+            spec,
+            lambda: (_ for _ in ()).throw(ConnectionError("first run failure")),
+            first,
+        )
+        second = RunToolContext.for_run(max_retries=0)
+        self.assertEqual(second.retry_budget.consumed, 0)
+        self.assertEqual(second.breakers, {})
+        self.assertNotIn(spec.name, second.breakers)
+
+    def test_engine_replaces_tool_context_for_each_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            engine = DeepResearchEngine(
+                settings=Settings(
+                    storage_path=Path(tmp) / "research.db",
+                    runs_root=Path(tmp) / "runs",
+                    max_critic_iter=1,
+                    structured_logging_enabled=False,
+                ),
+                search_tool=FixtureSearchTool(),
+            )
+            engine.run(topic="first", depth_level=1)
+            first = engine.run_tool_context
+            assert first is not None
+            first.retry_budget.consumed = 1
+            engine.run(topic="second", depth_level=1)
+            second = engine.run_tool_context
+            assert second is not None
+            self.assertIsNot(first, second)
+            self.assertEqual(second.retry_budget.consumed, 0)
+            engine._checkpoint_conn.close()
 
     def test_degradation_is_returned_and_recorded(self) -> None:
         context = RunToolContext(retry_budget=RetryBudget(max_retries=0))

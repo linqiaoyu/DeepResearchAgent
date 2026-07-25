@@ -17,7 +17,7 @@ import httpx
 from deepresearch_agent.schemas import Source
 from deepresearch_agent.settings import project_root
 from deepresearch_agent.tools.contracts import ToolErrorKind
-from deepresearch_agent.tools.reliable_execution import ToolExecutionError
+from deepresearch_agent.tools.reliable_execution import RunToolContext, ToolExecutionError
 
 TAVILY_SEARCH_ENDPOINT = "https://api.tavily.com/search"
 UNKNOWN_PUBLISHED_AT = date(1970, 1, 1)
@@ -119,6 +119,7 @@ class TavilySearchProvider:
         credit_warning_threshold: int = 450,
         credit_hard_threshold: int = 520,
         sleep_func: Any = time.sleep,
+        context: RunToolContext | None = None,
     ) -> None:
         api_key = api_key.strip()
         if not api_key:
@@ -138,7 +139,17 @@ class TavilySearchProvider:
         self._sleep = sleep_func
         self.last_error_type: str | None = None
         self.search_counts_toward_budget = True
+        self._run_context = context
         self.ledger_path.parent.mkdir(parents=True, exist_ok=True)
+
+    def set_run_context(self, context: RunToolContext) -> None:
+        self._run_context = context
+
+    def _consume_egress(self, request_kind: str) -> None:
+        if self._run_context is not None:
+            self._run_context.consume_external_request(
+                request_kind, tool="tavily_search"
+            )
 
     def search(self, query: str, top_k: int = 3, source_type: str | None = None) -> list[Source]:
         if top_k <= 0:
@@ -177,6 +188,7 @@ class TavilySearchProvider:
         started = time.perf_counter()
         for attempt in range(self.max_retries + 1):
             try:
+                self._consume_egress("search")
                 response = self.client.post(
                     self.endpoint,
                     headers={"Authorization": f"Bearer {self.api_key}"},
@@ -202,6 +214,8 @@ class TavilySearchProvider:
                 )
                 return sources
             except Exception as exc:
+                if isinstance(exc, ToolExecutionError) and exc.kind == ToolErrorKind.BUDGET_EXCEEDED:
+                    raise
                 last_error = exc
                 if attempt < self.max_retries:
                     self._sleep(2**attempt)
@@ -226,6 +240,7 @@ class TavilySearchProvider:
         last_error: Exception | None = None
         for attempt in range(self.max_retries + 1):
             try:
+                self._consume_egress("fetch")
                 response = self.client.get(
                     url,
                     timeout=self.timeout_seconds,
@@ -260,6 +275,10 @@ class TavilySearchProvider:
             except PdfDecodeError:
                 self.last_error_type = "PdfDecodeError"
                 raise
+            except ToolExecutionError as exc:
+                if exc.kind == ToolErrorKind.BUDGET_EXCEEDED:
+                    raise
+                last_error = exc
             except Exception as exc:
                 last_error = exc
                 if attempt < self.max_retries:

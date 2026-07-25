@@ -34,6 +34,7 @@ from deepresearch_agent.orchestration import (
     ContractField,
     ContractGraph,
     ContractInvariant,
+    DecisionGate,
     NodeContract,
     LoopIterationResult,
     LoopSpec,
@@ -77,6 +78,9 @@ from deepresearch_agent.tools import (
     SearchProvider,
     StructuredDataProvider,
     TrajectoryStructuredDataProvider,
+    RunToolContext,
+    ToolErrorKind,
+    ToolExecutionError,
     build_capability_registry,
     build_search_provider,
     build_structured_data_provider,
@@ -275,6 +279,7 @@ class DeepResearchEngine:
         self.evaluator = Evaluator()
         self.reflector = Reflector()
         self.branch_budget: BranchBudget | None = None
+        self.run_tool_context: RunToolContext | None = None
         self.working_memory = ContextWorkingMemory()
         self.episodic_memory = episodic_memory or EpisodicMemory()
         self.procedural_memory = procedural_memory or ProceduralMemory()
@@ -327,6 +332,15 @@ class DeepResearchEngine:
         manifest_started_at = utc_now()
         self.researcher.reset_search_budget()
         self.branch_budget = None
+        self.run_tool_context = RunToolContext.for_run(
+            max_external_search_requests=(
+                self.settings.max_external_search_requests_per_run
+            ),
+            max_external_fetch_requests=(
+                self.settings.max_external_fetch_requests_per_run
+            ),
+        )
+        self._bind_run_tool_context(self.run_tool_context)
         if resume:
             if not research_id:
                 raise ValueError("research_id is required when resume=True")
@@ -386,6 +400,12 @@ class DeepResearchEngine:
                             ),
                             "branch_single_cap": (
                                 self.settings.branch_single_cap
+                            ),
+                            "max_external_search_requests_per_run": (
+                                self.settings.max_external_search_requests_per_run
+                            ),
+                            "max_external_fetch_requests_per_run": (
+                                self.settings.max_external_fetch_requests_per_run
                             ),
                             "research_loop_enabled": (
                                 self.settings.research_loop_enabled
@@ -467,6 +487,36 @@ class DeepResearchEngine:
                 state.metadata["llm_budget_exceeded"] = True
                 state.metadata["llm_run_total_cny"] = (
                     self.llm_client.run_total_cny(research_id) if self.llm_client else 0.0
+                )
+                self.graph.update_state(config, self._state_output(state))
+                self.logger.event("run_finished", status=state.status)
+                return state
+            except ToolExecutionError as exc:
+                if exc.kind != ToolErrorKind.BUDGET_EXCEEDED:
+                    raise
+                state = self.load_state(research_id) or state
+                before = self._state_output(state)
+                state.status = "budget_exceeded"
+                snapshot = (
+                    self.run_tool_context.external_request_budget.snapshot()
+                    if self.run_tool_context
+                    and self.run_tool_context.external_request_budget
+                    else {}
+                )
+                state.metadata["external_request_budget"] = snapshot
+                record_agent_decision(
+                    state,
+                    AgentDecision(
+                        decision_type="external_request_budget_rejected",
+                        made_by="RunToolContext",
+                        inputs=snapshot,
+                        criterion="external search and fetch requests must remain within the run-wide allowance",
+                        outcome=str(exc),
+                        alternatives_considered=["continue after budget refusal"],
+                    ),
+                )
+                DecisionGate.validate(
+                    "external_request_budget", before, self._state_output(state)
                 )
                 self.graph.update_state(config, self._state_output(state))
                 self.logger.event("run_finished", status=state.status)
@@ -2193,6 +2243,18 @@ class DeepResearchEngine:
             self.settings.branch_budget_enabled
             or self.settings.research_loop_active
         )
+
+    def _bind_run_tool_context(self, context: RunToolContext) -> None:
+        """Bind one context to every registered implementation for this run."""
+        bound: set[int] = set()
+        for metadata in self.capability_registry.query():
+            implementation = self.capability_registry.resolve(metadata.name)
+            if id(implementation) in bound:
+                continue
+            bound.add(id(implementation))
+            setter = getattr(implementation, "set_run_context", None)
+            if callable(setter):
+                setter(context)
 
     def _on_research_loop_exhausted(
         self,

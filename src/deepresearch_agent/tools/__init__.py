@@ -19,6 +19,7 @@ from deepresearch_agent.tools.capability_selector import (
 from deepresearch_agent.tools.contract_adapter import ContractSearchProvider
 from deepresearch_agent.tools.contracts import (
     ERROR_RETRY_POLICIES,
+    CircuitBreakerPolicy,
     DegradationEvent,
     RetryPolicy,
     ToolError,
@@ -37,9 +38,11 @@ from deepresearch_agent.tools.recording_search import (
 from deepresearch_agent.tools.reliable_execution import (
     CircuitBreaker,
     CircuitState,
+    ExternalRequestBudget,
     ReliableToolExecutor,
     RetryBudget,
     RunToolContext,
+    ToolExecutionError,
 )
 from deepresearch_agent.tools.search_factory import ConfiguredSearchProvider, build_search_provider
 from deepresearch_agent.tools.structured_data_factory import build_structured_data_provider
@@ -61,6 +64,7 @@ __all__ = [
     "ConfiguredSearchProvider",
     "ContractSearchProvider",
     "CircuitBreaker",
+    "CircuitBreakerPolicy",
     "CircuitState",
     "DegradationEvent",
     "DeterministicCapabilitySelector",
@@ -70,6 +74,7 @@ __all__ = [
     "FETCH_TOOL_SPEC",
     "FIXED_CAPABILITY_SET",
     "FixtureSearchTool",
+    "ExternalRequestBudget",
     "FixtureStructuredDataProvider",
     "RecordingSearchProvider",
     "ReliableToolExecutor",
@@ -85,6 +90,7 @@ __all__ = [
     "DisclosureSourceError",
     "ToolError",
     "ToolErrorKind",
+    "ToolExecutionError",
     "ToolResult",
     "ToolSpec",
     "TrajectoryStructuredDataProvider",

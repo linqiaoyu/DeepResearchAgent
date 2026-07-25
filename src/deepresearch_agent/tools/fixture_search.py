@@ -22,6 +22,8 @@ class FixtureSearchTool:
     changing planner/researcher/extractor contracts.
     """
 
+    search_counts_toward_budget = True
+
     def __init__(self, source_path: Path | None = None) -> None:
         self.source_path = source_path or project_root() / "data" / "mock_data" / "sources.json"
         self._sources = self._load_sources()
@@ -49,4 +51,3 @@ class FixtureSearchTool:
             if source.url == url:
                 return source
         return None
-

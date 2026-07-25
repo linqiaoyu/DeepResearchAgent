@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import random
+import queue
+import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -45,6 +47,48 @@ class RetryBudget:
         return True
 
 
+@dataclass
+class ExternalRequestBudget:
+    """Run-wide, fail-closed allowance for actual network egress."""
+
+    max_search_requests: int
+    max_fetch_requests: int
+    search_requests: int = 0
+    fetch_requests: int = 0
+    rejected_events: list[dict[str, int | str]] = field(default_factory=list)
+
+    def consume(self, request_kind: str, *, tool: str) -> None:
+        if request_kind not in {"search", "fetch"}:
+            raise ValueError(f"unknown external request kind: {request_kind}")
+        count_name = f"{request_kind}_requests"
+        limit_name = f"max_{request_kind}_requests"
+        consumed = getattr(self, count_name)
+        limit = getattr(self, limit_name)
+        if consumed >= limit:
+            self.rejected_events.append(
+                {
+                    "tool": tool,
+                    "request_kind": request_kind,
+                    "consumed": consumed,
+                    "limit": limit,
+                }
+            )
+            raise ToolExecutionError(
+                ToolErrorKind.BUDGET_EXCEEDED,
+                f"run-wide external {request_kind} request budget exhausted "
+                f"for {tool}: {consumed}/{limit}",
+            )
+        setattr(self, count_name, consumed + 1)
+
+    def snapshot(self) -> dict[str, int]:
+        return {
+            "search_requests": self.search_requests,
+            "max_search_requests": self.max_search_requests,
+            "fetch_requests": self.fetch_requests,
+            "max_fetch_requests": self.max_fetch_requests,
+        }
+
+
 class CircuitState(StrEnum):
     CLOSED = "closed"
     OPEN = "open"
@@ -55,11 +99,12 @@ class CircuitState(StrEnum):
 class CircuitBreaker:
     failure_threshold: int = 3
     cooldown_s: float = 30.0
+    half_open_max_calls: int = 1
     clock: Callable[[], float] = time.monotonic
     state: CircuitState = CircuitState.CLOSED
     consecutive_failures: int = 0
     opened_at: float | None = None
-    _half_open_probe_taken: bool = False
+    _half_open_probes_taken: int = 0
 
     def allow_call(self) -> bool:
         if self.state == CircuitState.CLOSED:
@@ -68,17 +113,17 @@ class CircuitBreaker:
             if self.opened_at is None or self.clock() - self.opened_at < self.cooldown_s:
                 return False
             self.state = CircuitState.HALF_OPEN
-            self._half_open_probe_taken = False
-        if self._half_open_probe_taken:
+            self._half_open_probes_taken = 0
+        if self._half_open_probes_taken >= self.half_open_max_calls:
             return False
-        self._half_open_probe_taken = True
+        self._half_open_probes_taken += 1
         return True
 
     def record_success(self) -> None:
         self.state = CircuitState.CLOSED
         self.consecutive_failures = 0
         self.opened_at = None
-        self._half_open_probe_taken = False
+        self._half_open_probes_taken = 0
 
     def record_failure(self) -> None:
         if self.state == CircuitState.HALF_OPEN:
@@ -91,14 +136,35 @@ class CircuitBreaker:
     def _open(self) -> None:
         self.state = CircuitState.OPEN
         self.opened_at = self.clock()
-        self._half_open_probe_taken = False
+        self._half_open_probes_taken = 0
 
 
 @dataclass
 class RunToolContext:
     retry_budget: RetryBudget
+    external_request_budget: ExternalRequestBudget | None = None
     degradation_events: list[DegradationEvent] = field(default_factory=list)
     breakers: dict[str, CircuitBreaker] = field(default_factory=dict)
+
+    @classmethod
+    def for_run(
+        cls,
+        *,
+        max_retries: int = 6,
+        max_external_search_requests: int = 20,
+        max_external_fetch_requests: int = 20,
+    ) -> "RunToolContext":
+        return cls(
+            retry_budget=RetryBudget(max_retries=max_retries),
+            external_request_budget=ExternalRequestBudget(
+                max_search_requests=max_external_search_requests,
+                max_fetch_requests=max_external_fetch_requests,
+            ),
+        )
+
+    def consume_external_request(self, request_kind: str, *, tool: str) -> None:
+        if self.external_request_budget is not None:
+            self.external_request_budget.consume(request_kind, tool=tool)
 
 
 class ReliableToolExecutor:
@@ -124,7 +190,15 @@ class ReliableToolExecutor:
         impact: str = "tool output unavailable",
     ) -> ToolResult:
         started = self._clock()
-        breaker = context.breakers.setdefault(spec.name, CircuitBreaker(clock=self._clock))
+        breaker = context.breakers.setdefault(
+            spec.name,
+            CircuitBreaker(
+                failure_threshold=spec.circuit_breaker.failure_threshold,
+                cooldown_s=spec.circuit_breaker.cooldown_s,
+                half_open_max_calls=spec.circuit_breaker.half_open_max_calls,
+                clock=self._clock,
+            ),
+        )
         if not breaker.allow_call():
             return self._failure(
                 spec,
@@ -143,7 +217,7 @@ class ReliableToolExecutor:
         while True:
             attempts += 1
             try:
-                value = operation()
+                value = self._call_with_timeout(operation, spec.timeout_s)
             except Exception as exc:
                 kind = classify_tool_error(exc)
                 last_failure_kind = kind
@@ -229,3 +303,33 @@ class ReliableToolExecutor:
 
     def _elapsed_ms(self, started: float) -> int:
         return max(0, round((self._clock() - started) * 1000))
+
+    @staticmethod
+    def _call_with_timeout(operation: Callable[[], Any], timeout_s: float) -> Any:
+        """Return promptly on timeout without waiting for an uncooperative tool.
+
+        Python cannot safely kill an arbitrary synchronous thread.  The worker is
+        deliberately daemonized so an overdue provider cannot keep the run (or
+        process shutdown) hostage; providers should still use their own transport
+        timeout for cancellation at the I/O layer.
+        """
+        outcome: queue.Queue[tuple[bool, Any]] = queue.Queue(maxsize=1)
+
+        def invoke() -> None:
+            try:
+                outcome.put((True, operation()))
+            except BaseException as exc:  # preserve provider exception typing
+                outcome.put((False, exc))
+
+        worker = threading.Thread(target=invoke, daemon=True)
+        worker.start()
+        try:
+            ok, value = outcome.get(timeout=timeout_s)
+        except queue.Empty as exc:
+            raise ToolExecutionError(
+                ToolErrorKind.TIMEOUT,
+                f"tool operation timed out after {timeout_s:g}s",
+            ) from exc
+        if ok:
+            return value
+        raise value

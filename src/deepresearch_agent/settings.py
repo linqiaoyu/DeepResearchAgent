@@ -20,6 +20,8 @@ class Settings:
     llm_max_queries_per_sub_question: int = 3
     as_of: date | None = None
     max_searches_per_run: int = 20
+    max_external_search_requests_per_run: int = 20
+    max_external_fetch_requests_per_run: int = 20
     tavily_raw_content_char_limit: int = 40_000
     pdf_max_pages: int = 100
     demo_daily_llm_limit_cny: float = 5.0
@@ -123,6 +125,12 @@ def load_settings() -> Settings:
         ),
         as_of=as_of,
         max_searches_per_run=int(os.getenv("DEEPRESEARCH_MAX_SEARCHES_PER_RUN", "20")),
+        max_external_search_requests_per_run=int(
+            os.getenv("DEEPRESEARCH_MAX_EXTERNAL_SEARCH_REQUESTS_PER_RUN", "20")
+        ),
+        max_external_fetch_requests_per_run=int(
+            os.getenv("DEEPRESEARCH_MAX_EXTERNAL_FETCH_REQUESTS_PER_RUN", "20")
+        ),
         tavily_raw_content_char_limit=int(os.getenv("DEEPRESEARCH_TAVILY_RAW_CONTENT_CHAR_LIMIT", "40000")),
         pdf_max_pages=int(os.getenv("DEEPRESEARCH_PDF_MAX_PAGES", "100")),
         demo_daily_llm_limit_cny=float(os.getenv("DEEPRESEARCH_DEMO_DAILY_LLM_LIMIT_CNY", "5.0")),

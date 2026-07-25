@@ -5,11 +5,13 @@ from typing import Any
 from deepresearch_agent.schemas import Source
 from deepresearch_agent.observability import JsonLogger, correlation_context
 from deepresearch_agent.tools.contracts import ToolSpec
+from deepresearch_agent.tools.contracts import ToolErrorKind
 from deepresearch_agent.tools.provider import SearchProvider
 from deepresearch_agent.tools.reliable_execution import (
     ReliableToolExecutor,
     RetryBudget,
     RunToolContext,
+    ToolExecutionError,
 )
 from deepresearch_agent.trajectory import ToolCallTrace, active_trajectory_recorder
 
@@ -66,6 +68,12 @@ class ContractSearchProvider:
         self.context = context or RunToolContext(retry_budget=RetryBudget(max_retries=6))
         self.logger = logger or JsonLogger()
 
+    def set_run_context(self, context: RunToolContext) -> None:
+        self.context = context
+        set_context = getattr(self.provider, "set_run_context", None)
+        if callable(set_context):
+            set_context(context)
+
     def search(
         self,
         query: str,
@@ -110,6 +118,7 @@ class ContractSearchProvider:
                         attempts=result.attempts,
                     )
                 )
+            self._raise_if_budget_refused(result)
         return list(result.value or [])
 
     def fetch(self, url: str) -> Source | None:
@@ -151,7 +160,18 @@ class ContractSearchProvider:
                         attempts=result.attempts,
                     )
                 )
+            self._raise_if_budget_refused(result)
         return result.value
+
+    def _raise_if_budget_refused(self, result: Any) -> None:
+        external_budget = self.context.external_request_budget
+        if (
+            result.error
+            and result.error.kind == ToolErrorKind.BUDGET_EXCEEDED
+            and external_budget is not None
+            and external_budget.rejected_events
+        ):
+            raise ToolExecutionError(result.error.kind, result.error.message)
 
     @property
     def degradation_events(self) -> list[dict[str, Any]]:
