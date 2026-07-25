@@ -192,6 +192,7 @@ def classify_subquestion(sub_question: SubQuestion) -> str:
             "投产",
             "时间线",
             "事件",
+            "交易",
             "建设进展",
         )
     ):
