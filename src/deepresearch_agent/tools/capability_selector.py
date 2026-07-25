@@ -17,6 +17,7 @@ from deepresearch_agent.tools.capability_registry import (
 DEFAULT_CAPABILITY_RULES: dict[str, tuple[str, ...]] = {
     "financial_metric": (
         "structured_data_provider",
+        "web_fetch",
         "web_search",
     ),
     "market_price": (
@@ -24,6 +25,7 @@ DEFAULT_CAPABILITY_RULES: dict[str, tuple[str, ...]] = {
         "web_search",
     ),
     "verify": ("web_fetch", "web_search"),
+    "event": ("web_fetch", "web_search"),
     "narrative": ("web_search",),
 }
 FIXED_CAPABILITY_SET = (
@@ -118,7 +120,14 @@ class DeterministicCapabilitySelector:
         else:
             criterion = (
                 f"apply configured rule for type={question_type} and keep "
-                "only capabilities declared applicable by the registry"
+                "only capabilities declared applicable by the registry; "
+                + (
+                    "web_fetch is required to read first-party disclosure "
+                    "text for financial or event verification"
+                    if "web_fetch" in selected
+                    else "web_fetch is rejected because this branch has no "
+                    "financial, event, or explicit verification intent"
+                )
             )
         rejected = tuple(
             name for name in candidates if name not in selected
@@ -173,6 +182,20 @@ def classify_subquestion(sub_question: SubQuestion) -> str:
     ).lower()
     if any(term in joined for term in ("verify", "核实", "验证")):
         return "verify"
+    if any(
+        term in joined
+        for term in (
+            "event",
+            "timeline",
+            "公告",
+            "开工",
+            "投产",
+            "时间线",
+            "事件",
+            "建设进展",
+        )
+    ):
+        return "event"
     return "narrative"
 
 

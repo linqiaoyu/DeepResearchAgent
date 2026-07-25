@@ -11,6 +11,7 @@ from deepresearch_agent.orchestration.research_loop import (
     MAX_REPLAN_QUERY_CHARS,
     ResearchSufficiency,
     SubquestionSufficiency,
+    build_replan_query,
     refine_research_plan,
 )
 from deepresearch_agent.schemas import (
@@ -20,6 +21,7 @@ from deepresearch_agent.schemas import (
     ResearchState,
     RetryTask,
     SubQuestion,
+    StructuredDataRequest,
 )
 
 
@@ -116,6 +118,59 @@ class ReplanQueryGuardTests(unittest.TestCase):
         self.assertEqual(issue["issue_id"], task.id)
         self.assertEqual(issue["issue_type"], "unverified_projection")
         self.assertIn("confidence", issue["message"])
+
+    def test_query_uses_entity_identifier_facets_not_question_prose(
+        self,
+    ) -> None:
+        sub_question = SubQuestion(
+            id="finance",
+            question="宁德时代 2024 年业绩有哪些可核验事实？",
+            search_queries=["old"],
+            structured_data_requests=[
+                StructuredDataRequest(
+                    capability="financial_indicators",
+                    company_name="宁德时代",
+                    symbol="300750",
+                    periods=["20241231"],
+                    metrics=["营业收入", "归母净利润"],
+                )
+            ],
+        )
+
+        query = build_replan_query(
+            sub_question,
+            "年度报告 官方公告",
+        )
+
+        self.assertIn("宁德时代", query)
+        self.assertIn("300750", query)
+        self.assertIn("营业收入", query)
+        self.assertIn("20241231", query)
+        self.assertIn("年度报告", query)
+        self.assertNotIn(sub_question.question, query)
+        self.assertNotRegex(query, r"[？?]|有哪些|是什么|为何|如何")
+        self.assertLessEqual(len(query), MAX_REPLAN_QUERY_CHARS)
+
+    def test_company_name_without_symbol_gets_company_disambiguator(
+        self,
+    ) -> None:
+        query = build_replan_query(
+            SubQuestion(
+                id="event",
+                question="宁德时代匈牙利工厂如何建设？",
+                search_queries=[],
+                structured_data_requests=[
+                    StructuredDataRequest(
+                        capability="symbol_resolve",
+                        company_name="宁德时代",
+                    )
+                ],
+            ),
+            "项目公告",
+        )
+
+        self.assertIn("宁德时代 公司", query)
+        self.assertNotRegex(query, r"[？?]|如何")
 
 
 if __name__ == "__main__":

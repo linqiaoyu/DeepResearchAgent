@@ -14,9 +14,15 @@ from deepresearch_agent.tools.tavily_search import (
 
 
 class FakeResponse:
-    def __init__(self, payload: Any, should_raise: bool = False) -> None:
+    def __init__(
+        self,
+        payload: Any,
+        should_raise: bool = False,
+        text: str = "",
+    ) -> None:
         self.payload = payload
         self.should_raise = should_raise
+        self.text = text
         self.raise_called = False
 
     def raise_for_status(self) -> None:
@@ -32,6 +38,7 @@ class FakeHttpClient:
     def __init__(self, response: FakeResponse) -> None:
         self.response = response
         self.calls: list[dict[str, Any]] = []
+        self.get_calls: list[dict[str, Any]] = []
 
     def post(
         self,
@@ -47,6 +54,22 @@ class FakeHttpClient:
                 "headers": headers,
                 "json": json,
                 "timeout": timeout,
+            }
+        )
+        return self.response
+
+    def get(
+        self,
+        url: str,
+        *,
+        timeout: float,
+        follow_redirects: bool,
+    ) -> FakeResponse:
+        self.get_calls.append(
+            {
+                "url": url,
+                "timeout": timeout,
+                "follow_redirects": follow_redirects,
             }
         )
         return self.response
@@ -77,6 +100,32 @@ class RaisingHttpClient:
 
 
 class TavilySearchProviderTests(unittest.TestCase):
+    def test_fetch_hydrates_publisher_html_body(self) -> None:
+        response = FakeResponse(
+            {},
+            text=(
+                "<html><head><title>年度报告</title>"
+                "<style>hidden</style></head><body>"
+                "<script>ignored</script>营业收入 100 亿元</body></html>"
+            ),
+        )
+        client = FakeHttpClient(response)
+        with tempfile.TemporaryDirectory() as tmp:
+            provider = TavilySearchProvider(
+                "test-key",
+                client=client,
+                ledger_path=Path(tmp) / "search_ledger.jsonl",
+            )
+
+            source = provider.fetch("https://issuer.example/report")
+
+        self.assertIsNotNone(source)
+        assert source is not None
+        self.assertEqual(source.title, "年度报告")
+        self.assertEqual(source.content, "年度报告 营业收入 100 亿元")
+        self.assertEqual(source.source_type, "web_fetch")
+        self.assertEqual(len(client.get_calls), 1)
+
     def test_search_posts_expected_request_and_normalizes_sources(self) -> None:
         response = FakeResponse(
             {

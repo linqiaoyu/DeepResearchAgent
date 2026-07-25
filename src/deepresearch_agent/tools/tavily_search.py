@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import hashlib
+import html
 import json
+import re
 import time
 from collections.abc import Mapping
 from datetime import date, datetime
@@ -39,6 +41,15 @@ class SyncHttpClient(Protocol):
         timeout: float,
     ) -> HttpResponse:
         """Post a JSON request to the provider."""
+
+    def get(
+        self,
+        url: str,
+        *,
+        timeout: float,
+        follow_redirects: bool,
+    ) -> Any:
+        """Fetch a source document by URL."""
 
 
 class TavilySearchProvider:
@@ -158,6 +169,50 @@ class TavilySearchProvider:
         self.last_error_type = type(last_error).__name__ if last_error else "unknown"
         return []
 
+    def fetch(self, url: str) -> Source | None:
+        """Hydrate a search result with the publisher's response body."""
+
+        last_error: Exception | None = None
+        for attempt in range(self.max_retries + 1):
+            try:
+                response = self.client.get(
+                    url,
+                    timeout=self.timeout_seconds,
+                    follow_redirects=True,
+                )
+                response.raise_for_status()
+                raw = str(response.text)
+                title_match = re.search(
+                    r"<title[^>]*>(.*?)</title>",
+                    raw,
+                    re.IGNORECASE | re.DOTALL,
+                )
+                title = (
+                    self._html_text(title_match.group(1))
+                    if title_match
+                    else url
+                )
+                content = self._html_text(raw)[: self.raw_content_char_limit]
+                if not content:
+                    return None
+                return Source(
+                    id=self._source_id(url, title),
+                    title=title or url,
+                    url=url,
+                    source_type="web_fetch",
+                    published_at=UNKNOWN_PUBLISHED_AT,
+                    content=content,
+                    credibility=0.8,
+                )
+            except Exception as exc:
+                last_error = exc
+                if attempt < self.max_retries:
+                    self._sleep(2**attempt)
+        self.last_error_type = (
+            type(last_error).__name__ if last_error else "unknown"
+        )
+        return None
+
     def _search_error(self, query: str, error: Exception) -> TavilySearchError:
         query_label = query.strip()[:80] or "<empty>"
         return TavilySearchError(f"Tavily search failed for query {query_label!r}: {error}")
@@ -239,6 +294,16 @@ class TavilySearchProvider:
 
     def _text(self, value: Any) -> str:
         return value.strip() if isinstance(value, str) else ""
+
+    def _html_text(self, value: str) -> str:
+        without_scripts = re.sub(
+            r"<(?:script|style)[^>]*>.*?</(?:script|style)>",
+            " ",
+            value,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        without_tags = re.sub(r"<[^>]+>", " ", without_scripts)
+        return " ".join(html.unescape(without_tags).split())
 
     def _record_ledger(
         self,

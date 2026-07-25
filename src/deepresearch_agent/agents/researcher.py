@@ -52,6 +52,7 @@ class ResearcherAgent:
         max_search_calls: int | None,
         priority_urls: list[str] | None = None,
         enable_web_search: bool = True,
+        enable_web_fetch: bool = False,
     ) -> tuple[list[Source], list[SearchRecord], int, bool]:
         seen: dict[str, Source] = {}
         records: list[SearchRecord] = []
@@ -124,6 +125,17 @@ class ResearcherAgent:
             records.append(SearchRecord(query=query, source_ids=[source.id for source in results], latency_ms=latency_ms))
             for source in results:
                 seen[source.url] = source
+                if not enable_web_fetch or not consume_call():
+                    continue
+                fetched = self.fetch_tool.fetch(source.url)
+                records.append(
+                    SearchRecord(
+                        query=f"[web_fetch] {source.url}",
+                        source_ids=[fetched.id] if fetched else [],
+                    )
+                )
+                if fetched:
+                    seen[fetched.url] = fetched
         return list(seen.values()), records, branch_calls, branch_exhausted
 
     def retry(self, query: str, source_type: str | None = None, top_k: int = 2) -> tuple[list[Source], SearchRecord]:

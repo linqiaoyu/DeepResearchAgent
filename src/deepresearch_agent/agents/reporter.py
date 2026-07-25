@@ -306,6 +306,9 @@ class ReporterAgent:
         repaired_claim_keys = repaired_claim_keys or set()
         evidence_fact_keys = metric_fact_keys(evidence)
         seen_fact_keys: set[tuple[str, str, str, str]] = set()
+        key_fact_keys: set[tuple[str, str, str, str]] = set()
+        key_evidence_ids: set[str] = set()
+        supplemental: list[tuple[str, int, ReportClaim]] = []
 
         lines: list[str] = [
             f"# {self._reader_text(state.topic)}",
@@ -337,6 +340,10 @@ class ReporterAgent:
             claim_provenance.append(provenance)
             lines.append(f"- {rendered}")
             seen_fact_keys.update(fact_keys)
+            key_fact_keys.update(fact_keys)
+            key_evidence_ids.update(
+                item for item in claim.evidence_ids if item in evidence_ids
+            )
 
         by_section = {section.sub_question_id: section for section in draft.detailed_analysis}
         lines.extend(["", "## 详细分析"])
@@ -346,14 +353,36 @@ class ReporterAgent:
             section = by_section.get(sub_question.id)
             lines.append(f"### {self._reader_text(sub_question.question)}")
             if not section or not section.claims:
-                lines.append("当前没有足够证据，需要二次检索补齐。")
+                lines.append("本节没有可追溯到关键发现的分析项。")
                 continue
+            rendered_count = 0
             for index, claim in enumerate(section.claims[:3]):
                 fact_keys = self._claim_fact_keys(
                     claim,
                     evidence_fact_keys,
                 )
-                if fact_keys and fact_keys <= seen_fact_keys:
+                valid_claim_ids = {
+                    item
+                    for item in claim.evidence_ids
+                    if item in evidence_ids
+                }
+                related = bool(
+                    valid_claim_ids & key_evidence_ids
+                    or fact_keys & key_fact_keys
+                )
+                if not related:
+                    supplemental.append(
+                        (sub_question.id, index, claim)
+                    )
+                    continue
+                if (
+                    fact_keys
+                    and fact_keys <= seen_fact_keys
+                    and not any(
+                        not evidence_fact_keys.get(item)
+                        for item in valid_claim_ids
+                    )
+                ):
                     continue
                 path = _ClaimPath("detailed_analysis", index, sub_question.id)
                 rendered, invalid, backfilled, provenance = self._render_claim(
@@ -368,6 +397,29 @@ class ReporterAgent:
                 claim_provenance.append(provenance)
                 lines.append(f"- {rendered}")
                 seen_fact_keys.update(fact_keys)
+                rendered_count += 1
+            if not rendered_count:
+                lines.append("本节没有可追溯到关键发现的新增分析项。")
+
+        if supplemental:
+            lines.extend(["", "## 补充事实"])
+            for sub_question_id, index, claim in supplemental:
+                path = _ClaimPath(
+                    "supplemental_facts",
+                    index,
+                    sub_question_id,
+                )
+                rendered, invalid, backfilled, provenance = self._render_claim(
+                    claim,
+                    ref_map,
+                    evidence_ids,
+                    path=path,
+                    repaired_claim_keys=repaired_claim_keys,
+                )
+                invalid_references += invalid
+                missing_reference_backfills += backfilled
+                claim_provenance.append(provenance)
+                lines.append(f"- {rendered}")
 
         lines.extend(["", "## 风险与限制"])
         if draft.risks:

@@ -56,11 +56,11 @@ class DynamicCapabilitySelectionTest(unittest.TestCase):
         )
         self.assertEqual(
             financial_selection.selected_capabilities,
-            ("structured_data_provider", "web_search"),
+            ("structured_data_provider", "web_fetch", "web_search"),
         )
         self.assertEqual(
             financial_selection.rejected_capabilities,
-            ("web_fetch",),
+            (),
         )
         self.assertEqual(
             narrative_selection.selected_capabilities,
@@ -69,6 +69,47 @@ class DynamicCapabilitySelectionTest(unittest.TestCase):
         self.assertEqual(
             narrative_selection.rejected_capabilities,
             ("structured_data_provider", "web_fetch"),
+        )
+
+    def test_financial_and_event_verification_select_fetch_with_reason(
+        self,
+    ) -> None:
+        state = ResearchState(topic="一手来源核验")
+        selector = DeterministicCapabilitySelector(_registry())
+        financial = SubQuestion(
+            id="finance",
+            question="核验年度营业收入",
+            search_queries=["年度报告"],
+            structured_data_requests=[
+                StructuredDataRequest(
+                    capability="financial_indicators",
+                    symbol="300750",
+                )
+            ],
+        )
+        event = SubQuestion(
+            id="event",
+            question="梳理项目公告、开工与投产时间线",
+            search_queries=["项目公告"],
+        )
+
+        selections = [
+            selector.select(state, financial),
+            selector.select(state, event),
+        ]
+
+        self.assertTrue(
+            all(
+                "web_fetch" in item.selected_capabilities
+                for item in selections
+            )
+        )
+        self.assertTrue(all(item.criterion for item in selections))
+        self.assertTrue(
+            all(
+                "first-party disclosure" in item.criterion
+                for item in selections
+            )
         )
 
     def test_no_matching_rule_explicitly_falls_back_to_fixed_set(self) -> None:
