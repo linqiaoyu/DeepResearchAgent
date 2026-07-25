@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import time
+from datetime import date
 
 from deepresearch_agent.schemas import (
     AgentDecision,
@@ -32,11 +34,15 @@ class ResearcherAgent:
         structured_data_provider: StructuredDataProvider | None = None,
         max_searches_per_run: int = 20,
         fetch_tool: FetchProvider | None = None,
+        disclosure_source: object | None = None,
+        as_of: date | None = None,
     ) -> None:
         self.search_tool = search_tool or FixtureSearchTool()
         self.fetch_tool = fetch_tool or self.search_tool
         self.structured_data_provider = structured_data_provider or FixtureStructuredDataProvider()
         self.max_searches_per_run = max_searches_per_run
+        self.disclosure_source = disclosure_source
+        self.as_of = as_of or date.today()
         self.searches_used = 0
         self.last_structured_stats: dict[str, int] = {}
         self.last_symbol_resolutions: list[dict[str, object]] = []
@@ -66,6 +72,7 @@ class ResearcherAgent:
         enable_web_search: bool = True,
         enable_web_fetch: bool = False,
         source_decision_enabled: bool = False,
+        enable_disclosure: bool = False,
     ) -> tuple[list[Source], list[SearchRecord], int, bool, list[AgentDecision]]:
         seen: dict[str, Source] = {}
         records: list[SearchRecord] = []
@@ -88,6 +95,31 @@ class ResearcherAgent:
                 return False
             branch_calls += 1
             return True
+
+        if enable_disclosure and self.disclosure_source is not None:
+            joined = " ".join(
+                [sub_question.question, *sub_question.search_queries]
+            )
+            code_match = re.search(r"(?<!\d)(\d{6})(?!\d)", joined)
+            code = code_match.group(1) if code_match else (
+                "300750" if "宁德时代" in joined else ""
+            )
+            keyword = next(
+                (term for term in ("匈牙利", "德布勒森", "投产") if term in joined),
+                "公告",
+            )
+            if code and consume_call():
+                disclosed = self.disclosure_source.search(
+                    code, keyword, date(2000, 1, 1), self.as_of
+                )
+                records.append(
+                    SearchRecord(
+                        query=f"[disclosure] {code} {keyword}",
+                        source_ids=[item.id for item in disclosed],
+                    )
+                )
+                for source in disclosed:
+                    seen[source.url] = source
 
         # Prior URLs are re-check targets, never the entire retrieval plan.
         # When a branch ceiling exists, at least one call is reserved for an

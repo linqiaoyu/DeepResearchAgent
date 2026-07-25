@@ -2,25 +2,29 @@
 
 ## 1. 项目定位与当前状态
 
-DeepResearchAgent 是一个多 Agent 深度研究框架，金融投研为首个落地场景。
+DeepResearchAgent 是一个自建 Agent Harness：不依赖第三方 Agent 框架，自行实现编排、契约与协议边界；金融投研是首个被测系统（SUT）。项目面向作品集与演示，但实现选择应能解释为生产化工程决策。
 
-当前仓库处于 MVP 阶段：已实现确定性的 Planner、Researcher、Extractor、Critic、Reporter、Evaluator 工作流；默认使用本地 fixture 检索数据与录制结构化金融数据；编排层已迁移为 LangGraph `StateGraph`，Researcher 按子问题 fan-out，Critic 通过条件边回流 retry queue；checkpoint 由官方 `SqliteSaver` 写入 SQLite，Evidence 和 evaluation 结果由 `SQLiteStore` 写入 SQLite；LLM 模式通过统一 LiteLLM 层覆盖 Planner、Extractor、Reporter，Researcher 与 Critic 当前仍保持确定性；已接入 AKShare 白名单结构化数据边界、五元素数字 claim 口径体系、金融化 Critic；Golden Set v1.1 已以四键审计闸冻结（76 PASS、0 DEFECT、3 条 PM 注记 UNCERTAIN），并完成 G1/G2/G3 保存态三采样重评；007/007S 已加入三层演示资产（G3 展示层、异步 Golden replay 重跑层、owner-token live 层）与持久化日消耗护栏，公开触达形态为静态演示站，由 `scripts/build_site.py` 生成 `site/dist/` 后手工上传；010 新增工具契约、安全、运行血统、上下文打包、结构化日志与配置校验层，以及只读离线评测工具；011 用双题面规范化快照证明 010 默认路径与 `befd60b` 产物等价，默认启用工具契约、run manifest、结构化日志与 fail-fast，新增八场景离线 chaos 演练，并把注入语料扩为 63 条；012 修复 context packer 的同 URL 多摘录去重缺陷但继续保持 dark，新增结构化产出、引用闭合审计包、独立 ResearchSnapshot、manifest-aware 六类变更追踪、默认关闭的 API 章节轮询与 fixture 业务场景页；013 修正结构化产出转正规则并将其在 deterministic 默认路径启用，以 `additive_content` 标记其可比性边界，同时查明 fixture 引用崩塌来自 Reporter/Evaluator 的位置脚注排序漂移，记录方法边界、可读变更呈现、模拟成本标签与保存态延迟；014 新增统一 `AgentDecision`、结构化轨迹与 fixture 严格回放，strategy replay 尚未实现，并把 Reporter 脚注映射固化为跨消费者契约；015 新增覆盖全图节点的 `NodeContract`、LangGraph 原生有界研究回边、分支预算、确定性情景/语义记忆、最近两期研究行为与 `CapabilityRegistry`，三个 content-affecting 策略开关均保持默认关闭；context packer、injection guard、progressive delivery 与 trajectory recording 仍保持 dark，结构化产出的 LLM additive 性仍须在后续授权任务验证；010 耦合审计判定金融逻辑仍硬编码于核心 Agent，`domains/finance` 与 `domains/competitive` 尚未落位，不得宣称框架已完成领域解耦；当前主推理模型锁定 deepseek-v4-flash，judge 与 citation_support 锁定 qwen3.7-plus；CLI demo、LLM smoke、Golden Set runner、FastAPI demo endpoints、静态站构建和 unittest 套件已在本地 `.venv` 验证过相应路径。
+### 已实现的 MVP 基线（005–015）
 
-本项目是作品集和演示导向项目，但实现选择仍应能解释为生产化工程决策。
+已实现确定性的 Planner、Researcher、Extractor、Critic、Reporter、Evaluator 工作流；默认使用本地 fixture 检索与录制结构化金融数据。编排层使用 LangGraph `StateGraph`，Researcher 按子问题 fan-out，Critic 通过条件边回流 retry queue；checkpoint 使用 `SqliteSaver`，Evidence 与 evaluation 使用 `SQLiteStore`。LLM 模式经统一 LiteLLM 层覆盖 Planner、Extractor、Reporter，Researcher 与 Critic 仍为确定性。
 
-016 已新增只读 `DecisionContext` 编织预算、充分性、跨期分类与 Critic 问题，加入四类
-数值自洽校验、基于 `CapabilityRegistry` 的确定性动态能力选择和扩展轨迹严格回放。
-三项新增 `content_affecting` 开关均默认关闭；017–019 的既定后续路线见第 13 节。
+010–015 已加入工具契约、安全、运行血统、结构化日志、配置校验、引用闭合审计包、ResearchSnapshot、`AgentDecision`、严格 fixture 轨迹回放、`NodeContract`、有界研究回边、分支预算、确定性记忆与 `CapabilityRegistry`。默认启用工具契约、run manifest、结构化日志、fail-fast 与结构化产出；领域解耦尚未完成，金融判断逻辑仍在核心 Agent，不能宣称已有 `domains/finance` 或 `domains/competitive` 的完整抽取。
 
-017 已完成 Reflector 双轨骨架：四类确定性跨轮信号、独立 LLM 推理接口及合成/录制
-占位、严格 cache miss、程序性记忆与反思驱动重规划接线均已落位。该轮只证明管道，
-反思判断质量与跨运行策略偏好优劣待 019 真实验证。
+### 016–018 的已知边界
 
-018 已完成零依赖 MCP 双向边界与首个 Skill pack：标准库 stdio server 暴露四个
-fixture 工具，标准库 client 可发现外部工具并注册回 `CapabilityRegistry`；skill loader
-按 metadata-first 渐进披露，金融口径规则以相同 SHA-256 等价迁移。Claude Code
-完成 `initialize` / `initialized` / `tools/list` 健康检查，但第三方客户端的完整
-`tools/call` 握手仍为 INCOMPLETE；完整调用序列仅由自建最小客户端验证，不得混称。
+016 加入只读 `DecisionContext`、四类数值自洽校验、动态能力选择与扩展轨迹严格回放；017 完成 Reflector 双轨骨架，但真实 LLM 判断质量与跨运行策略偏好尚未验证。018 完成 MCP 双向边界与首个 Skill pack：第三方客户端已完成 `initialize` / `initialized` / `tools/list` 健康检查，但完整第三方 `tools/call` 握手仍为 INCOMPLETE；自建最小客户端已完成全序列，二者不得混称。
+
+### 019 的事实结论（A / B / C / E / G）
+
+- 019-A 完成付费验证的资格与预登记审计。
+- 019-B 的检索可达性结果为 `REACHABLE=2 < 4`，因此形成 STOP；该 STOP 仍是事实记录，未被后续轮次解除、替代或重评。
+- 019-C 冻结的一手证据闭合率 APBEC 宏平均为 `0`，六题均未达到阈值；冻结指标定义与阈值仍保留。
+- 019-E 证明 PDF 解码、来源分级与重排的工程基础，但未使 primary Source→Evidence 闭合；APBEC v2 未运行，不能推断六题基础已改善。
+- 019-G 通过巨潮资讯直连首次取得 `source_tier=primary` 的一手公告 PDF 证据；该轮的 G1 完成，G2–G5 未交付，INCOMPLETE 事实必须保留，不能表述为整轮全绿。
+
+### 020-I 审计结论
+
+020-I 对 28 项能力声称未发现捏造，10 项仅为骨架；10 个 `content_affecting` 开关均默认关闭，默认路径可见能力为 4 项。该审计也确认历史规则漂移：后续轮次约束必须以本文件为准。
 
 ## 2. 仓库结构
 
@@ -44,7 +48,7 @@ fixture 工具，标准库 client 可发现外部工具并注册回 `CapabilityR
 
 领域目录约定（尚未实施）：目标 domain pack 包含 `tools/`、`prompts/`、`templates/`、`eval/`、`domain.yaml` 五类；新增领域前必须先完成 finance 等价抽取、旧路径兼容、资源 SHA-256 与默认 E2E 行为证明。
 
-当前默认开关：`TOOL_CONTRACT_ENABLED=true`、`INJECTION_GUARD_ENABLED=false`、`RUN_MANIFEST_ENABLED=true`、`CONTEXT_PACKER_ENABLED=false`、`STRUCTURED_LOGGING_ENABLED=true`、`CONFIG_FAIL_FAST_ENABLED=true`、`STRUCTURED_OUTPUT_ENABLED=true`、`PROGRESSIVE_DELIVERY_ENABLED=false`、`TRAJECTORY_RECORD_ENABLED=false`、`BRANCH_BUDGET_ENABLED=false`、`RESEARCH_LOOP_ENABLED=false`（max iterations 默认 1）、`PRIOR_MEMORY_ENABLED=false`、`DECISION_WEAVING_ENABLED=false`、`NUMERIC_CHECK_ENABLED=false`、`DYNAMIC_CAPABILITY_ENABLED=false`、`REFLECTION_ENABLED=false`、`SKILL_PACKS_ENABLED=false`。任何跨代比较必须先经 `scripts/verify_manifest.py` 判定。
+当前默认开关（必须与 `settings.py` 保持一致）：`TOOL_CONTRACT_ENABLED=true`、`INJECTION_GUARD_ENABLED=false`、`RUN_MANIFEST_ENABLED=true`、`CONTEXT_PACKER_ENABLED=false`、`STRUCTURED_LOGGING_ENABLED=true`、`CONFIG_FAIL_FAST_ENABLED=true`、`STRUCTURED_OUTPUT_ENABLED=true`、`PROGRESSIVE_DELIVERY_ENABLED=false`、`TRAJECTORY_RECORD_ENABLED=false`、`BRANCH_BUDGET_ENABLED=false`、`RESEARCH_LOOP_ENABLED=false`（max iterations 默认 1）、`PRIOR_MEMORY_ENABLED=false`、`DECISION_WEAVING_ENABLED=false`、`NUMERIC_CHECK_ENABLED=false`、`DYNAMIC_CAPABILITY_ENABLED=false`、`REFLECTION_ENABLED=false`、`SKILL_PACKS_ENABLED=false`。10 个 `content_affecting` 开关均默认关闭；任何跨代比较必须先经 `scripts/verify_manifest.py` 判定。
 
 ## 3. 技术栈与版本
 
@@ -64,6 +68,8 @@ fixture 工具，标准库 client 可发现外部工具并注册回 `CapabilityR
 - Setuptools：`>=68`；Wheel：用于构建后端。
 
 规则：未经 PM 批准不得更换编排框架、不得新增重型依赖、不得引入新的 Multi-Agent 库。
+
+依赖枚举与立法理由：禁止引入 Agent、编排或 RAG 框架（包括 LangChain、AutoGen、CrewAI、LlamaIndex）、向量数据库，或任何代为实现 Agent 决策逻辑的库；**立法理由：项目的核心主张是不依赖第三方 Agent 框架。** 文件格式解码（PDF / Office / 压缩）、HTML / XML 解析、HTTP 客户端与数据处理基础库属于允许的基础设施，不构成 Agent 能力。新增允许类依赖仍须纯 Python 优先、许可证宽松、版本在 `pyproject.toml` 与 CI 精确一致，并在提交说明中写明用途。`pypdf==6.14.2` 属允许类 PDF 解码依赖，不需要例外授权；此前称其为“例外”的表述已更正。
 
 ## 4. 运行与测试命令
 
@@ -132,7 +138,7 @@ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/build_site.py
 - 密钥纪律：API key 只经 `.env` 读取；严禁出现在代码、日志、账本、报告、commit message 中。
 - 外部 provider 必须置于工具或 agent 边界之后，保证 Tavily、LiteLLM、LangGraph、Postgres 等实现可替换时不改写工作流语义。
 - 所有 LLM 调用必须经统一封装层并记录 token、cost、latency。当前 `LLMClient` 已记录 token、cost、latency、cache_hit、prompt_cache_hit_tokens、prompt_cache_miss_tokens、price_source、repair_attempts 到 `data/runtime/llm_ledger.jsonl`；deterministic 模式继续使用估算值。
-- 所有外部工具调用必须有 timeout 和 retry。目标规范，现状未满足：Tavily 适配器已有 `timeout_seconds`，但未发现 retry 机制。
+- 所有外部工具调用必须有 timeout 和 retry。Tavily 适配器在搜索与抓取路径均已有有界重试循环（`tavily_search.py:178,227`）；AKShare provider 与 ToolSpec/reliable execution 亦有 timeout/retry 机制。该项不再标为“未发现 retry”。
 - prompt 文本放独立的 `prompts/` 目录，禁止硬编码在业务代码中。目标规范，现状未满足：`prompts/` 存在，但当前确定性 Planner/Reporter/Critic 相关文本和查询模板仍在业务代码中。
 - 关键数据结构用 Pydantic 强类型。当前 `schemas.py` 已用 Pydantic 定义跨 Agent 合同，包括 `ResearchState`、`ResearchPlan`、`Source`、`Evidence`、`CriticReport`、`EvaluationResult` 等。
 - 任何 evaluation 指标定义变更都必须同步更新 `docs/evaluation.md`。
@@ -158,7 +164,12 @@ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/build_site.py
 - 执行的第一个动作是把提示词逐字存入 `_collab/编号_短名/prompt.md`。
 - 执行的最后一个动作是把执行报告存入同目录 `report.md` 并完整打印到终端。
 - 执行报告必须包含 `git log --oneline main..HEAD` 与 `git diff main --stat` 的原始输出。
-- 冻结资产的任何元数据变更必须在执行报告中单列申报，说明字段、原因、影响边界和是否触及评分契约。
+- 规则的居所：任何会约束后续轮次的规则，必须写进 `AGENTS.md` 才生效；**立法理由：一次性、gitignored 的任务文档不可 diff、不可审查，规则会漂移。** 任务卡中的约束只在本卡有效，且必须显式标注“本卡限定”。任务卡与 `AGENTS.md` 冲突时以 `AGENTS.md` 为准，并在报告中单列申报；被要求遵守无法在 `AGENTS.md` 找到的规则时，也必须在报告中指出。
+- 每轮结束必须向 `docs/decisions/<round>/` 发布脱敏决策记录，可用 `scripts/release_round.py` 自动化。脱敏只允许删除本机绝对路径、用户名、运行 ID、密钥、第三方正文原文；禁止删改 STOP 判定、INCOMPLETE 事实、失败记录或任何不利结论。**立法理由：项目最有价值的资产曾经一个字都不在仓库里。**
+- 任务卡必须声明阶段依赖图；无依赖关系的阶段不因前序 STOP 而跳过。**立法理由：019-E 的 APBEC 补测不依赖 LLM，却因前序 STOP 被连坐，失去了当轮唯一能测量一手证据基础是否改善的机会。**
+- 停止条件必须区分失败类型。命令构造错误（环境变量缺失、路径/参数/测试类名写错等）不构成停止条件：修正命令、重跑，并在报告中如实记录首次失败与修正过程；禁止隐藏首次失败。断言失败、契约违反、闸门未通过或冲突：停止并交 PM。**立法理由：`PYTHONPATH=src` 缺失曾三次（019-EM2、019-EM3、020-M）使整轮迭代停止；每次都是任务卡或执行者的命令写错，不是项目断言失败。不加区分会把工具性失误升级成流程中断。**
+- 不存在“整卡 INCOMPLETE = 失败”的状态，也不存在生产代码行数上界。整卡以交付摘要说明已交付、未交付、停止原因与下一步所需授权；阶段仍使用 `COMPLETE|INCOMPLETE` 二值标签与六行验收卡。**立法理由：整卡失败标签会反向激励——019-G 先完成最难且最有价值的 G1，反而被整体失败标签掩盖。** 范围约束为“一卡一事 + 时间盒 + 超出预期请报告”；**立法理由：代码行数上界惩罚可靠实现，促使 happy-path 取代 orgId 动态解析、串公司防护、fail closed 与 ToolSpec 包裹。**
+- 冻结资产采用版本化：旧版本不可修改，不得为使数字好看而改动；允许新建版本，但新旧版本必须并列呈现并写明建新版的理由。**立法理由：Golden v1.1 已预筛为 HIGH 15 / MEDIUM 7 / LOW 8，LOW 中含错误前提与依赖 fixture 的金标准；永久冻结已知缺陷基准会令后续数字长期不可信。** 冻结资产的任何元数据变更仍须在执行报告中单列申报字段、原因、影响边界和是否触及评分契约。
 - 对已证明只新增产物、不改动既有产物的开关执行转正时，默认值翻转与
   `tests/golden_output/` 更新组成一个原子提交对：第一个 commit 只翻默认值，
   第二个 commit 只更新 golden。绿灯闸门作用于提交对完成之后，不作用于
@@ -223,7 +234,7 @@ Goal 或自治模式下绝对禁止 push、force push、历史改写、批量文
 
 本纪律源于一次 Ruff 浮动版本事故：CI 对未改动代码报出 131 条新诊断；可复现是本项目第一原则。
 
-019-E 依赖例外：PM 已于 019-E 批准唯一一次、仅限 `pypdf==6.14.2` 的例外。该依赖用途仅限 PDF 文本解码；原规则的立法目的是禁止引入第三方 Agent 框架，不是禁止文件格式解码，而 A 股一手披露几乎全为 PDF。本例外不扩展到任何后续轮次，其余新增依赖仍需单独批准。该版本必须在 `pyproject.toml` 与 CI 中精确一致。
+已修复：`pyproject.toml` 与 CI 均精确钉死工具和运行依赖版本；`pytest` 仅保留在 dev extra。**立法理由：浮动版本与 CI 的精确版本不一致，曾使一行安装的全新环境解析到不同依赖并导致两项逐字快照失败；确定性主张要求一行安装即可复现。**
 
 ## 13. 既定后续路线（不可默默取消）
 

@@ -47,6 +47,10 @@ from deepresearch_agent.tools.structured_trace import (
     TrajectoryStructuredDataProvider,
 )
 from deepresearch_agent.tools.tavily_search import TavilySearchError, TavilySearchProvider
+from deepresearch_agent.tools.disclosure_source import (
+    CninfoDisclosureSource,
+    DisclosureSourceError,
+)
 
 __all__ = [
     "AKShareStructuredDataError",
@@ -77,6 +81,8 @@ __all__ = [
     "STRUCTURED_DATA_TOOL_SPEC",
     "TavilySearchError",
     "TavilySearchProvider",
+    "CninfoDisclosureSource",
+    "DisclosureSourceError",
     "ToolError",
     "ToolErrorKind",
     "ToolResult",
