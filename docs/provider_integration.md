@@ -157,3 +157,10 @@ Before merging any real provider adapter:
 - Public demo readiness checklist still states deterministic fixture, SQLite MVP,
   synchronous API, and optional provider backlog unless those gaps are actually
   closed.
+# 巨潮公告直连覆盖范围
+
+`CninfoDisclosureSource` 目前只支持沪深 A 股六位证券代码：沪市
+`600/601/603/605/688/689` 发送 `column=sse, plate=sh`，深市
+`000/001/002/003/300/301` 发送 `column=szse, plate=sz`。北交所、港股、
+基金、债券和无法识别的代码不在覆盖范围内，并会在请求前 fail closed；它们
+不能被误表述为已支持。
