@@ -189,6 +189,10 @@ def replay_trajectory(
     mode: str,
     required_calls: list[str] | None = None,
 ) -> ReplayResult:
+    if mode != "strict":
+        raise ValueError(
+            "strategy replay is not implemented; use strict replay"
+        )
     available = {
         *(f"tool:{call.tool_spec.get('name')}" for call in trajectory.tool_calls),
         *(f"llm:{call.role}" for call in trajectory.llm_calls),

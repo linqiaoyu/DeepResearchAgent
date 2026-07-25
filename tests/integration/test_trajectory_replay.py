@@ -55,7 +55,7 @@ class TrajectoryReplayTests(unittest.TestCase):
                 self.assertEqual(trajectory.agent_decisions, [])
                 self.assertTrue(trajectory.run_manifest_ref)
 
-    def test_strategy_cache_miss_stops_without_inventing_response(self) -> None:
+    def test_strict_cache_miss_stops_without_inventing_response(self) -> None:
         recorder = TrajectoryRecorder(
             run_id="synthetic",
             request={
@@ -68,12 +68,24 @@ class TrajectoryReplayTests(unittest.TestCase):
 
         result = replay_trajectory(
             recorder.trajectory,
-            mode="strategy",
+            mode="strict",
             required_calls=["llm:critic"],
         )
 
         self.assertEqual(result.status, "cache_miss")
         self.assertEqual(result.cache_miss, "llm:critic")
+
+    def test_strategy_replay_is_rejected_as_unimplemented(self) -> None:
+        recorder = TrajectoryRecorder(
+            run_id="synthetic",
+            request={"mode": "deterministic"},
+        )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "strategy replay is not implemented",
+        ):
+            replay_trajectory(recorder.trajectory, mode="strategy")
 
     def test_sidecar_has_all_six_field_groups_and_redacts(self) -> None:
         recorder = TrajectoryRecorder(

@@ -67,7 +67,8 @@ decision summary，跨代比较由 `scripts/verify_manifest.py` fail closed。
 
 016 的扩展轨迹 schema 记录 LLM、search、fetch、structured provider、节点、决定、
 signal reads 和 memory writes。严格 fixture 回放恢复原计划和策略配置，并要求报告逐字一致；
-策略回放遇到未录制调用即停止。真实轨迹仍需单独授权，当前仅验证离线超集。
+未录制调用会令严格回放 fail closed。策略级回放尚未实现；真实轨迹仍需单独授权，当前仅
+验证离线超集。
 
 ## 方法边界
 

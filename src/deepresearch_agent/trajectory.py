@@ -80,7 +80,7 @@ class AgentTrajectory(StrictModel):
 
 
 class ReplayResult(StrictModel):
-    mode: Literal["strict", "strategy"]
+    mode: Literal["strict"]
     status: Literal["reproduced", "cache_miss", "mismatch"]
     cache_miss: str | None = None
     artifact_matches: dict[str, bool] = Field(default_factory=dict)
