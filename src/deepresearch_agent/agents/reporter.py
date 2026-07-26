@@ -359,6 +359,14 @@ class ReporterAgent:
         claim_provenance: list[dict[str, object]] = []
         repaired_claim_keys = repaired_claim_keys or set()
         evidence_fact_keys = metric_fact_keys(evidence)
+        evidence_by_id = {
+            item.id: item
+            for item in evidence
+        }
+        required_metrics = {
+            item.metric
+            for item in metric_requirements(state)
+        }
         seen_fact_keys: set[tuple[str, str, str, str]] = set()
         key_fact_keys: set[tuple[str, str, str, str]] = set()
         key_evidence_ids: set[str] = set()
@@ -530,6 +538,30 @@ class ReporterAgent:
                 )
                 invalid_references += invalid
                 missing_reference_backfills += backfilled
+                claim_evidence = [
+                    evidence_by_id[evidence_id]
+                    for evidence_id in claim.evidence_ids
+                    if evidence_id in evidence_by_id
+                ]
+                if (
+                    financial_contract
+                    and has_financial_numeric_mismatch(
+                        str(provenance["text"]),
+                        claim_evidence,
+                        required_metrics=required_metrics,
+                    )
+                ):
+                    citations = " ".join(
+                        f"[^{ref_map[evidence_id]}]"
+                        for evidence_id in claim.evidence_ids
+                        if evidence_id in ref_map
+                    )
+                    rendered = (
+                        "该假设原文包含未由所引 Evidence 支持的财务数字，"
+                        "已降级为定性提示，不作为数值结论。"
+                        f"{f' {citations}' if citations else ''}"
+                    )
+                    provenance["numeric_downgraded"] = True
                 claim_provenance.append(provenance)
                 lines.append(f"- {rendered}")
         else:

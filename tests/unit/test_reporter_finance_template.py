@@ -360,7 +360,15 @@ class ReporterFinanceTemplateTests(unittest.TestCase):
             ],
             detailed_analysis=[],
             risks=["营业收入同比下降 1.21%。"],
-            unverified_assumptions=[],
+            unverified_assumptions=[
+                ReportClaim(
+                    text=(
+                        "假设2024年营业收入为"
+                        "170,009,152,276.34元。"
+                    ),
+                    evidence_ids=[evidence.id],
+                )
+            ],
         )
 
         report, _invalid, _backfills = (
@@ -375,14 +383,115 @@ class ReporterFinanceTemplateTests(unittest.TestCase):
             "## 未验证假设",
             1,
         )[0]
+        assumptions = report.split(
+            "## 未验证假设",
+            1,
+        )[1].split(
+            "## 参考来源",
+            1,
+        )[0]
         self.assertNotIn("16883.81", summary)
         self.assertIn("具体数值、同比变化与出处", summary)
         self.assertNotIn("1.21%", risks)
         self.assertIn("已降级为定性提示", risks)
+        self.assertNotIn("170,009,152,276.34", assumptions)
+        self.assertIn(
+            "未由所引 Evidence 支持的财务数字",
+            assumptions,
+        )
+        self.assertIn("[^1]", assumptions)
         self.assertIn(
             "168,838,102,514.79元。 [^1]",
             report,
         )
+
+    def test_unverified_margin_backsolve_is_downgraded(
+        self,
+    ) -> None:
+        state = ResearchState(
+            topic="贵州茅台 2025 年主营业务毛利率及同比"
+        )
+        state.plan = ResearchPlan(
+            topic=state.topic,
+            sub_questions=[
+                SubQuestion(
+                    id="finance",
+                    question=state.topic,
+                    search_queries=["600519 年度报告"],
+                    structured_data_requests=[
+                        StructuredDataRequest(
+                            capability="financial_indicators",
+                            symbol="600519",
+                            periods=["20251231", "20241231"],
+                            metrics=["主营业务毛利率"],
+                        )
+                    ],
+                )
+            ],
+        )
+        evidence = self._metric_evidence(
+            state,
+            "margin-2025",
+            "主营业务毛利率",
+            "20251231",
+            91.23,
+            10,
+            unit="%",
+            dimension="酒类",
+        )
+        evidence.claim = (
+            "2025年主营业务毛利率为91.23%，"
+            "同比减少0.78个百分点。"
+        )
+        evidence.extract_text = evidence.claim
+        state.evidence_store = [evidence]
+        draft = ReportDraft(
+            summary="未验证推算需要单列。",
+            key_findings=[],
+            detailed_analysis=[],
+            risks=[],
+            unverified_assumptions=[
+                ReportClaim(
+                    text=(
+                        "假设2024年酒类毛利率为92.01%"
+                        "（由2025年91.23%加回0.78个百分点推算）。"
+                    ),
+                    evidence_ids=[evidence.id],
+                ),
+                ReportClaim(
+                    text="假设公司未来仍能维持当前产品结构。",
+                    evidence_ids=[],
+                ),
+            ],
+        )
+
+        reporter = ReporterAgent()
+        report, _invalid, _backfills = (
+            reporter._render_llm_report(state, draft)
+        )
+        assumptions = report.split(
+            "## 未验证假设",
+            1,
+        )[1].split(
+            "## 参考来源",
+            1,
+        )[0]
+
+        self.assertNotIn("92.01%", assumptions)
+        self.assertNotIn("91.23%", assumptions)
+        self.assertNotIn("0.78", assumptions)
+        self.assertIn(
+            "未由所引 Evidence 支持的财务数字",
+            assumptions,
+        )
+        self.assertIn("[^1]", assumptions)
+        self.assertIn(
+            "假设公司未来仍能维持当前产品结构。",
+            assumptions,
+        )
+        provenance = reporter.last_stats["claim_provenance"]
+        self.assertTrue(provenance[0]["numeric_downgraded"])
+        self.assertNotIn("numeric_downgraded", provenance[1])
 
     def test_large_structured_value_stays_exact_and_evaluates_cleanly(
         self,

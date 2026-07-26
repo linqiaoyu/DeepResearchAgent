@@ -512,29 +512,43 @@ class EvaluatorTests(unittest.TestCase):
             result.bad_case_categories,
         )
 
+    def test_relative_yoy_does_not_support_percentage_point_backsolve(
+        self,
+    ) -> None:
+        state = ResearchState(topic="某公司 2025 年主营业务毛利率及同比")
+        evidence = Evidence(
+            research_id=state.research_id,
+            sub_question_id="finance",
+            claim="2025年主营业务毛利率为50%，同比增长10%。",
+            claim_type="data",
+            source_url="https://example.com/annual-report.pdf",
+            source_title="某公司2025年年度报告",
+            source_pub_date=date(2026, 4, 16),
+            source_page=10,
+            extract_text="2025年主营业务毛利率为50%，同比增长10%。",
+            numeric_fields=NumericFields(
+                entity="某公司",
+                metric_name="主营业务毛利率",
+                period="20251231",
+                dimension="主营业务",
+                value=50,
+                unit="%",
+            ),
+            source_tier="primary",
+        )
+        state.evidence_store = [evidence]
         state.final_report = (
-            "- 2024年主营业务毛利率（92.01%）系由2025年毛利率"
-            "及同比下降0.78个百分点反推得出。 [^1]\n\n"
-            "[^1]: 贵州茅台2025年年度报告 p10"
+            "- 2024年主营业务毛利率为40%。 [^1]\n\n"
+            "[^1]: 某公司2025年年度报告 p10"
         )
-        result = Evaluator().evaluate(state)
+        state.report_footnote_evidence = {1: evidence.id}
 
-        self.assertEqual(result.task_success_rate, 1.0)
-        self.assertNotIn(
-            "numeric_citation_mismatch",
-            result.bad_case_categories,
-        )
-
-        state.final_report = state.final_report.replace(
-            "92.01%",
-            "92.11%",
-        )
         result = Evaluator().evaluate(state)
 
         self.assertEqual(result.task_success_rate, 0.0)
-        self.assertIn(
-            "numeric_citation_mismatch",
-            result.bad_case_categories,
+        self.assertEqual(
+            result.bad_case_categories["numeric_citation_mismatch"],
+            1,
         )
 
     def test_numeric_audit_accepts_yoy_derived_from_two_report_periods(

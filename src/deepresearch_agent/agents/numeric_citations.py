@@ -111,9 +111,6 @@ def has_financial_numeric_mismatch(
             if value:
                 evidence_values.append(value)
     evidence_values.extend(_derived_yoy_values(evidence_values))
-    evidence_values.extend(
-        _derived_prior_rate_values(evidence_values)
-    )
 
     return any(not _value_is_supported(claimed, evidence_values) for claimed in claimed_values)
 
@@ -707,62 +704,6 @@ def _derived_yoy_values(
             )
         )
     return derived
-
-
-def _derived_prior_rate_values(
-    evidence_values: Sequence[FinancialValue],
-) -> list[FinancialValue]:
-    """Reverse a disclosed percentage-point change into the prior rate."""
-    current_by_metric: dict[str, list[FinancialValue]] = {}
-    changes_by_metric: dict[str, list[FinancialValue]] = {}
-    for value in evidence_values:
-        if value.kind != "rate":
-            continue
-        if value.metric.endswith(":yoy"):
-            changes_by_metric.setdefault(
-                value.metric.removesuffix(":yoy"),
-                [],
-            ).append(value)
-        elif value.period and re.fullmatch(
-            r"(?:19|20)\d{2}",
-            value.period,
-        ):
-            current_by_metric.setdefault(
-                value.metric,
-                [],
-            ).append(value)
-
-    derived: list[FinancialValue] = []
-    for metric, current_values in current_by_metric.items():
-        latest_period = max(
-            value.period or ""
-            for value in current_values
-        )
-        latest_values = [
-            value
-            for value in current_values
-            if value.period == latest_period
-        ]
-        changes = [
-            value
-            for value in changes_by_metric.get(metric, [])
-            if value.period in {None, latest_period}
-        ]
-        for current in latest_values:
-            for change in changes:
-                derived.append(
-                    FinancialValue(
-                        kind="rate",
-                        metric=metric,
-                        period=str(int(latest_period) - 1),
-                        value=current.value - change.value,
-                        display_step=max(
-                            current.display_step,
-                            change.display_step,
-                        ),
-                    )
-                )
-    return list(dict.fromkeys(derived))
 
 
 def _values_match(claimed: FinancialValue, supported: FinancialValue) -> bool:
