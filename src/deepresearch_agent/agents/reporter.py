@@ -32,7 +32,7 @@ from deepresearch_agent.structured_output import (
 
 _RAW_PERIOD_RE = re.compile(r"(?<!\d)(\d{4})(\d{2})(\d{2})(?!\d)")
 _RMB_RE = re.compile(
-    r"(?<![\d,])(-?\d+(?:\.\d+)?(?:e[+-]?\d+)?)\s*元",
+    r"(?<![\d,.])(-?\d+(?:\.\d+)?(?:e[+-]?\d+)?)\s*元",
     re.IGNORECASE,
 )
 _FOOTNOTE_RE = re.compile(r"\[\^(\d+)\]")
@@ -849,9 +849,14 @@ class ReporterAgent:
             for key in evidence_fact_keys.get(evidence_id, set())
         }
 
-    def _reader_text(self, text: str) -> str:
+    def _reader_text(
+        self,
+        text: str,
+        *,
+        normalize_currency: bool = True,
+    ) -> str:
         def readable_rmb(match: re.Match[str]) -> str:
-            value = float(match.group(1))
+            value = Decimal(match.group(1))
             divisor, unit = (
                 (100_000_000, "亿元")
                 if abs(value) >= 100_000_000
@@ -859,10 +864,12 @@ class ReporterAgent:
                 if abs(value) >= 10_000
                 else (1, "元")
             )
-            rendered = f"{value / divisor:.4f}".rstrip("0").rstrip(".")
+            rendered = f"{value / Decimal(divisor):.4f}".rstrip("0").rstrip(".")
             return f"{rendered}{unit}"
 
-        text = _RMB_RE.sub(readable_rmb, text)
+        if normalize_currency:
+            text = _RMB_RE.sub(readable_rmb, text)
+        text = re.sub(r"(?<=\d)\s+元", "元", text)
         return _RAW_PERIOD_RE.sub(
             lambda match: (
                 f"{match.group(1)}年{int(match.group(2))}月"
@@ -907,22 +914,58 @@ class ReporterAgent:
                 dates.append(item.structured_record.as_of)
         return max(dates).isoformat() if dates else "未标注"
 
-    def _evidence_claim_text(self, item: Evidence) -> str:
-        if item.claim_type == "data" and item.structured_record:
+    def _evidence_claim_text(
+        self,
+        item: Evidence,
+        *,
+        require_typed: bool = False,
+    ) -> str:
+        # Reader-visible data claims must be rendered from typed fields even
+        # when a tolerance-based audit considers the generated claim close
+        # enough.  The claim remains useful as extraction provenance, but it
+        # is not an exact-value display surface.
+        if item.claim_type == "data" and (
+            item.structured_record
+            or (
+                item.numeric_fields
+                and (
+                    require_typed
+                    or self._claim_displays_numeric_unit(item)
+                )
+            )
+        ):
             return self._typed_evidence_claim(item)
-        if item.claim_type != "data" or not item.numeric_fields:
-            return item.claim
-        if has_financial_numeric_mismatch(item.claim, [item]):
-            return self._typed_evidence_claim(item)
+        if item.claim_type == "data" and item.numeric_fields:
+            fields = item.numeric_fields
+            parts = []
+            if fields.period:
+                parts.append(f"报告期/时点: {fields.period}")
+            if fields.dimension:
+                parts.append(f"口径: {fields.dimension}")
+            if fields.unit:
+                parts.append(f"单位: {fields.unit}")
+            return (
+                f"{item.claim}（{'; '.join(parts)}）"
+                if parts
+                else item.claim
+            )
+        return item.claim
+
+    def _claim_displays_numeric_unit(self, item: Evidence) -> bool:
         fields = item.numeric_fields
-        parts = []
-        if fields.period:
-            parts.append(f"报告期/时点: {fields.period}")
-        if fields.dimension:
-            parts.append(f"口径: {fields.dimension}")
-        if fields.unit:
-            parts.append(f"单位: {fields.unit}")
-        return f"{item.claim}（{'; '.join(parts)}）" if parts else item.claim
+        if not fields or not fields.unit:
+            return False
+        numeric_value = (
+            r"-?(?:\d{1,3}(?:,\d{3})+|\d+)"
+            r"(?:\.\d+)?(?:e[+-]?\d+)?"
+        )
+        return bool(
+            re.search(
+                rf"{numeric_value}\s*{re.escape(fields.unit)}",
+                item.claim,
+                re.IGNORECASE,
+            )
+        )
 
     def _typed_evidence_claim(self, item: Evidence) -> str:
         record = item.structured_record
@@ -1007,7 +1050,7 @@ class ReporterAgent:
                         )
                     )
                     rendered.append(
-                        f"{self._reader_text(self._evidence_claim_text(evidence))}"
+                        f"{self._reader_text(self._evidence_claim_text(evidence, require_typed=True), normalize_currency=False)}"
                         f"{provenance} [^{ref_map[evidence_id]}]"
                     )
                 if rendered:

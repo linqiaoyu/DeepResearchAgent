@@ -139,6 +139,69 @@ class ReaderFidelityTests(unittest.TestCase):
         self.assertNotIn("6,336,527,14.75", report)
         self.assertIn("6,336,527,014.75元", report)
 
+    def test_metric_coverage_never_reuses_generated_numeric_claim(
+        self,
+    ) -> None:
+        state = ResearchState(topic="恒瑞医药 2024 年营业收入")
+        state.plan = ResearchPlan(
+            topic=state.topic,
+            sub_questions=[
+                SubQuestion(
+                    id="revenue",
+                    question="2024 年营业收入是多少？",
+                    search_queries=["600276 2024 年度报告 营业收入"],
+                    structured_data_requests=[
+                        StructuredDataRequest(
+                            capability="financial_indicators",
+                            symbol="600276",
+                            periods=["2024"],
+                            metrics=["营业收入"],
+                        )
+                    ],
+                )
+            ],
+        )
+        state.completed_tasks = ["revenue"]
+        state.evidence_store = [
+            Evidence(
+                id="revenue-2024",
+                research_id=state.research_id,
+                sub_question_id="revenue",
+                claim="2024年营业收入为27,984,605,342.6元。",
+                claim_type="data",
+                source_kind="text",
+                source_url="https://example.invalid/annual-report.pdf",
+                source_title="恒瑞医药2024年年度报告",
+                source_pub_date=date(2025, 3, 26),
+                source_page=6,
+                extract_text="营业收入 27,984,605,342.06 27,984,605,342.06",
+                numeric_fields=NumericFields(
+                    entity="恒瑞医药",
+                    metric_name="营业收入",
+                    period="2024年",
+                    dimension="年度主要会计数据",
+                    value=27_984_605_342.06,
+                    unit="元",
+                ),
+            )
+        ]
+
+        report = self._reporter().report(state)
+        coverage = report.rsplit("## 指标覆盖状态", 1)[1]
+
+        self.assertIn("27984605342.06元", coverage)
+        self.assertNotIn("27,984,605,342.6元", coverage)
+
+    def test_reader_text_never_matches_inside_grouped_decimal(self) -> None:
+        reporter = self._reporter()
+        for value in (
+            "27,984,605,342.06元",
+            "6,336,527,014.75元",
+            "168,838,102,514.79元",
+        ):
+            with self.subTest(value=value):
+                self.assertEqual(reporter._reader_text(value), value)
+
     def test_empty_generated_key_findings_still_render_required_fact(
         self,
     ) -> None:
