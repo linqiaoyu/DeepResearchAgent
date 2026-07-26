@@ -267,9 +267,8 @@ class DeepResearchEngine:
             ),
             max_searches_per_run=self.settings.max_searches_per_run,
             fetch_tool=self.capability_registry.resolve("web_fetch"),
-            disclosure_source=(
-                self.capability_registry.resolve("disclosure_source")
-                if configured_disclosure_source is not None else None
+            disclosure_source=self.capability_registry.resolve(
+                "disclosure_source"
             ),
             as_of=self.settings.as_of,
         )

@@ -17,6 +17,7 @@ class PlannerAgent:
     LISTED_COMPANIES = {
         "贵州茅台": "600519",
         "宁德时代": "300750",
+        "中国平安": "601318",
     }
 
     def __init__(
@@ -175,6 +176,7 @@ class PlannerAgent:
         if not isinstance(result.parsed, ResearchPlan):
             raise ValueError("Planner did not return a ResearchPlan.")
         plan = self._normalize_plan(result.parsed, topic, depth_level)
+        plan = self._propagate_financial_identity(plan, topic)
         self.last_stats = {
             "fallback": False,
             "repair_attempts": result.repair_attempts,
@@ -219,6 +221,57 @@ class PlannerAgent:
             estimated_sources=max(6, len(normalized) * 2),
             success_criteria=plan.success_criteria,
         )
+
+    def _propagate_financial_identity(
+        self, plan: ResearchPlan, topic: str
+    ) -> ResearchPlan:
+        """Attach deterministic issuer identity to the LLM's financial branch.
+
+        The planner prompt remains the source of question decomposition.  For an
+        explicit, recognised A-share metric request, the topic itself is the
+        authoritative identity source; preserving it here lets downstream
+        capability selection fail closed for every other question.
+        """
+        financial_request = self._financial_metric_request(topic)
+        if financial_request is None:
+            return plan
+        code, company_name, metrics = financial_request
+        target_index = next(
+            (
+                index
+                for index, item in enumerate(plan.sub_questions)
+                if any(term in item.question for term in metrics)
+                or any(term in " ".join(item.search_queries) for term in metrics)
+            ),
+            0,
+        )
+        updated = list(plan.sub_questions)
+        target = updated[target_index]
+        existing = [
+            request
+            for request in target.structured_data_requests
+            if request.capability != "financial_indicators"
+        ]
+        existing.insert(
+            0,
+            StructuredDataRequest(
+                capability="financial_indicators",
+                company_name=company_name,
+                symbol=code,
+                periods=re.findall(r"20\d{2}", topic),
+                metrics=metrics,
+            ),
+        )
+        annual_report_query = f"{code} 年度报告"
+        updated[target_index] = target.model_copy(
+            update={
+                "search_queries": list(dict.fromkeys([
+                    annual_report_query, *target.search_queries,
+                ])),
+                "structured_data_requests": existing,
+            }
+        )
+        return plan.model_copy(update={"sub_questions": updated})
 
     def _valid_structured_requests(
         self,

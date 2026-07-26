@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest import mock
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -22,6 +23,8 @@ from deepresearch_agent.tools.disclosure_source import (
     DISCLOSURE_TOOL_SPEC,
     cninfo_exchange_for_security_code,
 )
+from deepresearch_agent.settings import Settings
+from deepresearch_agent.workflow import DeepResearchEngine
 
 ROOT = Path(__file__).resolve().parents[2]
 PDF = (ROOT / "tests/fixtures/catl_2022_070_excerpt.pdf").read_bytes()
@@ -69,6 +72,25 @@ class Client:
 
 
 class DisclosureSourceTests(unittest.TestCase):
+    def test_llm_engine_wires_default_cninfo_source_to_researcher(self) -> None:
+        with mock.patch.dict("os.environ", {}, clear=True), mock.patch(
+            "deepresearch_agent.workflow.engine.LLMClient"
+        ):
+            engine = DeepResearchEngine(
+                settings=Settings(
+                    storage_path=Path("test.db"),
+                    execution_mode="llm",
+                    config_fail_fast_enabled=False,
+                )
+            )
+            try:
+                self.assertIs(
+                    engine.researcher.disclosure_source,
+                    engine.capability_registry.resolve("disclosure_source"),
+                )
+            finally:
+                engine._checkpoint_conn.close()
+
     def test_financial_intent_prefers_matching_pdf_pages(self) -> None:
         source = CninfoDisclosureSource(client=Client(), max_results=1).search(
             "300750", "匈牙利", date(2022, 1, 1), date(2026, 7, 25),

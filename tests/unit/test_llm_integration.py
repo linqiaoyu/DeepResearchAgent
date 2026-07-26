@@ -6,8 +6,10 @@ import tempfile
 import unittest
 from datetime import date
 from pathlib import Path
+from types import SimpleNamespace
 
 from deepresearch_agent.agents import ExtractorAgent, PlannerAgent, ReporterAgent
+from deepresearch_agent.agents.researcher import ResearcherAgent
 from deepresearch_agent.llm import BudgetExceededError, LLMClient
 from deepresearch_agent.llm_config import DEFAULT_LLM_CONFIG, RoleModelConfig
 from deepresearch_agent.schemas import (
@@ -20,6 +22,14 @@ from deepresearch_agent.schemas import (
     SubQuestion,
 )
 from deepresearch_agent.settings import Settings, load_settings
+from deepresearch_agent.tools import (
+    FixtureSearchTool,
+    FixtureStructuredDataProvider,
+    build_capability_registry,
+)
+from deepresearch_agent.tools.capability_selector import (
+    DeterministicCapabilitySelector,
+)
 
 
 class MockCompletion:
@@ -311,6 +321,106 @@ class LLMIntegrationTests(unittest.TestCase):
             "financial_indicators",
         )
         self.assertEqual(planner.last_stats["invalid_structured_data_requests"], 2)
+
+    def test_llm_planner_propagates_explicit_a_share_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            env_path = Path(tmp) / ".env"
+            env_path.write_text("DEEPSEEK_API_KEY=test-key\n", encoding="utf-8")
+            client = LLMClient(
+                ledger_path=Path(tmp) / "ledger.jsonl",
+                budget_cny=3.0,
+                completion_func=MockCompletion([
+                    '{"topic":"贵州茅台","depth_level":1,"sub_questions":['
+                    '{"id":"performance","question":"业绩表现如何？",'
+                    '"search_queries":["贵州茅台 业绩"],'
+                    '"expected_source_types":["official"],'
+                    '"structured_data_requests":[],"priority":5}],'
+                    '"estimated_sources":1,"success_criteria":["traceable"]}'
+                ]),
+                sleep_func=lambda _: None,
+                env_path=env_path,
+                global_ledger_path=Path(tmp) / "global_ledger.jsonl",
+            )
+            planner = PlannerAgent(
+                llm_client=client,
+                settings=Settings(storage_path=Path(tmp) / "research.db"),
+            )
+            plan = planner.plan(
+                "贵州茅台（600519）2025 年营业收入、归母净利润与毛利率是多少？",
+                depth_level=1,
+                research_id="run-planner",
+            )
+
+        request = plan.sub_questions[0].structured_data_requests[0]
+        self.assertEqual(request.symbol, "600519")
+        self.assertEqual(request.company_name, "贵州茅台")
+        self.assertIn("归母净利润", request.metrics)
+        self.assertEqual(plan.sub_questions[0].search_queries[0], "600519 年度报告")
+
+    def test_llm_planner_financial_question_executes_disclosure_source(self) -> None:
+        class PlannerCompletion:
+            def complete(self, **_kwargs: object) -> SimpleNamespace:
+                return SimpleNamespace(
+                    parsed=ResearchPlan(
+                        topic="贵州茅台",
+                        depth_level=1,
+                        sub_questions=[SubQuestion(
+                            id="performance", question="业绩表现如何？",
+                            search_queries=["贵州茅台 业绩"],
+                            expected_source_types=["official"], priority=5,
+                        )],
+                        estimated_sources=1, success_criteria=["traceable"],
+                    ),
+                    repair_attempts=0,
+                )
+
+        class DisclosureStub:
+            def __init__(self) -> None:
+                self.calls: list[tuple[str, str]] = []
+
+            def search(self, code: str, keyword: str, *_args: object, **_kwargs: object) -> list[Source]:
+                self.calls.append((code, keyword))
+                return [Source(
+                    id="annual-report", title="贵州茅台年度报告",
+                    url="https://cninfo.test/600519.pdf", source_type="disclosure_pdf",
+                    published_at=date(2026, 4, 16), content="营业收入 168838102514.79",
+                    source_tier="primary",
+                )]
+
+        disclosure = DisclosureStub()
+        planner = PlannerAgent(
+            llm_client=PlannerCompletion(),  # type: ignore[arg-type]
+            settings=Settings(storage_path=Path("test.db")),
+        )
+        plan = planner.plan(
+            "贵州茅台（600519）2025 年营业收入、归母净利润与毛利率是多少？",
+            depth_level=1,
+            research_id="llm-financial-pipeline",
+        )
+        registry = build_capability_registry(
+            search_provider=FixtureSearchTool(),
+            structured_data_provider=FixtureStructuredDataProvider(),
+            disclosure_source=disclosure,
+        )
+        selection = DeterministicCapabilitySelector.from_json(
+            registry, Settings(storage_path=Path("test.db")).dynamic_capability_rules_json
+        ).select(
+            ResearchState(topic=plan.topic), plan.sub_questions[0]
+        )
+        sources, *_ = ResearcherAgent(
+            search_tool=FixtureSearchTool(),
+            structured_data_provider=FixtureStructuredDataProvider(),
+            disclosure_source=disclosure,
+            as_of=date(2026, 7, 26),
+        ).research_with_budget(
+            plan.sub_questions[0],
+            max_search_calls=None,
+            enable_disclosure="disclosure_source" in selection.selected_capabilities,
+            enable_web_search=False,
+        )
+
+        self.assertEqual(disclosure.calls, [("600519", "年度报告")])
+        self.assertEqual(sources[0].source_tier, "primary")
 
     def test_extractor_discards_claim_when_extract_text_is_not_verbatim(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
