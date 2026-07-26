@@ -58,9 +58,10 @@ hardening.
 
 When enough ordered header years are parseable, financial-statement column
 headers bind each value to its year. Conflicting LLM-normalized period/value
-pairs are rejected when the source excerpt exposes parseable period candidates;
-a source without such candidates cannot receive the same period check.
-`营业总收入` and `营业收入` are separate metrics rather than aliases.
+pairs are rejected when the source excerpt exposes a parseable candidate for
+the normalized metric/kind and the claimed period; a source without such a
+candidate cannot receive the same period check. `营业总收入` and `营业收入` are
+separate metrics rather than aliases.
 An unqualified gross-margin request routed as `主营业务毛利率` additionally
 requires a main-business total dimension such as `酒类` or `小计`; product,
 region, and channel rows cannot close that slot or support its numeric claim.
@@ -71,15 +72,16 @@ excerpt. Structured records remain authoritative at their typed interface
 boundary. The audit is deliberately mechanical rather than a semantic LLM
 judge.
 
-For metric-scoped financial reports, Reporter applies the same numeric-support
-contract before rendering: a summary containing recognized financial numbers
-is replaced with a fixed nonnumeric summary because it has no per-value
-Evidence binding, risks containing unbound financial numbers are downgraded to
-qualitative warnings, and each unverified assumption is audited against the
-union of its own `evidence_ids`. Unsupported numeric assumptions are replaced
-with a qualitative warning that retains any valid citations, and their
-provenance records `numeric_downgraded=true`; nonnumeric assumptions are not
-numerically downgraded.
+For metric-scoped financial reports, Reporter applies targeted pre-render
+numeric guards to the summary, risks, and unverified assumptions. A summary
+containing recognized financial numbers is replaced with a fixed nonnumeric
+summary because it has no per-value Evidence binding, risks containing unbound
+financial numbers are downgraded to qualitative warnings, and each unverified
+assumption is audited against the union of its own `evidence_ids`. Unsupported
+numeric assumptions are replaced with a qualitative warning that retains any
+valid citations, and their provenance records `numeric_downgraded=true`;
+nonnumeric assumptions are not numerically downgraded. Key findings and
+detailed-analysis claims remain subject to the post-render Evaluator audit.
 
 Unresolved bullet citations are counted as `citation_error` in every mode.
 Resolved-but-lexically-unsupported citations add that category only in

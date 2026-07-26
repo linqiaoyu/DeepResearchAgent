@@ -13,7 +13,7 @@ The project remains an MVP and portfolio demo. Its public form is a static site,
 | Deterministic workflow reliability | Done | LangGraph fan-out/retry graph and SQLite checkpoint tests in `tests/integration/` | Load/concurrency testing before multi-user operation |
 | Orchestration boundary contracts | Done | All graph nodes declare consumes, produces and invariants; decision nodes require a new `AgentDecision`; build/runtime violation tests cover four failure classes | Extend contracts whenever 016/017 add nodes or invariants |
 | Bounded research loop and branch budget | Partial | Native LangGraph back-edge, three loop bounds, per-run/per-branch allocation and deterministic replan tests; both content-affecting flags default off | Preregister and run real-mode quality/cost comparisons before either activation |
-| Provider retry/circuit/degradation | Done | `TOOL_CONTRACT_ENABLED=true`; eight offline drills in `tests/chaos/test_tool_failures.py`; reader-visible degradation section | Real-provider behavior is not validated; exercise Tavily/provider errors before claiming that boundary |
+| Provider retry/circuit/degradation | Done | `TOOL_CONTRACT_ENABLED=true`; eight offline drills in `tests/chaos/test_tool_failures.py`; reader-visible degradation section | Real-provider retry/circuit/degradation behavior is not validated; Round 031 validated successful AKShare/CNINFO execution but not provider failure handling |
 | Run-level token/cost guard | Done | LLM and external-request budgets are active; exhaustion checkpoints partial state and persists a schema-v4 `budget_exceeded` terminal trajectory/report artifact | Add a shared multi-provider monetary budget before more paid tools |
 | Structured logging | Done | `STRUCTURED_LOGGING_ENABLED=true`; correlation/redaction and broken-sink tests | Add an external sink and retention policy only when a long-running service exists |
 | Run lineage/comparability | Done | `RUN_MANIFEST_ENABLED=true`; all flags recorded; `tests/unit/test_run_manifest.py`; prompt guard active in CI | Define sidecar retention with the deployment storage lifecycle |
@@ -45,7 +45,9 @@ The project remains an MVP and portfolio demo. Its public form is a static site,
 
 1. Keep the context packer dark: positional-footnote confounding is fixed, but fixture quality metrics still cannot establish real-LLM quality; a later task needs a preregistered, budgeted comparison.
 2. Keep the injection guard dark until licensed real-page calibration meets a PM-approved false-positive boundary.
-3. Validate the active tool-contract path against real providers in the provider-integration task; current evidence is intentionally offline.
+3. Validate retry, circuit-breaker, and degradation handling against real
+   provider failures; Round 031 validated successful AKShare/CNINFO execution,
+   not those failure paths.
 4. Keep trajectory recording dark until retention, access-control,
    redaction-lifecycle, and noncompleted-trajectory operational handling are
    approved; completed real-LLM strict replay was validated in Round 031 A4f.

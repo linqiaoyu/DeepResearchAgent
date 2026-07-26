@@ -354,7 +354,7 @@ The hardening modules are additive. Default-off modules do not change the determ
 | Config fail-fast | `config_validation.py` | `CONFIG_FAIL_FAST_ENABLED` | `true` | Aggregates missing required configuration before engine construction |
 | Structured business output | `structured_output.py` | `STRUCTURED_OUTPUT_ENABLED` | `true` | Adds tables/timeline/risk objects without replacing prose |
 | API section progress | `progressive_delivery.py`, `api/demo.py` | `PROGRESSIVE_DELIVERY_ENABLED` | `false` | Adds polling sidecars; final report is byte-identical |
-| Trajectory recording | `trajectory.py`, `trajectory_replay.py` | `TRAJECTORY_RECORD_ENABLED` | `false` | Writes redacted schema-v4 sidecars for completed, budget-exceeded, and failed runs; completed fixture and real-LLM runs have verified offline strict replay, while noncompleted trajectories are audit-only |
+| Trajectory recording | `trajectory.py`, `trajectory_replay.py` | `TRAJECTORY_RECORD_ENABLED` | `false` | Writes redacted schema-v4 sidecars for completed, budget-exceeded, and failed runs; completed fixture runs and the Round 031 A4f real-LLM run have verified offline strict replay, while noncompleted trajectories are audit-only |
 | Branch budget | `orchestration/budget.py` | `BRANCH_BUDGET_ENABLED` | `false` | Bounds per-run and per-branch search calls; records allocation decisions |
 | Research sufficiency loop | `orchestration/loops.py`, `orchestration/research_loop.py` | `RESEARCH_LOOP_ENABLED` | `false` | Refines weak queries through a bounded native LangGraph back-edge |
 | Prior research memory | `memory/prior.py` | `PRIOR_MEMORY_ENABLED` | `false` | Uses only the latest earlier snapshot to classify and verify sub-questions |
