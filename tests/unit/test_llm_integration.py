@@ -51,6 +51,16 @@ class MockCompletion:
 
 
 class LLMIntegrationTests(unittest.TestCase):
+    def test_deterministic_planner_routes_explicit_a_share_metric_question(self) -> None:
+        plan = PlannerAgent().plan("贵州茅台（600519）2025 年营业收入和毛利率是多少", depth_level=1)
+
+        self.assertEqual(len(plan.sub_questions), 1)
+        request = plan.sub_questions[0].structured_data_requests[0]
+        self.assertEqual(request.capability, "financial_indicators")
+        self.assertEqual(request.symbol, "600519")
+        self.assertEqual(request.company_name, "贵州茅台")
+        self.assertEqual(request.metrics, ["营业收入", "毛利率"])
+
     def test_budget_fuse_raises_after_recording_ledger(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             env_path = Path(tmp) / ".env"

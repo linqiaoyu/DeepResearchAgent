@@ -69,6 +69,13 @@ class Client:
 
 
 class DisclosureSourceTests(unittest.TestCase):
+    def test_financial_intent_prefers_matching_pdf_pages(self) -> None:
+        source = CninfoDisclosureSource(client=Client(), max_results=1).search(
+            "300750", "匈牙利", date(2022, 1, 1), date(2026, 7, 25),
+            preferred_terms=("宁德时代新能源科技股份有限公司",),
+        )[0]
+
+        self.assertIn("宁德时代新能源科技股份有限公司", source.content)
     def test_cninfo_query_decodes_primary_pdf_through_pypdf(self) -> None:
         client = Client()
         sources = CninfoDisclosureSource(client=client, max_results=1).search(
