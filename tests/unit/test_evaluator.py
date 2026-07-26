@@ -554,6 +554,52 @@ class EvaluatorTests(unittest.TestCase):
             result.bad_case_categories,
         )
 
+    def test_yoy_rate_binds_to_subject_year_not_comparison_base(
+        self,
+    ) -> None:
+        state = ResearchState(topic="贵州茅台 2025 年营业收入及同比")
+        evidence = Evidence(
+            research_id=state.research_id,
+            sub_question_id="finance",
+            claim=(
+                "营业收入 168,838,102,514.79 "
+                "170,899,152,276.34 -1.21"
+            ),
+            claim_type="data",
+            source_url="https://example.com/annual-report.pdf",
+            source_title="贵州茅台2025年年度报告",
+            source_pub_date=date(2026, 4, 16),
+            source_page=6,
+            extract_text=(
+                "营业收入 168,838,102,514.79 "
+                "170,899,152,276.34 -1.21"
+            ),
+            numeric_fields=NumericFields(
+                entity="贵州茅台",
+                metric_name="营业收入",
+                period="2025年",
+                dimension="合并",
+                value=168_838_102_514.79,
+                unit="元",
+            ),
+            source_tier="primary",
+        )
+        state.evidence_store = [evidence]
+        state.final_report = (
+            "- 2025年营业收入为1688.38亿元"
+            "（168,838,102,514.79元），较2024年下降1.21%。 [^1]\n\n"
+            "[^1]: 贵州茅台2025年年度报告 p6"
+        )
+        state.report_footnote_evidence = {1: evidence.id}
+
+        result = Evaluator().evaluate(state)
+
+        self.assertEqual(result.task_success_rate, 1.0)
+        self.assertNotIn(
+            "numeric_citation_mismatch",
+            result.bad_case_categories,
+        )
+
     def test_numeric_audit_rejects_swapped_financial_statement_column(
         self,
     ) -> None:

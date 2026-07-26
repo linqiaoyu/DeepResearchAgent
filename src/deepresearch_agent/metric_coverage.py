@@ -109,17 +109,13 @@ def evaluate_metric_coverage(
             )
             for item in matches
         )
-        latest_period = (
-            max(requirement.periods)
-            if requirement.periods
-            else ""
-        )
         complete = bool(evidence_ids) and (
             not missing_periods
-            or (
-                len(requirement.periods) > 1
-                and latest_period in observed_periods
-                and comparison_observed
+            or _comparison_closes_missing_periods(
+                requirement.periods,
+                observed_periods,
+                missing_periods,
+                comparison_observed,
             )
         )
         attempted = requirement.sub_question_id in state.completed_tasks
@@ -225,3 +221,24 @@ def _evidence_periods(evidence: Evidence) -> set[str]:
         periods.add(_period_key(evidence.numeric_fields.period))
     periods.discard("")
     return periods
+
+
+def _comparison_closes_missing_periods(
+    requested_periods: list[str],
+    observed_periods: list[str],
+    missing_periods: list[str],
+    comparison_observed: bool,
+) -> bool:
+    """Allow “较上年” only for the immediate prior annual period."""
+    if (
+        not comparison_observed
+        or len(requested_periods) != 2
+        or len(missing_periods) != 1
+    ):
+        return False
+    latest = max(requested_periods)
+    if latest not in observed_periods:
+        return False
+    if not latest.isdigit() or len(latest) != 4:
+        return False
+    return missing_periods == [str(int(latest) - 1)]

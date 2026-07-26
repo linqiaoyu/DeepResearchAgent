@@ -636,6 +636,10 @@ class DeepResearchEngine:
                 )
                 raise
             self._capture_external_request_budget(state)
+            self.graph.update_state(
+                config,
+                self._state_output(state),
+            )
             self._persist_run_sidecars(
                 state=state,
                 research_id=research_id,
@@ -672,6 +676,7 @@ class DeepResearchEngine:
         termination: TrajectoryTermination,
     ) -> None:
         self._capture_external_request_budget(state)
+        self._capture_llm_run_cost(state)
         manifest_path = None
         if self.settings.run_manifest_enabled:
             try:
@@ -724,6 +729,27 @@ class DeepResearchEngine:
                 / research_id
                 / "trajectory.json"
             )
+
+    def _capture_llm_run_cost(
+        self,
+        state: ResearchState,
+    ) -> float | None:
+        total_method = getattr(
+            self.llm_client,
+            "run_total_cny",
+            None,
+        )
+        if not callable(total_method):
+            return None
+        try:
+            total = round(
+                float(total_method(state.research_id)),
+                8,
+            )
+        except (OSError, TypeError, ValueError):
+            return None
+        state.metadata["llm_run_total_cny"] = total
+        return total
 
     def _persist_failed_run(
         self,

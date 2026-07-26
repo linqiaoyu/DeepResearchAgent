@@ -8,6 +8,9 @@ from urllib.parse import urlsplit
 from pydantic import Field
 
 from deepresearch_agent.decisions import record_agent_decision
+from deepresearch_agent.counterargument_policy import (
+    counterargument_required,
+)
 from deepresearch_agent.metric_coverage import (
     MetricCoverageItem,
     canonical_metric,
@@ -226,7 +229,14 @@ def evaluate_research_sufficiency(
             if dated_evidence
             else None
         )
-        missing_counterargument = not _has_counterargument(evidence)
+        requires_counterargument = (
+            thresholds.require_counterargument
+            and counterargument_required(state)
+        )
+        missing_counterargument = (
+            requires_counterargument
+            and not _has_counterargument(evidence)
+        )
         unresolved = issue_counts.get(sub_question.id, 0)
         requested_coverage = coverage_by_subquestion.get(
             sub_question.id,
@@ -254,7 +264,7 @@ def evaluate_research_sufficiency(
             gaps.append("freshness")
         if unresolved > thresholds.max_unresolved_critic_issues:
             gaps.append("unresolved_critic_issues")
-        if thresholds.require_counterargument and missing_counterargument:
+        if missing_counterargument:
             gaps.append("counterargument")
         if missing_metrics:
             gaps.append("requested_metric_coverage")
@@ -298,8 +308,7 @@ def evaluate_research_sufficiency(
                 ),
                 (
                     1.0
-                    if not thresholds.require_counterargument
-                    or not missing_counterargument
+                    if not missing_counterargument
                     else 0.0
                 ),
             ]

@@ -3,9 +3,14 @@ from __future__ import annotations
 import sqlite3
 import tempfile
 import unittest
+from datetime import date
 from pathlib import Path
 
-from deepresearch_agent.schemas import ResearchState
+from deepresearch_agent.schemas import (
+    Evidence,
+    NumericFields,
+    ResearchState,
+)
 from deepresearch_agent.settings import Settings
 from deepresearch_agent.storage import SQLiteStore
 from deepresearch_agent.workflow import DeepResearchEngine
@@ -62,6 +67,67 @@ class LangGraphMigrationTests(unittest.TestCase):
         self.assertIsNotNone(forced.critic_report)
         self.assertTrue(forced.critic_report.forced_pass)
         self.assertTrue(forced.critic_report.passed)
+
+    def test_exact_financial_critic_routes_directly_to_reporter(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            settings = Settings(
+                storage_path=Path(tmp) / "finance.db",
+                max_critic_iter=2,
+            )
+            engine = DeepResearchEngine(
+                settings=settings,
+                store=SQLiteStore(settings.storage_path),
+            )
+            plan = engine.planner.plan(
+                "贵州茅台（600519）2025 年营业收入是多少？",
+                depth_level=1,
+            )
+            state = ResearchState(
+                topic=plan.topic,
+                depth_level=1,
+                plan=plan,
+            )
+            state.evidence_store = [
+                Evidence(
+                    research_id=state.research_id,
+                    sub_question_id=plan.sub_questions[0].id,
+                    claim="2025年营业收入为1元。",
+                    claim_type="data",
+                    source_url="https://cninfo.test/annual.pdf",
+                    source_title="年度报告",
+                    source_pub_date=date(2026, 4, 16),
+                    extract_text="2025年营业收入为1元。",
+                    numeric_fields=NumericFields(
+                        entity="贵州茅台",
+                        metric_name="营业收入",
+                        period="20251231",
+                        dimension="年度主要会计数据",
+                        value=1,
+                        unit="元",
+                    ),
+                )
+            ]
+
+            update = engine._critic_node(
+                {
+                    "research_state": state.model_dump(
+                        mode="json"
+                    )
+                }
+            )
+            updated = engine._state_from_graph_values(update)
+
+        self.assertEqual(
+            engine._route_after_critic(update),
+            "reporter",
+        )
+        self.assertIsNotNone(updated.critic_report)
+        assert updated.critic_report is not None
+        self.assertTrue(updated.critic_report.passed)
+        self.assertFalse(updated.critic_report.forced_pass)
+        self.assertEqual(updated.retry_queue, [])
 
     def test_sqlite_saver_interrupt_resume_with_same_research_id(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

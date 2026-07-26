@@ -8,6 +8,10 @@ from deepresearch_agent.llm import LLMClient, LLMClientError, StructuredOutputEr
 from deepresearch_agent.schemas import Evidence, ExtractedClaim, ExtractedClaims, Source, SubQuestion
 from deepresearch_agent.security import detect_injection, wrap_untrusted
 from deepresearch_agent.settings import project_root
+from deepresearch_agent.agents.financial_table_extractor import (
+    authoritative_financial_backfills,
+    merge_authoritative_financial_evidence,
+)
 
 SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
 NUMBER_RE = re.compile(r"(\$?\d+(?:\.\d+)?%?|\d+(?:\.\d+)?)")
@@ -28,10 +32,51 @@ class ExtractorAgent:
     def extract(self, research_id: str, sub_question: SubQuestion, sources: list[Source]) -> list[Evidence]:
         if self.llm_client:
             try:
-                return self._llm_extract(research_id, sub_question, sources)
+                evidence = self._llm_extract(
+                    research_id,
+                    sub_question,
+                    sources,
+                )
+                return self._with_authoritative_backfills(
+                    research_id,
+                    sub_question,
+                    sources,
+                    evidence,
+                )
             except (LLMClientError, StructuredOutputError, ValueError) as exc:
                 self.last_stats = {"fallback": True, "error_type": type(exc).__name__}
-        return self._deterministic_extract(research_id, sub_question, sources)
+        evidence = self._deterministic_extract(
+            research_id,
+            sub_question,
+            sources,
+        )
+        return self._with_authoritative_backfills(
+            research_id,
+            sub_question,
+            sources,
+            evidence,
+        )
+
+    def _with_authoritative_backfills(
+        self,
+        research_id: str,
+        sub_question: SubQuestion,
+        sources: list[Source],
+        evidence: list[Evidence],
+    ) -> list[Evidence]:
+        backfills = authoritative_financial_backfills(
+            research_id,
+            sub_question,
+            sources,
+        )
+        self.last_stats = {
+            **self.last_stats,
+            "authoritative_financial_backfills": len(backfills),
+        }
+        return merge_authoritative_financial_evidence(
+            evidence,
+            backfills,
+        )
 
     def _deterministic_extract(
         self,

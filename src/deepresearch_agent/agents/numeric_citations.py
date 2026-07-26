@@ -20,7 +20,9 @@ MEASURE_RE = re.compile(
 BARE_COMMA_AMOUNT_RE = re.compile(
     r"(?<![\d.])(?P<number>[+-]?\d{1,3}(?:,\d{3})+(?:\.\d+)?)(?![\d])"
 )
-YOY_RE = re.compile(r"同比|较上年|比上年|较去年|比去年")
+YOY_RE = re.compile(
+    r"同比|(?:较|比)(?:上年|去年|(?:19|20)\d{2}年?)"
+)
 NEGATIVE_DIRECTION_RE = re.compile(r"下降|减少|下滑|降低|回落|收窄")
 POSITIVE_DIRECTION_RE = re.compile(r"增长|增加|上升|提升|扩大")
 
@@ -370,7 +372,11 @@ def _main_business_row_matches(
     dimension: str,
 ) -> bool:
     normalized_row = re.sub(r"\s+", "", row)
-    normalized_dimension = re.sub(r"\s+", "", dimension)
+    normalized_dimension = re.sub(
+        r"[\s：:/_-]+",
+        "",
+        dimension,
+    )
     if any(
         term in normalized_row
         for term in (
@@ -386,6 +392,14 @@ def _main_business_row_matches(
     for label in ("酒类", "小计", "合计", "总计"):
         if label in normalized_dimension:
             return label in normalized_row
+    industry_prefix = "主营业务分行业"
+    if industry_prefix in normalized_dimension:
+        row_label = normalized_dimension.split(
+            industry_prefix,
+            1,
+        )[1]
+        if row_label:
+            return row_label in normalized_row
     return (
         "主营业务" in normalized_dimension
         and any(
@@ -479,7 +493,11 @@ def _value_from_text(
         return FinancialValue(
             kind="rate",
             metric=metric,
-            period=period or _period_before(text, number_start),
+            period=period or (
+                _yoy_result_period(text, number_start)
+                if metric.endswith(":yoy")
+                else _period_before(text, number_start)
+            ),
             value=number,
             display_step=_display_step(number_text),
         )
@@ -516,6 +534,21 @@ def _period_before(text: str, number_start: int) -> str | None:
     window = text[max(0, number_start - 28) : number_start]
     periods = re.findall(r"(?:19|20)\d{2}", window)
     return periods[-1] if periods else None
+
+
+def _yoy_result_period(
+    text: str,
+    number_start: int,
+) -> str | None:
+    """Bind a comparison rate to the subject year, not the `较2024年` base."""
+    window = text[max(0, number_start - 180) : number_start]
+    candidates: list[str] = []
+    for match in re.finditer(r"(?:19|20)\d{2}", window):
+        prefix = window[max(0, match.start() - 3) : match.start()]
+        if re.search(r"较|比", prefix):
+            continue
+        candidates.append(match.group(0))
+    return max(candidates) if candidates else None
 
 
 def _normalize_period(period_text: str | None) -> str | None:

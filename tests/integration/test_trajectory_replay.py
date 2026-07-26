@@ -228,6 +228,9 @@ class TrajectoryReplayTests(unittest.TestCase):
                 )
                 engine = DeepResearchEngine(settings=settings)
                 state = engine.run(topic=topic, depth_level=1)
+                checkpoint = engine.load_state(
+                    state.research_id
+                )
                 engine._checkpoint_conn.close()
                 path = root / "runs" / state.research_id / "trajectory.json"
 
@@ -252,6 +255,16 @@ class TrajectoryReplayTests(unittest.TestCase):
                 self.assertIn(
                     "rejected_by_tool",
                     state.metadata["external_request_budget"],
+                )
+                self.assertIsNotNone(checkpoint)
+                assert checkpoint is not None
+                self.assertEqual(
+                    checkpoint.metadata[
+                        "external_request_budget"
+                    ],
+                    state.metadata[
+                        "external_request_budget"
+                    ],
                 )
 
     def test_strict_cache_miss_stops_without_inventing_response(self) -> None:

@@ -195,12 +195,35 @@ def build_run_manifest(
         mode=settings.execution_mode,
         flags=settings_flag_snapshot(settings),
         token_total=state.token_used,
-        cost_cny_total=state.cost_used,
+        cost_cny_total=_cost_cny_total(state),
         degradation_events=degradation_events,
         context_events=context_events,
         tool_error_summary={str(key): int(value) for key, value in tool_errors.items()},
         decision_summary=list(state.agent_decisions),
     )
+
+
+def _cost_cny_total(state: ResearchState) -> float:
+    usage = state.metadata.get("llm_usage")
+    if isinstance(usage, dict):
+        value = usage.get("total_cost_cny")
+        if (
+            isinstance(value, (int, float))
+            and not isinstance(value, bool)
+            and value >= 0
+        ):
+            return float(value)
+    run_total = state.metadata.get("llm_run_total_cny")
+    if (
+        isinstance(run_total, (int, float))
+        and not isinstance(run_total, bool)
+        and run_total >= 0
+    ):
+        return float(run_total)
+    # Deterministic and legacy states do not have an LLM ledger aggregate.
+    # Retain their historical estimated value rather than silently rewriting
+    # old fixture manifests.
+    return state.cost_used
 
 
 def settings_flag_snapshot(

@@ -121,6 +121,68 @@ class RunManifestTests(unittest.TestCase):
         self.assertIn("planner.md", built.prompt_hashes)
         self.assertIn("pydantic", built.dependency_versions)
         self.assertEqual(len(built.config_hash), 64)
+        self.assertEqual(built.cost_cny_total, 0.3)
+
+    def test_manifest_uses_cny_ledger_total_not_usd_state_cost(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            settings = Settings(
+                storage_path=Path(tmp) / "research.db"
+            )
+            state = ResearchState(
+                topic="real cost",
+                cost_used=0.00506855,
+                metadata={
+                    "llm_usage": {
+                        "total_cost_cny": 0.03620392,
+                    }
+                },
+            )
+
+            built = build_run_manifest(
+                state,
+                settings,
+                started_at=datetime(
+                    2026,
+                    7,
+                    24,
+                    tzinfo=timezone.utc,
+                ),
+            )
+
+        self.assertEqual(
+            built.cost_cny_total,
+            0.03620392,
+        )
+
+    def test_manifest_uses_terminal_run_cny_total_without_usage_summary(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            settings = Settings(
+                storage_path=Path(tmp) / "research.db"
+            )
+            state = ResearchState(
+                topic="budget exhausted",
+                cost_used=0.005,
+                metadata={
+                    "llm_run_total_cny": 0.041,
+                },
+            )
+
+            built = build_run_manifest(
+                state,
+                settings,
+                started_at=datetime(
+                    2026,
+                    7,
+                    24,
+                    tzinfo=timezone.utc,
+                ),
+            )
+
+        self.assertEqual(built.cost_cny_total, 0.041)
 
     def test_writer_creates_sidecar_and_redacts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

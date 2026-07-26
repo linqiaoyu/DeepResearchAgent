@@ -4,10 +4,135 @@ import unittest
 from datetime import date
 
 from deepresearch_agent.agents import CriticAgent, PlannerAgent
-from deepresearch_agent.schemas import Evidence, NumericFields, ResearchState, RetryTask
+from deepresearch_agent.schemas import (
+    Evidence,
+    NumericFields,
+    ResearchPlan,
+    ResearchState,
+    RetryTask,
+    StructuredDataRequest,
+    SubQuestion,
+)
 
 
 class CriticTests(unittest.TestCase):
+    def _exact_financial_state(self) -> ResearchState:
+        state = ResearchState(
+            topic="贵州茅台 2025 年营业收入及同比"
+        )
+        state.plan = ResearchPlan(
+            topic=state.topic,
+            sub_questions=[
+                SubQuestion(
+                    id="finance",
+                    question=state.topic,
+                    search_queries=["600519 年度报告"],
+                    structured_data_requests=[
+                        StructuredDataRequest(
+                            capability="financial_indicators",
+                            company_name="贵州茅台",
+                            symbol="600519",
+                            periods=["20251231", "20241231"],
+                            metrics=["营业收入"],
+                        )
+                    ],
+                )
+            ],
+            success_criteria=["retrieve the requested figures"],
+        )
+        state.evidence_store = [
+            Evidence(
+                research_id=state.research_id,
+                sub_question_id="finance",
+                claim="2025年营业收入为1688.38亿元。",
+                claim_type="data",
+                source_url="https://cninfo.test/annual.pdf",
+                source_title="贵州茅台2025年年度报告",
+                source_pub_date=date(2026, 4, 16),
+                extract_text=(
+                    "营业收入 168,838,102,514.79 "
+                    "170,899,152,276.34 -1.21"
+                ),
+                numeric_fields=NumericFields(
+                    entity="贵州茅台",
+                    metric_name="营业收入",
+                    period="20251231",
+                    dimension="年度主要会计数据",
+                    value=168_838_102_514.79,
+                    unit="元",
+                ),
+                source_tier="primary",
+            )
+        ]
+        return state
+
+    def test_exact_financial_lookup_does_not_require_counterargument(
+        self,
+    ) -> None:
+        report = CriticAgent(
+            today=date(2026, 7, 26)
+        ).critique(
+            self._exact_financial_state()
+        )
+
+        self.assertTrue(report.passed)
+        self.assertNotIn(
+            "missing_counterargument",
+            {issue.issue_type for issue in report.issues},
+        )
+        self.assertEqual(report.retry_tasks, [])
+
+    def test_explicit_risk_financial_lookup_still_requires_counterargument(
+        self,
+    ) -> None:
+        state = self._exact_financial_state()
+        assert state.plan is not None
+        state.plan.success_criteria.append(
+            "identify material risk and compliance constraints"
+        )
+
+        report = CriticAgent(
+            today=date(2026, 7, 26)
+        ).critique(state)
+
+        self.assertIn(
+            "missing_counterargument",
+            {issue.issue_type for issue in report.issues},
+        )
+
+    def test_mixed_financial_and_narrative_plan_requires_counterargument(
+        self,
+    ) -> None:
+        state = self._exact_financial_state()
+        assert state.plan is not None
+        state.plan.sub_questions.append(
+            SubQuestion(
+                id="strategy",
+                question="公司的渠道策略如何变化",
+                search_queries=["贵州茅台 渠道策略"],
+            )
+        )
+        state.evidence_store.append(
+            Evidence(
+                research_id=state.research_id,
+                sub_question_id="strategy",
+                claim="公司调整了渠道结构。",
+                claim_type="fact",
+                source_url="https://cninfo.test/strategy",
+                source_title="渠道公告",
+                source_pub_date=date(2026, 4, 16),
+                extract_text="公司调整了渠道结构。",
+            )
+        )
+
+        report = CriticAgent(
+            today=date(2026, 7, 26)
+        ).critique(state)
+
+        self.assertIn(
+            "missing_counterargument",
+            {issue.issue_type for issue in report.issues},
+        )
     def _data_evidence(
         self,
         state: ResearchState,

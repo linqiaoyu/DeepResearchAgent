@@ -12,6 +12,9 @@ from deepresearch_agent.memory import (
     numeric_evidence_key,
     snapshot_claim_key,
 )
+from deepresearch_agent.counterargument_policy import (
+    counterargument_required,
+)
 from deepresearch_agent.agents.numeric_checker import (
     NumericConsistencyChecker,
 )
@@ -280,6 +283,8 @@ class CriticAgent:
         return issues[:5]
 
     def _missing_counterargument(self, state: ResearchState) -> list[Issue]:
+        if not counterargument_required(state):
+            return []
         evidence = state.evidence_store
         joined = " ".join(item.claim.lower() for item in evidence)
         has_counter = any(term in joined for term in ["risk", "constraint", "however", "compliance", "监管", "limitation"])
