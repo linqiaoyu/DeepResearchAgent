@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import importlib.util
 import re
 from typing import Any, Protocol
 
@@ -30,8 +29,10 @@ class TiktokenEstimator:
 
 
 def build_token_estimator() -> TokenEstimator:
-    if importlib.util.find_spec("tiktoken") is not None:
-        import tiktoken
+    """Use the deterministic local estimator for default/offline paths.
 
-        return TiktokenEstimator(tiktoken)
+    ``tiktoken.get_encoding`` may download its mergeable-ranks asset when the
+    host cache is cold.  Token estimation must not introduce network I/O into
+    a deterministic unit run.
+    """
     return HeuristicTokenEstimator()
