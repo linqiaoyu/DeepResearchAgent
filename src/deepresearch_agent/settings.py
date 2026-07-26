@@ -11,6 +11,8 @@ from typing import Literal
 class Settings:
     storage_path: Path
     max_critic_iter: int = 3
+    critic_enabled: bool = True
+    extractor_enabled: bool = True
     token_budget: int = 200_000
     default_depth: int = 2
     execution_mode: Literal["deterministic", "llm"] = "deterministic"
@@ -75,6 +77,7 @@ class Settings:
         '"narrative":["web_search"]}'
     )
     reflection_enabled: bool = False
+    procedural_memory_enabled: bool = True
     skill_packs_enabled: bool = False
 
     @property
@@ -121,6 +124,8 @@ def load_settings() -> Settings:
     return Settings(
         storage_path=storage,
         max_critic_iter=int(os.getenv("DEEPRESEARCH_MAX_CRITIC_ITER", "3")),
+        critic_enabled=_env_flag("CRITIC_ENABLED", default=True),
+        extractor_enabled=_env_flag("EXTRACTOR_ENABLED", default=True),
         token_budget=int(os.getenv("DEEPRESEARCH_TOKEN_BUDGET", "200000")),
         execution_mode=mode,
         llm_budget_cny=float(os.getenv("DEEPRESEARCH_LLM_BUDGET_CNY", "3.0")),
@@ -262,6 +267,10 @@ def load_settings() -> Settings:
             ),
         ),
         reflection_enabled=_env_flag("REFLECTION_ENABLED"),
+        procedural_memory_enabled=_env_flag(
+            "PROCEDURAL_MEMORY_ENABLED",
+            default=True,
+        ),
         skill_packs_enabled=_env_flag("SKILL_PACKS_ENABLED"),
     )
 

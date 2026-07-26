@@ -30,7 +30,11 @@ from deepresearch_agent.memory import (
     classify_subquestions_from_prior,
     prior_difference_rows,
 )
-from deepresearch_agent.observability import JsonLogger, correlation_context
+from deepresearch_agent.observability import (
+    JsonLogger,
+    correlation_context,
+    record_component_activity,
+)
 from deepresearch_agent.orchestration import (
     BoundedLoop,
     BranchBudget,
@@ -412,6 +416,12 @@ class DeepResearchEngine:
                             "max_critic_iter": (
                                 self.settings.max_critic_iter
                             ),
+                            "critic_enabled": (
+                                self.settings.critic_enabled
+                            ),
+                            "extractor_enabled": (
+                                self.settings.extractor_enabled
+                            ),
                             "branch_budget_enabled": (
                                 self.settings.branch_budget_enabled
                             ),
@@ -486,6 +496,9 @@ class DeepResearchEngine:
                             ),
                             "reflection_enabled": (
                                 self.settings.reflection_enabled
+                            ),
+                            "procedural_memory_enabled": (
+                                self.settings.procedural_memory_enabled
                             ),
                             "skill_packs_enabled": (
                                 self.settings.skill_packs_enabled
@@ -1770,7 +1783,33 @@ class DeepResearchEngine:
 
     def _extractor_node(self, graph_state: ResearchGraphState) -> ResearchGraphState:
         state = self._state_from_graph_values(graph_state)
-        self._extracting(state)
+        if self.settings.extractor_enabled:
+            before_count = len(state.evidence_store)
+            self._extracting(state)
+            record_component_activity(
+                state,
+                component="extractor",
+                enabled=True,
+                status="completed",
+                inputs={"source_count": len(state.sources)},
+                outputs={
+                    "evidence_before": before_count,
+                    "evidence_after": len(state.evidence_store),
+                },
+            )
+        else:
+            record_component_activity(
+                state,
+                component="extractor",
+                enabled=False,
+                status="bypassed",
+                inputs={"source_count": len(state.sources)},
+                outputs={
+                    "researcher_evidence_preserved": len(
+                        state.evidence_store
+                    )
+                },
+            )
         return self._state_output(
             self._complete_phase(state, graph_state, completed_phase="extracting", next_phase="critiquing")
         )
@@ -1782,12 +1821,45 @@ class DeepResearchEngine:
         state = self._state_from_graph_values(graph_state)
         if not state.plan:
             raise ValueError("Critiquing requires a plan.")
+        if not self.settings.critic_enabled:
+            state.critic_report = None
+            state.retry_queue = []
+            record_component_activity(
+                state,
+                component="critic",
+                enabled=False,
+                status="bypassed",
+                inputs={"evidence_count": len(state.evidence_store)},
+                outputs={"retry_tasks": 0, "issues": 0},
+            )
+            return self._state_output(
+                self._complete_phase(
+                    state,
+                    graph_state,
+                    completed_phase="critiquing",
+                    next_phase="reporting",
+                )
+            )
         state.critic_report = self.critic.critique(state)
         state.critic_iteration = state.critic_report.iteration
         state.retry_queue = state.critic_report.retry_tasks
         if not state.critic_report.passed and state.critic_iteration >= self.settings.max_critic_iter:
             state.critic_report.forced_pass = True
             state.critic_report.passed = True
+        record_component_activity(
+            state,
+            component="critic",
+            enabled=True,
+            status="completed",
+            inputs={"evidence_count": len(state.evidence_store)},
+            outputs={
+                "issues": len(state.critic_report.issues),
+                "retry_tasks": len(state.critic_report.retry_tasks),
+                "passed": state.critic_report.passed,
+                "forced_pass": state.critic_report.forced_pass,
+                "iteration": state.critic_report.iteration,
+            },
+        )
         if state.critic_report.passed:
             state.token_used += 1_700 * max(state.critic_iteration, 1)
             state.cost_used += 0.005 * max(state.critic_iteration, 1)
@@ -1803,6 +1875,14 @@ class DeepResearchEngine:
         state = self._state_from_graph_values(graph_state)
         if state.status == "paused":
             return END
+        if not self.settings.critic_enabled:
+            if self.settings.research_loop_active:
+                return "research_loop_decide"
+            return (
+                "reflector"
+                if self.settings.reflection_enabled
+                else "reporter"
+            )
         if state.critic_report and state.critic_report.passed:
             if self.settings.research_loop_active:
                 return "research_loop_decide"
@@ -1835,6 +1915,27 @@ class DeepResearchEngine:
             trajectory,
             decisions,
             reasoning_request=request,
+        )
+        signal_payload = result.deterministic_signals.model_dump(
+            mode="json"
+        )
+        record_component_activity(
+            state,
+            component="reflector",
+            enabled=True,
+            status="completed",
+            inputs={
+                "trajectory_nodes": len(trajectory.node_transitions),
+                "decisions": len(decisions),
+            },
+            outputs={
+                "nonempty_signal_groups": sum(
+                    int(bool(value))
+                    for value in signal_payload.values()
+                ),
+                "llm_provider": result.llm_insight.provider,
+                "llm_status": result.llm_insight.status,
+            },
         )
         recorder.record_llm_call(
             LLMCallTrace(
@@ -1900,7 +2001,15 @@ class DeepResearchEngine:
         signals,
         recorder: TrajectoryRecorder,
     ) -> None:
-        if not state.plan:
+        if not state.plan or not self.settings.procedural_memory_enabled:
+            record_component_activity(
+                state,
+                component="procedural_memory_write",
+                enabled=self.settings.procedural_memory_enabled,
+                status="bypassed",
+                inputs={"has_plan": bool(state.plan)},
+                outputs={"records_written": 0},
+            )
             return
         raw_sufficiency = state.metadata.get("research_sufficiency", {})
         rows = (
@@ -1985,6 +2094,14 @@ class DeepResearchEngine:
                 ],
                 iteration=iteration,
             ),
+        )
+        record_component_activity(
+            state,
+            component="procedural_memory_write",
+            enabled=True,
+            status="completed",
+            inputs={"sub_questions": len(state.plan.sub_questions)},
+            outputs={"records_written": len(written)},
         )
 
     def _route_after_reflection(
@@ -2344,6 +2461,7 @@ class DeepResearchEngine:
         self._sync_tool_degradation(state)
         state.evidence_store = self._sorted_evidence(state.evidence_store)
         if self.settings.context_packer_enabled:
+            evidence_before = len(state.evidence_store)
             self.working_memory.write(
                 WorkingMemoryWrite(
                     research_id=state.research_id,
@@ -2361,6 +2479,29 @@ class DeepResearchEngine:
             state.evidence_store = packed.selected
             state.metadata.setdefault("context_events", []).append(
                 packed.context_event(node="reporter")
+            )
+            record_component_activity(
+                state,
+                component="working_memory",
+                enabled=True,
+                status="completed",
+                inputs={"evidence_before": evidence_before},
+                outputs={
+                    "selected": len(packed.selected),
+                    "dropped": len(packed.dropped),
+                },
+            )
+        else:
+            record_component_activity(
+                state,
+                component="working_memory",
+                enabled=False,
+                status="bypassed",
+                inputs={"evidence_before": len(state.evidence_store)},
+                outputs={
+                    "selected": len(state.evidence_store),
+                    "dropped": 0,
+                },
             )
         state.final_report = self.reporter.report(state)
         if self.settings.decision_weaving_enabled:
@@ -2436,6 +2577,23 @@ class DeepResearchEngine:
                         else None
                     ),
                 )
+            record_component_activity(
+                state,
+                component="episodic_memory",
+                enabled=True,
+                status="completed",
+                inputs={"question_id": research_question_id(state.topic)},
+                outputs={"records_read": len(prior_records)},
+            )
+        else:
+            record_component_activity(
+                state,
+                component="episodic_memory",
+                enabled=False,
+                status="bypassed",
+                inputs={"question_id": research_question_id(state.topic)},
+                outputs={"records_read": 0},
+            )
         if self.settings.execution_mode == "llm":
             state.metadata.setdefault("llm_stats", {})["planner"] = self.planner.last_stats
         state.todo_list = [
@@ -2448,12 +2606,26 @@ class DeepResearchEngine:
 
     def _apply_procedural_memory(self, state: ResearchState) -> None:
         """Adopt only an observed sufficient strategy for the same question type."""
-        if not state.plan:
+        if not state.plan or not self.settings.procedural_memory_enabled:
+            record_component_activity(
+                state,
+                component="procedural_memory_read",
+                enabled=self.settings.procedural_memory_enabled,
+                status="bypassed",
+                inputs={"has_plan": bool(state.plan)},
+                outputs={
+                    "records_read": 0,
+                    "strategies_adopted": 0,
+                },
+            )
             return
+        records_read = 0
+        strategies_adopted = 0
         for index, sub_question in enumerate(state.plan.sub_questions):
             history = self.procedural_memory.query(
                 ProceduralQuery(question_type=classify_subquestion(sub_question))
             )
+            records_read += len(history.records)
             candidates = [
                 record for record in history.records
                 if record.sufficiency_result.sufficient and record.strategy
@@ -2475,6 +2647,7 @@ class DeepResearchEngine:
             state.plan.sub_questions[index] = sub_question.model_copy(
                 update={"search_queries": list(selected.strategy)}
             )
+            strategies_adopted += 1
             record_agent_decision(
                 state,
                 AgentDecision(
@@ -2496,6 +2669,17 @@ class DeepResearchEngine:
                     ],
                 ),
             )
+        record_component_activity(
+            state,
+            component="procedural_memory_read",
+            enabled=True,
+            status="completed",
+            inputs={"sub_questions": len(state.plan.sub_questions)},
+            outputs={
+                "records_read": records_read,
+                "strategies_adopted": strategies_adopted,
+            },
+        )
 
     def _extracting(self, state: ResearchState) -> None:
         if not state.plan:

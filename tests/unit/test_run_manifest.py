@@ -62,6 +62,11 @@ class RunManifestTests(unittest.TestCase):
                 "CONTEXT_PACKER_ENABLED": settings.context_packer_enabled,
                 "STRUCTURED_LOGGING_ENABLED": settings.structured_logging_enabled,
                 "CONFIG_FAIL_FAST_ENABLED": settings.config_fail_fast_enabled,
+                "CRITIC_ENABLED": settings.critic_enabled,
+                "EXTRACTOR_ENABLED": settings.extractor_enabled,
+                "PROCEDURAL_MEMORY_ENABLED": (
+                    settings.procedural_memory_enabled
+                ),
                 "STRUCTURED_OUTPUT_ENABLED": settings.structured_output_enabled,
                 "DYNAMIC_CAPABILITY_ENABLED": settings.dynamic_capability_enabled,
             },
@@ -208,6 +213,14 @@ class RunManifestTests(unittest.TestCase):
         comparison = compare_manifests(manifest(), changed)
         self.assertFalse(comparison.comparable)
         self.assertIn("model_strings", comparison.differences)
+
+    def test_config_hash_change_is_not_comparable(self) -> None:
+        changed = manifest().model_copy(
+            update={"config_hash": "config-b"}
+        )
+        comparison = compare_manifests(manifest(), changed)
+        self.assertFalse(comparison.comparable)
+        self.assertIn("config_hash", comparison.differences)
 
     def test_prompt_change_is_not_comparable(self) -> None:
         changed = manifest().model_copy(update={"prompt_hashes": {"judge.md": "def"}})

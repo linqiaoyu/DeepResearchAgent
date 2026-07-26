@@ -56,6 +56,7 @@ COMPARABILITY_FIELDS = (
     "dependency_versions",
     "domain",
     "mode",
+    "config_hash",
 )
 
 # Classification evidence is the 011 product-level flag-impact replay under
@@ -98,6 +99,9 @@ FLAG_CLASSIFICATIONS: dict[str, FlagClassification] = {
     "NUMERIC_CHECK_ENABLED": "content_affecting",
     "DYNAMIC_CAPABILITY_ENABLED": "content_affecting",
     "REFLECTION_ENABLED": "content_affecting",
+    "CRITIC_ENABLED": "content_affecting",
+    "EXTRACTOR_ENABLED": "content_affecting",
+    "PROCEDURAL_MEMORY_ENABLED": "content_affecting",
     "SKILL_PACKS_ENABLED": "content_affecting",
 }
 
@@ -238,6 +242,11 @@ def settings_flag_snapshot(
         "CONTEXT_PACKER_ENABLED": settings.context_packer_enabled,
         "STRUCTURED_LOGGING_ENABLED": settings.structured_logging_enabled,
         "CONFIG_FAIL_FAST_ENABLED": settings.config_fail_fast_enabled,
+        "CRITIC_ENABLED": settings.critic_enabled,
+        "EXTRACTOR_ENABLED": settings.extractor_enabled,
+        "PROCEDURAL_MEMORY_ENABLED": (
+            settings.procedural_memory_enabled
+        ),
     }
     if settings.structured_output_enabled or include_disabled_experimental:
         flags["STRUCTURED_OUTPUT_ENABLED"] = settings.structured_output_enabled

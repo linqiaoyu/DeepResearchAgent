@@ -5,13 +5,14 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from deepresearch_agent.config_validation import (
     ConfigurationError,
     validate_required_configuration,
 )
 from deepresearch_agent.observability import JsonLogger, correlation_context
-from deepresearch_agent.settings import Settings
+from deepresearch_agent.settings import Settings, load_settings
 
 
 class ObservabilityAndConfigTests(unittest.TestCase):
@@ -20,6 +21,24 @@ class ObservabilityAndConfigTests(unittest.TestCase):
 
     def test_configuration_validation_is_enabled_by_default(self) -> None:
         self.assertTrue(Settings(storage_path=Path("test.db")).config_fail_fast_enabled)
+
+    def test_agent_ablation_flags_are_explicit_and_env_configurable(self) -> None:
+        defaults = Settings(storage_path=Path("test.db"))
+        self.assertTrue(defaults.critic_enabled)
+        self.assertTrue(defaults.extractor_enabled)
+        self.assertTrue(defaults.procedural_memory_enabled)
+        with patch.dict(
+            "os.environ",
+            {
+                "CRITIC_ENABLED": "false",
+                "EXTRACTOR_ENABLED": "false",
+                "PROCEDURAL_MEMORY_ENABLED": "false",
+            },
+        ):
+            configured = load_settings()
+        self.assertFalse(configured.critic_enabled)
+        self.assertFalse(configured.extractor_enabled)
+        self.assertFalse(configured.procedural_memory_enabled)
 
     def test_json_logger_carries_correlation_and_redacts(self) -> None:
         stream = io.StringIO()
