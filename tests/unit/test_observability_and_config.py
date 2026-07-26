@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -82,6 +83,16 @@ class ObservabilityAndConfigTests(unittest.TestCase):
                 "DEEPRESEARCH_STRUCTURED_DATA_PROVIDER": "fixture",
             },
         )
+
+    def test_fail_fast_reads_deepseek_key_from_project_env_file(self) -> None:
+        settings = Settings(
+            storage_path=Path("test.db"),
+            execution_mode="llm",
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            env_path = Path(tmp) / ".env"
+            env_path.write_text("DEEPSEEK_API_KEY=test-key\n", encoding="utf-8")
+            validate_required_configuration(settings, env_path=env_path)
 
 
 if __name__ == "__main__":

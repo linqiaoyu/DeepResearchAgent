@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import os
 from collections.abc import Mapping
+from pathlib import Path
 
-from deepresearch_agent.settings import Settings
+from deepresearch_agent.settings import Settings, project_root
 
 
 class ConfigurationError(ValueError):
@@ -15,8 +16,15 @@ class ConfigurationError(ValueError):
 def validate_required_configuration(
     settings: Settings,
     environ: Mapping[str, str] | None = None,
+    env_path: Path | None = None,
 ) -> None:
-    env = os.environ if environ is None else environ
+    # Runtime callers use the same project .env fallback as LLMClient.  An
+    # injected mapping remains self-contained for deterministic tests.
+    env = (
+        _environment_with_dotenv(env_path or project_root() / ".env")
+        if environ is None
+        else environ
+    )
     missing: list[str] = []
     if settings.execution_mode == "llm" and not env.get("DEEPSEEK_API_KEY", "").strip():
         missing.append("DEEPSEEK_API_KEY")
@@ -32,3 +40,16 @@ def validate_required_configuration(
         missing.append("DEEPRESEARCH_DEMO_OWNER_TOKEN")
     if missing:
         raise ConfigurationError(missing)
+
+
+def _environment_with_dotenv(path: Path) -> dict[str, str]:
+    values: dict[str, str] = {}
+    if path.exists():
+        for raw_line in path.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            values[key.strip()] = value.strip().strip('"').strip("'")
+    values.update(os.environ)
+    return values
