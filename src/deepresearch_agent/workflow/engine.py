@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import time
+import traceback
 from collections.abc import Sequence
 from dataclasses import asdict
 from typing import Annotated, Any, TypedDict
@@ -86,6 +87,10 @@ from deepresearch_agent.tools import (
     build_search_provider,
     build_structured_data_provider,
     classify_subquestion,
+)
+from deepresearch_agent.tools.disclosure_source import (
+    CninfoDisclosureSource,
+    FixtureDisclosureSource,
 )
 from deepresearch_agent.tools.contract_adapter import ContractSearchProvider
 from deepresearch_agent.trajectory import (
@@ -217,11 +222,19 @@ class DeepResearchEngine:
                 configured_structured_provider
             )
         )
+        configured_disclosure_source = disclosure_source or (
+            FixtureDisclosureSource()
+            if self.settings.execution_mode == "deterministic"
+            else CninfoDisclosureSource(
+                pdf_max_pages=self.settings.pdf_max_pages,
+                char_limit=self.settings.tavily_raw_content_char_limit,
+            )
+        )
         self.capability_registry: CapabilityRegistry = (
             build_capability_registry(
                 search_provider=configured_search_tool,
                 structured_data_provider=configured_structured_provider,
-                disclosure_source=disclosure_source,
+                disclosure_source=configured_disclosure_source,
             )
         )
         self.skill_loader = SkillPackLoader(
@@ -256,8 +269,7 @@ class DeepResearchEngine:
             fetch_tool=self.capability_registry.resolve("web_fetch"),
             disclosure_source=(
                 self.capability_registry.resolve("disclosure_source")
-                if disclosure_source is not None
-                else None
+                if configured_disclosure_source is not None else None
             ),
             as_of=self.settings.as_of,
         )
@@ -522,7 +534,30 @@ class DeepResearchEngine:
                 self.graph.update_state(config, self._state_output(state))
                 self.logger.event("run_finished", status=state.status)
                 return state
+            except Exception as exc:
+                self.logger.event(
+                    "run_failed",
+                    error_type=type(exc).__name__,
+                    error=str(exc),
+                    traceback=traceback.format_exc(),
+                )
+                raise
         state = self._state_from_graph_values(result)
+        if state.status == "done" and not state.final_report:
+            state.status = "failed"
+            state.metadata["terminal_failure"] = {
+                "reason": "workflow_completed_without_final_report",
+                "phase": state.current_phase,
+            }
+            self.graph.update_state(config, self._state_output(state))
+            self.logger.event(
+                "run_failed",
+                error_type="WorkflowCompletionError",
+                error="workflow completed without final_report",
+            )
+            raise RuntimeError(
+                "Workflow completed without final_report; refusing silent success"
+            )
         manifest_path = None
         if self.settings.run_manifest_enabled:
             try:
@@ -1081,7 +1116,31 @@ class DeepResearchEngine:
 
     def _traced_node(self, name: str, node):
         def traced(graph_state: ResearchGraphState):
-            result = node(graph_state)
+            started = time.perf_counter()
+            self.logger.event(
+                "node_started",
+                node=name,
+                input_summary=_trace_graph_summary(graph_state),
+            )
+            try:
+                result = node(graph_state)
+            except Exception as exc:
+                self.logger.event(
+                    "node_failed",
+                    node=name,
+                    input_summary=_trace_graph_summary(graph_state),
+                    elapsed_seconds=round(time.perf_counter() - started, 6),
+                    error_type=type(exc).__name__,
+                    error=str(exc),
+                    traceback=traceback.format_exc(),
+                )
+                raise
+            self.logger.event(
+                "node_finished",
+                node=name,
+                output_summary=_trace_graph_summary(result),
+                elapsed_seconds=round(time.perf_counter() - started, 6),
+            )
             recorder = active_trajectory_recorder()
             if recorder:
                 recorder.record_node_transition(

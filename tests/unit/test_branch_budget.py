@@ -94,6 +94,7 @@ class BranchBudgetTest(unittest.TestCase):
                 structured_logging_enabled=False,
                 run_manifest_enabled=True,
                 max_critic_iter=1,
+                dynamic_capability_enabled=False,
             )
             engine = DeepResearchEngine(settings=settings)
             state = engine.run(topic="AI Agent 财富管理预算研究", depth_level=1)

@@ -63,6 +63,7 @@ class RunManifestTests(unittest.TestCase):
                 "STRUCTURED_LOGGING_ENABLED": settings.structured_logging_enabled,
                 "CONFIG_FAIL_FAST_ENABLED": settings.config_fail_fast_enabled,
                 "STRUCTURED_OUTPUT_ENABLED": settings.structured_output_enabled,
+                "DYNAMIC_CAPABILITY_ENABLED": settings.dynamic_capability_enabled,
             },
         )
         self.assertEqual(
@@ -285,8 +286,12 @@ class RunManifestTests(unittest.TestCase):
                 FLAG_CLASSIFICATIONS[name],
                 "content_affecting",
             )
-            self.assertNotIn(name, default_flags)
-            self.assertIs(expanded[name], False)
+            if name == "DYNAMIC_CAPABILITY_ENABLED":
+                self.assertIs(default_flags[name], True)
+                self.assertIs(expanded[name], True)
+            else:
+                self.assertNotIn(name, default_flags)
+                self.assertIs(expanded[name], False)
 
     def test_each_enabled_016_flag_makes_historical_run_incomparable(
         self,
@@ -313,7 +318,7 @@ class RunManifestTests(unittest.TestCase):
                     comparison.incomparable_reasons,
                 )
 
-    def test_disabled_016_parameters_do_not_change_config_hash(
+    def test_enabled_dynamic_parameters_change_config_hash(
         self,
     ) -> None:
         started = datetime(2026, 7, 24, tzinfo=timezone.utc)
@@ -335,7 +340,7 @@ class RunManifestTests(unittest.TestCase):
             started_at=started,
         )
 
-        self.assertEqual(baseline.config_hash, changed.config_hash)
+        self.assertNotEqual(baseline.config_hash, changed.config_hash)
 
     def test_reflection_flag_is_content_affecting_and_omitted_when_off(
         self,

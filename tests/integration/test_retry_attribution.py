@@ -38,7 +38,7 @@ class RetrySearchProvider:
 class RetryAttributionTests(unittest.TestCase):
     def test_retry_evidence_uses_task_sub_question_id(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            settings = Settings(storage_path=Path(tmp) / "research.db", max_critic_iter=1)
+            settings = Settings(storage_path=Path(tmp) / "research.db", max_critic_iter=1, dynamic_capability_enabled=False)
             engine = DeepResearchEngine(settings=settings, store=SQLiteStore(settings.storage_path))
             plan = engine.planner.plan("AI Agent 在财富管理行业的落地机会研究", depth_level=2)
             target_subq = plan.sub_questions[0]
@@ -62,7 +62,7 @@ class RetryAttributionTests(unittest.TestCase):
 
     def test_multiple_retry_tasks_keep_distinct_sub_question_attribution(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            settings = Settings(storage_path=Path(tmp) / "research.db", max_critic_iter=1)
+            settings = Settings(storage_path=Path(tmp) / "research.db", max_critic_iter=1, dynamic_capability_enabled=False)
             store = SQLiteStore(settings.storage_path)
             provider = RetrySearchProvider()
             engine = DeepResearchEngine(settings=settings, store=store, search_tool=provider)
@@ -103,7 +103,7 @@ class RetryAttributionTests(unittest.TestCase):
 
     def test_retry_without_sub_question_id_falls_back_to_last_sub_question(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            settings = Settings(storage_path=Path(tmp) / "research.db", max_critic_iter=1)
+            settings = Settings(storage_path=Path(tmp) / "research.db", max_critic_iter=1, dynamic_capability_enabled=False)
             store = SQLiteStore(settings.storage_path)
             provider = RetrySearchProvider()
             engine = DeepResearchEngine(settings=settings, store=store, search_tool=provider)

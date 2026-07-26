@@ -53,6 +53,7 @@ from deepresearch_agent.tools.tavily_search import TavilySearchError, TavilySear
 from deepresearch_agent.tools.disclosure_source import (
     CninfoDisclosureSource,
     DisclosureSourceError,
+    FixtureDisclosureSource,
 )
 
 __all__ = [
@@ -87,6 +88,7 @@ __all__ = [
     "TavilySearchError",
     "TavilySearchProvider",
     "CninfoDisclosureSource",
+    "FixtureDisclosureSource",
     "DisclosureSourceError",
     "ToolError",
     "ToolErrorKind",

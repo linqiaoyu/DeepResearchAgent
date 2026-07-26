@@ -57,6 +57,25 @@ class DisclosureSourceError(ToolExecutionError):
     """Fail-closed error for the undocumented CNINFO endpoint."""
 
 
+class FixtureDisclosureSource:
+    """Offline disclosure backend used only by deterministic test runs."""
+
+    def set_run_context(self, context: RunToolContext) -> None:
+        del context
+
+    def search(
+        self,
+        security_code: str,
+        keyword: str,
+        start_date: date,
+        end_date: date,
+        *,
+        preferred_terms: tuple[str, ...] = (),
+    ) -> list[Source]:
+        del security_code, keyword, start_date, end_date, preferred_terms
+        return []
+
+
 class CninfoDisclosureSource:
     """Fetch Shanghai/Shenzhen A-share CNINFO announcement PDFs by code and date.
 

@@ -60,7 +60,7 @@ class Settings:
     numeric_check_enabled: bool = False
     numeric_check_relative_tolerance: float = 0.01
     numeric_check_absolute_tolerance: float = 0.01
-    dynamic_capability_enabled: bool = False
+    dynamic_capability_enabled: bool = True
     dynamic_capability_rules_json: str = (
         '{"financial_metric":["structured_data_provider","web_fetch","web_search"],'
         '"market_price":["structured_data_provider","web_search"],'
@@ -229,7 +229,7 @@ def load_settings() -> Settings:
             )
         ),
         dynamic_capability_enabled=_env_flag(
-            "DYNAMIC_CAPABILITY_ENABLED"
+            "DYNAMIC_CAPABILITY_ENABLED", default=True
         ),
         dynamic_capability_rules_json=os.getenv(
             "DEEPRESEARCH_DYNAMIC_CAPABILITY_RULES_JSON",

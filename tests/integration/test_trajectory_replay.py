@@ -35,6 +35,7 @@ class TrajectoryReplayTests(unittest.TestCase):
                         storage_path=root / "record.db",
                         runs_root=root / "runs",
                         as_of=date(2026, 7, 9),
+                        dynamic_capability_enabled=False,
                     ),
                     trajectory_record_enabled=True,
                     structured_logging_enabled=False,

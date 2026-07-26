@@ -27,7 +27,7 @@ def install() -> None:
         if host in {"127.0.0.1", "::1", "localhost"} or _current_test_allows_network():
             return _ORIGINAL_CONNECT(sock, address)
         raise AssertionError(
-            "unit test attempted network egress; use @allow_network only for "
+            "test attempted network egress; use @allow_network only for "
             "an explicitly reviewed real-call test"
         )
 

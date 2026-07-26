@@ -11,7 +11,7 @@ class UnitNetworkGuardTests(unittest.TestCase):
         with socket.socket() as sock:
             with self.assertRaisesRegex(
                 AssertionError,
-                "unit test attempted network egress; use @allow_network",
+                "test attempted network egress; use @allow_network",
             ):
                 sock.connect(("198.51.100.1", 443))
 

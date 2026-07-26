@@ -212,9 +212,9 @@ class DynamicCapabilitySelectionTest(unittest.TestCase):
         self.assertIn("capability_selection", state.final_report or "")
         self.assertIn("source_rerank", state.final_report or "")
 
-    def test_switch_off_keeps_fixed_researcher_tools(self) -> None:
+    def test_default_enables_task_specific_capability_selection(self) -> None:
         settings = Settings(storage_path=Path("test.db"))
-        self.assertFalse(settings.dynamic_capability_enabled)
+        self.assertTrue(settings.dynamic_capability_enabled)
 
 
 if __name__ == "__main__":

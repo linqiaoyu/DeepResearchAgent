@@ -47,6 +47,7 @@ UUID_RE = re.compile(
 ABSOLUTE_PATH_RE = re.compile(r"(?<![\w:/])/(?:[^/\s]+/)+[^/\s]+")
 TIMESTAMP_KEYS = {
     "started_at",
+    "timestamp",
     "updated_at",
     "created_at",
     "ended_at",
