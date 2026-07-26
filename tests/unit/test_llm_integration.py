@@ -131,6 +131,90 @@ class LLMIntegrationTests(unittest.TestCase):
             self.assertEqual(row["input_tokens"], row["prompt_tokens"])
             self.assertEqual(row["output_tokens"], row["completion_tokens"])
 
+    def test_v4pro_official_cny_pricing_is_model_specific(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            env_path = Path(tmp) / ".env"
+            env_path.write_text("DEEPSEEK_API_KEY=test-key\n", encoding="utf-8")
+            ledger_path = Path(tmp) / "ledger.jsonl"
+            pro_role = RoleModelConfig(
+                model="openai/deepseek-v4-pro",
+                api_base="https://api.deepseek.com",
+            )
+            client = LLMClient(
+                ledger_path=ledger_path,
+                budget_cny=3.0,
+                config=DEFAULT_LLM_CONFIG.__class__(
+                    roles={
+                        **DEFAULT_LLM_CONFIG.roles,
+                        "planner": pro_role,
+                    }
+                ),
+                completion_func=MockCompletion(
+                    ["ok"],
+                    prompt_tokens=1_000,
+                    completion_tokens=500,
+                    usage_extra={"prompt_cache_hit_tokens": 400},
+                ),
+                sleep_func=lambda _: None,
+                env_path=env_path,
+                global_ledger_path=Path(tmp) / "global_ledger.jsonl",
+            )
+
+            result = client.complete(
+                role="planner",
+                run_id="run-pro-price",
+                messages=[{"role": "user", "content": "hello"}],
+            )
+            row = json.loads(
+                ledger_path.read_text(encoding="utf-8").splitlines()[0]
+            )
+
+            # Official mainland-China price per million tokens is
+            # cache-hit ¥0.025, cache-miss ¥3, output ¥6.
+            self.assertAlmostEqual(result.cost_cny, 0.00481)
+            self.assertAlmostEqual(row["cost_cny"], 0.00481)
+            self.assertEqual(
+                row["price_source"],
+                "deepseek_official_cny_20260726",
+            )
+
+    def test_run_aggregate_reports_each_actual_price_source(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            env_path = Path(tmp) / ".env"
+            env_path.write_text(
+                "DEEPSEEK_API_KEY=test-key\nDASHSCOPE_API_KEY=test-key\n",
+                encoding="utf-8",
+            )
+            client = LLMClient(
+                ledger_path=Path(tmp) / "ledger.jsonl",
+                budget_cny=3.0,
+                completion_func=MockCompletion(["ok", "ok"]),
+                sleep_func=lambda _: None,
+                env_path=env_path,
+                global_ledger_path=Path(tmp) / "global_ledger.jsonl",
+            )
+
+            for role in ("planner", "judge"):
+                client.complete(
+                    role=role,
+                    run_id="run-mixed-pricing",
+                    messages=[{"role": "user", "content": role}],
+                )
+            aggregate = client.aggregate_run("run-mixed-pricing")
+
+        self.assertEqual(
+            aggregate["price_sources"],
+            [
+                "aliyun_bailian_cn_beijing_20260725",
+                "v4flash_console_calibrated_20260612",
+            ],
+        )
+        self.assertEqual(
+            aggregate["price_source"],
+            "mixed:aliyun_bailian_cn_beijing_20260725,"
+            "v4flash_console_calibrated_20260612",
+        )
+
     def test_ledger_writes_global_and_task_copy(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             env_path = Path(tmp) / ".env"

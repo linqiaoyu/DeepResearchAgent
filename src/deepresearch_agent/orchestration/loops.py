@@ -307,7 +307,15 @@ class BoundedLoop:
             <= budget_remaining_ratio_threshold
         )
 
-        if boundaries:
+        # Sufficiency is the causal stop when it becomes true on the same
+        # iteration as a safety boundary. The boundary remains observable in
+        # the decision inputs, but must not falsely label adequate research as
+        # exhausted coverage.
+        if result.stop_requested:
+            route = "stop"
+            stop_boundary = None
+            outcome = f"stop_sufficient:{result.stop_reason or 'strategy_requested'}"
+        elif boundaries:
             route: Literal["continue", "stop"] = "stop"
             stop_boundary = "+".join(boundaries)
             outcome = f"stop_exhausted:{stop_boundary}"
@@ -315,10 +323,6 @@ class BoundedLoop:
             route = "stop"
             stop_boundary = "decision_context_budget_threshold"
             outcome = "stop_budget_constrained:因预算约束提前收敛"
-        elif result.stop_requested:
-            route = "stop"
-            stop_boundary = None
-            outcome = f"stop_sufficient:{result.stop_reason or 'strategy_requested'}"
         else:
             route = "continue"
             stop_boundary = None
@@ -338,7 +342,13 @@ class BoundedLoop:
         outcome: str,
         decision_context: DecisionContext | None = None,
     ) -> None:
-        boundaries = stop_boundary.split("+") if stop_boundary else []
+        boundaries: list[str] = []
+        if tracker.budget_used >= self.spec.budget_ceiling:
+            boundaries.append("budget_ceiling")
+        if tracker.iteration >= self.spec.max_iterations:
+            boundaries.append("max_iterations")
+        if tracker.no_progress_count >= self.spec.no_progress_window:
+            boundaries.append("no_progress_window")
         inputs: dict[str, object] = {
             "metric_before": metric_before,
             "metric_after": tracker.last_metric,

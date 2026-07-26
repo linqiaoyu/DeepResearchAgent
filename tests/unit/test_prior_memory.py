@@ -31,6 +31,8 @@ from deepresearch_agent.schemas import (
     SubQuestion,
 )
 from deepresearch_agent.settings import Settings
+from deepresearch_agent.trajectory import load_trajectory
+from deepresearch_agent.trajectory_replay import replay_trajectory
 from deepresearch_agent.workflow import DeepResearchEngine
 
 
@@ -334,6 +336,8 @@ class PriorMemoryTest(unittest.TestCase):
                     runs_root=Path(tmp) / "runs",
                     as_of=date(2026, 7, 24),
                     prior_memory_enabled=True,
+                    trajectory_record_enabled=True,
+                    run_manifest_enabled=False,
                     max_critic_iter=1,
                     structured_logging_enabled=False,
                 ),
@@ -341,11 +345,23 @@ class PriorMemoryTest(unittest.TestCase):
             )
             state = engine.run(topic=topic, depth_level=1)
             engine._checkpoint_conn.close()
+            trajectory = load_trajectory(
+                Path(tmp)
+                / "runs"
+                / state.research_id
+                / "trajectory.json"
+            )
+            replay = replay_trajectory(trajectory, mode="strict")
 
         self.assertEqual(state.metadata["prior_memory"]["as_of"], "2026-07-09")
         self.assertIn("## 与上期结论的差异", state.final_report or "")
         self.assertIn("prior_memory_classification", state.final_report or "")
         self.assertTrue(state.metadata["prior_memory"]["differences"])
+        self.assertEqual(
+            trajectory.request["prior_memory_snapshot"]["as_of"],
+            "2026-07-09",
+        )
+        self.assertEqual(replay.status, "reproduced", replay.cache_miss)
 
 
 if __name__ == "__main__":

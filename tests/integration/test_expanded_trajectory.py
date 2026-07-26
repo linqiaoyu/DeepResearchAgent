@@ -165,6 +165,10 @@ class ExpandedTrajectoryTest(unittest.TestCase):
                 decision_weaving_enabled=True,
                 numeric_check_enabled=True,
                 dynamic_capability_enabled=True,
+                semantic_judge_enabled=True,
+                context_packer_enabled=True,
+                reporter_context_token_budget=12_345,
+                prior_memory_enabled=True,
             )
             engine = DeepResearchEngine(
                 settings=settings,
@@ -217,6 +221,27 @@ class ExpandedTrajectoryTest(unittest.TestCase):
                 tool_names.count("web_search")
                 + tool_names.count("web_fetch")
                 + tool_names.count("structured_data_provider"),
+            )
+            strategy_config = trajectory.request["strategy_config"]
+            self.assertEqual(
+                {
+                    key: strategy_config[key]
+                    for key in (
+                        "semantic_judge_enabled",
+                        "context_packer_enabled",
+                        "reporter_context_token_budget",
+                        "prior_memory_enabled",
+                    )
+                },
+                {
+                    "semantic_judge_enabled": True,
+                    "context_packer_enabled": True,
+                    "reporter_context_token_budget": 12_345,
+                    "prior_memory_enabled": True,
+                },
+            )
+            self.assertIsNone(
+                trajectory.request["prior_memory_snapshot"]
             )
 
             replay = replay_trajectory(trajectory, mode="strict")
@@ -484,6 +509,7 @@ class ExpandedTrajectoryTest(unittest.TestCase):
                 numeric_check_enabled=True,
                 dynamic_capability_enabled=True,
                 reflection_enabled=True,
+                procedural_memory_enabled=True,
             )
             engine = DeepResearchEngine(
                 settings=settings,

@@ -45,6 +45,7 @@ def main() -> None:
         settings,
         started_at=state.started_at,
         ended_at=state.updated_at,
+        llm_config=getattr(engine.llm_client, "config", None),
     )
     result = export_audit_bundle(
         state=state,

@@ -244,6 +244,13 @@ class LLMClient:
         rows = [
             row for row in self._iter_ledger_rows(self.global_ledger_path) if row.get("run_id") == run_id
         ]
+        price_sources = sorted(
+            {
+                str(row["price_source"])
+                for row in rows
+                if row.get("price_source")
+            }
+        )
         by_role: dict[str, dict[str, float | int]] = {}
         for row in rows:
             role = str(row.get("role", "unknown"))
@@ -276,7 +283,14 @@ class LLMClient:
             "rows": rows,
             "by_role": by_role,
             "total_cost_cny": sum(float(r.get("cost_cny", 0.0)) for r in rows),
-            "price_source": self.config.price_source,
+            "price_source": (
+                price_sources[0]
+                if len(price_sources) == 1
+                else f"mixed:{','.join(price_sources)}"
+                if price_sources
+                else None
+            ),
+            "price_sources": price_sources,
         }
 
     def _completion_with_retries(

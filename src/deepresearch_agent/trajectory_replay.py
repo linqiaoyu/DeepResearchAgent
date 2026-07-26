@@ -15,6 +15,8 @@ from deepresearch_agent.llm import (
     LLMClientError,
     StructuredOutputError,
 )
+from deepresearch_agent.memory import EpisodicMemory, EpisodicRecord
+from deepresearch_agent.research_snapshot import ResearchSnapshot
 from deepresearch_agent.schemas import (
     ResearchPlan,
     ResearchState,
@@ -23,12 +25,22 @@ from deepresearch_agent.schemas import (
     SymbolInfo,
 )
 from deepresearch_agent.settings import Settings
+from deepresearch_agent.semantic_judge import RuntimeSemanticJudge
+from deepresearch_agent.tools import (
+    DegradationEvent,
+    RunToolContext,
+    ToolErrorKind,
+    ToolExecutionError,
+)
+from deepresearch_agent.tools.disclosure_source import DisclosureSourceError
 from deepresearch_agent.trajectory import (
     AgentTrajectory,
     LLMCallTrace,
     ReplayResult,
     ToolCallTrace,
+    TrajectoryCacheMissError,
     active_trajectory_recorder,
+    load_trajectory,
     normalized_llm_key,
     validate_strict_replay_trajectory,
 )
@@ -174,7 +186,7 @@ class ReplayLLMClient:
     def assert_exhausted(self) -> None:
         if self._calls:
             call = self._calls[0]
-            raise RuntimeError(
+            raise TrajectoryCacheMissError(
                 "trajectory cache_miss: unused LLM call "
                 f"role={call.role!r} sequence={call.sequence}"
             )
@@ -221,13 +233,16 @@ class ReplayLLMClient:
                     ),
                     f"llm:{role}:prompt",
                 )
-                raise RuntimeError(
+                raise TrajectoryCacheMissError(
                     "trajectory cache_miss: LLM exact prompt mismatch "
                     f"role={role!r} sequence={call.sequence}; "
                     f"{prompt_diff}"
                 )
             call = self._calls.popleft()
             self._consumed.append(call)
+            recorder = active_trajectory_recorder()
+            if recorder:
+                recorder.record_llm_call(call.model_copy(deep=True))
             if call.error:
                 consumed_error = call
                 continue
@@ -237,13 +252,13 @@ class ReplayLLMClient:
                 "trajectory recorded LLM failure "
                 f"role={role} error={consumed_error.error}"
             )
-        raise RuntimeError(
+        raise TrajectoryCacheMissError(
             f"trajectory cache_miss: LLM role={role!r}"
         )
 
     def _require_run_id(self, run_id: str) -> None:
         if run_id != self._expected_run_id:
-            raise RuntimeError(
+            raise TrajectoryCacheMissError(
                 "trajectory cache_miss: replay run_id differs "
                 f"expected={self._expected_run_id!r} actual={run_id!r}"
             )
@@ -251,6 +266,7 @@ class ReplayLLMClient:
 
 class ReplaySearchProvider:
     def __init__(self, trajectory: AgentTrajectory) -> None:
+        self._context: RunToolContext | None = None
         self._responses: dict[
             tuple[str, int, str | None],
             deque[ToolCallTrace],
@@ -271,6 +287,9 @@ class ReplaySearchProvider:
             )
             self._responses[key].append(call)
 
+    def set_run_context(self, context: RunToolContext) -> None:
+        self._context = context
+
     def search(
         self,
         query: str,
@@ -285,6 +304,8 @@ class ReplaySearchProvider:
         recorder = active_trajectory_recorder()
         if recorder:
             recorder.record_tool_call(call.model_copy(deep=True))
+        if call.error and _recorded_tool_error_kind(call) == ToolErrorKind.BUDGET_EXCEEDED:
+            self._raise_recorded_budget(call, "search")
         return [
             Source.model_validate(item)
             for item in (call.result or [])
@@ -300,10 +321,44 @@ class ReplaySearchProvider:
         recorder = active_trajectory_recorder()
         if recorder:
             recorder.record_tool_call(call.model_copy(deep=True))
+        if call.error and _recorded_tool_error_kind(call) == ToolErrorKind.BUDGET_EXCEEDED:
+            self._raise_recorded_budget(call, "fetch")
         return (
             Source.model_validate(call.result)
             if call.result
             else None
+        )
+
+    def _raise_recorded_budget(
+        self,
+        call: ToolCallTrace,
+        request_kind: str,
+    ) -> None:
+        message = str(
+            call.error.get(
+                "message",
+                "recorded request budget exceeded",
+            )
+        )
+        if (
+            self._context is not None
+            and self._context.external_request_budget is not None
+        ):
+            # Recreate the rejected counter as well as the exception; the
+            # partial report exposes this snapshot in its decision record.
+            try:
+                self._context.consume_external_request(
+                    request_kind,
+                    tool=_recorded_budget_tool(message),
+                )
+            except ToolExecutionError as exc:
+                raise ToolExecutionError(
+                    ToolErrorKind.BUDGET_EXCEEDED,
+                    message,
+                ) from exc
+        raise ToolExecutionError(
+            ToolErrorKind.BUDGET_EXCEEDED,
+            message,
         )
 
     def assert_exhausted(self) -> None:
@@ -416,6 +471,8 @@ class ReplayDisclosureSource:
     """Offline disclosure backend with exact FIFO input matching."""
 
     def __init__(self, trajectory: AgentTrajectory) -> None:
+        self._termination = trajectory.termination
+        self._context: RunToolContext | None = None
         self._calls: deque[ToolCallTrace] = deque(
             sorted(
                 (
@@ -427,8 +484,8 @@ class ReplayDisclosureSource:
             )
         )
 
-    def set_run_context(self, context: object) -> None:
-        del context
+    def set_run_context(self, context: RunToolContext) -> None:
+        self._context = context
 
     def search(
         self,
@@ -458,14 +515,57 @@ class ReplayDisclosureSource:
                 f"expected={expected}, actual={call.inputs}"
             )
         if call.error:
-            raise RuntimeError(
-                "trajectory recorded disclosure_source error: "
-                f"{call.error}"
+            kind = _recorded_tool_error_kind(call)
+            message = str(
+                call.error.get(
+                    "message",
+                    "recorded disclosure_source error",
+                )
             )
-        return [
+            if (
+                kind == ToolErrorKind.BUDGET_EXCEEDED
+                or (
+                    self._termination is not None
+                    and self._termination.status == "failed"
+                    and self._termination.error_type
+                    == "DisclosureSourceError"
+                )
+            ):
+                raise DisclosureSourceError(kind, message)
+            # Completed trajectories may contain an explicitly degraded
+            # authority call followed by web fallback.  Returning its recorded
+            # empty result reproduces that control-flow decision offline.
+            self._append_recorded_degradation(call)
+            return []
+        result = [
             Source.model_validate(item)
             for item in (call.result or [])
         ]
+        self._append_recorded_degradation(call)
+        return result
+
+    def _append_recorded_degradation(self, call: ToolCallTrace) -> None:
+        if self._context is None:
+            return
+        if call.degradation_event:
+            self._context.degradation_events.append(
+                DegradationEvent.model_validate(call.degradation_event)
+            )
+            return
+        # Backward-compatible inference for a successful empty disclosure trace
+        # recorded before degradation_event became part of the trace contract.
+        if not call.error and not call.result:
+            self._context.degradation_events.append(
+                DegradationEvent(
+                    tool="disclosure_source",
+                    reason=ToolErrorKind.NOT_FOUND,
+                    impact=(
+                        "primary disclosure returned no matching document; "
+                        "falling back to lower-authority web sources"
+                    ),
+                    attempts=call.attempts,
+                )
+            )
 
     def assert_exhausted(self) -> None:
         if self._calls:
@@ -557,16 +657,20 @@ def replay_trajectory(
 
     request = trajectory.request
     if (
-        trajectory.schema_version == 4
+        trajectory.schema_version >= 4
         and trajectory.termination
-        and trajectory.termination.status != "completed"
+        and trajectory.termination.status == "failed"
+        and "recorded_plan" not in request
     ):
         return ReplayResult(
             mode=mode,
             status="cache_miss",
             cache_miss=(
-                "trajectory terminal status is not replayable: "
-                f"{trajectory.termination.status}"
+                "unreplayable_internal_failure: trajectory failed before "
+                "Planner produced recorded_plan; trace prefix remains valid"
+            ),
+            expected_termination=trajectory.termination.model_dump(
+                mode="json"
             ),
         )
     recorded_mode = str(request.get("mode"))
@@ -617,6 +721,7 @@ def replay_trajectory(
             settings=settings,
             search_tool=replay_search,
             structured_data_provider=replay_structured,
+            episodic_memory=_recorded_episodic_memory(request),
             disclosure_source=(
                 replay_disclosure
                 if recorded_mode == "llm" or has_disclosure_trace
@@ -641,11 +746,39 @@ def replay_trajectory(
             )
             engine.extractor.llm_client = replay_llm
             engine.reporter.llm_client = replay_llm
+            if engine.settings.semantic_judge_enabled:
+                engine.evaluator.semantic_judge = RuntimeSemanticJudge(
+                    replay_llm
+                )
+                engine.evaluator.semantic_judge_enabled = True
+        state: ResearchState | None = None
+        replay_error: Exception | None = None
+        replayed_trajectory: AgentTrajectory | None = None
         try:
             state = _run_with_recorded_id(
                 engine,
                 trajectory=trajectory,
             )
+        except Exception as exc:
+            replay_error = exc
+            state = engine.load_state(trajectory.run_id)
+            if "cache_miss" in str(exc):
+                return ReplayResult(
+                    mode=mode,
+                    status="cache_miss",
+                    cache_miss=str(exc),
+                    expected_termination=(
+                        trajectory.termination.model_dump(mode="json")
+                        if trajectory.termination
+                        else None
+                    ),
+                )
+            if not (
+                trajectory.termination
+                and trajectory.termination.status == "failed"
+            ):
+                raise
+        try:
             boundaries: list[object] = [
                 replay_search,
                 replay_structured,
@@ -664,7 +797,53 @@ def replay_trajectory(
                 )
             raise
         finally:
+            replay_path = (
+                settings.runs_root
+                / trajectory.run_id
+                / "trajectory.json"
+            )
+            if replay_path.exists():
+                replayed_trajectory = load_trajectory(replay_path)
             engine._checkpoint_conn.close()
+
+    if state is None:
+        return ReplayResult(
+            mode=mode,
+            status="mismatch",
+            cache_miss="replay produced neither state nor terminal error",
+            expected_termination=(
+                trajectory.termination.model_dump(mode="json")
+                if trajectory.termination
+                else None
+            ),
+        )
+
+    expected_termination = (
+        trajectory.termination.model_dump(mode="json")
+        if trajectory.termination
+        else {
+            "status": "completed",
+            "phase": "done",
+            "error_type": None,
+            "error_message": None,
+        }
+    )
+    actual_termination = _actual_termination(state, replay_error)
+    termination_matches = expected_termination == actual_termination
+    expected_failure_control_flow: list[dict[str, object]] = []
+    actual_failure_control_flow: list[dict[str, object]] = []
+    failure_control_flow_matches: bool | None = None
+    if expected_termination["status"] == "failed":
+        expected_failure_control_flow = _failure_control_flow(trajectory)
+        actual_failure_control_flow = (
+            _failure_control_flow(replayed_trajectory)
+            if replayed_trajectory
+            else []
+        )
+        failure_control_flow_matches = (
+            expected_failure_control_flow
+            == actual_failure_control_flow
+        )
 
     actual: dict[str, str] = {}
     for name in trajectory.artifacts:
@@ -692,16 +871,86 @@ def replay_trajectory(
         ),
         None,
     )
+    if mismatch is None and not termination_matches:
+        mismatch = (
+            "trajectory terminal mismatch: "
+            f"expected={expected_termination}, actual={actual_termination}"
+        )
+    if mismatch is None and failure_control_flow_matches is False:
+        mismatch = (
+            "trajectory failure control-flow mismatch: "
+            f"expected={expected_failure_control_flow}, "
+            f"actual={actual_failure_control_flow}"
+        )
     return ReplayResult(
         mode=mode,
-        status="reproduced" if all(matches.values()) else "mismatch",
+        status=(
+            "reproduced"
+            if (
+                all(matches.values())
+                and termination_matches
+                and failure_control_flow_matches is not False
+            )
+            else "mismatch"
+        ),
         cache_miss=mismatch,
         artifact_matches=matches,
+        termination_matches=termination_matches,
+        expected_termination=expected_termination,
+        actual_termination=actual_termination,
+        failure_control_flow_matches=failure_control_flow_matches,
+        expected_failure_control_flow=expected_failure_control_flow,
+        actual_failure_control_flow=actual_failure_control_flow,
     )
+
+
+def _recorded_tool_error_kind(call: ToolCallTrace) -> ToolErrorKind:
+    if not call.error:
+        return ToolErrorKind.PERMANENT
+    raw = str(call.error.get("kind", ToolErrorKind.PERMANENT))
+    try:
+        return ToolErrorKind(raw)
+    except ValueError:
+        return ToolErrorKind.PERMANENT
+
+
+def _recorded_budget_tool(message: str) -> str:
+    marker = " for "
+    if marker not in message:
+        return "tavily_search"
+    suffix = message.rsplit(marker, 1)[-1]
+    return suffix.split(":", 1)[0].strip() or "tavily_search"
+
+
+def _actual_termination(
+    state: ResearchState,
+    replay_error: Exception | None,
+) -> dict[str, object | None]:
+    terminal = state.metadata.get("terminal_failure", {})
+    terminal = terminal if isinstance(terminal, dict) else {}
+    status = "completed" if state.status == "done" else state.status
+    actual: dict[str, object | None] = {
+        "status": status,
+        "phase": str(terminal.get("phase") or state.current_phase),
+        "error_type": terminal.get("error_type"),
+        "error_message": terminal.get("error_message"),
+    }
+    if status == "completed":
+        actual["error_type"] = None
+        actual["error_message"] = None
+    elif replay_error is not None:
+        actual["error_type"] = type(replay_error).__name__
+        actual["error_message"] = str(replay_error) or type(replay_error).__name__
+    return actual
 
 
 _STRATEGY_SETTING_KEYS = {
     "max_critic_iter",
+    "critic_enabled",
+    "extractor_enabled",
+    "semantic_judge_enabled",
+    "context_packer_enabled",
+    "reporter_context_token_budget",
     "max_external_search_requests_per_run",
     "max_external_fetch_requests_per_run",
     "max_authority_search_requests_per_run",
@@ -727,6 +976,9 @@ _STRATEGY_SETTING_KEYS = {
     "dynamic_capability_enabled",
     "dynamic_capability_rules_json",
     "reflection_enabled",
+    "procedural_memory_enabled",
+    "prior_memory_enabled",
+    "prior_watch_confidence_threshold",
     "skill_packs_enabled",
 }
 
@@ -751,7 +1003,9 @@ def _offline_settings(
         run_manifest_enabled=False,
         structured_logging_enabled=False,
         config_fail_fast_enabled=False,
-        trajectory_record_enabled=False,
+        # Replay records its own node/control-flow trace so failed runs can be
+        # compared at the failure boundary, not only by terminal metadata.
+        trajectory_record_enabled=True,
         tool_contract_enabled=False,
     )
     strategy = request.get("strategy_config", {})
@@ -764,6 +1018,42 @@ def _offline_settings(
         if key in _STRATEGY_SETTING_KEYS and key in known_fields
     }
     return replace(base, **values)
+
+
+def _recorded_episodic_memory(
+    request: dict[str, object],
+) -> EpisodicMemory:
+    memory = EpisodicMemory()
+    raw_snapshot = request.get("prior_memory_snapshot")
+    if raw_snapshot is None:
+        return memory
+    if not isinstance(raw_snapshot, dict):
+        raise ValueError(
+            "trajectory prior_memory_snapshot must be an object or null"
+        )
+    memory.write(
+        EpisodicRecord(
+            snapshot=ResearchSnapshot.model_validate(raw_snapshot),
+            trajectory_ref="recorded-trajectory",
+        )
+    )
+    return memory
+
+
+def _failure_control_flow(
+    trajectory: AgentTrajectory,
+) -> list[dict[str, object]]:
+    return [
+        {
+            "node": transition.node,
+            "status": transition.status,
+            "error_type": transition.error_type,
+        }
+        for transition in sorted(
+            trajectory.node_transitions,
+            key=lambda item: item.sequence or 0,
+        )
+    ]
 
 
 def _run_with_recorded_id(

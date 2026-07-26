@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
+from dataclasses import replace
 from datetime import date, datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
@@ -16,6 +17,7 @@ from deepresearch_agent.provenance import (
     settings_flag_snapshot,
     write_run_manifest,
 )
+from deepresearch_agent.llm_config import DEFAULT_LLM_CONFIG, RoleModelConfig
 from deepresearch_agent.schemas import ResearchState
 from deepresearch_agent.settings import Settings
 from deepresearch_agent.tools.fixture_search import FixtureSearchTool
@@ -127,6 +129,47 @@ class RunManifestTests(unittest.TestCase):
         self.assertIn("pydantic", built.dependency_versions)
         self.assertEqual(len(built.config_hash), 64)
         self.assertEqual(built.cost_cny_total, 0.3)
+
+    def test_llm_manifest_uses_the_runtime_client_configuration(self) -> None:
+        settings = Settings(
+            storage_path=Path("test.db"),
+            execution_mode="llm",
+        )
+        runtime_config = replace(
+            DEFAULT_LLM_CONFIG,
+            roles={
+                **DEFAULT_LLM_CONFIG.roles,
+                "reporter": RoleModelConfig(
+                    model="openai/deepseek-v4-pro",
+                    api_base="https://api.deepseek.com",
+                ),
+            },
+        )
+
+        built = build_run_manifest(
+            ResearchState(topic="test"),
+            settings,
+            started_at=datetime(2026, 7, 26, tzinfo=timezone.utc),
+            llm_config=runtime_config,
+        )
+
+        self.assertEqual(
+            built.model_strings["reporter"],
+            "openai/deepseek-v4-pro",
+        )
+
+    def test_llm_manifest_rejects_an_unknown_runtime_configuration(self) -> None:
+        settings = Settings(
+            storage_path=Path("test.db"),
+            execution_mode="llm",
+        )
+
+        with self.assertRaisesRegex(ValueError, "llm_config is required"):
+            build_run_manifest(
+                ResearchState(topic="test"),
+                settings,
+                started_at=datetime(2026, 7, 26, tzinfo=timezone.utc),
+            )
 
     def test_manifest_uses_cny_ledger_total_not_usd_state_cost(
         self,
@@ -506,6 +549,72 @@ class RunManifestTests(unittest.TestCase):
             "flags.SKILL_PACKS_ENABLED",
             comparison.incomparable_reasons,
         )
+
+    def test_semantic_judge_flag_is_content_affecting_and_omitted_when_off(
+        self,
+    ) -> None:
+        settings = Settings(storage_path=Path("test.db"))
+        default_flags = settings_flag_snapshot(settings)
+        expanded = settings_flag_snapshot(
+            settings,
+            include_disabled_experimental=True,
+        )
+
+        self.assertEqual(
+            FLAG_CLASSIFICATIONS["SEMANTIC_JUDGE_ENABLED"],
+            "content_affecting",
+        )
+        self.assertNotIn("SEMANTIC_JUDGE_ENABLED", default_flags)
+        self.assertIs(expanded["SEMANTIC_JUDGE_ENABLED"], False)
+
+        enabled = settings_flag_snapshot(
+            Settings(
+                storage_path=Path("test.db"),
+                semantic_judge_enabled=True,
+            )
+        )
+        self.assertIs(enabled["SEMANTIC_JUDGE_ENABLED"], True)
+
+    def test_enabled_semantic_judge_makes_historical_run_incomparable(
+        self,
+    ) -> None:
+        changed = manifest().model_copy(
+            update={
+                "flags": {
+                    **manifest().flags,
+                    "SEMANTIC_JUDGE_ENABLED": True,
+                }
+            }
+        )
+
+        comparison = compare_manifests(manifest(), changed)
+
+        self.assertFalse(comparison.comparable)
+        self.assertIn(
+            "flags.SEMANTIC_JUDGE_ENABLED",
+            comparison.incomparable_reasons,
+        )
+
+    def test_default_manifest_omits_unreachable_semantic_judge_prompt(
+        self,
+    ) -> None:
+        started = datetime(2026, 7, 24, tzinfo=timezone.utc)
+        default_manifest = build_run_manifest(
+            ResearchState(topic="hash"),
+            Settings(storage_path=Path("test.db")),
+            started_at=started,
+        )
+        enabled_manifest = build_run_manifest(
+            ResearchState(topic="hash"),
+            Settings(
+                storage_path=Path("test.db"),
+                semantic_judge_enabled=True,
+            ),
+            started_at=started,
+        )
+
+        self.assertNotIn("semantic_judge.md", default_manifest.prompt_hashes)
+        self.assertIn("semantic_judge.md", enabled_manifest.prompt_hashes)
 
 
 if __name__ == "__main__":

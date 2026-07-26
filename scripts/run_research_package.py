@@ -91,6 +91,7 @@ def main() -> None:
             settings,
             started_at=state.started_at,
             ended_at=state.updated_at,
+            llm_config=getattr(engine.llm_client, "config", None),
         )
         structured = state.structured_output or engine.reporter.structured_output(state)
         (output / "report.md").write_text(state.final_report or "", encoding="utf-8")

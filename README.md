@@ -135,7 +135,7 @@ flowchart LR
 ## 诚实边界
 
 - `REFLECTION_ENABLED=false`：四类确定性信号、LLM 推理接口占位、程序记忆与重规划接线已实现；反思判断力和跨运行策略优劣待 019 真实验证，见 [reflection.md](docs/reflection.md)。
-- `CONTEXT_PACKER_ENABLED=false`、`INJECTION_GUARD_ENABLED=false`、`RESEARCH_LOOP_ENABLED=false`、`DYNAMIC_CAPABILITY_ENABLED=false`、`SKILL_PACKS_ENABLED=false`：离线接线不等于真实质量提升，适用性限制见 [method_limits.md](docs/method_limits.md)。
+- `CONTEXT_PACKER_ENABLED=false`、`INJECTION_GUARD_ENABLED=false`、`RESEARCH_LOOP_ENABLED=false`、`DYNAMIC_CAPABILITY_ENABLED=true`、`SKILL_PACKS_ENABLED=false`：离线接线不等于真实质量提升，适用性限制见 [method_limits.md](docs/method_limits.md)。
 - MCP 不暴露任意文件读取或命令执行；server 只允许服务端自管运行目录，付费路径需要显式 `allow_paid`，本轮 fixture server 即使确认也拒绝 LLM 执行，见 [server.py](src/deepresearch_agent/mcp/server.py)。
 - 010 耦合审计确认金融逻辑仍存在于核心 Agent；尚无 `domains/finance` 与 `domains/competitive`，不得据此声称框架领域无关，见 [architecture.md](docs/architecture.md)。
 - Docker/Compose 资产存在，但当前验证主机没有 Docker/Podman，因此没有本机引擎级构建证据；现状见 [production_readiness.md](docs/production_readiness.md)。

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from datetime import date
 from pathlib import Path
-from typing import Literal
+from typing import Literal, get_type_hints
 
 
 @dataclass(frozen=True)
@@ -20,6 +20,7 @@ class Settings:
     llm_ledger_path: Path = Path("data/runtime/llm_ledger.jsonl")
     llm_max_sub_questions: int = 3
     llm_max_queries_per_sub_question: int = 3
+    semantic_judge_enabled: bool = False
     as_of: date | None = None
     max_searches_per_run: int = 20
     max_external_search_requests_per_run: int = 20
@@ -77,7 +78,10 @@ class Settings:
         '"narrative":["web_search"]}'
     )
     reflection_enabled: bool = False
-    procedural_memory_enabled: bool = True
+    # Round 033 real repeated-run ablation found no adopted strategy and no
+    # causal behavior change.  Keep the experimental path opt-in until a
+    # cross-run preference can beat the control on a registered task.
+    procedural_memory_enabled: bool = False
     skill_packs_enabled: bool = False
 
     @property
@@ -86,6 +90,23 @@ class Settings:
             self.research_loop_enabled
             and self.research_loop_max_iterations > 1
         )
+
+
+def boolean_setting_defaults() -> dict[str, bool]:
+    """Return documented boolean flags directly from ``Settings`` defaults.
+
+    Flag names intentionally follow the environment-variable convention used
+    by ``load_settings``.  Discovery is type-driven so a newly added boolean
+    setting cannot be silently omitted from generated documentation.
+    """
+
+    type_hints = get_type_hints(Settings)
+    defaults = Settings(storage_path=Path("__settings_defaults__.db"))
+    return {
+        field.name.upper(): getattr(defaults, field.name)
+        for field in fields(Settings)
+        if type_hints.get(field.name) is bool
+    }
 
 
 def project_root() -> Path:
@@ -134,6 +155,7 @@ def load_settings() -> Settings:
         llm_max_queries_per_sub_question=int(
             os.getenv("DEEPRESEARCH_LLM_MAX_QUERIES_PER_SUB_QUESTION", "3")
         ),
+        semantic_judge_enabled=_env_flag("SEMANTIC_JUDGE_ENABLED"),
         as_of=as_of,
         max_searches_per_run=int(os.getenv("DEEPRESEARCH_MAX_SEARCHES_PER_RUN", "20")),
         max_external_search_requests_per_run=int(
@@ -269,7 +291,6 @@ def load_settings() -> Settings:
         reflection_enabled=_env_flag("REFLECTION_ENABLED"),
         procedural_memory_enabled=_env_flag(
             "PROCEDURAL_MEMORY_ENABLED",
-            default=True,
         ),
         skill_packs_enabled=_env_flag("SKILL_PACKS_ENABLED"),
     )

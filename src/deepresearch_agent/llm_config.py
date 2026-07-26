@@ -43,6 +43,15 @@ class LLMConfig:
                     price_source="v4flash_console_calibrated_20260612",
                 ),
             ),
+            "openai/deepseek-v4-pro": (
+                ModelPricing(
+                    max_prompt_tokens=None,
+                    input_cache_miss_cny_per_million=3.0,
+                    input_cache_hit_cny_per_million=0.025,
+                    output_cny_per_million=6.0,
+                    price_source="deepseek_official_cny_20260726",
+                ),
+            ),
             "openai/qwen3.7-plus": (
                 ModelPricing(
                     max_prompt_tokens=256_000,

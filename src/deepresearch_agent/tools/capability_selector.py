@@ -31,6 +31,7 @@ DEFAULT_CAPABILITY_RULES: dict[str, tuple[str, ...]] = {
     "narrative": ("web_search",),
 }
 FIXED_CAPABILITY_SET = (
+    "disclosure_source",
     "web_search",
     "web_fetch",
     "structured_data_provider",

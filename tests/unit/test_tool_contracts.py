@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -129,6 +130,98 @@ class ToolContractTests(unittest.TestCase):
         self.assertEqual(
             recorder.trajectory.tool_calls[-1].error["kind"], "timeout"
         )
+
+    def test_total_deadline_bounds_the_complete_retry_envelope(self) -> None:
+        clock = FakeClock()
+        calls = 0
+
+        def operation() -> None:
+            nonlocal calls
+            calls += 1
+            clock.value += 0.7
+            raise ToolExecutionError(
+                ToolErrorKind.TRANSIENT,
+                "late transient failure",
+            )
+
+        spec = SEARCH_TOOL_SPEC.model_copy(
+            update={"timeout_s": 1.0, "total_timeout_s": 1.0}
+        )
+        executor = ReliableToolExecutor(
+            sleep=lambda delay: setattr(
+                clock,
+                "value",
+                clock.value + delay,
+            ),
+            random_source=lambda: 0.5,
+            clock=clock,
+        )
+        result = executor.execute(
+            spec,
+            operation,
+            RunToolContext(retry_budget=RetryBudget(max_retries=6)),
+            degrade=True,
+            degraded_value=[],
+        )
+
+        self.assertFalse(result.ok)
+        self.assertTrue(result.degraded)
+        self.assertEqual(result.error.kind, ToolErrorKind.TIMEOUT)
+        self.assertEqual(result.attempts, 1)
+        self.assertEqual(calls, 1)
+        self.assertLessEqual(result.elapsed_ms, 1_000)
+
+    def test_blocked_worker_returns_by_deadline_without_overlapping_retry(
+        self,
+    ) -> None:
+        entered = threading.Event()
+        release = threading.Event()
+        calls = 0
+
+        def blocked_operation() -> None:
+            nonlocal calls
+            calls += 1
+            entered.set()
+            release.wait()
+
+        timeout_policy = dict(SEARCH_TOOL_SPEC.retry_policy)
+        timeout_policy[ToolErrorKind.TIMEOUT] = ERROR_RETRY_POLICIES[
+            ToolErrorKind.TIMEOUT
+        ].model_copy(
+            update={"max_attempts": 3, "base_backoff_s": 0.0}
+        )
+        spec = SEARCH_TOOL_SPEC.model_copy(
+            update={
+                "timeout_s": 0.03,
+                "total_timeout_s": 0.08,
+                "retry_policy": timeout_policy,
+            }
+        )
+        started = time.monotonic()
+        try:
+            result = ReliableToolExecutor(
+                sleep=lambda _delay: None,
+                random_source=lambda: 0.5,
+            ).execute(
+                spec,
+                blocked_operation,
+                RunToolContext(retry_budget=RetryBudget(max_retries=3)),
+                degrade=True,
+                degraded_value=[],
+            )
+        finally:
+            release.set()
+
+        self.assertTrue(entered.is_set())
+        self.assertFalse(result.ok)
+        self.assertEqual(result.error.kind, ToolErrorKind.TIMEOUT)
+        self.assertEqual(
+            result.error.exception_type,
+            "DetachedToolOperationError",
+        )
+        self.assertEqual(result.attempts, 1)
+        self.assertEqual(calls, 1)
+        self.assertLess(time.monotonic() - started, 0.08)
 
     def test_per_tool_circuit_policies_are_independent(self) -> None:
         fast_open = SEARCH_TOOL_SPEC.model_copy(

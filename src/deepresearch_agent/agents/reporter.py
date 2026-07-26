@@ -61,7 +61,12 @@ class ReporterAgent:
         self.grounded_fact_renderer = grounded_fact_renderer
         self.last_stats: dict[str, object] = {}
 
-    def report(self, state: ResearchState) -> str:
+    def report(
+        self,
+        state: ResearchState,
+        *,
+        context_evidence: list[Evidence] | None = None,
+    ) -> str:
         if not state.plan:
             raise ValueError("Cannot report before planning.")
         footnotes = build_footnote_maps(state.evidence_store)
@@ -71,7 +76,14 @@ class ReporterAgent:
         }
         if self.llm_client:
             try:
-                report = self._llm_report(state)
+                report = (
+                    self._llm_report(state)
+                    if context_evidence is None
+                    else self._llm_report(
+                        state,
+                        context_evidence=context_evidence,
+                    )
+                )
             except (LLMClientError, StructuredOutputError, ValueError) as exc:
                 self.last_stats = {"fallback": True, "error_type": type(exc).__name__}
                 report = self._deterministic_report(state)
@@ -370,10 +382,22 @@ class ReporterAgent:
             )
         return "\n".join(lines)
 
-    def _llm_report(self, state: ResearchState) -> str:
+    def _llm_report(
+        self,
+        state: ResearchState,
+        *,
+        context_evidence: list[Evidence] | None = None,
+    ) -> str:
         assert self.llm_client is not None
         prompt = (project_root() / "prompts" / "reporter.md").read_text(encoding="utf-8")
-        evidence = state.evidence_store
+        # The context packer is an LLM prompt budget, not an Evidence-store
+        # mutation. Rendering, footnotes, fidelity and structured output keep
+        # using the canonical state below.
+        evidence = (
+            context_evidence
+            if context_evidence is not None
+            else state.evidence_store
+        )
         result = self.llm_client.complete(
             role="reporter",
             run_id=state.research_id,
@@ -418,6 +442,7 @@ class ReporterAgent:
             state=state,
             prompt=prompt,
             original_draft=result.parsed,
+            evidence_catalog=evidence,
         )
         report, invalid_reference_count, missing_reference_backfills = self._render_llm_report(
             state,
@@ -444,9 +469,14 @@ class ReporterAgent:
         state: ResearchState,
         prompt: str,
         original_draft: ReportDraft,
+        evidence_catalog: list[Evidence],
     ) -> tuple[ReportDraft, dict[str, int | list[str]]]:
         assert self.llm_client is not None
-        evidence_ids = {item.id for item in state.evidence_store}
+        # Citation repair is part of the same generation envelope as the first
+        # Reporter call.  Reusing the bounded view prevents a retry from
+        # silently bypassing the working-memory prompt budget.  Rendering and
+        # footnotes still use canonical state.evidence_store.
+        evidence_ids = {item.id for item in evidence_catalog}
         original_claims = self._draft_claims(original_draft)
         repair_candidates = [
             {"path": path.key, "text": claim.text, "evidence_ids": claim.evidence_ids}
@@ -493,7 +523,7 @@ class ReporterAgent:
                                         "source_title": item.source_title,
                                         "source_url": item.source_url,
                                     }
-                                    for item in state.evidence_store
+                                    for item in evidence_catalog
                                 ],
                             },
                             ensure_ascii=False,

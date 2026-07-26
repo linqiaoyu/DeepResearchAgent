@@ -16,6 +16,7 @@ from deepresearch_agent.schemas import (
     SymbolInfo,
 )
 from deepresearch_agent.settings import Settings
+from deepresearch_agent.semantic_judge import RuntimeSemanticJudge
 from deepresearch_agent.tools.disclosure_source import (
     DISCLOSURE_TOOL_SPEC,
 )
@@ -24,6 +25,7 @@ from deepresearch_agent.trajectory import (
     TrajectoryRecorder,
     active_trajectory_recorder,
     load_trajectory,
+    normalized_llm_key,
     trajectory_recording,
 )
 from deepresearch_agent.trajectory_replay import replay_trajectory
@@ -197,6 +199,19 @@ class OfflineScriptedCompletion:
             }
         elif payload.get("task") == "repair_missing_evidence_ids":
             content = payload["original_draft"]
+        elif "report_footnote_evidence" in payload:
+            content = {
+                "answer_completeness": 0.91,
+                "answer_completeness_reason": "fixture completeness",
+                "answer_relevance": 0.92,
+                "answer_relevance_reason": "fixture relevance",
+                "answer_shape": 0.93,
+                "answer_shape_reason": "fixture answer shape",
+                "citation_support": 0.94,
+                "citation_support_reason": "fixture citation support",
+                "faithfulness": 0.95,
+                "faithfulness_reason": "fixture faithfulness",
+            }
         else:
             evidence_id = payload["evidence"][0]["id"]
             sub_question_id = payload["plan"]["sub_questions"][0]["id"]
@@ -263,7 +278,18 @@ class TrajectoryReplayTests(unittest.TestCase):
                 self.assertGreater(len(trajectory.tool_calls), 0)
                 self.assertGreater(len(trajectory.node_transitions), 0)
                 self.assertEqual(trajectory.llm_calls, [])
-                self.assertEqual(trajectory.agent_decisions, [])
+                # Fixed capability mode now includes the same web hydration
+                # path as dynamic mode.  Reranking is therefore a real,
+                # replayed decision even though capability selection itself
+                # is fixed.
+                self.assertGreater(len(trajectory.agent_decisions), 0)
+                self.assertEqual(
+                    {
+                        item.decision_type
+                        for item in trajectory.agent_decisions
+                    },
+                    {"source_rerank"},
+                )
                 self.assertTrue(trajectory.run_manifest_ref)
                 self.assertEqual(
                     trajectory.termination.status,
@@ -420,6 +446,7 @@ class TrajectoryReplayTests(unittest.TestCase):
                 structured_logging_enabled=False,
                 run_manifest_enabled=False,
                 dynamic_capability_enabled=True,
+                semantic_judge_enabled=True,
                 research_min_evidence_count=1,
                 research_min_independent_domains=1,
                 research_min_average_confidence=0.1,
@@ -436,7 +463,8 @@ class TrajectoryReplayTests(unittest.TestCase):
             )
             env_path = root / ".env"
             env_path.write_text(
-                "DEEPSEEK_API_KEY=offline-fixture-key\n",
+                "DEEPSEEK_API_KEY=offline-fixture-key\n"
+                "DASHSCOPE_API_KEY=offline-fixture-key\n",
                 encoding="utf-8",
             )
             client = LLMClient(
@@ -452,10 +480,12 @@ class TrajectoryReplayTests(unittest.TestCase):
             engine.planner.llm_client = client
             engine.extractor.llm_client = client
             engine.reporter.llm_client = client
+            engine.evaluator.semantic_judge = RuntimeSemanticJudge(client)
             state = engine.run(
                 topic="贵州茅台 600519 2025 年营业收入研究",
                 depth_level=1,
             )
+            self.assertEqual(state.evaluation.answer_relevance, 0.92)
             self.assertTrue(
                 any(
                     item.source_page == 6
@@ -476,6 +506,11 @@ class TrajectoryReplayTests(unittest.TestCase):
             persisted = trajectory.model_dump_json()
             self.assertNotIn("ir@moutai.example", persisted)
             self.assertIn("[REDACTED_EMAIL]", persisted)
+            self.assertTrue(
+                trajectory.request["strategy_config"][
+                    "semantic_judge_enabled"
+                ]
+            )
 
             with (
                 patch.dict(os.environ, {}, clear=True),
@@ -496,6 +531,7 @@ class TrajectoryReplayTests(unittest.TestCase):
                         "llm:planner",
                         "llm:extractor",
                         "llm:reporter",
+                        "llm:judge",
                         "tool:disclosure_source",
                     ],
                 )
@@ -504,12 +540,32 @@ class TrajectoryReplayTests(unittest.TestCase):
             mutated.artifacts["report.md"] += "\nmutated"
             mismatch = replay_trajectory(mutated, mode="strict")
 
+            missing_judge = trajectory.model_copy(deep=True)
+            missing_judge.llm_calls = [
+                call.model_copy(
+                    update={
+                        "role": "missing_judge",
+                        "normalized_key": normalized_llm_key(
+                            role="missing_judge",
+                            prompt=call.prompt,
+                        ),
+                    }
+                )
+                if call.role == "judge"
+                else call
+                for call in missing_judge.llm_calls
+            ]
+            judge_cache_miss = replay_trajectory(
+                missing_judge,
+                mode="strict",
+            )
+
         self.assertEqual(replay.status, "reproduced", replay.cache_miss)
         self.assertEqual(replay.artifact_matches, {"report.md": True})
         self.assertEqual(trajectory.termination.status, "completed")
         self.assertEqual(
             {call.role for call in trajectory.llm_calls},
-            {"planner", "extractor", "reporter"},
+            {"planner", "extractor", "reporter", "judge"},
         )
         self.assertIn(
             "disclosure_source",
@@ -520,6 +576,8 @@ class TrajectoryReplayTests(unittest.TestCase):
         )
         self.assertEqual(mismatch.status, "mismatch")
         self.assertEqual(mismatch.artifact_matches, {"report.md": False})
+        self.assertEqual(judge_cache_miss.status, "cache_miss")
+        self.assertIn("role='judge'", judge_cache_miss.cache_miss or "")
 
     def test_unexpected_node_failure_persists_terminal_trajectory(
         self,

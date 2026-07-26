@@ -53,6 +53,16 @@ class ToolSpec(StrictModel):
     input_schema: dict[str, Any]
     output_schema: dict[str, Any]
     timeout_s: float = Field(gt=0)
+    # ``timeout_s`` bounds one provider attempt.  Tools whose retry envelope
+    # must also have a hard wall-clock ceiling can opt into a logical deadline.
+    # Keeping this optional preserves the historical behavior of existing
+    # tools while preventing a multi-attempt timeout from multiplying the
+    # disclosure channel's advertised 120-second ceiling.
+    total_timeout_s: float | None = Field(
+        default=None,
+        gt=0,
+        exclude_if=lambda value: value is None,
+    )
     retry_policy: dict[ToolErrorKind, RetryPolicy] = Field(
         default_factory=lambda: dict(ERROR_RETRY_POLICIES)
     )

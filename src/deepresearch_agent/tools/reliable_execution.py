@@ -25,6 +25,54 @@ class ToolExecutionError(RuntimeError):
         self.kind = kind
 
 
+class DetachedToolOperationError(ToolExecutionError):
+    """Timeout raised when Python cannot stop the synchronous worker thread."""
+
+
+class ToolExecutionScope:
+    """Cooperative cancellation state shared with a synchronous tool adapter.
+
+    A Python thread cannot be killed safely.  The executor therefore marks an
+    overdue attempt as cancelled and never retries it concurrently.  Adapters
+    that can perform more than one external request must call
+    :meth:`raise_if_cancelled` at every request boundary so the detached worker
+    cannot start another request after its deadline.
+    """
+
+    def __init__(self) -> None:
+        self._cancelled = threading.Event()
+        self._finished = threading.Event()
+
+    @property
+    def cancelled(self) -> bool:
+        return self._cancelled.is_set()
+
+    @property
+    def finished(self) -> bool:
+        return self._finished.is_set()
+
+    def begin_attempt(self) -> None:
+        if self.cancelled:
+            raise DetachedToolOperationError(
+                ToolErrorKind.TIMEOUT,
+                "tool operation was cancelled after its deadline",
+            )
+        self._finished.clear()
+
+    def cancel(self) -> None:
+        self._cancelled.set()
+
+    def mark_finished(self) -> None:
+        self._finished.set()
+
+    def raise_if_cancelled(self) -> None:
+        if self.cancelled:
+            raise DetachedToolOperationError(
+                ToolErrorKind.TIMEOUT,
+                "tool operation was cancelled after its deadline",
+            )
+
+
 def classify_tool_error(error: BaseException) -> ToolErrorKind:
     if isinstance(error, ToolExecutionError):
         return error.kind
@@ -248,8 +296,10 @@ class ReliableToolExecutor:
         degrade: bool = False,
         degraded_value: Any = None,
         impact: str = "tool output unavailable",
+        operation_scope: ToolExecutionScope | None = None,
     ) -> ToolResult:
         started = self._clock()
+        scope = operation_scope or ToolExecutionScope()
         breaker = context.breakers.setdefault(
             spec.name,
             CircuitBreaker(
@@ -275,14 +325,46 @@ class ReliableToolExecutor:
         attempts = 0
         last_failure_kind: ToolErrorKind | None = None
         while True:
+            remaining = self._remaining_timeout(spec, started)
+            if remaining is not None and remaining <= 0:
+                breaker.record_failure()
+                return self._failure(
+                    spec,
+                    ToolErrorKind.TIMEOUT,
+                    f"tool total deadline exceeded after {spec.total_timeout_s:g}s",
+                    attempts,
+                    started,
+                    context,
+                    degrade,
+                    degraded_value,
+                    impact,
+                )
             attempts += 1
             try:
-                value = self._call_with_timeout(operation, spec.timeout_s)
+                scope.begin_attempt()
+                attempt_timeout = (
+                    min(spec.timeout_s, remaining)
+                    if remaining is not None
+                    else spec.timeout_s
+                )
+                value = self._call_with_timeout(
+                    operation,
+                    attempt_timeout,
+                    scope,
+                )
             except Exception as exc:
                 kind = classify_tool_error(exc)
                 last_failure_kind = kind
                 policy = spec.retry_policy.get(kind, ERROR_RETRY_POLICIES[kind])
-                if not policy.retryable or attempts >= policy.max_attempts:
+                # The worker for a detached timeout is still executing.  A
+                # retry would overlap it and could duplicate egress or writes,
+                # so this boundary always fails fast regardless of the normal
+                # timeout retry policy.
+                if (
+                    isinstance(exc, DetachedToolOperationError)
+                    or not policy.retryable
+                    or attempts >= policy.max_attempts
+                ):
                     breaker.record_failure()
                     return self._failure(
                         spec,
@@ -295,6 +377,22 @@ class ReliableToolExecutor:
                         degraded_value,
                         impact,
                         exception_type=type(exc).__name__,
+                    )
+                delay = policy.base_backoff_s * (2 ** (attempts - 1))
+                delay *= 0.5 + self._random()
+                remaining = self._remaining_timeout(spec, started)
+                if remaining is not None and remaining <= delay:
+                    breaker.record_failure()
+                    return self._failure(
+                        spec,
+                        ToolErrorKind.TIMEOUT,
+                        f"tool total deadline exceeded after {spec.total_timeout_s:g}s",
+                        attempts,
+                        started,
+                        context,
+                        degrade,
+                        degraded_value,
+                        impact,
                     )
                 if not context.retry_budget.consume():
                     breaker.record_failure()
@@ -309,8 +407,6 @@ class ReliableToolExecutor:
                         degraded_value,
                         impact,
                     )
-                delay = policy.base_backoff_s * (2 ** (attempts - 1))
-                delay *= 0.5 + self._random()
                 self._sleep(delay)
                 continue
             breaker.record_success()
@@ -364,8 +460,21 @@ class ReliableToolExecutor:
     def _elapsed_ms(self, started: float) -> int:
         return max(0, round((self._clock() - started) * 1000))
 
+    def _remaining_timeout(
+        self,
+        spec: ToolSpec,
+        started: float,
+    ) -> float | None:
+        if spec.total_timeout_s is None:
+            return None
+        return spec.total_timeout_s - (self._clock() - started)
+
     @staticmethod
-    def _call_with_timeout(operation: Callable[[], Any], timeout_s: float) -> Any:
+    def _call_with_timeout(
+        operation: Callable[[], Any],
+        timeout_s: float,
+        scope: ToolExecutionScope,
+    ) -> Any:
         """Return promptly on timeout without waiting for an uncooperative tool.
 
         Python cannot safely kill an arbitrary synchronous thread.  The worker is
@@ -380,15 +489,19 @@ class ReliableToolExecutor:
                 outcome.put((True, operation()))
             except BaseException as exc:  # preserve provider exception typing
                 outcome.put((False, exc))
+            finally:
+                scope.mark_finished()
 
         worker = threading.Thread(target=invoke, daemon=True)
         worker.start()
         try:
             ok, value = outcome.get(timeout=timeout_s)
         except queue.Empty as exc:
-            raise ToolExecutionError(
+            scope.cancel()
+            raise DetachedToolOperationError(
                 ToolErrorKind.TIMEOUT,
-                f"tool operation timed out after {timeout_s:g}s",
+                f"tool operation timed out after {timeout_s:g}s; "
+                "detached worker quarantined",
             ) from exc
         if ok:
             return value

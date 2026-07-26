@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 import time
 import traceback
 from collections.abc import Sequence
@@ -26,8 +27,6 @@ from deepresearch_agent.memory import (
     ProceduralQuery,
     ProceduralRecord,
     ProceduralSufficiencyResult,
-    WorkingMemoryQuery,
-    WorkingMemoryWrite,
     classify_subquestions_from_prior,
     prior_difference_rows,
 )
@@ -57,6 +56,11 @@ from deepresearch_agent.orchestration import (
 )
 from deepresearch_agent.provenance import build_run_manifest, write_run_manifest
 from deepresearch_agent.reflection import Reflector
+from deepresearch_agent.semantic_judge import RuntimeSemanticJudge
+from deepresearch_agent.reporting import (
+    GroundedFactRenderer,
+    ReporterContextBuilder,
+)
 from deepresearch_agent.research_snapshot import (
     ResearchSnapshot,
     research_question_id,
@@ -207,6 +211,7 @@ class DeepResearchEngine:
         episodic_memory: EpisodicMemory | None = None,
         procedural_memory: ProceduralMemory | None = None,
         disclosure_source: Any | None = None,
+        grounded_fact_renderer: GroundedFactRenderer | None = None,
     ) -> None:
         self.settings = settings or load_settings()
         if self.settings.config_fail_fast_enabled:
@@ -296,13 +301,26 @@ class DeepResearchEngine:
         )
         self.reporter = ReporterAgent(
             llm_client=self.llm_client,
-            grounded_fact_renderer=FinanceGroundedFactRenderer(),
+            grounded_fact_renderer=(
+                grounded_fact_renderer or FinanceGroundedFactRenderer()
+            ),
         )
-        self.evaluator = Evaluator()
+        semantic_judge = (
+            RuntimeSemanticJudge(self.llm_client)
+            if self.settings.semantic_judge_enabled and self.llm_client
+            else None
+        )
+        self.evaluator = Evaluator(
+            semantic_judge=semantic_judge,
+            semantic_judge_enabled=self.settings.semantic_judge_enabled,
+        )
         self.reflector = Reflector()
         self.branch_budget: BranchBudget | None = None
         self.run_tool_context: RunToolContext | None = None
         self.working_memory = ContextWorkingMemory()
+        self.reporter_context_builder = ReporterContextBuilder(
+            self.working_memory
+        )
         self.episodic_memory = episodic_memory or EpisodicMemory()
         self.procedural_memory = procedural_memory or ProceduralMemory()
         self.research_as_of = self.settings.as_of or self.critic.today
@@ -339,8 +357,33 @@ class DeepResearchEngine:
         self._checkpoint_conn = sqlite3.connect(self.settings.storage_path, check_same_thread=False)
         self.checkpointer = SqliteSaver(self._checkpoint_conn)
         self.graph = self._build_graph()
+        # This engine owns mutable run-scoped budgets and bindings. Until those
+        # are graph-state fields, a shared engine must serialize runs rather
+        # than silently cross-contaminate concurrent requests.
+        self._run_lock = threading.RLock()
 
     def run(
+        self,
+        topic: str | None = None,
+        depth_level: int = 2,
+        research_id: str | None = None,
+        resume: bool = False,
+        stop_after_phase: str | None = None,
+        interrupt_before: Sequence[str] | None = None,
+        interrupt_after: Sequence[str] | None = None,
+    ) -> ResearchState:
+        with self._run_lock:
+            return self._run_once(
+                topic=topic,
+                depth_level=depth_level,
+                research_id=research_id,
+                resume=resume,
+                stop_after_phase=stop_after_phase,
+                interrupt_before=interrupt_before,
+                interrupt_after=interrupt_after,
+            )
+
+    def _run_once(
         self,
         topic: str | None = None,
         depth_level: int = 2,
@@ -426,6 +469,15 @@ class DeepResearchEngine:
                             "extractor_enabled": (
                                 self.settings.extractor_enabled
                             ),
+                            "semantic_judge_enabled": (
+                                self.settings.semantic_judge_enabled
+                            ),
+                            "context_packer_enabled": (
+                                self.settings.context_packer_enabled
+                            ),
+                            "reporter_context_token_budget": (
+                                self.settings.reporter_context_token_budget
+                            ),
                             "branch_budget_enabled": (
                                 self.settings.branch_budget_enabled
                             ),
@@ -504,6 +556,12 @@ class DeepResearchEngine:
                             "procedural_memory_enabled": (
                                 self.settings.procedural_memory_enabled
                             ),
+                            "prior_memory_enabled": (
+                                self.settings.prior_memory_enabled
+                            ),
+                            "prior_watch_confidence_threshold": (
+                                self.settings.prior_watch_confidence_threshold
+                            ),
                             "skill_packs_enabled": (
                                 self.settings.skill_packs_enabled
                             ),
@@ -544,6 +602,11 @@ class DeepResearchEngine:
             except BudgetExceededError as exc:
                 state = self.load_state(research_id) or state
                 state.status = "budget_exceeded"
+                state.metadata["terminal_failure"] = {
+                    "phase": state.current_phase,
+                    "error_type": type(exc).__name__,
+                    "error_message": str(exc) or type(exc).__name__,
+                }
                 state.metadata["llm_budget_exceeded"] = True
                 state.metadata["llm_run_total_cny"] = (
                     self.llm_client.run_total_cny(research_id)
@@ -583,6 +646,11 @@ class DeepResearchEngine:
                 state = self.load_state(research_id) or state
                 before = self._state_output(state)
                 state.status = "budget_exceeded"
+                state.metadata["terminal_failure"] = {
+                    "phase": state.current_phase,
+                    "error_type": type(exc).__name__,
+                    "error_message": str(exc) or type(exc).__name__,
+                }
                 snapshot = self._capture_external_request_budget(
                     state
                 )
@@ -701,6 +769,7 @@ class DeepResearchEngine:
                     state,
                     self.settings,
                     started_at=manifest_started_at,
+                    llm_config=getattr(self.llm_client, "config", None),
                 )
                 manifest_path = write_run_manifest(
                     manifest,
@@ -1615,10 +1684,7 @@ class DeepResearchEngine:
                 enable_web_search=(
                     "web_search" in selected_capabilities
                 ),
-                enable_web_fetch=(
-                    self.settings.dynamic_capability_enabled
-                    and "web_fetch" in selected_capabilities
-                ),
+                enable_web_fetch="web_fetch" in selected_capabilities,
                 source_decision_enabled=self.settings.dynamic_capability_enabled,
                 enable_disclosure=(
                     "disclosure_source" in selected_capabilities
@@ -1642,10 +1708,7 @@ class DeepResearchEngine:
                 enable_web_search=(
                     "web_search" in selected_capabilities
                 ),
-                enable_web_fetch=(
-                    self.settings.dynamic_capability_enabled
-                    and "web_fetch" in selected_capabilities
-                ),
+                enable_web_fetch="web_fetch" in selected_capabilities,
                 source_decision_enabled=self.settings.dynamic_capability_enabled,
                 enable_disclosure=(
                     "disclosure_source" in selected_capabilities
@@ -2464,50 +2527,16 @@ class DeepResearchEngine:
             state.metadata["stable_reader_evidence_refs"] = True
         self._sync_tool_degradation(state)
         state.evidence_store = self._sorted_evidence(state.evidence_store)
-        if self.settings.context_packer_enabled:
-            evidence_before = len(state.evidence_store)
-            self.working_memory.write(
-                WorkingMemoryWrite(
-                    research_id=state.research_id,
-                    evidence=state.evidence_store,
-                )
-            )
-            packed = self.working_memory.query(
-                WorkingMemoryQuery(
-                    research_id=state.research_id,
-                    topic=state.topic,
-                    budget=self.settings.reporter_context_token_budget,
-                    as_of=self.settings.as_of,
-                )
-            )
-            state.evidence_store = packed.selected
-            state.metadata.setdefault("context_events", []).append(
-                packed.context_event(node="reporter")
-            )
-            record_component_activity(
-                state,
-                component="working_memory",
-                enabled=True,
-                status="completed",
-                inputs={"evidence_before": evidence_before},
-                outputs={
-                    "selected": len(packed.selected),
-                    "dropped": len(packed.dropped),
-                },
-            )
-        else:
-            record_component_activity(
-                state,
-                component="working_memory",
-                enabled=False,
-                status="bypassed",
-                inputs={"evidence_before": len(state.evidence_store)},
-                outputs={
-                    "selected": len(state.evidence_store),
-                    "dropped": 0,
-                },
-            )
-        state.final_report = self.reporter.report(state)
+        report_context = self.reporter_context_builder.build(
+            state,
+            enabled=self.settings.context_packer_enabled,
+            budget=self.settings.reporter_context_token_budget,
+            as_of=self.settings.as_of,
+        )
+        state.final_report = self.reporter.report(
+            state,
+            context_evidence=list(report_context.evidence),
+        )
         if self.settings.decision_weaving_enabled:
             state.final_report = append_decision_chain(
                 state.final_report,
@@ -2542,7 +2571,19 @@ class DeepResearchEngine:
         state.evidence_store = self._sorted_evidence(state.evidence_store)
         if self.settings.execution_mode == "llm":
             self._sync_llm_usage(state)
-        state.evaluation = self.evaluator.evaluate(state, started_at=graph_state.get("started_at", time.perf_counter()))
+        state.evaluation = self.evaluator.evaluate(
+            state,
+            started_at=graph_state.get(
+                "started_at",
+                time.perf_counter(),
+            ),
+        )
+        if self.settings.execution_mode == "llm":
+            self._sync_llm_usage(state)
+            state.evaluation = self.evaluator.refresh_operational_metrics(
+                state.evaluation,
+                state,
+            )
         self.store.save_evaluation(state.evaluation)
         state.current_phase = "done"
         state.status = "paused" if graph_state.get("stop_after_phase") == "evaluating" else "done"
@@ -2557,6 +2598,7 @@ class DeepResearchEngine:
             recorder.trajectory.request["recorded_plan"] = (
                 state.plan.model_dump(mode="json")
             )
+        selected_prior_snapshot: ResearchSnapshot | None = None
         if self.settings.prior_memory_enabled:
             prior_records = [
                 item
@@ -2569,6 +2611,7 @@ class DeepResearchEngine:
             ]
             if prior_records:
                 prior = prior_records[-1].snapshot
+                selected_prior_snapshot = prior
                 classify_subquestions_from_prior(
                     state,
                     prior,
@@ -2597,6 +2640,12 @@ class DeepResearchEngine:
                 status="bypassed",
                 inputs={"question_id": research_question_id(state.topic)},
                 outputs={"records_read": 0},
+            )
+        if recorder and self.settings.prior_memory_enabled:
+            recorder.trajectory.request["prior_memory_snapshot"] = (
+                selected_prior_snapshot.model_dump(mode="json")
+                if selected_prior_snapshot
+                else None
             )
         if self.settings.execution_mode == "llm":
             state.metadata.setdefault("llm_stats", {})["planner"] = self.planner.last_stats
@@ -2760,6 +2809,7 @@ class DeepResearchEngine:
             "total_cost_cny": round(float(aggregate["total_cost_cny"]), 8),
             "ledger_total_cny": round(self.llm_client.ledger_total_cny(), 8),
             "price_source": aggregate.get("price_source"),
+            "price_sources": aggregate.get("price_sources", []),
         }
 
     def _config(self, research_id: str) -> dict[str, Any]:
@@ -2819,10 +2869,16 @@ class DeepResearchEngine:
         )
 
     def _sync_tool_degradation(self, state: ResearchState) -> None:
-        provider_events = getattr(
-            self.capability_registry.resolve("web_search"),
-            "degradation_events",
-            [],
+        # The run context is the source of truth for every registered tool.
+        # Reading through web_search hid disclosure degradation behind an
+        # unrelated adapter and failed when tool contracts were disabled.
+        provider_events = (
+            [
+                event.model_dump(mode="json")
+                for event in self.run_tool_context.degradation_events
+            ]
+            if self.run_tool_context is not None
+            else []
         )
         if not provider_events:
             return

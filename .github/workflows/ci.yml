@@ -37,6 +37,9 @@ jobs:
       - name: Run Ruff
         run: python -m ruff check src tests scripts
 
+      - name: Check documented Settings defaults
+        run: python scripts/sync_agents_settings.py --check
+
       - name: Check prompt drift registry
         run: python scripts/check_prompt_drift.py
 

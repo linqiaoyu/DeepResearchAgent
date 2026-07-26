@@ -19,6 +19,10 @@
     "reporter.md": {
       "version": "1.1.0",
       "sha256": "e4f904bb49296b3f21651fd84b233f3fd4ac3f3fbc6a7de3d616e33154728b2a"
+    },
+    "semantic_judge.md": {
+      "version": "1.1.0",
+      "sha256": "34fef462bbec51f64200420d1004ddd5b6c6a5b4855102184f2ba065eb030d07"
     }
   }
 }

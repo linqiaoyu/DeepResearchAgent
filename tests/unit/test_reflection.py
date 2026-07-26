@@ -127,6 +127,7 @@ class ReflectionSkeletonTest(unittest.TestCase):
                     storage_path=root / "reflection.db",
                     runs_root=root / "runs",
                     reflection_enabled=True,
+                    procedural_memory_enabled=True,
                     structured_logging_enabled=False,
                 ),
                 procedural_memory=memory,

@@ -15,6 +15,7 @@ from deepresearch_agent.evaluation.core_guardrail import (
     guardrail_contract_sha256,
     score_guardrail_report,
 )
+from deepresearch_agent.llm_config import DEFAULT_LLM_CONFIG, RoleModelConfig
 from deepresearch_agent.settings import load_settings, project_root
 from deepresearch_agent.tools.disclosure_source import CninfoDisclosureSource
 from deepresearch_agent.tools.tavily_search import TavilySearchProvider
@@ -38,6 +39,15 @@ def main() -> None:
         type=float,
         default=2.0,
     )
+    parser.add_argument(
+        "--generation-model",
+        choices=(
+            "openai/deepseek-v4-flash",
+            "openai/deepseek-v4-pro",
+        ),
+        default="openai/deepseek-v4-flash",
+        help="Model used for Planner, Extractor, and Reporter; Judge stays fixed.",
+    )
     args = parser.parse_args()
     if args.max_run_cost_cny <= 0 or args.max_run_cost_cny > 2.0:
         raise SystemExit("max-run-cost-cny must be within (0, 2.0]")
@@ -58,6 +68,7 @@ def main() -> None:
                 output_dir=output_dir,
                 max_run_cost_cny=args.max_run_cost_cny,
                 commit=commit,
+                generation_model=args.generation_model,
             )
         )
 
@@ -68,6 +79,7 @@ def main() -> None:
         "started_at": started_at.isoformat(),
         "ended_at": datetime.now(timezone.utc).isoformat(),
         "commit": commit,
+        "generation_model": args.generation_model,
         "cases": results,
         "correct_metrics": sum(int(item["correct_metrics"]) for item in results),
         "total_metrics": sum(int(item["total_metrics"]) for item in results),
@@ -104,6 +116,7 @@ def _run_case(
     output_dir: Path,
     max_run_cost_cny: float,
     commit: str,
+    generation_model: str,
 ) -> dict[str, Any]:
     case_dir = output_dir / case.slug
     case_dir.mkdir()
@@ -118,6 +131,20 @@ def _run_case(
         run_manifest_enabled=True,
     )
     engine = DeepResearchEngine(settings=settings)
+    if engine.llm_client is not None:
+        generation_role = RoleModelConfig(
+            model=generation_model,
+            api_base="https://api.deepseek.com",
+        )
+        engine.llm_client.config = replace(
+            DEFAULT_LLM_CONFIG,
+            roles={
+                **DEFAULT_LLM_CONFIG.roles,
+                "planner": generation_role,
+                "extractor": generation_role,
+                "reporter": generation_role,
+            },
+        )
     try:
         providers = _assert_live_purity(engine)
         started_at = datetime.now(timezone.utc)
@@ -171,6 +198,7 @@ def _run_case(
                     settings.trajectory_record_enabled
                 ),
                 "max_run_cost_cny": max_run_cost_cny,
+                "semantic_judge_enabled": settings.semantic_judge_enabled,
             },
             "providers": providers,
             "llm_usage": state.metadata.get("llm_usage", {}),
@@ -183,6 +211,16 @@ def _run_case(
                 trajectory,
             ),
             "termination": trajectory.get("termination"),
+            "evaluation": (
+                state.evaluation.model_dump(mode="json")
+                if state.evaluation is not None
+                else None
+            ),
+            "evidence_count": len(state.evidence_store),
+            "component_activity": state.metadata.get(
+                "component_activity",
+                {},
+            ),
         }
         (case_dir / "result.json").write_text(
             json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True)

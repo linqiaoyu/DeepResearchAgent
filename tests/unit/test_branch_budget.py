@@ -103,9 +103,15 @@ class BranchBudgetTest(unittest.TestCase):
         metadata = state.metadata["branch_budget"]
         self.assertEqual(metadata["phase"], "after_join")
         self.assertLessEqual(metadata["total_used"], 3)
-        self.assertEqual(
-            [item.decision_type for item in state.agent_decisions[:2]],
-            ["branch_budget_allocate", "branch_budget_reallocate"],
+        decision_types = [
+            item.decision_type for item in state.agent_decisions
+        ]
+        self.assertEqual(decision_types[0], "branch_budget_allocate")
+        self.assertIn("source_rerank", decision_types)
+        self.assertIn("branch_budget_reallocate", decision_types)
+        self.assertLess(
+            decision_types.index("branch_budget_allocate"),
+            decision_types.index("branch_budget_reallocate"),
         )
         self.assertIn("## Agent 决策记录", state.final_report or "")
         self.assertIn("branch_budget_allocate", state.final_report or "")

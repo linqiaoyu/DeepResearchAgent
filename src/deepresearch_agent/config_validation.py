@@ -28,6 +28,12 @@ def validate_required_configuration(
     missing: list[str] = []
     if settings.execution_mode == "llm" and not env.get("DEEPSEEK_API_KEY", "").strip():
         missing.append("DEEPSEEK_API_KEY")
+    if (
+        settings.execution_mode == "llm"
+        and settings.semantic_judge_enabled
+        and not env.get("DASHSCOPE_API_KEY", "").strip()
+    ):
+        missing.append("DASHSCOPE_API_KEY")
     search_provider = env.get("DEEPRESEARCH_SEARCH_PROVIDER", "fixture").strip().lower()
     if search_provider == "tavily" and not env.get("TAVILY_API_KEY", "").strip():
         missing.append("TAVILY_API_KEY")

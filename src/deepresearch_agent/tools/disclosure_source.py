@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import html
 import re
+import threading
 from collections.abc import Mapping
 from datetime import date, datetime, timezone
 from typing import Any
@@ -10,11 +11,18 @@ from typing import Any
 import httpx
 
 from deepresearch_agent.schemas import Source
-from deepresearch_agent.tools.contracts import ToolErrorKind, ToolSpec
+from deepresearch_agent.tools.contracts import (
+    DegradationEvent,
+    ToolError,
+    ToolErrorKind,
+    ToolResult,
+    ToolSpec,
+)
 from deepresearch_agent.tools.reliable_execution import (
     ReliableToolExecutor,
     RetryBudget,
     RunToolContext,
+    ToolExecutionScope,
     ToolExecutionError,
 )
 from deepresearch_agent.tools.tavily_search import decode_pdf_source
@@ -34,6 +42,10 @@ DISCLOSURE_TOOL_SPEC = ToolSpec(
     # spawn an overlapping retry while the first bounded attempt is still
     # running.
     timeout_s=120.0,
+    # ``timeout_s`` is per attempt.  The matching total deadline prevents the
+    # retry envelope from turning a documented two-minute ceiling into six
+    # minutes, and prevents an overdue daemon worker from spawning a retry.
+    total_timeout_s=120.0,
     cost_class="free",
     idempotent=True,
     has_side_effect=False,
@@ -97,6 +109,8 @@ class CninfoDisclosureSource:
         max_results: int = 5,
         pdf_max_pages: int = 100,
         char_limit: int = 40_000,
+        executor: ReliableToolExecutor | None = None,
+        tool_spec: ToolSpec = DISCLOSURE_TOOL_SPEC,
     ) -> None:
         self.client = client or httpx.Client(headers={
             "User-Agent": "Mozilla/5.0 (compatible; DeepResearchAgent/0.1)",
@@ -106,49 +120,202 @@ class CninfoDisclosureSource:
         self.context = context or RunToolContext(RetryBudget(max_retries=2))
         self.max_results = max(1, min(max_results, 30))
         self.pdf_max_pages, self.char_limit = max(1, pdf_max_pages), char_limit
+        self.executor = executor or ReliableToolExecutor()
+        self.tool_spec = tool_spec
+        self.last_result: ToolResult | None = None
+        self._timeout_scope: ToolExecutionScope | None = None
+        self._timeout_scope_lock = threading.Lock()
 
     def set_run_context(self, context: RunToolContext) -> None:
         self.context = context
 
-    def _consume_egress(self, request_kind: str) -> None:
-        self.context.consume_external_request(request_kind, tool="disclosure_source")
+    @property
+    def timed_out_operation_pending(self) -> bool:
+        with self._timeout_scope_lock:
+            scope = self._timeout_scope
+            if scope is not None and scope.finished:
+                self._timeout_scope = None
+                return False
+            return scope is not None
+
+    @staticmethod
+    def _consume_egress(
+        request_kind: str,
+        *,
+        context: RunToolContext,
+        scope: ToolExecutionScope,
+    ) -> None:
+        scope.raise_if_cancelled()
+        context.consume_external_request(
+            request_kind,
+            tool="disclosure_source",
+        )
+        scope.raise_if_cancelled()
 
     def search(
         self, security_code: str, keyword: str, start_date: date, end_date: date,
         *, preferred_terms: tuple[str, ...] = (),
     ) -> list[Source]:
+        # Capture the run context before starting a worker.  ``set_run_context``
+        # may install the next run while an uncooperative provider call is still
+        # unwinding; the detached worker must never charge or mutate that new
+        # context.
+        run_context = self.context
         inputs = {
             "security_code": security_code, "keyword": keyword,
             "start_date": start_date.isoformat(), "end_date": end_date.isoformat(),
         }
-        result = ReliableToolExecutor().execute(
-            DISCLOSURE_TOOL_SPEC,
-            lambda: self._request(inputs, preferred_terms=preferred_terms),
-            self.context,
+        rejected_before = (
+            len(run_context.external_request_budget.rejected_events)
+            if run_context.external_request_budget is not None
+            else 0
+        )
+        if self.timed_out_operation_pending:
+            result = self._quarantined_result(run_context)
+        else:
+            scope = ToolExecutionScope()
+            result = self.executor.execute(
+                self.tool_spec,
+                lambda: self._request(
+                    inputs,
+                    preferred_terms=preferred_terms,
+                    context=run_context,
+                    scope=scope,
+                ),
+                run_context,
+                degrade=True,
+                degraded_value=[],
+                impact=(
+                    "primary disclosure unavailable; falling back to "
+                    "lower-authority web sources"
+                ),
+                operation_scope=scope,
+            )
+            if scope.cancelled and not scope.finished:
+                with self._timeout_scope_lock:
+                    self._timeout_scope = scope
+        self.last_result = result
+        sources = list(result.value or [])
+        if result.ok and not sources:
+            run_context.degradation_events.append(
+                DegradationEvent(
+                    tool=self.tool_spec.name,
+                    reason=ToolErrorKind.NOT_FOUND,
+                    impact=(
+                        "primary disclosure returned no matching document; "
+                        "falling back to lower-authority web sources"
+                    ),
+                    attempts=result.attempts,
+                )
+            )
+        degradation_event = self._result_degradation_event(
+            result,
+            sources,
+            run_context,
         )
         recorder = active_trajectory_recorder()
         if recorder:
             recorder.record_tool_call(ToolCallTrace(
-                tool_spec=DISCLOSURE_TOOL_SPEC.model_dump(mode="json"),
+                tool_spec=self.tool_spec.model_dump(mode="json"),
                 inputs=inputs,
                 result=[item.model_dump(mode="json") for item in list(result.value or [])],
                 error=result.error.model_dump(mode="json") if result.error else None,
+                degradation_event=degradation_event,
                 attempts=result.attempts,
             ))
         if not result.ok:
             assert result.error
-            raise DisclosureSourceError(result.error.kind, result.error.message)
-        return list(result.value or [])
+            if self._external_budget_refused(
+                result,
+                rejected_before,
+                run_context,
+            ):
+                raise DisclosureSourceError(
+                    result.error.kind,
+                    result.error.message,
+                )
+            return []
+        return sources
+
+    def _result_degradation_event(
+        self,
+        result: ToolResult,
+        sources: list[Source],
+        context: RunToolContext,
+    ) -> dict[str, Any] | None:
+        if not context.degradation_events:
+            return None
+        event = context.degradation_events[-1]
+        belongs_to_result = (
+            event.tool == self.tool_spec.name
+            and event.attempts == result.attempts
+            and (not result.ok or result.attempts > 1 or not sources)
+        )
+        return event.model_dump(mode="json") if belongs_to_result else None
+
+    def _external_budget_refused(
+        self,
+        result: ToolResult,
+        rejected_before: int,
+        context: RunToolContext,
+    ) -> bool:
+        if not result.error or result.error.kind != ToolErrorKind.BUDGET_EXCEEDED:
+            return False
+        budget = context.external_request_budget
+        return bool(
+            budget
+            and len(budget.rejected_events) > rejected_before
+            and budget.rejected_events[-1].get("tool")
+            == self.tool_spec.name
+        )
+
+    def _quarantined_result(
+        self,
+        context: RunToolContext,
+    ) -> ToolResult:
+        message = (
+            "previous timed-out disclosure operation is still terminating; "
+            "provider instance quarantined"
+        )
+        context.degradation_events.append(
+            DegradationEvent(
+                tool=self.tool_spec.name,
+                reason=ToolErrorKind.TIMEOUT,
+                impact=(
+                    "primary disclosure unavailable; falling back to "
+                    "lower-authority web sources"
+                ),
+                attempts=0,
+            )
+        )
+        return ToolResult(
+            ok=False,
+            value=[],
+            error=ToolError(
+                kind=ToolErrorKind.TIMEOUT,
+                message=message,
+                exception_type="DetachedToolOperationError",
+            ),
+            attempts=0,
+            elapsed_ms=0,
+            degraded=True,
+        )
 
     def _request(
-        self, inputs: Mapping[str, str], *, preferred_terms: tuple[str, ...] = ()
+        self,
+        inputs: Mapping[str, str],
+        *,
+        preferred_terms: tuple[str, ...] = (),
+        context: RunToolContext,
+        scope: ToolExecutionScope,
     ) -> list[Source]:
         try:
             column, plate = cninfo_exchange_for_security_code(inputs["security_code"])
-            self._consume_egress("fetch")
+            self._consume_egress("fetch", context=context, scope=scope)
             stock = self.client.get(
                 CNINFO_STOCK_ENDPOINT, timeout=30.0, follow_redirects=True
             )
+            scope.raise_if_cancelled()
             stock.raise_for_status()
             org_id = next((
                 str(item["orgId"]) for item in stock.json().get("stockList", [])
@@ -159,13 +326,14 @@ class CninfoDisclosureSource:
                     ToolErrorKind.NOT_FOUND,
                     f"cninfo_security_not_found code={inputs['security_code']}",
                 )
-            self._consume_egress("search")
+            self._consume_egress("search", context=context, scope=scope)
             response = self.client.post(CNINFO_QUERY_ENDPOINT, data={
                 "pageNum": "1", "pageSize": str(self.max_results), "tabName": "fulltext",
                 "column": column, "stock": f"{inputs['security_code']},{org_id}",
                 "searchkey": inputs["keyword"], "plate": plate, "category": "",
                 "seDate": f"{inputs['start_date']}~{inputs['end_date']}", "isHLtitle": "true",
             }, timeout=30.0)
+            scope.raise_if_cancelled()
             response.raise_for_status()
             body = response.json()
             if not isinstance(body, Mapping) or "announcements" not in body:
@@ -176,6 +344,11 @@ class CninfoDisclosureSource:
             announcements = body["announcements"]
         except httpx.TimeoutException as exc:
             raise DisclosureSourceError(ToolErrorKind.TIMEOUT, str(exc)) from exc
+        except httpx.HTTPStatusError as exc:
+            raise DisclosureSourceError(
+                self._http_error_kind(exc),
+                f"cninfo_http_status={exc.response.status_code}",
+            ) from exc
         except DisclosureSourceError:
             raise
         except ToolExecutionError:
@@ -213,6 +386,14 @@ class CninfoDisclosureSource:
             # when the endpoint does not expose an exact full-report title.
             if full_chinese_reports:
                 candidates = full_chinese_reports[:1]
+        if candidates and not any(
+            isinstance(item, Mapping) and item.get("adjunctUrl")
+            for item in candidates
+        ):
+            raise DisclosureSourceError(
+                ToolErrorKind.PERMANENT,
+                "cninfo_contract_changed: no valid announcement entries",
+            )
         sources: list[Source] = []
         for item in candidates:
             if not isinstance(item, Mapping) or not item.get("adjunctUrl"):
@@ -223,12 +404,15 @@ class CninfoDisclosureSource:
                 )
             url = CNINFO_PDF_ROOT + str(item["adjunctUrl"]).lstrip("/")
             try:
-                self._consume_egress("fetch")
+                self._consume_egress(
+                    "fetch", context=context, scope=scope
+                )
                 pdf = self.client.get(
                     url,
                     timeout=30.0,
                     follow_redirects=True,
                 )
+                scope.raise_if_cancelled()
                 pdf.raise_for_status()
                 title = re.sub(
                     r"<[^>]+>",
@@ -265,6 +449,11 @@ class CninfoDisclosureSource:
                     ToolErrorKind.TIMEOUT,
                     "cninfo_pdf_timeout",
                 ) from exc
+            except httpx.HTTPStatusError as exc:
+                raise DisclosureSourceError(
+                    self._http_error_kind(exc),
+                    f"cninfo_pdf_http_status={exc.response.status_code}",
+                ) from exc
             except ToolExecutionError:
                 raise
             except Exception as exc:
@@ -273,3 +462,16 @@ class CninfoDisclosureSource:
                     f"cninfo_pdf_failed error_type={type(exc).__name__}",
                 ) from exc
         return sources
+
+    @staticmethod
+    def _http_error_kind(exc: httpx.HTTPStatusError) -> ToolErrorKind:
+        status = exc.response.status_code
+        if status == 429:
+            return ToolErrorKind.RATE_LIMITED
+        if status in {401, 403}:
+            return ToolErrorKind.AUTH
+        if status == 404:
+            return ToolErrorKind.NOT_FOUND
+        if status >= 500:
+            return ToolErrorKind.TRANSIENT
+        return ToolErrorKind.PERMANENT

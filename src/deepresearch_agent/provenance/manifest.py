@@ -10,7 +10,7 @@ from typing import Any, Literal
 
 from pydantic import Field
 
-from deepresearch_agent.llm_config import DEFAULT_LLM_CONFIG
+from deepresearch_agent.llm_config import DEFAULT_LLM_CONFIG, LLMConfig
 from deepresearch_agent.schemas import AgentDecision, ResearchState, StrictModel, utc_now
 from deepresearch_agent.security import redact
 from deepresearch_agent.settings import Settings, project_root
@@ -103,6 +103,9 @@ FLAG_CLASSIFICATIONS: dict[str, FlagClassification] = {
     "EXTRACTOR_ENABLED": "content_affecting",
     "PROCEDURAL_MEMORY_ENABLED": "content_affecting",
     "SKILL_PACKS_ENABLED": "content_affecting",
+    # The judge changes existing evaluation fields, even though it is barred
+    # from changing report content or mechanical numeric correctness.
+    "SEMANTIC_JUDGE_ENABLED": "content_affecting",
 }
 
 
@@ -176,7 +179,13 @@ def build_run_manifest(
     started_at: datetime,
     ended_at: datetime | None = None,
     domain: str = "finance",
+    llm_config: LLMConfig | None = None,
 ) -> RunManifest:
+    if settings.execution_mode == "llm" and llm_config is None:
+        raise ValueError(
+            "llm_config is required when building a manifest for an LLM run"
+        )
+    configured_models = llm_config or DEFAULT_LLM_CONFIG
     root = project_root()
     metadata = state.metadata
     degradation_events = list(metadata.get("degradation_events", []))
@@ -187,9 +196,12 @@ def build_run_manifest(
         started_at=started_at,
         ended_at=ended_at or utc_now(),
         model_strings={
-            role: config.model for role, config in DEFAULT_LLM_CONFIG.roles.items()
+            role: config.model for role, config in configured_models.roles.items()
         },
-        prompt_hashes=_prompt_hashes(root / "prompts"),
+        prompt_hashes=_prompt_hashes(
+            root / "prompts",
+            include_semantic_judge=settings.semantic_judge_enabled,
+        ),
         retrieval_corpus_as_of=_optional_date(metadata.get("retrieval_corpus_as_of"))
         or settings.as_of,
         evaluation_as_of=_optional_date(metadata.get("evaluation_as_of")) or settings.as_of,
@@ -279,6 +291,8 @@ def settings_flag_snapshot(
         flags["REFLECTION_ENABLED"] = settings.reflection_enabled
     if settings.skill_packs_enabled or include_disabled_experimental:
         flags["SKILL_PACKS_ENABLED"] = settings.skill_packs_enabled
+    if settings.semantic_judge_enabled or include_disabled_experimental:
+        flags["SEMANTIC_JUDGE_ENABLED"] = settings.semantic_judge_enabled
     return flags
 
 
@@ -293,11 +307,20 @@ def write_run_manifest(manifest: RunManifest, runs_root: Path) -> Path:
     return output
 
 
-def _prompt_hashes(prompt_dir: Path) -> dict[str, str]:
-    return {
+def _prompt_hashes(
+    prompt_dir: Path,
+    *,
+    include_semantic_judge: bool,
+) -> dict[str, str]:
+    hashes = {
         path.name: hashlib.sha256(path.read_bytes()).hexdigest()
         for path in sorted(prompt_dir.glob("*.md"))
     }
+    if not include_semantic_judge:
+        # Preserve historical/default manifest identity for a prompt that is
+        # unreachable while its default-off gate is disabled.
+        hashes.pop("semantic_judge.md", None)
+    return hashes
 
 
 def _config_hash(settings: Settings) -> str:
@@ -337,6 +360,8 @@ def _config_hash(settings: Settings) -> str:
         payload.pop("dynamic_capability_rules_json", None)
     if not settings.reflection_enabled:
         payload.pop("reflection_enabled", None)
+    if not settings.semantic_judge_enabled:
+        payload.pop("semantic_judge_enabled", None)
     encoded = json.dumps(payload, sort_keys=True, ensure_ascii=False, default=str)
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 

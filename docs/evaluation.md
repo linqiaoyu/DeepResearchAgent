@@ -23,15 +23,28 @@ content-affecting until measured.
   In LLM mode a value of `1` does not imply that unresolved citations,
   non-financial semantic support, Critic issues, or requested-metric completeness
   all passed.
-- `citation_accuracy`: in deterministic mode, citation markers in bullet claims map to Evidence rows, the cited claim has deterministic text overlap with `Evidence.claim` or `Evidence.extract_text`, and recognized financial values are supported by the union of the explicitly mapped Evidence rows; in LLM mode this remains `null` with a reason because paraphrase-aware judging is not implemented, while the mechanical numeric audit still applies to task success
+- `citation_accuracy`: in deterministic mode, citation markers in bullet claims
+  map to Evidence rows and use deterministic text/numeric support checks. In LLM
+  mode with `SEMANTIC_JUDGE_ENABLED=true`, the typed semantic judge scores claim
+  support against the exact `report_footnote_evidence` mapping and the result is
+  capped by the mechanical citation-resolution rate. When the judge is disabled,
+  unavailable, or fails, this field is `null` with an explicit reason; the
+  mechanical numeric audit still applies to task success.
 - `citation_resolution_rate`: citation markers that resolve to real Evidence rows, computed in both deterministic and LLM modes
 - `citation_repair_retry_rate`: Golden Set mechanical metric equal to the share of runs where Reporter performed one structured evidence-id repair retry before rendering
 - `uncited_claim_rate`: Golden Set mechanical metric equal to uncited rendered ReportClaims divided by all rendered ReportClaims
 - `critic_catch_rate`: MVP heuristic/proxy for whether the Critic exposed quality issues. Current deterministic logic scores visible issue coverage, using `min(1.0, len(issues) / 3)` when issues are present and `1.0` when no issues are found. It is not true seeded issue recall or human-labeled Critic recall.
+- `answer_completeness`: optional semantic-judge assessment of whether the
+  report covers the material parts of the topic, plan, and available Evidence.
+  It is `null` outside an enabled, successful semantic-judge call.
 - `answer_relevance`: topic terms appear in the final report in deterministic
-  mode; LLM mode reports `null` until a semantic judge is used
-- `faithfulness`: bullet claims in the report carry citations in deterministic
-  mode; LLM mode reports `null` until a semantic judge is used
+  mode; in LLM mode the optional semantic judge measures topic focus.
+- `answer_shape`: optional semantic-judge assessment of whether the result is a
+  usable answer with synthesis, findings, qualifications, and appropriate risks.
+  It is `null` outside an enabled, successful semantic-judge call.
+- `faithfulness`: bullet claims carry citations in deterministic mode; in LLM
+  mode the optional semantic judge measures whether the whole report stays
+  within supplied Evidence and marks uncertainty.
 - `cost_usd`, `cost_cny`, `latency_seconds`, `token_used`, `price_source`: operational metrics for Pareto analysis. LLM mode accounts natively in CNY from the LiteLLM ledger.
 
 The mechanical financial numeric-citation audit runs in every execution mode
@@ -42,6 +55,19 @@ without an explicit resolvable citation therefore fails the audit instead of
 escaping bullet-only scoring. Mismatches are counted by line, so several wrong
 values on one line contribute one mismatch line. Citation-resolution and
 lexical-support metrics remain bullet-line metrics.
+
+Runtime semantic evaluation is an optional, default-off LLM-mode step routed
+through the same `LLMClient` ledger and budget boundary as generation. Its
+typed contract covers completeness, relevance, answer shape, semantic citation
+support, and whole-report faithfulness. The judge receives the topic, typed
+plan, report, exact footnote-to-Evidence mapping, and a bounded representation
+of every Evidence row. It is explicitly forbidden to judge exact values,
+arithmetic, units, decimal placement, magnitude, period alignment, or direction.
+Those decisions remain exclusively mechanical, and semantic scores cannot
+change `task_success_rate` or erase `numeric_citation_mismatch`. Enabling the
+judge requires `DASHSCOPE_API_KEY`; deterministic and default LLM paths require
+no judge key or judge call. Budget and cost-overrun exceptions retain the
+run-level terminal behavior instead of being downgraded to missing metrics.
 
 The audit normalizes `元`/`万元`/`亿元`, allows rounding within half of the
 displayed numeric resolution, and preserves increase/decrease direction from
@@ -85,20 +111,23 @@ detailed-analysis claims remain subject to the post-render Evaluator audit.
 
 Unresolved bullet citations are counted as `citation_error` in every mode.
 Resolved-but-lexically-unsupported citations add that category only in
-deterministic mode because LLM mode has no semantic citation judge. A
+deterministic mode; optional LLM semantic support is reported as a score rather
+than rewritten into the mechanical bad-case count. A
 recognized financial value that is not supported by its explicitly cited
 Evidence union additionally records
 `numeric_citation_mismatch` and forces task success to zero in every mode. It
-also lowers deterministic citation accuracy; LLM citation accuracy remains
-`null` rather than presenting a partial mechanical check as a full
-paraphrase-aware score. Golden Set LLM rounds additionally run a judge-backed
-`citation_support_rate` over extracted report claims and evidence.
+also lowers deterministic citation accuracy. LLM citation accuracy is semantic
+only when the optional runtime judge succeeds and otherwise remains explicitly
+`null`. Golden Set LLM rounds separately run their frozen judge-backed
+`citation_support_rate`; that benchmark judge contract is not the runtime
+Evaluator contract.
 
 Round 031 regression tests cover magnitude, decimal-place, and
 comparison-direction mutations. Each mutation produces
 `numeric_citation_mismatch` and forces `task_success_rate=0`; the unchanged
 cited report remains accepted. In LLM mode, the same mechanical failure applies
-while `citation_accuracy` correctly remains `null`.
+regardless of whether the optional semantic judge returns a score or remains
+disabled.
 
 Production version: compute true critic recall from seeded issues or manually labeled bad cases.
 

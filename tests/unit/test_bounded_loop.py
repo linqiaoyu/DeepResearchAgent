@@ -194,6 +194,28 @@ class BoundedLoopTest(unittest.TestCase):
             "stop_sufficient:sufficient",
         )
 
+    def test_sufficiency_wins_when_reached_on_max_iteration(self) -> None:
+        exhausted: list[str] = []
+        state = self._state()
+
+        result = BoundedLoop(
+            self._spec(exhausted, max_iterations=1),
+            lambda _state, _context: LoopIterationResult(
+                budget_consumed=1,
+                stop_requested=True,
+                stop_reason="sufficiency_thresholds_met",
+            ),
+        ).run(state)
+
+        self.assertEqual(exhausted, [])
+        self.assertNotIn("research_loop", result.metadata)
+        decision = result.agent_decisions[-1]
+        self.assertEqual(
+            decision.outcome,
+            "stop_sufficient:sufficiency_thresholds_met",
+        )
+        self.assertIn("max_iterations", decision.inputs["boundaries_triggered"])
+
     def test_loop_budget_and_tool_retry_budget_are_isolated_without_bypass(
         self,
     ) -> None:

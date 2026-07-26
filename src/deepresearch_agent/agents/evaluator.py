@@ -5,8 +5,15 @@ import time
 from collections import Counter
 
 from deepresearch_agent.agents.numeric_citations import has_financial_numeric_mismatch
+from deepresearch_agent.semantic_judge import (
+    SemanticJudge,
+    SemanticJudgeFailure,
+    SemanticJudgeScore,
+)
+from deepresearch_agent.llm.client import BudgetExceededError, CostOverrunError
 from deepresearch_agent.metric_coverage import metric_requirements
 from deepresearch_agent.schemas import EvaluationResult, Evidence, ResearchState
+from deepresearch_agent.trajectory import TrajectoryCacheMissError
 
 CITATION_RE = re.compile(r"\[\^(\d+)\]")
 WORD_RE = re.compile(r"[a-zA-Z0-9]+|[\u4e00-\u9fff]{2,}")
@@ -14,6 +21,19 @@ SUPPORT_TOKEN_RE = re.compile(r"[a-zA-Z0-9]+|[\u4e00-\u9fff]+")
 
 
 class Evaluator:
+    def __init__(
+        self,
+        *,
+        semantic_judge: SemanticJudge | None = None,
+        semantic_judge_enabled: bool | None = None,
+    ) -> None:
+        self.semantic_judge = semantic_judge
+        self.semantic_judge_enabled = (
+            semantic_judge is not None
+            if semantic_judge_enabled is None
+            else semantic_judge_enabled
+        )
+
     def evaluate(self, state: ResearchState, started_at: float | None = None) -> EvaluationResult:
         report = state.final_report or ""
         evidence_count = len(state.evidence_store)
@@ -56,25 +76,66 @@ class Evaluator:
             (citation_total - unresolved_citations) / citation_total if citation_total else 0.0
         )
 
+        answer_completeness = None
+        answer_shape = None
         if execution_mode == "llm":
-            citation_accuracy = None
-            citation_accuracy_reason = (
-                "Existing citation scorer only applies to extractive output; "
-                "paraphrase-aware verification is deferred to the judge task."
-            )
             citation_errors = unresolved_citations
-            answer_relevance = None
-            answer_relevance_reason = "LLM mode requires LLM-as-Judge before reporting answer relevance."
-            faithfulness = None
-            faithfulness_reason = "LLM mode requires LLM-as-Judge before reporting faithfulness."
+            semantic_score, semantic_reason = self._semantic_score(state)
+            if semantic_score is None:
+                citation_accuracy = None
+                citation_accuracy_reason = semantic_reason
+                answer_completeness_reason = semantic_reason
+                answer_relevance = None
+                answer_relevance_reason = semantic_reason
+                answer_shape_reason = semantic_reason
+                faithfulness = None
+                faithfulness_reason = semantic_reason
+            else:
+                citation_accuracy = min(
+                    semantic_score.citation_support,
+                    citation_resolution_rate,
+                )
+                citation_accuracy_reason = (
+                    semantic_score.citation_support_reason
+                )
+                if citation_accuracy < semantic_score.citation_support:
+                    citation_accuracy_reason += (
+                        " Score capped by mechanical citation resolution rate."
+                    )
+                if numeric_citation_mismatches:
+                    citation_accuracy = 0.0
+                    citation_accuracy_reason += (
+                        " Mechanical numeric audit found a citation mismatch; "
+                        "numeric correctness is not delegated to the judge."
+                    )
+                answer_completeness = round(
+                    semantic_score.answer_completeness,
+                    3,
+                )
+                answer_completeness_reason = (
+                    semantic_score.answer_completeness_reason
+                )
+                answer_relevance = round(
+                    semantic_score.answer_relevance,
+                    3,
+                )
+                answer_relevance_reason = (
+                    semantic_score.answer_relevance_reason
+                )
+                answer_shape = round(semantic_score.answer_shape, 3)
+                answer_shape_reason = semantic_score.answer_shape_reason
+                faithfulness = round(semantic_score.faithfulness, 3)
+                faithfulness_reason = semantic_score.faithfulness_reason
         else:
             citation_accuracy = supported_citations / citation_total if citation_total else 0.0
             citation_accuracy_reason = None
             citation_errors = citation_total - supported_citations
+            answer_completeness_reason = None
             topic_terms = {term.lower() for term in WORD_RE.findall(state.topic)}
             report_terms = {term.lower() for term in WORD_RE.findall(report)}
             answer_relevance = round(len(topic_terms & report_terms) / max(len(topic_terms), 1), 3)
             answer_relevance_reason = None
+            answer_shape_reason = None
 
             cited_claim_lines = [line for line in claim_lines if CITATION_RE.search(line)]
             faithfulness = round(len(cited_claim_lines) / max(len(claim_lines), 1), 3)
@@ -128,8 +189,12 @@ class Evaluator:
             citation_repair_retry_rate=round(citation_repair_retry_rate, 3),
             uncited_claim_rate=round(uncited_claim_rate, 3),
             critic_catch_rate=round(critic_catch_rate, 3),
+            answer_completeness=answer_completeness,
+            answer_completeness_reason=answer_completeness_reason,
             answer_relevance=answer_relevance,
             answer_relevance_reason=answer_relevance_reason,
+            answer_shape=answer_shape,
+            answer_shape_reason=answer_shape_reason,
             faithfulness=faithfulness,
             faithfulness_reason=faithfulness_reason,
             latency_seconds=round(latency_seconds, 3),
@@ -139,6 +204,104 @@ class Evaluator:
             token_used=state.token_used,
             bad_case_categories=dict(bad_case_categories),
         )
+
+    def refresh_operational_metrics(
+        self,
+        result: EvaluationResult,
+        state: ResearchState,
+    ) -> EvaluationResult:
+        """Refresh usage after an optional judge call writes to the ledger."""
+
+        llm_usage = state.metadata.get("llm_usage", {})
+        cost_cny = None
+        price_source = None
+        if isinstance(llm_usage, dict):
+            cost_cny_value = llm_usage.get("total_cost_cny")
+            cost_cny = (
+                round(float(cost_cny_value), 8)
+                if cost_cny_value is not None
+                else None
+            )
+            price_source_value = llm_usage.get("price_source")
+            price_source = (
+                str(price_source_value) if price_source_value else None
+            )
+        return result.model_copy(
+            update={
+                "cost_usd": round(state.cost_used, 4),
+                "cost_cny": cost_cny,
+                "price_source": price_source,
+                "token_used": state.token_used,
+            }
+        )
+
+    def _semantic_score(
+        self,
+        state: ResearchState,
+    ) -> tuple[SemanticJudgeScore | None, str | None]:
+        if not self.semantic_judge_enabled:
+            reason = (
+                "semantic_judge_disabled: set SEMANTIC_JUDGE_ENABLED=true "
+                "to measure LLM report semantics."
+            )
+            state.metadata["semantic_judge"] = {
+                "status": "disabled",
+                "reason": "semantic_judge_disabled",
+            }
+            return None, reason
+        if self.semantic_judge is None:
+            reason = (
+                "semantic_judge_unavailable: enabled without a configured "
+                "typed judge client."
+            )
+            state.metadata["semantic_judge"] = {
+                "status": "unavailable",
+                "reason": "semantic_judge_unavailable",
+            }
+            return None, reason
+        try:
+            score = self.semantic_judge.score(state)
+            if not isinstance(score, SemanticJudgeScore):
+                raise SemanticJudgeFailure("invalid_typed_output")
+        except (
+            BudgetExceededError,
+            CostOverrunError,
+            TrajectoryCacheMissError,
+        ):
+            raise
+        except Exception as exc:
+            error_type = (
+                exc.error_type
+                if isinstance(exc, SemanticJudgeFailure)
+                else type(exc).__name__
+            )
+            reason = f"semantic_judge_failed: {error_type}"
+            state.metadata["semantic_judge"] = {
+                "status": "failed",
+                "reason": "semantic_judge_failed",
+                "error_type": error_type,
+            }
+            state.metadata.setdefault("degradation_events", []).append(
+                {
+                    "tool": "semantic_judge",
+                    "reason": "semantic_judge_failed",
+                    "impact": (
+                        "semantic evaluation metrics are unavailable; "
+                        "mechanical numeric audit remains authoritative"
+                    ),
+                    "attempts": 1,
+                    "error_type": error_type,
+                }
+            )
+            return None, reason
+        state.metadata["semantic_judge"] = {
+            "status": "scored",
+            "scope": (
+                "completeness,relevance,answer_shape,citation_support,"
+                "faithfulness; numeric correctness excluded"
+            ),
+        }
+        return score, None
 
     def _score_citations(
         self,

@@ -28,7 +28,10 @@ class ProceduralMemoryReadTests(unittest.TestCase):
         ))
         with tempfile.TemporaryDirectory() as tmp:
             engine = DeepResearchEngine(
-                settings=Settings(storage_path=Path(tmp) / "research.db"),
+                settings=Settings(
+                    storage_path=Path(tmp) / "research.db",
+                    procedural_memory_enabled=True,
+                ),
                 procedural_memory=memory,
             )
             state = ResearchState(topic="AI Agent 在财富管理行业的落地机会研究")

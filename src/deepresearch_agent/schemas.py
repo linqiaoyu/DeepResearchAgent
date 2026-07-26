@@ -286,8 +286,28 @@ class EvaluationResult(StrictModel):
     citation_repair_retry_rate: float = Field(default=0.0, ge=0, le=1)
     uncited_claim_rate: float = Field(default=0.0, ge=0, le=1)
     critic_catch_rate: float = Field(ge=0, le=1)
+    answer_completeness: float | None = Field(
+        default=None,
+        ge=0,
+        le=1,
+        exclude_if=lambda value: value is None,
+    )
+    answer_completeness_reason: str | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+    )
     answer_relevance: float | None = Field(default=None, ge=0, le=1)
     answer_relevance_reason: str | None = None
+    answer_shape: float | None = Field(
+        default=None,
+        ge=0,
+        le=1,
+        exclude_if=lambda value: value is None,
+    )
+    answer_shape_reason: str | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+    )
     faithfulness: float | None = Field(default=None, ge=0, le=1)
     faithfulness_reason: str | None = None
     latency_seconds: float = Field(ge=0)

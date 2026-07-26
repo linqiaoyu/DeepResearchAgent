@@ -15,6 +15,10 @@ from deepresearch_agent.schemas import AgentDecision, StrictModel, utc_now
 from deepresearch_agent.security import redact
 
 
+class TrajectoryCacheMissError(RuntimeError):
+    """Strict replay cannot satisfy an exact recorded boundary call."""
+
+
 class LLMCallTrace(StrictModel):
     role: str
     prompt: list[dict[str, str]]
@@ -41,6 +45,10 @@ class ToolCallTrace(StrictModel):
     inputs: dict[str, Any]
     result: Any = None
     error: dict[str, Any] | None = None
+    degradation_event: dict[str, Any] | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+    )
     attempts: int = Field(ge=0)
     transport: Literal["local", "mcp"] = "local"
     server: str | None = None
@@ -135,6 +143,16 @@ class ReplayResult(StrictModel):
     status: Literal["reproduced", "cache_miss", "mismatch"]
     cache_miss: str | None = None
     artifact_matches: dict[str, bool] = Field(default_factory=dict)
+    termination_matches: bool | None = None
+    expected_termination: dict[str, Any] | None = None
+    actual_termination: dict[str, Any] | None = None
+    failure_control_flow_matches: bool | None = None
+    expected_failure_control_flow: list[dict[str, Any]] = Field(
+        default_factory=list
+    )
+    actual_failure_control_flow: list[dict[str, Any]] = Field(
+        default_factory=list
+    )
 
 
 class TrajectoryRecorder:
@@ -320,8 +338,14 @@ def validate_strict_replay_trajectory(trajectory: AgentTrajectory) -> None:
                 "trajectory termination missing for schema_version 4"
             )
         termination_status = trajectory.termination.status
+    required_request_fields = ["topic", "mode", "depth_level"]
+    # A node can fail before Planner has produced a ResearchPlan.  Such a
+    # trajectory is still a valid failure audit record, but it cannot be
+    # execution-replayed and is reported explicitly by replay_trajectory.
+    if termination_status != "failed":
+        required_request_fields.append("recorded_plan")
     missing = [
-        key for key in ("topic", "mode", "depth_level", "recorded_plan")
+        key for key in required_request_fields
         if key not in trajectory.request
     ]
     if missing:

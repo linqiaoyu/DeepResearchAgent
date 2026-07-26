@@ -117,6 +117,7 @@ class ResearcherAgent:
                 "公告",
             )
             if code and consume_call():
+                disclosure_started = time.perf_counter()
                 disclosed = self.disclosure_source.search(
                     code, keyword, date(2000, 1, 1), self.as_of,
                     preferred_terms=(
@@ -128,6 +129,9 @@ class ResearcherAgent:
                     SearchRecord(
                         query=f"[disclosure] {code} {keyword}",
                         source_ids=[item.id for item in disclosed],
+                        latency_ms=int(
+                            (time.perf_counter() - disclosure_started) * 1000
+                        ),
                     )
                 )
                 for source in disclosed:

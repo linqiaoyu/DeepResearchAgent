@@ -26,19 +26,19 @@ class ObservabilityAndConfigTests(unittest.TestCase):
         defaults = Settings(storage_path=Path("test.db"))
         self.assertTrue(defaults.critic_enabled)
         self.assertTrue(defaults.extractor_enabled)
-        self.assertTrue(defaults.procedural_memory_enabled)
+        self.assertFalse(defaults.procedural_memory_enabled)
         with patch.dict(
             "os.environ",
             {
                 "CRITIC_ENABLED": "false",
                 "EXTRACTOR_ENABLED": "false",
-                "PROCEDURAL_MEMORY_ENABLED": "false",
+                "PROCEDURAL_MEMORY_ENABLED": "true",
             },
         ):
             configured = load_settings()
         self.assertFalse(configured.critic_enabled)
         self.assertFalse(configured.extractor_enabled)
-        self.assertFalse(configured.procedural_memory_enabled)
+        self.assertTrue(configured.procedural_memory_enabled)
 
     def test_json_logger_carries_correlation_and_redacts(self) -> None:
         stream = io.StringIO()
@@ -112,6 +112,38 @@ class ObservabilityAndConfigTests(unittest.TestCase):
             env_path = Path(tmp) / ".env"
             env_path.write_text("DEEPSEEK_API_KEY=test-key\n", encoding="utf-8")
             validate_required_configuration(settings, env_path=env_path)
+
+    def test_enabled_llm_semantic_judge_requires_its_provider_key(self) -> None:
+        settings = Settings(
+            storage_path=Path("test.db"),
+            execution_mode="llm",
+            semantic_judge_enabled=True,
+        )
+
+        with self.assertRaises(ConfigurationError) as raised:
+            validate_required_configuration(
+                settings,
+                {
+                    "DEEPRESEARCH_SEARCH_PROVIDER": "fixture",
+                    "DEEPSEEK_API_KEY": "generation-key",
+                },
+            )
+
+        self.assertEqual(raised.exception.missing, ["DASHSCOPE_API_KEY"])
+
+    def test_disabled_semantic_judge_needs_no_judge_provider_key(self) -> None:
+        settings = Settings(
+            storage_path=Path("test.db"),
+            execution_mode="llm",
+            semantic_judge_enabled=False,
+        )
+        validate_required_configuration(
+            settings,
+            {
+                "DEEPRESEARCH_SEARCH_PROVIDER": "fixture",
+                "DEEPSEEK_API_KEY": "generation-key",
+            },
+        )
 
 
 if __name__ == "__main__":

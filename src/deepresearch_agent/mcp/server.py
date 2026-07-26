@@ -108,6 +108,7 @@ class MCPResearchService:
             settings,
             started_at=state.started_at,
             ended_at=state.updated_at,
+            llm_config=getattr(engine.llm_client, "config", None),
         )
         snapshot = build_research_snapshot(
             state=state,

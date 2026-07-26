@@ -80,6 +80,7 @@ class DisclosureSourceTests(unittest.TestCase):
         self,
     ) -> None:
         self.assertEqual(DISCLOSURE_TOOL_SPEC.timeout_s, 120.0)
+        self.assertEqual(DISCLOSURE_TOOL_SPEC.total_timeout_s, 120.0)
         self.assertGreater(
             DISCLOSURE_TOOL_SPEC.timeout_s,
             30.0 * 3,
@@ -90,7 +91,11 @@ class DisclosureSourceTests(unittest.TestCase):
     ) -> None:
         observed_timeouts: list[float] = []
 
-        def simulated_slow_call(operation: Any, timeout_s: float) -> Any:
+        def simulated_slow_call(
+            operation: Any,
+            timeout_s: float,
+            _scope: Any,
+        ) -> Any:
             observed_timeouts.append(timeout_s)
             if timeout_s <= 31.0:
                 raise TimeoutError("simulated serial request exceeded 30s")
@@ -112,7 +117,9 @@ class DisclosureSourceTests(unittest.TestCase):
             )
 
         self.assertEqual(len(sources), 1)
-        self.assertEqual(observed_timeouts, [120.0])
+        self.assertEqual(len(observed_timeouts), 1)
+        self.assertGreater(observed_timeouts[0], 119.0)
+        self.assertLessEqual(observed_timeouts[0], 120.0)
 
     def test_pdf_timeout_is_retried_as_transient(self) -> None:
         class FirstPdfTimeoutClient(Client):
@@ -237,10 +244,24 @@ class DisclosureSourceTests(unittest.TestCase):
         self.assertEqual(query[2]["data"]["searchkey"], "匈牙利")
 
     def test_endpoint_contract_change_fails_closed(self) -> None:
-        with self.assertRaisesRegex(DisclosureSourceError, "cninfo_contract_changed"):
-            CninfoDisclosureSource(client=Client(malformed=True)).search(
-                "300750", "匈牙利", date(2022, 1, 1), date(2026, 7, 25)
-            )
+        context = RunToolContext.for_run()
+        sources = CninfoDisclosureSource(
+            client=Client(malformed=True),
+            context=context,
+            executor=ReliableToolExecutor(sleep=lambda _: None),
+        ).search(
+            "300750", "匈牙利", date(2022, 1, 1), date(2026, 7, 25)
+        )
+
+        self.assertEqual(sources, [])
+        self.assertEqual(
+            context.degradation_events[-1].reason,
+            "permanent",
+        )
+        self.assertIn(
+            "primary disclosure unavailable",
+            context.degradation_events[-1].impact,
+        )
 
     def test_security_code_maps_to_cninfo_exchange_without_defaulting_to_shenzhen(self) -> None:
         self.assertEqual(cninfo_exchange_for_security_code("600519"), ("sse", "sh"))
