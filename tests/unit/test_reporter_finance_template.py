@@ -3,13 +3,17 @@ from __future__ import annotations
 import unittest
 from datetime import date
 
-from deepresearch_agent.agents import ReporterAgent
+from deepresearch_agent.agents import Evaluator, ReporterAgent
+from deepresearch_agent.agents.researcher import ResearcherAgent
 from deepresearch_agent.schemas import (
     Evidence,
     NumericFields,
+    ReportClaim,
+    ReportDraft,
     ResearchPlan,
     ResearchState,
     StructuredDataRequest,
+    StructuredDataRecord,
     SubQuestion,
 )
 
@@ -268,6 +272,125 @@ class ReporterFinanceTemplateTests(unittest.TestCase):
         self.assertEqual(coverage["status"], "cited")
         self.assertTrue(coverage["comparison_observed"])
         self.assertEqual(coverage["missing_periods"], ["2024"])
+
+    def test_financial_untyped_sections_cannot_emit_uncited_numbers(
+        self,
+    ) -> None:
+        state = ResearchState(topic="贵州茅台 2025 年营业收入")
+        state.plan = ResearchPlan(
+            topic=state.topic,
+            sub_questions=[
+                SubQuestion(
+                    id="finance",
+                    question=state.topic,
+                    search_queries=["600519 年度报告"],
+                    structured_data_requests=[
+                        StructuredDataRequest(
+                            capability="financial_indicators",
+                            symbol="600519",
+                            periods=["20251231"],
+                            metrics=["营业收入"],
+                        )
+                    ],
+                )
+            ],
+        )
+        evidence = self._metric_evidence(
+            state,
+            "revenue-2025",
+            "营业收入",
+            "20251231",
+            168_838_102_514.79,
+            61,
+        )
+        state.evidence_store = [evidence]
+        draft = ReportDraft(
+            summary="2025 年营业收入为 16883.81 亿元。",
+            key_findings=[
+                ReportClaim(
+                    text=(
+                        "2025 年营业收入为 "
+                        "168,838,102,514.79 元。"
+                    ),
+                    evidence_ids=[evidence.id],
+                )
+            ],
+            detailed_analysis=[],
+            risks=["营业收入同比下降 1.21%。"],
+            unverified_assumptions=[],
+        )
+
+        report, _invalid, _backfills = (
+            ReporterAgent()._render_llm_report(state, draft)
+        )
+
+        summary = report.split("## 摘要", 1)[1].split(
+            "## 关键发现",
+            1,
+        )[0]
+        risks = report.split("## 风险与限制", 1)[1].split(
+            "## 未验证假设",
+            1,
+        )[0]
+        self.assertNotIn("16883.81", summary)
+        self.assertIn("具体数值、同比变化与出处", summary)
+        self.assertNotIn("1.21%", risks)
+        self.assertIn("已降级为定性提示", risks)
+        self.assertIn(
+            "168,838,102,514.79元。 [^1]",
+            report,
+        )
+
+    def test_large_structured_value_stays_exact_and_evaluates_cleanly(
+        self,
+    ) -> None:
+        state = ResearchState(topic="贵州茅台 2025 年营业收入")
+        state.plan = ResearchPlan(
+            topic=state.topic,
+            sub_questions=[
+                SubQuestion(
+                    id="finance",
+                    question=state.topic,
+                    search_queries=["600519 年度报告"],
+                    structured_data_requests=[
+                        StructuredDataRequest(
+                            capability="financial_indicators",
+                            symbol="600519",
+                            periods=["20251231"],
+                            metrics=["营业收入"],
+                        )
+                    ],
+                )
+            ],
+        )
+        state.completed_tasks = ["finance"]
+        evidence = ResearcherAgent()._evidence_from_record(
+            state.research_id,
+            "finance",
+            StructuredDataRecord(
+                entity="贵州茅台",
+                symbol="600519",
+                metric_name="营业收入",
+                period="20251231",
+                dimension="合并",
+                value=168_838_102_514.79,
+                unit="元",
+                data_source="live structured provider",
+                as_of=date(2026, 4, 16),
+            ),
+        )
+        state.evidence_store = [evidence]
+
+        state.final_report = ReporterAgent().report(state)
+        result = Evaluator().evaluate(state)
+
+        self.assertNotIn("e+", state.final_report.lower())
+        self.assertIn("168838102514.79元", state.final_report)
+        self.assertEqual(result.task_success_rate, 1.0)
+        self.assertNotIn(
+            "numeric_citation_mismatch",
+            result.bad_case_categories,
+        )
 
     def _metric_evidence(
         self,

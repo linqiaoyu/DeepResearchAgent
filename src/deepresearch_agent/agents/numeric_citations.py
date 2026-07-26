@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import Decimal, InvalidOperation
 from typing import Literal, Sequence
 
 from deepresearch_agent.schemas import Evidence, NumericFields, StructuredDataRecord
 
 
-NUMBER_PATTERN = r"[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?"
+NUMBER_PATTERN = (
+    r"[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)"
+    r"(?:\.\d+)?(?:[eE][+-]?\d+)?"
+)
 MEASURE_RE = re.compile(
     rf"(?P<number>{NUMBER_PATTERN})\s*"
     r"(?P<unit>亿元|万元|个百分点|元|%|％|pct)",
@@ -27,7 +30,8 @@ BASE_METRIC_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
         re.compile(r"归母净利(?:润)?|归属于(?:上市公司|母公司)股东的净利润"),
     ),
     ("gross_margin", re.compile(r"毛利率")),
-    ("revenue", re.compile(r"营业总收入|营业收入|营收")),
+    ("total_revenue", re.compile(r"营业总收入")),
+    ("revenue", re.compile(r"(?<!总)营业收入|营收")),
     ("net_profit", re.compile(r"净利润|净利")),
     ("operating_cost", re.compile(r"营业成本")),
 )
@@ -77,12 +81,14 @@ def has_financial_numeric_mismatch(
             value = _value_from_numeric_fields(evidence.numeric_fields)
             if value:
                 evidence_values.append(value)
+    evidence_values.extend(_derived_yoy_values(evidence_values))
 
     return any(not _value_is_supported(claimed, evidence_values) for claimed in claimed_values)
 
 
 def _extract_text_values(text: str) -> list[FinancialValue]:
     values: list[FinancialValue] = []
+    positions: list[int] = []
     occupied_spans: list[tuple[int, int]] = []
 
     for match in MEASURE_RE.finditer(text):
@@ -99,6 +105,7 @@ def _extract_text_values(text: str) -> list[FinancialValue]:
         )
         if value:
             values.append(value)
+            positions.append(match.start("number"))
 
     default_amount_unit = _default_amount_unit(text)
     for match in BARE_COMMA_AMOUNT_RE.finditer(text):
@@ -116,8 +123,43 @@ def _extract_text_values(text: str) -> list[FinancialValue]:
         )
         if value:
             values.append(value)
+            positions.append(match.start("number"))
 
+    values = _assign_table_header_periods(
+        text,
+        values,
+        positions,
+    )
     return list(dict.fromkeys(values))
+
+
+def _assign_table_header_periods(
+    text: str,
+    values: list[FinancialValue],
+    positions: list[int],
+) -> list[FinancialValue]:
+    """Map ordered financial-statement columns to their ordered year headers."""
+    grouped: dict[tuple[str, str], list[int]] = {}
+    for index, value in enumerate(values):
+        grouped.setdefault((value.kind, value.metric), []).append(index)
+    updated = list(values)
+    for indices in grouped.values():
+        if len(indices) < 2:
+            continue
+        first_position = positions[indices[0]]
+        header_periods = list(dict.fromkeys(
+            match.group(1)
+            for match in re.finditer(
+                r"(?<!\d)((?:19|20)\d{2})(?!\d)",
+                text[:first_position],
+            )
+        ))
+        if len(header_periods) < len(indices):
+            continue
+        selected_periods = header_periods[-len(indices):]
+        for index, period in zip(indices, selected_periods, strict=True):
+            updated[index] = replace(updated[index], period=period)
+    return updated
 
 
 def _numeric_fields_are_extract_grounded(
@@ -146,6 +188,7 @@ def _numeric_fields_are_extract_grounded(
     if pattern is None or not pattern.search(extract_text):
         return False
     expected = Decimal(str(fields.value))
+    value_occurs_in_extract = False
     for match in re.finditer(NUMBER_PATTERN, extract_text):
         try:
             observed = Decimal(match.group(0).replace(",", ""))
@@ -153,8 +196,29 @@ def _numeric_fields_are_extract_grounded(
             continue
         tolerance = max(abs(expected), abs(observed)) * Decimal("1e-12")
         if abs(expected - observed) <= tolerance:
-            return True
-    return False
+            value_occurs_in_extract = True
+            break
+    if not value_occurs_in_extract:
+        return False
+
+    # When the source excerpt exposes period-labelled statement columns, the
+    # LLM-normalized period/value pair must agree with that source mapping.
+    # Merely finding the value somewhere in the same two-column excerpt would
+    # otherwise allow a 2024 value to be mislabeled as 2025.
+    field_value = _value_from_numeric_fields(fields)
+    if not field_value or not field_value.period:
+        return True
+    period_candidates = [
+        candidate
+        for candidate in _extract_text_values(extract_text)
+        if candidate.kind == field_value.kind
+        and _metrics_compatible(candidate.metric, field_value.metric)
+        and candidate.period == field_value.period
+    ]
+    return not period_candidates or any(
+        _values_match(field_value, candidate)
+        for candidate in period_candidates
+    )
 
 
 def _value_from_numeric_fields(fields: NumericFields) -> FinancialValue | None:
@@ -236,7 +300,7 @@ def _value_from_text(
         return FinancialValue(
             kind="rate",
             metric=metric,
-            period=None,
+            period=period or _period_before(text, number_start),
             value=number,
             display_step=_display_step(number_text),
         )
@@ -292,7 +356,7 @@ def _direction_before(text: str, number_start: int) -> Decimal | None:
 
 def _display_step(number_text: str) -> Decimal:
     number = Decimal(number_text.replace(",", ""))
-    return Decimal("1").scaleb(min(number.as_tuple().exponent, 0))
+    return Decimal("1").scaleb(number.as_tuple().exponent)
 
 
 def _normalize_unit(unit_text: str) -> str | None:
@@ -330,6 +394,60 @@ def _value_is_supported(
     if claimed.period and any(candidate.period for candidate in candidates):
         candidates = [candidate for candidate in candidates if candidate.period == claimed.period]
     return any(_values_match(claimed, supported) for supported in candidates)
+
+
+def _derived_yoy_values(
+    evidence_values: Sequence[FinancialValue],
+) -> list[FinancialValue]:
+    """Derive a cited year-on-year value from two source-backed periods."""
+    grouped: dict[tuple[str, str], list[FinancialValue]] = {}
+    for value in evidence_values:
+        if value.metric.endswith(":yoy"):
+            continue
+        grouped.setdefault((value.kind, value.metric), []).append(value)
+
+    derived: list[FinancialValue] = []
+    for (kind, metric), raw_values in grouped.items():
+        by_value: dict[Decimal, FinancialValue] = {}
+        order: list[Decimal] = []
+        for value in raw_values:
+            existing = by_value.get(value.value)
+            if existing is None:
+                by_value[value.value] = value
+                order.append(value.value)
+            elif not existing.period and value.period:
+                by_value[value.value] = value
+        values = [by_value[value] for value in order]
+        if len(values) < 2:
+            continue
+        period_values = [value for value in values if value.period]
+        if len({value.period for value in period_values}) >= 2:
+            ordered = sorted(
+                period_values,
+                key=lambda value: value.period or "",
+                reverse=True,
+            )
+            current, prior = ordered[0], ordered[1]
+        else:
+            current, prior = values[0], values[1]
+        if kind == "amount":
+            if prior.value == 0:
+                continue
+            yoy = (
+                current.value / prior.value - Decimal("1")
+            ) * Decimal("100")
+        else:
+            yoy = current.value - prior.value
+        derived.append(
+            FinancialValue(
+                kind="rate",
+                metric=f"{metric}:yoy",
+                period=current.period,
+                value=yoy,
+                display_step=Decimal("1e-12"),
+            )
+        )
+    return derived
 
 
 def _values_match(claimed: FinancialValue, supported: FinancialValue) -> bool:

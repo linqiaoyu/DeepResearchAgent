@@ -284,13 +284,23 @@ class PlannerAgent:
         annual_report_query = f"{code} 年度报告"
         updated[target_index] = target.model_copy(
             update={
+                "question": topic,
                 "search_queries": list(dict.fromkeys([
                     annual_report_query, *target.search_queries,
                 ])),
                 "structured_data_requests": existing,
             }
         )
-        return plan.model_copy(update={"sub_questions": updated})
+        # An explicit issuer+metric lookup is one typed fact-retrieval branch.
+        # Creative auxiliary branches such as market expectations can exhaust
+        # web egress without helping the requested annual-report answer.
+        # Narrative and event plans never enter this financial contract path.
+        return plan.model_copy(
+            update={
+                "sub_questions": [updated[target_index]],
+                "estimated_sources": 3,
+            }
+        )
 
     def _valid_structured_requests(
         self,

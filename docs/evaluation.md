@@ -37,6 +37,11 @@ resolution, and preserves percentage or percentage-point direction from words
 such as `增长` and `下降`. Years, footnote numbers, and page locators are not
 treated as financial values. Resolution uses only
 `report_footnote_evidence`; positional Evidence inference remains prohibited.
+When two cited periods are present, the audit may mechanically derive an
+amount YoY rate or a rate percentage-point change. Financial-statement column
+headers bind each value to its year; conflicting LLM-normalized period/value
+pairs are rejected. `营业总收入` and `营业收入` are separate metrics rather than
+aliases.
 For text Evidence, source truth comes from verbatim `extract_text`; an
 LLM-produced `claim` is never treated as independent support, and normalized
 numeric fields are used only when their metric and value occur in that

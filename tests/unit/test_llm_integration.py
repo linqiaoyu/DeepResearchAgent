@@ -378,6 +378,69 @@ class LLMIntegrationTests(unittest.TestCase):
         self.assertEqual(request.periods, ["20251231"])
         self.assertEqual(plan.sub_questions[0].search_queries[0], "600519 年度报告")
 
+    def test_llm_planner_consolidates_explicit_financial_lookup_branch(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            env_path = Path(tmp) / ".env"
+            env_path.write_text(
+                "DEEPSEEK_API_KEY=test-key\n",
+                encoding="utf-8",
+            )
+            completion = MockCompletion([
+                '{"topic":"贵州茅台","depth_level":1,"sub_questions":['
+                '{"id":"financial_data","question":"财务数据是什么？",'
+                '"search_queries":["贵州茅台 财务数据"],'
+                '"expected_source_types":["official"],'
+                '"structured_data_requests":[],"priority":5},'
+                '{"id":"change","question":"变化原因是什么？",'
+                '"search_queries":["贵州茅台 变化"],'
+                '"expected_source_types":["news"],'
+                '"structured_data_requests":[],"priority":4},'
+                '{"id":"expectations","question":"市场预期如何？",'
+                '"search_queries":["贵州茅台 市场预期"],'
+                '"expected_source_types":["news"],'
+                '"structured_data_requests":[],"priority":3}],'
+                '"estimated_sources":6,"success_criteria":["traceable"]}'
+            ])
+            client = LLMClient(
+                ledger_path=Path(tmp) / "ledger.jsonl",
+                budget_cny=3.0,
+                completion_func=completion,
+                sleep_func=lambda _: None,
+                env_path=env_path,
+                global_ledger_path=Path(tmp) / "global_ledger.jsonl",
+            )
+            planner = PlannerAgent(
+                llm_client=client,
+                settings=Settings(
+                    storage_path=Path(tmp) / "research.db"
+                ),
+            )
+            topic = (
+                "贵州茅台（600519）2025 年营业收入、归母净利润与"
+                "毛利率分别是多少？相较 2024 年的变化如何？"
+            )
+
+            plan = planner.plan(
+                topic,
+                depth_level=1,
+                research_id="financial-consolidation",
+            )
+
+        self.assertEqual(len(plan.sub_questions), 1)
+        self.assertEqual(plan.sub_questions[0].question, topic)
+        self.assertEqual(
+            plan.sub_questions[0].search_queries[0],
+            "600519 年度报告",
+        )
+        self.assertEqual(
+            plan.sub_questions[0]
+            .structured_data_requests[0]
+            .periods,
+            ["20251231", "20241231"],
+        )
+
     def test_llm_planner_financial_question_executes_disclosure_source(self) -> None:
         class PlannerCompletion:
             def complete(self, **_kwargs: object) -> SimpleNamespace:

@@ -4,6 +4,7 @@ import hashlib
 import re
 import time
 from datetime import date
+from decimal import Decimal
 
 from deepresearch_agent.schemas import (
     AgentDecision,
@@ -374,13 +375,17 @@ class ResearcherAgent:
         sub_question_id: str,
         record: StructuredDataRecord,
     ) -> Evidence:
+        rendered_value = format(
+            Decimal(str(record.value)),
+            "f",
+        )
         extract_text = (
             f"{record.entity}|{record.metric_name}|{record.period}|{record.dimension}|"
-            f"{record.value}|{record.unit}"
+            f"{rendered_value}|{record.unit}"
         )
         claim = (
             f"{record.entity} {record.period} {record.dimension}{record.metric_name}为"
-            f"{record.value:g}{record.unit}。"
+            f"{rendered_value}{record.unit}。"
         )
         source_url = (
             f"akshare://{record.metric_name}/{record.symbol}/{record.period}/"

@@ -8,7 +8,13 @@ from dataclasses import dataclass
 from deepresearch_agent.citations import build_footnote_maps
 from deepresearch_agent.decisions import append_decision_record
 from deepresearch_agent.llm import LLMClient, LLMClientError, StructuredOutputError
-from deepresearch_agent.metric_coverage import evaluate_metric_coverage
+from deepresearch_agent.metric_coverage import (
+    evaluate_metric_coverage,
+    metric_requirements,
+)
+from deepresearch_agent.agents.numeric_citations import (
+    has_financial_numeric_mismatch,
+)
 from deepresearch_agent.schemas import (
     Evidence,
     ReportClaim,
@@ -357,6 +363,17 @@ class ReporterAgent:
         key_fact_keys: set[tuple[str, str, str, str]] = set()
         key_evidence_ids: set[str] = set()
         supplemental: list[tuple[str, int, ReportClaim]] = []
+        financial_contract = bool(metric_requirements(state))
+        summary = self._reader_text(draft.summary.strip())
+        if (
+            financial_contract
+            and has_financial_numeric_mismatch(summary, [])
+        ):
+            summary = (
+                "本报告按权威披露逐项核验题目所列财务指标；"
+                "具体数值、同比变化与出处见下方带脚注的关键发现"
+                "及指标覆盖状态。"
+            )
 
         lines: list[str] = [
             f"# {self._reader_text(state.topic)}",
@@ -366,8 +383,7 @@ class ReporterAgent:
             "免责声明：本报告为研究性输出，不构成投资建议。",
             "",
             "## 摘要",
-            self._reader_text(draft.summary.strip())
-            or self._summary(state, evidence, ref_map),
+            summary or self._summary(state, evidence, ref_map),
             "",
             "## 关键发现",
         ]
@@ -472,7 +488,20 @@ class ReporterAgent:
         lines.extend(["", "## 风险与限制"])
         if draft.risks:
             for risk in draft.risks[:6]:
-                lines.append(f"- {self._reader_text(risk)}")
+                rendered_risk = self._reader_text(risk)
+                if (
+                    financial_contract
+                    and has_financial_numeric_mismatch(
+                        rendered_risk,
+                        [],
+                    )
+                ):
+                    rendered_risk = (
+                        "该风险原文包含未绑定 Evidence 的财务数字，"
+                        "已降级为定性提示；数值结论仅以下方带脚注"
+                        "条目为准。"
+                    )
+                lines.append(f"- {rendered_risk}")
         elif state.critic_report and state.critic_report.issues:
             for issue in state.critic_report.issues[:6]:
                 affected = self._affected_claims(
@@ -682,7 +711,7 @@ class ReporterAgent:
                         )
                     )
                     rendered.append(
-                        f"{self._evidence_claim_text(evidence)}"
+                        f"{self._reader_text(self._evidence_claim_text(evidence))}"
                         f"{provenance} [^{ref_map[evidence_id]}]"
                     )
                 if rendered:
