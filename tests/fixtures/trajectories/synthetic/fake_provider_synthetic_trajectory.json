@@ -1,0 +1,21 @@
+{
+  "artifacts": {"report.md": "synthetic fixture; not a real trajectory"},
+  "agent_decisions": [],
+  "llm_calls": [],
+  "memory_writes": [],
+  "node_transitions": [],
+  "recorded_at": "2026-07-26T00:00:00Z",
+  "request": {
+    "depth_level": 1,
+    "mode": "deterministic",
+    "provider": "fake",
+    "recorded_plan": {"depth_level": 1, "estimated_sources": 6, "sub_questions": [{"expected_source_types": ["official"], "id": "synthetic", "priority": 5, "question": "Synthetic fixture", "search_queries": ["synthetic"]}], "success_criteria": ["synthetic"], "topic": "Synthetic fixture"},
+    "synthetic": true,
+    "topic": "Synthetic fixture"
+  },
+  "run_id": "synthetic-fake-provider-fixture",
+  "run_manifest_ref": null,
+  "schema_version": 3,
+  "signal_reads": [],
+  "tool_calls": []
+}

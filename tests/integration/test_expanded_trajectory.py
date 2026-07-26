@@ -18,12 +18,14 @@ from deepresearch_agent.tools import (
     ReliableToolExecutor,
 )
 from deepresearch_agent.trajectory import (
+    LLMCallTrace,
     MemoryWriteTrace,
     SignalReadTrace,
     ToolCallTrace,
     TrajectoryRecorder,
     load_trajectory,
     trajectory_recording,
+    validate_strict_replay_trajectory,
 )
 from deepresearch_agent.trajectory_replay import replay_trajectory
 from deepresearch_agent.workflow import DeepResearchEngine
@@ -94,6 +96,47 @@ class StructuredPlanner:
 
 
 class ExpandedTrajectoryTest(unittest.TestCase):
+    def test_strict_schema_rejects_missing_fields_order_version_and_prompt_mutation(
+        self,
+    ) -> None:
+        recorder = TrajectoryRecorder(
+            run_id="synthetic-strict-fixture",
+            request={
+                "topic": "synthetic trajectory fixture",
+                "mode": "deterministic",
+                "depth_level": 1,
+                "recorded_plan": {"topic": "synthetic trajectory fixture", "depth_level": 1, "sub_questions": [{"id": "q", "question": "q", "search_queries": ["q"], "expected_source_types": ["official"]}], "estimated_sources": 6, "success_criteria": ["citation"]},
+                "synthetic": True,
+                "provider": "fake",
+            },
+        )
+        recorder.record_llm_call(
+            LLMCallTrace(
+                role="fake_planner",
+                prompt=[{"role": "user", "content": "fixed fake prompt"}],
+                response="{}", prompt_tokens=0, completion_tokens=0,
+                total_tokens=0, latency_seconds=0, model="fake", attempt=1,
+            )
+        )
+        recorder.finalize(manifest_ref=None, artifacts={"report.md": "synthetic"})
+        valid = recorder.trajectory
+        validate_strict_replay_trajectory(valid)
+        missing = valid.model_copy(deep=True)
+        missing.request.pop("recorded_plan")
+        with self.assertRaisesRegex(ValueError, "request missing required field"):
+            validate_strict_replay_trajectory(missing)
+        wrong_version = valid.model_copy(update={"schema_version": 2})
+        with self.assertRaisesRegex(ValueError, "schema_version mismatch"):
+            validate_strict_replay_trajectory(wrong_version)
+        changed_prompt = valid.model_copy(deep=True)
+        changed_prompt.llm_calls[0].prompt[0]["content"] += "!"
+        with self.assertRaisesRegex(ValueError, "normalized_key mismatch"):
+            validate_strict_replay_trajectory(changed_prompt)
+        bad_order = valid.model_copy(deep=True)
+        bad_order.llm_calls[0].sequence = 2
+        with self.assertRaisesRegex(ValueError, "sequence mismatch"):
+            validate_strict_replay_trajectory(bad_order)
+
     def test_expanded_016_configuration_is_complete_and_strictly_replays(
         self,
     ) -> None:
@@ -210,7 +253,7 @@ class ExpandedTrajectoryTest(unittest.TestCase):
             )
         )
 
-        self.assertEqual(recorder.trajectory.schema_version, 2)
+        self.assertEqual(recorder.trajectory.schema_version, 3)
         self.assertEqual(
             recorder.trajectory.signal_reads[0].signal_type,
             "repeated_critic_issue",

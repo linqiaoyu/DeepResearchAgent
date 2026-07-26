@@ -18,6 +18,7 @@ from deepresearch_agent.trajectory import (
     ReplayResult,
     ToolCallTrace,
     active_trajectory_recorder,
+    validate_strict_replay_trajectory,
 )
 from deepresearch_agent.workflow import DeepResearchEngine
 
@@ -204,6 +205,8 @@ def replay_trajectory(
                 status="cache_miss",
                 cache_miss=required,
             )
+
+    validate_strict_replay_trajectory(trajectory)
 
     request = trajectory.request
     if request.get("mode") != "deterministic":
