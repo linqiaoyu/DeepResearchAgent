@@ -4,6 +4,7 @@ import json
 import re
 from collections import defaultdict
 from dataclasses import dataclass
+from decimal import Decimal
 
 from deepresearch_agent.citations import build_footnote_maps
 from deepresearch_agent.decisions import append_decision_record
@@ -12,6 +13,7 @@ from deepresearch_agent.metric_coverage import (
     evaluate_metric_coverage,
     metric_requirements,
 )
+from deepresearch_agent.reporting import GroundedFactRenderer
 from deepresearch_agent.agents.numeric_citations import (
     has_financial_numeric_mismatch,
 )
@@ -30,9 +32,10 @@ from deepresearch_agent.structured_output import (
 
 _RAW_PERIOD_RE = re.compile(r"(?<!\d)(\d{4})(\d{2})(\d{2})(?!\d)")
 _RMB_RE = re.compile(
-    r"(-?\d+(?:\.\d+)?(?:e[+-]?\d+)?)\s*元",
+    r"(?<![\d,])(-?\d+(?:\.\d+)?(?:e[+-]?\d+)?)\s*元",
     re.IGNORECASE,
 )
+_FOOTNOTE_RE = re.compile(r"\[\^(\d+)\]")
 
 
 @dataclass(frozen=True)
@@ -49,9 +52,14 @@ class _ClaimPath:
 
 
 class ReporterAgent:
-    def __init__(self, llm_client: LLMClient | None = None) -> None:
+    def __init__(
+        self,
+        llm_client: LLMClient | None = None,
+        grounded_fact_renderer: GroundedFactRenderer | None = None,
+    ) -> None:
         self.llm_client = llm_client
-        self.last_stats: dict[str, int | bool | str] = {}
+        self.grounded_fact_renderer = grounded_fact_renderer
+        self.last_stats: dict[str, object] = {}
 
     def report(self, state: ResearchState) -> str:
         if not state.plan:
@@ -69,12 +77,193 @@ class ReporterAgent:
                 report = self._deterministic_report(state)
         else:
             report = self._deterministic_report(state)
+        report = self._enforce_reader_fidelity(
+            report,
+            state,
+            footnotes.evidence_id_to_footnote,
+        )
         report = self._append_metric_coverage(
             report,
             state,
             footnotes.evidence_id_to_footnote,
         )
         return append_decision_record(report, state.agent_decisions)
+
+    def _enforce_reader_fidelity(
+        self,
+        report: str,
+        state: ResearchState,
+        ref_map: dict[str, int],
+    ) -> str:
+        """Replace key facts with typed rendering and fail closed elsewhere."""
+
+        if not self.grounded_fact_renderer:
+            return report
+        batch = self.grounded_fact_renderer.render(state)
+        grounded = batch.claims
+        if not batch.required_labels:
+            return report
+        required_labels = set(batch.required_labels)
+        claim_labels = [claim.label for claim in grounded]
+        gap_labels = set(batch.gaps)
+        if (
+            len(claim_labels) != len(set(claim_labels))
+            or set(claim_labels) & gap_labels
+            or set(claim_labels) | gap_labels != required_labels
+        ):
+            raise ValueError(
+                "grounded fact renderer returned a partial or ambiguous batch"
+            )
+        lines = report.splitlines()
+        start = next(
+            (
+                index
+                for index, line in enumerate(lines)
+                if line.strip() == "## 关键发现"
+            ),
+            None,
+        )
+        if start is None:
+            raise ValueError(
+                "reader fidelity guard requires a key findings section"
+            )
+        end = next(
+            (
+                index
+                for index in range(start + 1, len(lines))
+                if lines[index].startswith("## ")
+            ),
+            len(lines),
+        )
+        grounded_lines = ["## 关键发现", ""]
+        grounded_provenance: list[dict[str, object]] = []
+        evidence_by_id = {item.id: item for item in state.evidence_store}
+        for index, claim in enumerate(grounded):
+            valid_ids = [
+                evidence_id
+                for evidence_id in claim.evidence_ids
+                if evidence_id in ref_map
+            ]
+            if (
+                not valid_ids
+                or tuple(valid_ids) != claim.evidence_ids
+                or not claim.fact_keys
+            ):
+                raise ValueError(
+                    "grounded fact renderer returned an unbound claim: "
+                    f"{claim.label}"
+                )
+            citations = " ".join(
+                f"[^{ref_map[evidence_id]}]"
+                for evidence_id in valid_ids
+            )
+            rendered = f"{claim.text.rstrip()} {citations}".strip()
+            cited_evidence = [
+                evidence_by_id[evidence_id]
+                for evidence_id in valid_ids
+            ]
+            if not self.grounded_fact_renderer.is_supported(
+                rendered,
+                cited_evidence,
+                state,
+                labels={claim.label},
+            ):
+                raise ValueError(
+                    "mechanically rendered fact failed its Evidence fidelity "
+                    f"contract: {claim.label}"
+                )
+            grounded_lines.append(f"- {rendered}")
+            grounded_provenance.append(
+                {
+                    "path": f"key_findings:grounded:{index}",
+                    "text": claim.text,
+                    "provenance": "mechanical_grounded_fact",
+                    "evidence_ids": valid_ids,
+                    "has_citation": bool(valid_ids),
+                    "invalid_reference_count": 0,
+                    "mutation_guarded": True,
+                    "label": claim.label,
+                }
+            )
+        for label in batch.gaps:
+            grounded_lines.append(
+                f"- {label}：未取得满足 typed coverage 与 Evidence "
+                "保真合同的事实；本轮不展示生成式数值结论。"
+            )
+        lines = lines[:start] + grounded_lines + [""] + lines[end:]
+        downgraded = self._downgrade_unsupported_numeric_lines(
+            lines,
+            state,
+            ref_map,
+            required_labels,
+        )
+        prior = self.last_stats.get("claim_provenance", [])
+        prior_rows = prior if isinstance(prior, list) else []
+        self.last_stats["claim_provenance"] = [
+            item
+            for item in prior_rows
+            if not str(item.get("path", "")).startswith("key_findings:")
+        ] + grounded_provenance
+        self.last_stats["reader_fidelity_guard"] = {
+            "grounded_key_findings": len(grounded),
+            "grounded_gaps": list(batch.gaps),
+            "downgraded_numeric_lines": downgraded,
+            "mode": "mechanical_typed_evidence",
+        }
+        return "\n".join(lines)
+
+    def _downgrade_unsupported_numeric_lines(
+        self,
+        lines: list[str],
+        state: ResearchState,
+        ref_map: dict[str, int],
+        required_labels: set[str],
+    ) -> int:
+        guarded_sections = {
+            "摘要",
+            "详细分析",
+            "补充事实",
+            "风险与限制",
+            "未验证假设",
+        }
+        evidence_by_footnote = {
+            number: evidence
+            for evidence_id, number in ref_map.items()
+            for evidence in state.evidence_store
+            if evidence.id == evidence_id
+        }
+        section = ""
+        downgraded = 0
+        for index, line in enumerate(lines):
+            if line.startswith("## "):
+                section = line.removeprefix("## ").strip()
+                continue
+            if section not in guarded_sections or not line.strip():
+                continue
+            if line.startswith("### "):
+                continue
+            cited = [
+                evidence_by_footnote[int(number)]
+                for number in _FOOTNOTE_RE.findall(line)
+                if int(number) in evidence_by_footnote
+            ]
+            if self.grounded_fact_renderer is None:
+                raise ValueError("reader fidelity policy disappeared mid-run")
+            if self.grounded_fact_renderer.is_supported(
+                line,
+                cited,
+                state,
+                labels=required_labels,
+            ):
+                continue
+            prefix = "- " if line.lstrip().startswith("-") else ""
+            lines[index] = (
+                prefix
+                + "该数值表述未通过 Evidence 保真守卫，已从读者报告移除；"
+                "精确值仅以“关键发现”和“指标覆盖状态”的机械渲染为准。"
+            )
+            downgraded += 1
+        return downgraded
 
     def structured_output(self, state: ResearchState) -> StructuredResearchOutput:
         return build_structured_output(state)
@@ -689,8 +878,12 @@ class ReporterAgent:
         return max(dates).isoformat() if dates else "未标注"
 
     def _evidence_claim_text(self, item: Evidence) -> str:
+        if item.claim_type == "data" and item.structured_record:
+            return self._typed_evidence_claim(item)
         if item.claim_type != "data" or not item.numeric_fields:
             return item.claim
+        if has_financial_numeric_mismatch(item.claim, [item]):
+            return self._typed_evidence_claim(item)
         fields = item.numeric_fields
         parts = []
         if fields.period:
@@ -700,6 +893,47 @@ class ReporterAgent:
         if fields.unit:
             parts.append(f"单位: {fields.unit}")
         return f"{item.claim}（{'; '.join(parts)}）" if parts else item.claim
+
+    def _typed_evidence_claim(self, item: Evidence) -> str:
+        record = item.structured_record
+        fields = item.numeric_fields
+        entity = record.entity if record else fields.entity if fields else ""
+        metric = (
+            record.metric_name
+            if record
+            else fields.metric_name
+            if fields and fields.metric_name
+            else "该指标"
+        )
+        period = record.period if record else fields.period if fields else ""
+        dimension = (
+            record.dimension
+            if record
+            else fields.dimension
+            if fields
+            else "未标注"
+        )
+        value = record.value if record else fields.value if fields else None
+        unit = record.unit if record else fields.unit if fields else ""
+        if value is None or not unit:
+            return "该 Evidence 的 typed 数值字段不完整，未展示生成式数值。"
+        decimal = Decimal(str(value))
+        rendered_value = (
+            f"{format(decimal, 'f')}元"
+            if unit == "元"
+            else f"{format(decimal, 'f').rstrip('0').rstrip('.')}{unit}"
+        )
+        context = "; ".join(
+            part
+            for part in (
+                f"报告期/时点: {period}" if period else "",
+                f"口径: {dimension}" if dimension else "",
+                f"单位: {unit}" if unit else "",
+            )
+            if part
+        )
+        claim = f"{entity} {period} {dimension}{metric}为{rendered_value}".strip()
+        return f"{claim}（{context}）" if context else claim
 
     def _append_metric_coverage(
         self,

@@ -16,6 +16,7 @@ from deepresearch_agent.decisions import (
     append_decision_chain,
     record_agent_decision,
 )
+from deepresearch_agent.domains.finance import FinanceGroundedFactRenderer
 from deepresearch_agent.llm import BudgetExceededError, LLMClient
 from deepresearch_agent.memory import (
     ContextWorkingMemory,
@@ -293,7 +294,10 @@ class DeepResearchEngine:
                 self.settings.numeric_check_absolute_tolerance
             ),
         )
-        self.reporter = ReporterAgent(llm_client=self.llm_client)
+        self.reporter = ReporterAgent(
+            llm_client=self.llm_client,
+            grounded_fact_renderer=FinanceGroundedFactRenderer(),
+        )
         self.evaluator = Evaluator()
         self.reflector = Reflector()
         self.branch_budget: BranchBudget | None = None
