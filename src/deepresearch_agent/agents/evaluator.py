@@ -5,6 +5,7 @@ import time
 from collections import Counter
 
 from deepresearch_agent.agents.numeric_citations import has_financial_numeric_mismatch
+from deepresearch_agent.metric_coverage import metric_requirements
 from deepresearch_agent.schemas import EvaluationResult, Evidence, ResearchState
 
 CITATION_RE = re.compile(r"\[\^(\d+)\]")
@@ -16,6 +17,10 @@ class Evaluator:
     def evaluate(self, state: ResearchState, started_at: float | None = None) -> EvaluationResult:
         report = state.final_report or ""
         evidence_count = len(state.evidence_store)
+        required_metrics = {
+            item.metric
+            for item in metric_requirements(state)
+        }
         claim_lines = [line for line in report.splitlines() if line.startswith("- ")]
         execution_mode = state.metadata.get("execution_mode")
         (
@@ -27,11 +32,13 @@ class Evaluator:
             claim_lines,
             state.evidence_store,
             state.report_footnote_evidence,
+            required_metrics,
         )
         numeric_citation_mismatches = self._numeric_report_mismatches(
             report,
             state.evidence_store,
             state.report_footnote_evidence,
+            required_metrics,
         )
         if citation_total and not state.report_footnote_evidence:
             state.metadata.setdefault("degradation_events", []).append(
@@ -138,6 +145,7 @@ class Evaluator:
         claim_lines: list[str],
         evidence_store: list[Evidence],
         report_footnote_evidence: dict[int, str] | None = None,
+        required_metrics: set[str] | None = None,
     ) -> tuple[int, int, int, int]:
         evidence_by_id = {item.id: item for item in evidence_store}
         footnote_to_evidence = {
@@ -163,7 +171,11 @@ class Evaluator:
             ]
             numeric_mismatch = (
                 bool(cited_evidence)
-                and has_financial_numeric_mismatch(claim_text, cited_evidence)
+                and has_financial_numeric_mismatch(
+                    claim_text,
+                    cited_evidence,
+                    required_metrics=required_metrics,
+                )
             )
             if numeric_mismatch:
                 numeric_citation_mismatches += 1
@@ -188,6 +200,7 @@ class Evaluator:
         report: str,
         evidence_store: list[Evidence],
         report_footnote_evidence: dict[int, str] | None,
+        required_metrics: set[str] | None = None,
     ) -> int:
         """Audit every reader-visible financial number, including the summary."""
         evidence_by_id = {item.id: item for item in evidence_store}
@@ -220,6 +233,7 @@ class Evaluator:
             if has_financial_numeric_mismatch(
                 claim_text,
                 cited_evidence,
+                required_metrics=required_metrics,
             ):
                 mismatches += 1
         return mismatches

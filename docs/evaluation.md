@@ -42,6 +42,9 @@ amount YoY rate or a rate percentage-point change. Financial-statement column
 headers bind each value to its year; conflicting LLM-normalized period/value
 pairs are rejected. `营业总收入` and `营业收入` are separate metrics rather than
 aliases.
+An unqualified gross-margin request routed as `主营业务毛利率` additionally
+requires a main-business total dimension such as `酒类` or `小计`; product,
+region, and channel rows cannot close that slot or support its numeric claim.
 For text Evidence, source truth comes from verbatim `extract_text`; an
 LLM-produced `claim` is never treated as independent support, and normalized
 numeric fields are used only when their metric and value occur in that

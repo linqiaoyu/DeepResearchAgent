@@ -186,6 +186,49 @@ class ReporterFinanceTemplateTests(unittest.TestCase):
             "cited",
         )
 
+    def test_product_margin_does_not_close_main_business_requirement(
+        self,
+    ) -> None:
+        state = ResearchState(topic="贵州茅台 2025 年主营业务毛利率")
+        state.plan = ResearchPlan(
+            topic=state.topic,
+            sub_questions=[
+                SubQuestion(
+                    id="finance",
+                    question="主营业务毛利率是多少？",
+                    search_queries=["600519 年度报告"],
+                    structured_data_requests=[
+                        StructuredDataRequest(
+                            capability="financial_indicators",
+                            symbol="600519",
+                            periods=["20251231"],
+                            metrics=["主营业务毛利率"],
+                        )
+                    ],
+                )
+            ],
+        )
+        state.completed_tasks = ["finance"]
+        state.evidence_store = [
+            self._metric_evidence(
+                state,
+                "product-margin-2025",
+                "主营业务毛利率",
+                "20251231",
+                93.53,
+                10,
+                unit="%",
+                dimension="茅台酒",
+            )
+        ]
+
+        report = ReporterAgent().report(state)
+        coverage = state.metadata["requested_metric_coverage"][0]
+
+        self.assertEqual(coverage["status"], "searched_unavailable")
+        self.assertEqual(coverage["evidence_ids"], [])
+        self.assertIn("已检索，但未获得可引用的完整指标证据", report)
+
     def test_current_period_without_prior_or_yoy_is_explicitly_incomplete(
         self,
     ) -> None:
@@ -402,8 +445,12 @@ class ReporterFinanceTemplateTests(unittest.TestCase):
         page: int,
         *,
         unit: str = "元",
+        dimension: str | None = None,
     ) -> Evidence:
-        claim = f"贵州茅台 {period} {metric}为 {value} 元。"
+        claim = f"贵州茅台 {period} {metric}为 {value}{unit}。"
+        resolved_dimension = dimension or (
+            "酒类" if unit == "%" else "合并"
+        )
         return Evidence(
             id=evidence_id,
             research_id=state.research_id,
@@ -419,7 +466,7 @@ class ReporterFinanceTemplateTests(unittest.TestCase):
                 entity="贵州茅台",
                 metric_name=metric,
                 period=period,
-                dimension="合并",
+                dimension=resolved_dimension,
                 value=value,
                 unit=unit,
             ),

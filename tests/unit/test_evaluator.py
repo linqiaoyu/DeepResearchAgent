@@ -9,7 +9,10 @@ from deepresearch_agent.schemas import (
     Evidence,
     Issue,
     NumericFields,
+    ResearchPlan,
     ResearchState,
+    StructuredDataRequest,
+    SubQuestion,
 )
 
 
@@ -256,6 +259,254 @@ class EvaluatorTests(unittest.TestCase):
 
         self.assertEqual(result.task_success_rate, 1.0)
         self.assertEqual(result.citation_accuracy, 1.0)
+        self.assertNotIn(
+            "numeric_citation_mismatch",
+            result.bad_case_categories,
+        )
+
+    def test_product_margin_cannot_support_main_business_margin(
+        self,
+    ) -> None:
+        state = ResearchState(topic="贵州茅台 2025 年毛利率")
+        state.plan = ResearchPlan(
+            topic=state.topic,
+            sub_questions=[
+                SubQuestion(
+                    id="finance",
+                    question=state.topic,
+                    search_queries=["600519 年度报告"],
+                    structured_data_requests=[
+                        StructuredDataRequest(
+                            capability="financial_indicators",
+                            symbol="600519",
+                            periods=["20251231"],
+                            metrics=["主营业务毛利率"],
+                        )
+                    ],
+                )
+            ],
+        )
+        evidence = Evidence(
+            research_id=state.research_id,
+            sub_question_id="finance",
+            claim="茅台酒毛利率为93.53%。",
+            claim_type="data",
+            source_url="https://example.com/annual-report.pdf",
+            source_title="贵州茅台2025年年度报告",
+            source_pub_date=date(2026, 4, 16),
+            source_page=10,
+            extract_text=(
+                "主营业务分行业 酒类 毛利率（%） 91.23\n"
+                "主营业务分产品 茅台酒 毛利率（%） 93.53"
+            ),
+            numeric_fields=NumericFields(
+                entity="贵州茅台",
+                metric_name="主营业务毛利率",
+                period="20251231",
+                dimension="茅台酒",
+                value=93.53,
+                unit="%",
+            ),
+            source_tier="primary",
+        )
+        state.evidence_store = [evidence]
+        state.final_report = (
+            "- 主营业务毛利率为93.53%。 [^1]\n\n"
+            "[^1]: 贵州茅台2025年年度报告 p10"
+        )
+        state.report_footnote_evidence = {1: evidence.id}
+
+        result = Evaluator().evaluate(state)
+
+        self.assertEqual(result.task_success_rate, 0.0)
+        self.assertIn(
+            "numeric_citation_mismatch",
+            result.bad_case_categories,
+        )
+
+    def test_product_margin_yoy_cannot_support_main_business_yoy(
+        self,
+    ) -> None:
+        state = ResearchState(topic="贵州茅台 2025 年毛利率及同比")
+        state.plan = ResearchPlan(
+            topic=state.topic,
+            sub_questions=[
+                SubQuestion(
+                    id="finance",
+                    question=state.topic,
+                    search_queries=["600519 年度报告"],
+                    structured_data_requests=[
+                        StructuredDataRequest(
+                            capability="financial_indicators",
+                            symbol="600519",
+                            periods=["20251231", "20241231"],
+                            metrics=["主营业务毛利率"],
+                        )
+                    ],
+                )
+            ],
+        )
+        evidence = Evidence(
+            research_id=state.research_id,
+            sub_question_id="finance",
+            claim="茅台酒毛利率同比减少0.53个百分点。",
+            claim_type="data",
+            source_url="https://example.com/annual-report.pdf",
+            source_title="贵州茅台2025年年度报告",
+            source_pub_date=date(2026, 4, 16),
+            source_page=10,
+            extract_text=(
+                "主营业务分产品情况 毛利率（%） "
+                "毛利率比上年增减（%）\n"
+                "茅台酒 93.53 减少 0.53 个百\n分点"
+            ),
+            numeric_fields=NumericFields(
+                entity="贵州茅台",
+                metric_name="主营业务毛利率",
+                period="20251231",
+                dimension="茅台酒",
+                value=93.53,
+                unit="%",
+            ),
+            source_tier="primary",
+        )
+        state.evidence_store = [evidence]
+        state.final_report = (
+            "- 主营业务毛利率同比减少0.53个百分点。 [^1]\n\n"
+            "[^1]: 贵州茅台2025年年度报告 p10"
+        )
+        state.report_footnote_evidence = {1: evidence.id}
+
+        result = Evaluator().evaluate(state)
+
+        self.assertEqual(result.task_success_rate, 0.0)
+        self.assertIn(
+            "numeric_citation_mismatch",
+            result.bad_case_categories,
+        )
+
+    def test_explicit_main_business_metric_accepts_generic_pdf_header(
+        self,
+    ) -> None:
+        state = ResearchState(topic="贵州茅台 2025 年毛利率")
+        state.plan = ResearchPlan(
+            topic=state.topic,
+            sub_questions=[
+                SubQuestion(
+                    id="finance",
+                    question=state.topic,
+                    search_queries=["600519 年度报告"],
+                    structured_data_requests=[
+                        StructuredDataRequest(
+                            capability="financial_indicators",
+                            symbol="600519",
+                            periods=["20251231"],
+                            metrics=["主营业务毛利率"],
+                        )
+                    ],
+                )
+            ],
+        )
+        evidence = Evidence(
+            research_id=state.research_id,
+            sub_question_id="finance",
+            claim="主营业务毛利率为91.23%。",
+            claim_type="data",
+            source_url="https://example.com/annual-report.pdf",
+            source_title="贵州茅台2025年年度报告",
+            source_pub_date=date(2026, 4, 16),
+            source_page=10,
+            extract_text=(
+                "主营业务分行业情况\n"
+                "分行业 营业收入 营业成本 毛利率（%）\n"
+                "酒类 168,774,585,187.65 14,805,900,139.59 91.23"
+            ),
+            numeric_fields=NumericFields(
+                entity="贵州茅台",
+                metric_name="主营业务毛利率",
+                period="20251231",
+                dimension="酒类",
+                value=91.23,
+                unit="%",
+            ),
+            source_tier="primary",
+        )
+        state.evidence_store = [evidence]
+        state.final_report = (
+            "- 主营业务毛利率为91.23%。 [^1]\n\n"
+            "[^1]: 贵州茅台2025年年度报告 p10"
+        )
+        state.report_footnote_evidence = {1: evidence.id}
+
+        result = Evaluator().evaluate(state)
+
+        self.assertEqual(result.task_success_rate, 1.0)
+        self.assertNotIn(
+            "numeric_citation_mismatch",
+            result.bad_case_categories,
+        )
+
+    def test_main_business_margin_accepts_same_row_yoy_from_pdf(
+        self,
+    ) -> None:
+        state = ResearchState(topic="贵州茅台 2025 年毛利率及同比")
+        state.plan = ResearchPlan(
+            topic=state.topic,
+            sub_questions=[
+                SubQuestion(
+                    id="finance",
+                    question=state.topic,
+                    search_queries=["600519 年度报告"],
+                    structured_data_requests=[
+                        StructuredDataRequest(
+                            capability="financial_indicators",
+                            symbol="600519",
+                            periods=["20251231", "20241231"],
+                            metrics=["主营业务毛利率"],
+                        )
+                    ],
+                )
+            ],
+        )
+        evidence = Evidence(
+            research_id=state.research_id,
+            sub_question_id="finance",
+            claim="主营业务毛利率为91.23%，同比减少0.78个百分点。",
+            claim_type="data",
+            source_url="https://example.com/annual-report.pdf",
+            source_title="贵州茅台2025年年度报告",
+            source_pub_date=date(2026, 4, 16),
+            source_page=10,
+            extract_text=(
+                "主营业务分行业情况\n"
+                "分行业 营业收入 营业成本 毛利率（%） 营业收入比上\n"
+                "年增减（%） 营业成本比上\n"
+                "年增减（%） 毛利率比上年\n增减（%）\n"
+                "酒类 168,774,585,187.65 14,805,900,139.59 "
+                "91.23 -1.08 8.63 减少 0.78 个百\n分点\n"
+                "茅台酒 146,499,906,480.49 9,484,757,825.54 "
+                "93.53 0.39 9.50 减少 0.53 个百\n分点"
+            ),
+            numeric_fields=NumericFields(
+                entity="贵州茅台",
+                metric_name="主营业务毛利率",
+                period="20251231",
+                dimension="酒类",
+                value=91.23,
+                unit="%",
+            ),
+            source_tier="primary",
+        )
+        state.evidence_store = [evidence]
+        state.final_report = (
+            "- 主营业务毛利率为91.23%，同比减少0.78个百分点。 [^1]\n\n"
+            "[^1]: 贵州茅台2025年年度报告 p10"
+        )
+        state.report_footnote_evidence = {1: evidence.id}
+
+        result = Evaluator().evaluate(state)
+
+        self.assertEqual(result.task_success_rate, 1.0)
         self.assertNotIn(
             "numeric_citation_mismatch",
             result.bad_case_categories,

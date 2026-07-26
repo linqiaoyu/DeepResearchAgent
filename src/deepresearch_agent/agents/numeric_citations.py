@@ -14,7 +14,7 @@ NUMBER_PATTERN = (
 )
 MEASURE_RE = re.compile(
     rf"(?P<number>{NUMBER_PATTERN})\s*"
-    r"(?P<unit>亿元|万元|个百分点|元|%|％|pct)",
+    r"(?P<unit>亿元|万元|个百分点|个百\s*分点|元|%|％|pct)",
     re.IGNORECASE,
 )
 BARE_COMMA_AMOUNT_RE = re.compile(
@@ -29,7 +29,11 @@ BASE_METRIC_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
         "net_profit_parent",
         re.compile(r"归母净利(?:润)?|归属于(?:上市公司|母公司)股东的净利润"),
     ),
-    ("gross_margin", re.compile(r"毛利率")),
+    (
+        "gross_margin_main_business",
+        re.compile(r"主营业务毛利率"),
+    ),
+    ("gross_margin", re.compile(r"(?<!主营业务)毛利率")),
     ("total_revenue", re.compile(r"营业总收入")),
     ("revenue", re.compile(r"(?<!总)营业收入|营收")),
     ("net_profit", re.compile(r"净利润|净利")),
@@ -55,16 +59,39 @@ class FinancialValue:
 def has_financial_numeric_mismatch(
     claim_text: str,
     cited_evidence: Sequence[Evidence],
+    *,
+    required_metrics: set[str] | None = None,
 ) -> bool:
     """Return whether a financial number lacks support in the cited Evidence union."""
 
     claimed_values = _extract_text_values(claim_text)
+    if required_metrics and "主营业务毛利率" in required_metrics:
+        claimed_values = [
+            replace(
+                value,
+                metric=(
+                    "gross_margin_main_business:yoy"
+                    if value.metric == "gross_margin:yoy"
+                    else "gross_margin_main_business"
+                ),
+            )
+            if value.metric in {
+                "gross_margin",
+                "gross_margin:yoy",
+            }
+            else value
+            for value in claimed_values
+        ]
     if not claimed_values:
         return False
 
     evidence_values: list[FinancialValue] = []
     for evidence in cited_evidence:
-        evidence_values.extend(_extract_text_values(evidence.extract_text))
+        extracted_values = _promote_main_business_margin_values(
+            _extract_text_values(evidence.extract_text),
+            evidence,
+        )
+        evidence_values.extend(extracted_values)
         if evidence.structured_record:
             value = _value_from_structured_record(
                 evidence.structured_record
@@ -94,6 +121,16 @@ def _extract_text_values(text: str) -> list[FinancialValue]:
     for match in MEASURE_RE.finditer(text):
         occupied_spans.append(match.span())
         metric = _metric_before(text, match.start())
+        if (
+            not metric
+            and _normalize_unit(match.group("unit"))
+            == "个百分点"
+            and re.search(
+                r"毛利率比上年",
+                text[max(0, match.start() - 300) : match.start()],
+            )
+        ):
+            metric = "gross_margin:yoy"
         if not metric:
             continue
         value = _value_from_text(
@@ -185,6 +222,16 @@ def _numeric_fields_are_extract_grounded(
         ),
         None,
     )
+    if (
+        metric == "gross_margin_main_business"
+        and is_main_business_margin_dimension(fields.dimension)
+        and (pattern is None or not pattern.search(extract_text))
+    ):
+        pattern = next(
+            candidate
+            for candidate_metric, candidate in BASE_METRIC_PATTERNS
+            if candidate_metric == "gross_margin"
+        )
     if pattern is None or not pattern.search(extract_text):
         return False
     expected = Decimal(str(fields.value))
@@ -218,6 +265,133 @@ def _numeric_fields_are_extract_grounded(
     return not period_candidates or any(
         _values_match(field_value, candidate)
         for candidate in period_candidates
+    )
+
+
+def _promote_main_business_margin_values(
+    values: list[FinancialValue],
+    evidence: Evidence,
+) -> list[FinancialValue]:
+    """Scope generic margin values only when a typed total-row field anchors them."""
+    typed_value = None
+    dimension = None
+    if evidence.structured_record:
+        dimension = evidence.structured_record.dimension
+        typed_value = _value_from_structured_record(
+            evidence.structured_record
+        )
+    elif evidence.numeric_fields:
+        dimension = evidence.numeric_fields.dimension
+        if not is_main_business_margin_dimension(
+            dimension
+        ):
+            return values
+        typed_value = _value_from_numeric_fields(
+            evidence.numeric_fields
+        )
+    if (
+        typed_value is None
+        or not typed_value.metric.startswith(
+            "gross_margin_main_business"
+        )
+    ):
+        return values
+
+    values = [
+        *values,
+        *_main_business_margin_yoy_values(
+            evidence.extract_text,
+            dimension,
+        ),
+    ]
+    promoted: list[FinancialValue] = []
+    for value in values:
+        metric = value.metric
+        if (
+            metric == "gross_margin"
+            and not typed_value.metric.endswith(":yoy")
+            and _values_match(
+                replace(
+                    value,
+                    metric=typed_value.metric,
+                ),
+                typed_value,
+            )
+        ):
+            metric = "gross_margin_main_business"
+        elif metric == "gross_margin:yoy" and (
+            typed_value.metric.endswith(":yoy")
+            and _values_match(
+                replace(
+                    value,
+                    metric=typed_value.metric,
+                ),
+                typed_value,
+            )
+        ):
+            metric = "gross_margin_main_business:yoy"
+        promoted.append(
+            replace(value, metric=metric)
+            if metric != value.metric
+            else value
+        )
+    return promoted
+
+
+def _main_business_margin_yoy_values(
+    text: str,
+    dimension: str | None,
+) -> list[FinancialValue]:
+    """Read percentage-point changes only from the anchored total row."""
+    if not is_main_business_margin_dimension(dimension):
+        return []
+    values: list[FinancialValue] = []
+    for match in MEASURE_RE.finditer(text):
+        if _normalize_unit(match.group("unit")) != "个百分点":
+            continue
+        row_start = text.rfind("\n", 0, match.start()) + 1
+        row = text[row_start : match.end()]
+        if not _main_business_row_matches(row, dimension or ""):
+            continue
+        value = _value_from_text(
+            number_text=match.group("number"),
+            unit_text=match.group("unit"),
+            metric="gross_margin_main_business:yoy",
+            text=text,
+            number_start=match.start("number"),
+        )
+        if value:
+            values.append(value)
+    return values
+
+
+def _main_business_row_matches(
+    row: str,
+    dimension: str,
+) -> bool:
+    normalized_row = re.sub(r"\s+", "", row)
+    normalized_dimension = re.sub(r"\s+", "", dimension)
+    if any(
+        term in normalized_row
+        for term in (
+            "茅台酒",
+            "其他系列酒",
+            "国内",
+            "国外",
+            "批发代理",
+            "直销",
+        )
+    ):
+        return False
+    for label in ("酒类", "小计", "合计", "总计"):
+        if label in normalized_dimension:
+            return label in normalized_row
+    return (
+        "主营业务" in normalized_dimension
+        and any(
+            label in normalized_row
+            for label in ("酒类", "小计", "合计", "总计")
+        )
     )
 
 
@@ -255,6 +429,11 @@ def _value_from_structured_parts(
     unit = _normalize_unit(unit_text)
     if not metric or not unit:
         return None
+    if (
+        metric == "gross_margin"
+        and is_main_business_margin_dimension(dimension)
+    ):
+        metric = "gross_margin_main_business"
     if YOY_RE.search(dimension):
         metric = f"{metric}:yoy"
     return _value_from_text(
@@ -360,7 +539,7 @@ def _display_step(number_text: str) -> Decimal:
 
 
 def _normalize_unit(unit_text: str) -> str | None:
-    normalized = unit_text.strip().lower()
+    normalized = re.sub(r"\s+", "", unit_text).lower()
     if "亿元" in normalized:
         return "亿元"
     if "万元" in normalized:
@@ -374,6 +553,38 @@ def _normalize_unit(unit_text: str) -> str | None:
     if normalized == "pct":
         return "pct"
     return None
+
+
+def is_main_business_margin_dimension(dimension: str | None) -> bool:
+    """Return whether a gross-margin row represents the main-business total."""
+    if not dimension:
+        return False
+    normalized = re.sub(r"[\s：:（）()、，,/_-]", "", dimension)
+    excluded = (
+        "茅台酒",
+        "其他系列酒",
+        "国内",
+        "国外",
+        "批发代理",
+        "直销",
+        "销售渠道",
+        "销售模式",
+        "地区分部",
+        "分地区",
+        "分产品",
+    )
+    if any(term in normalized for term in excluded):
+        return False
+    return any(
+        term in normalized
+        for term in (
+            "主营业务",
+            "酒类",
+            "小计",
+            "合计",
+            "总计",
+        )
+    )
 
 
 def _default_amount_unit(text: str) -> str:

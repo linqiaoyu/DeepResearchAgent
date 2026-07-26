@@ -6,6 +6,9 @@ from typing import Literal
 
 from pydantic import Field
 
+from deepresearch_agent.agents.numeric_citations import (
+    is_main_business_margin_dimension,
+)
 from deepresearch_agent.schemas import (
     Evidence,
     ResearchState,
@@ -89,8 +92,7 @@ def evaluate_metric_coverage(
                 requirement.sub_question_id,
                 [],
             )
-            if canonical_metric(_evidence_metric(item))
-            == requirement.metric
+            if _evidence_matches_metric(item, requirement.metric)
         ]
         observed_periods = sorted({
             period
@@ -176,6 +178,38 @@ def _evidence_metric(evidence: Evidence) -> str | None:
     if evidence.numeric_fields:
         return evidence.numeric_fields.metric_name
     return None
+
+
+def _evidence_matches_metric(
+    evidence: Evidence,
+    required_metric: str,
+) -> bool:
+    evidence_metric = _evidence_metric(evidence)
+    if canonical_metric(evidence_metric) != required_metric:
+        return False
+    if required_metric != "主营业务毛利率":
+        return True
+    normalized_metric = re.sub(
+        r"[\s：:（）()]",
+        "",
+        evidence_metric or "",
+    )
+    if (
+        evidence.structured_record
+        and normalized_metric == "主营业务毛利率"
+    ):
+        # An explicitly typed main-business metric is already scoped at the
+        # structured-provider boundary. Extractor fields remain untrusted
+        # interpretations and must still pass the dimension contract.
+        return True
+    dimension = (
+        evidence.structured_record.dimension
+        if evidence.structured_record
+        else evidence.numeric_fields.dimension
+        if evidence.numeric_fields
+        else None
+    )
+    return is_main_business_margin_dimension(dimension)
 
 
 def _evidence_periods(evidence: Evidence) -> set[str]:
