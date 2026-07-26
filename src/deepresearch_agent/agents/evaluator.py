@@ -22,9 +22,14 @@ class Evaluator:
             citation_total,
             supported_citations,
             unresolved_citations,
-            numeric_citation_mismatches,
+            _bullet_numeric_mismatches,
         ) = self._score_citations(
             claim_lines,
+            state.evidence_store,
+            state.report_footnote_evidence,
+        )
+        numeric_citation_mismatches = self._numeric_report_mismatches(
+            report,
             state.evidence_store,
             state.report_footnote_evidence,
         )
@@ -177,6 +182,47 @@ class Evaluator:
             unresolved_citations,
             numeric_citation_mismatches,
         )
+
+    def _numeric_report_mismatches(
+        self,
+        report: str,
+        evidence_store: list[Evidence],
+        report_footnote_evidence: dict[int, str] | None,
+    ) -> int:
+        """Audit every reader-visible financial number, including the summary."""
+        evidence_by_id = {item.id: item for item in evidence_store}
+        footnote_to_evidence = {
+            number: evidence_by_id[evidence_id]
+            for number, evidence_id in (
+                report_footnote_evidence or {}
+            ).items()
+            if evidence_id in evidence_by_id
+        }
+        mismatches = 0
+        for raw_line in report.splitlines():
+            line = raw_line.strip()
+            if (
+                not line
+                or line.startswith("#")
+                or re.match(r"^\[\^\d+\]:", line)
+            ):
+                continue
+            citation_numbers = [
+                int(match)
+                for match in CITATION_RE.findall(line)
+            ]
+            cited_evidence = [
+                footnote_to_evidence[number]
+                for number in citation_numbers
+                if number in footnote_to_evidence
+            ]
+            claim_text = CITATION_RE.sub("", line.removeprefix("- ")).strip()
+            if has_financial_numeric_mismatch(
+                claim_text,
+                cited_evidence,
+            ):
+                mismatches += 1
+        return mismatches
 
     def _claim_text(self, line: str) -> str:
         text = line.removeprefix("- ").strip()

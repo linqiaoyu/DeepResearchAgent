@@ -29,13 +29,20 @@ content-affecting until measured.
 
 The mechanical financial numeric-citation audit runs in every execution mode
 and recognizes revenue, net profit, gross margin, and operating-cost amounts or
-rates. It normalizes
+rates across every reader-visible report line, including the non-bulleted
+summary. A financial value without an explicit resolvable citation therefore
+fails the audit instead of escaping bullet-only scoring. It normalizes
 `元`/`万元`/`亿元`, allows rounding within half of the displayed numeric
 resolution, and preserves percentage or percentage-point direction from words
 such as `增长` and `下降`. Years, footnote numbers, and page locators are not
 treated as financial values. Resolution uses only
 `report_footnote_evidence`; positional Evidence inference remains prohibited.
-The audit is deliberately mechanical rather than a semantic LLM judge.
+For text Evidence, source truth comes from verbatim `extract_text`; an
+LLM-produced `claim` is never treated as independent support, and normalized
+numeric fields are used only when their metric and value occur in that
+excerpt. Structured records remain authoritative at their typed interface
+boundary. The audit is deliberately mechanical rather than a semantic LLM
+judge.
 
 Unsupported or invalid bullet citations are counted as `citation_error` bad
 cases in deterministic scoring. A recognized financial value that is not

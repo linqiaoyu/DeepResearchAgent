@@ -197,6 +197,29 @@ class EvaluatorTests(unittest.TestCase):
             1,
         )
 
+    def test_numeric_audit_rejects_wrong_uncited_summary_amount(
+        self,
+    ) -> None:
+        state = self._state_with_financial_report(
+            "贵州茅台2025年营业收入1688.38亿元，2024年1708.99亿元，"
+            "同比下降1.21%；归母净利润823.20亿元；主营业务毛利率"
+            "91.23%，同比下降0.78个百分点。"
+        )
+        state.final_report = (
+            "## 摘要\n\n"
+            "贵州茅台2025年营业收入为16883.81亿元。\n\n"
+            + (state.final_report or "")
+        )
+
+        result = Evaluator().evaluate(state)
+
+        self.assertEqual(result.task_success_rate, 0.0)
+        self.assertEqual(result.citation_accuracy, 1.0)
+        self.assertEqual(
+            result.bad_case_categories["numeric_citation_mismatch"],
+            1,
+        )
+
     def test_grounded_numeric_fields_can_interpret_pdf_table_rate(self) -> None:
         state = ResearchState(topic="贵州茅台 2025 年主营业务毛利率")
         evidence = Evidence(
