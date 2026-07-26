@@ -367,7 +367,7 @@ The command writes `artifacts/evaluation/latest_metrics.json`.
 
 ## Metric Diff
 
-`data/eval_baseline.json` stores the deterministic MVP baseline for a 5-case
+`data/eval_baseline.json` preserves the original deterministic MVP baseline for a 5-case
 local sweep. Compare a new run against it with:
 
 ```bash
