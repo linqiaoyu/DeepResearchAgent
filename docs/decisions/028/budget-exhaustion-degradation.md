@@ -18,9 +18,16 @@
 缺失标记与耗尽原因均保留。删除报告中的缺失标记会使该测试失败。回滚方式是在新的提交中
 移除该报告降级段和相应断言；不得将预算拒绝伪装成成功。
 
-## 未决事实
+## 030 勘误：预算口径与后续修复
 
-本轮真实运行确认：LLM planner 的金融子问题没有得到原始题目的证券身份补全，且当前
-`Settings.dynamic_capability_rules_json` 的 financial_metric 默认列表也不含
-`disclosure_source`，与任务卡“已知现实”冲突。该 selector 配置/身份传播问题未在本轮
-擅自修改，须在后续授权中作为同一管道修复一并处理。
+028 的“实际 fetch egress”表述不完整：运行预算按 HTTP 请求种类计数，而非按上层
+`web_fetch` 调用次数计数。CNINFO disclosure 一次成功调用会消耗两次 `fetch`（证券
+身份查询与 PDF 下载）和一次 `search`（公告查询）；Tavily 的网页抓取也消耗 `fetch`。
+因此“6 search + 14 fetch”不能推导出 fetch 预算仍有六次余量，且网页抓取与 disclosure
+共用 fetch 额度，可能在权威披露调用前将其耗尽。
+
+030 随后修复了两项当时未决事实：LLM planner 对显式、已识别的 A 股财务问题会保留证券
+身份，且 financial_metric 默认规则包含 `disclosure_source`。另发现并修复默认 LLM
+engine 虽注册 CNINFO source 但未将其注入 Researcher 的管道断点。预算隔离尚未实施；
+预计需扩展 `ExternalRequestBudget` 为按工具或请求类单列额度，并为 disclosure 预留额度，
+属于会改变运行经济学的后续工作。
