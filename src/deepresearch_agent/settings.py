@@ -22,6 +22,12 @@ class Settings:
     max_searches_per_run: int = 20
     max_external_search_requests_per_run: int = 20
     max_external_fetch_requests_per_run: int = 20
+    # One disclosure operation may make up to three bounded attempts.  Each
+    # attempt performs one announcement search plus at most one stock-list and
+    # five PDF fetches, so the independent authority lane must cover the same
+    # retry envelope.
+    max_authority_search_requests_per_run: int = 3
+    max_authority_fetch_requests_per_run: int = 18
     tavily_raw_content_char_limit: int = 40_000
     pdf_max_pages: int = 100
     demo_daily_llm_limit_cny: float = 5.0
@@ -130,6 +136,18 @@ def load_settings() -> Settings:
         ),
         max_external_fetch_requests_per_run=int(
             os.getenv("DEEPRESEARCH_MAX_EXTERNAL_FETCH_REQUESTS_PER_RUN", "20")
+        ),
+        max_authority_search_requests_per_run=int(
+            os.getenv(
+                "DEEPRESEARCH_MAX_AUTHORITY_SEARCH_REQUESTS_PER_RUN",
+                "3",
+            )
+        ),
+        max_authority_fetch_requests_per_run=int(
+            os.getenv(
+                "DEEPRESEARCH_MAX_AUTHORITY_FETCH_REQUESTS_PER_RUN",
+                "18",
+            )
         ),
         tavily_raw_content_char_limit=int(os.getenv("DEEPRESEARCH_TAVILY_RAW_CONTENT_CHAR_LIMIT", "40000")),
         pdf_max_pages=int(os.getenv("DEEPRESEARCH_PDF_MAX_PAGES", "100")),

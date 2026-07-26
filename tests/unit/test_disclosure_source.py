@@ -6,6 +6,8 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+import httpx
+
 from deepresearch_agent.schemas import ResearchState, StructuredDataRequest, SubQuestion
 from deepresearch_agent.tools import (
     CapabilityMetadata,
@@ -14,6 +16,8 @@ from deepresearch_agent.tools import (
     DisclosureSourceError,
     FixtureSearchTool,
     FixtureStructuredDataProvider,
+    ReliableToolExecutor,
+    RunToolContext,
     build_capability_registry,
 )
 from deepresearch_agent.tools.capability_selector import DeterministicCapabilitySelector
@@ -72,6 +76,125 @@ class Client:
 
 
 class DisclosureSourceTests(unittest.TestCase):
+    def test_disclosure_aggregate_timeout_covers_serial_http_envelope(
+        self,
+    ) -> None:
+        self.assertEqual(DISCLOSURE_TOOL_SPEC.timeout_s, 120.0)
+        self.assertGreater(
+            DISCLOSURE_TOOL_SPEC.timeout_s,
+            30.0 * 3,
+        )
+
+    def test_serial_disclosure_attempt_does_not_overlap_at_old_timeout(
+        self,
+    ) -> None:
+        observed_timeouts: list[float] = []
+
+        def simulated_slow_call(operation: Any, timeout_s: float) -> Any:
+            observed_timeouts.append(timeout_s)
+            if timeout_s <= 31.0:
+                raise TimeoutError("simulated serial request exceeded 30s")
+            return operation()
+
+        with mock.patch.object(
+            ReliableToolExecutor,
+            "_call_with_timeout",
+            side_effect=simulated_slow_call,
+        ):
+            sources = CninfoDisclosureSource(
+                client=Client(security_code="600519"),
+                max_results=1,
+            ).search(
+                "600519",
+                "年度报告",
+                date(2025, 1, 1),
+                date(2026, 7, 26),
+            )
+
+        self.assertEqual(len(sources), 1)
+        self.assertEqual(observed_timeouts, [120.0])
+
+    def test_pdf_timeout_is_retried_as_transient(self) -> None:
+        class FirstPdfTimeoutClient(Client):
+            def __init__(self) -> None:
+                super().__init__(security_code="600519")
+                self.pdf_attempts = 0
+
+            def get(self, url: str, **kwargs: Any) -> Response:
+                if url != CNINFO_STOCK_ENDPOINT:
+                    self.calls.append(("GET", url, kwargs))
+                    self.pdf_attempts += 1
+                    if self.pdf_attempts == 1:
+                        raise httpx.ReadTimeout("first PDF attempt")
+                    return Response(content=PDF)
+                return super().get(url, **kwargs)
+
+        client = FirstPdfTimeoutClient()
+        context = RunToolContext.for_run()
+        sources = CninfoDisclosureSource(
+            client=client,
+            context=context,
+            max_results=1,
+        ).search(
+            "600519",
+            "年度报告",
+            date(2025, 1, 1),
+            date(2026, 7, 26),
+        )
+        snapshot = context.external_request_budget.snapshot()
+
+        self.assertEqual(len(sources), 1)
+        self.assertEqual(client.pdf_attempts, 2)
+        self.assertEqual(snapshot["authority_search_requests"], 2)
+        self.assertEqual(snapshot["authority_fetch_requests"], 4)
+
+    def test_disclosure_lane_survives_exhausted_web_fetch_budget(self) -> None:
+        context = RunToolContext.for_run(max_external_fetch_requests=1)
+        context.consume_external_request("fetch", tool="tavily_search")
+        client = Client(security_code="600519")
+
+        sources = CninfoDisclosureSource(
+            client=client,
+            context=context,
+            max_results=1,
+        ).search(
+            "600519",
+            "年度报告",
+            date(2024, 1, 1),
+            date(2026, 7, 25),
+        )
+        snapshot = context.external_request_budget.snapshot()
+
+        self.assertEqual(len(sources), 1)
+        self.assertEqual(snapshot["fetch_requests"], 1)
+        self.assertEqual(snapshot["max_fetch_requests"], 1)
+        self.assertEqual(snapshot["authority_search_requests"], 1)
+        self.assertEqual(snapshot["authority_fetch_requests"], 2)
+        self.assertEqual(
+            snapshot["accepted_by_tool"]["disclosure_source"],
+            {"search": 1, "fetch": 2},
+        )
+
+    def test_disclosure_budget_refusal_preserves_actionable_reason(self) -> None:
+        context = RunToolContext.for_run(
+            max_authority_fetch_requests=0,
+        )
+
+        with self.assertRaisesRegex(
+            DisclosureSourceError,
+            "budget exhausted for disclosure_source",
+        ):
+            CninfoDisclosureSource(
+                client=Client(security_code="600519"),
+                context=context,
+                max_results=1,
+            ).search(
+                "600519",
+                "年度报告",
+                date(2024, 1, 1),
+                date(2026, 7, 25),
+            )
+
     def test_llm_engine_wires_default_cninfo_source_to_researcher(self) -> None:
         with mock.patch.dict("os.environ", {}, clear=True), mock.patch(
             "deepresearch_agent.workflow.engine.LLMClient"
@@ -133,6 +256,51 @@ class DisclosureSourceTests(unittest.TestCase):
         query = next(call for call in client.calls if call[1] == CNINFO_QUERY_ENDPOINT)
         self.assertEqual(query[2]["data"]["column"], "sse")
         self.assertEqual(query[2]["data"]["plate"], "sh")
+
+    def test_annual_report_query_fetches_only_full_chinese_report(self) -> None:
+        class AnnualReportClient(Client):
+            def post(self, url: str, **kwargs: Any) -> Response:
+                self.calls.append(("POST", url, kwargs))
+                titles = [
+                    ("贵州茅台2025年年度报告", "annual.PDF"),
+                    ("贵州茅台2025年年度报告（英文版）", "annual-en.PDF"),
+                    ("贵州茅台2025年年度报告摘要", "summary.PDF"),
+                    ("贵州茅台2025年半年度报告", "half-year.PDF"),
+                    ("贵州茅台2025年半年度报告摘要", "half-year-summary.PDF"),
+                ]
+                return Response(
+                    {
+                        "announcements": [
+                            {
+                                "secCode": "600519",
+                                "announcementTitle": title,
+                                "announcementTime": 1_765_843_200_000,
+                                "adjunctUrl": path,
+                            }
+                            for title, path in titles
+                        ]
+                    }
+                )
+
+        client = AnnualReportClient(security_code="600519")
+        sources = CninfoDisclosureSource(
+            client=client,
+            max_results=5,
+        ).search(
+            "600519",
+            "年度报告",
+            date(2025, 1, 1),
+            date(2026, 7, 26),
+        )
+        pdf_gets = [
+            url
+            for method, url, _kwargs in client.calls
+            if method == "GET" and url != CNINFO_STOCK_ENDPOINT
+        ]
+
+        self.assertEqual(len(sources), 1)
+        self.assertEqual(sources[0].title, "贵州茅台2025年年度报告")
+        self.assertEqual(pdf_gets, ["https://static.cninfo.com.cn/annual.PDF"])
 
     def test_financial_entity_prioritizes_registered_disclosure_capability(self) -> None:
         registry = build_capability_registry(

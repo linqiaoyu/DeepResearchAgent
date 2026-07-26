@@ -8,10 +8,88 @@ from pathlib import Path
 from deepresearch_agent.agents import ResearcherAgent
 from deepresearch_agent.schemas import Evidence, NumericFields, StructuredDataRequest, SubQuestion
 from deepresearch_agent.storage import SQLiteStore
-from deepresearch_agent.tools import FixtureStructuredDataProvider, build_structured_data_provider
+from deepresearch_agent.tools import (
+    AKShareStructuredDataProvider,
+    FixtureStructuredDataProvider,
+    build_structured_data_provider,
+)
 
 
 class StructuredDataProviderTests(unittest.TestCase):
+    def test_akshare_keeps_total_revenue_distinct_and_deduplicates_rows(self) -> None:
+        class Frame:
+            def __init__(self, rows: list[dict[str, object]]) -> None:
+                self.rows = rows
+
+            def to_dict(self, _orient: str) -> list[dict[str, object]]:
+                return list(self.rows)
+
+        class AKShareStub:
+            def stock_financial_abstract(self, *, symbol: str) -> Frame:
+                self.symbol = symbol
+                revenue = {
+                    "指标": "营业收入",
+                    "20251231": 168_838_102_514.79,
+                    "20241231": 170_899_152_276.34,
+                }
+                return Frame([
+                    {
+                        "指标": "营业总收入",
+                        "20251231": 172_054_171_890.91,
+                        "20241231": 174_144_069_958.25,
+                    },
+                    revenue,
+                    dict(revenue),
+                    {
+                        "指标": "归母净利润",
+                        "20251231": 82_320_067_101.68,
+                        "20241231": 86_228_146_421.62,
+                    },
+                    {
+                        "指标": "毛利率",
+                        "20251231": 91.179551,
+                        "20241231": 91.931216,
+                    },
+                ])
+
+            def stock_info_a_code_name(self) -> Frame:
+                return Frame([{"code": "600519", "name": "贵州茅台"}])
+
+        provider = AKShareStructuredDataProvider(
+            akshare_module=AKShareStub(),
+            max_retries=0,
+        )
+
+        records = provider.financial_indicators(
+            "600519",
+            periods=["2025", "20241231"],
+            metrics=["营业收入", "归母净利润"],
+        )
+        main_business_margin = provider.financial_indicators(
+            "600519",
+            periods=["2025"],
+            metrics=["主营业务毛利率"],
+        )
+
+        self.assertEqual(len(records), 4)
+        self.assertEqual(
+            {
+                (record.metric_name, record.period): record.value
+                for record in records
+            },
+            {
+                ("营业收入", "20251231"): 168_838_102_514.79,
+                ("营业收入", "20241231"): 170_899_152_276.34,
+                ("归母净利润", "20251231"): 82_320_067_101.68,
+                ("归母净利润", "20241231"): 86_228_146_421.62,
+            },
+        )
+        self.assertNotIn(
+            172_054_171_890.91,
+            {record.value for record in records},
+        )
+        self.assertEqual(main_business_margin, [])
+
     def test_fixture_symbol_resolve_and_financial_indicator_normalization(self) -> None:
         provider = FixtureStructuredDataProvider()
 

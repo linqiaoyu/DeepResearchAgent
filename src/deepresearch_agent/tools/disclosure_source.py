@@ -28,7 +28,12 @@ DISCLOSURE_TOOL_SPEC = ToolSpec(
     version="1.0.0",
     input_schema={"type": "object", "required": ["security_code", "keyword", "start_date", "end_date"]},
     output_schema={"type": "array", "items": {"$ref": "Source"}},
-    timeout_s=30.0,
+    # One logical attempt performs stock-list GET, announcement POST, one
+    # selected annual-report GET, and local PDF decoding serially.  Individual
+    # HTTP calls remain bounded at 30s; the aggregate executor timeout must not
+    # spawn an overlapping retry while the first bounded attempt is still
+    # running.
+    timeout_s=120.0,
     cost_class="free",
     idempotent=True,
     has_side_effect=False,
@@ -173,6 +178,8 @@ class CninfoDisclosureSource:
             raise DisclosureSourceError(ToolErrorKind.TIMEOUT, str(exc)) from exc
         except DisclosureSourceError:
             raise
+        except ToolExecutionError:
+            raise
         except Exception as exc:
             raise DisclosureSourceError(
                 ToolErrorKind.TRANSIENT,
@@ -182,8 +189,32 @@ class CninfoDisclosureSource:
             raise DisclosureSourceError(
                 ToolErrorKind.PERMANENT, "cninfo_contract_changed: announcements list missing"
             )
+        candidates = list(announcements or [])[: self.max_results]
+        if inputs["keyword"] == "年度报告":
+            full_chinese_reports = [
+                item
+                for item in candidates
+                if isinstance(item, Mapping)
+                and re.search(
+                    r"20\d{2}年年度报告$",
+                    re.sub(
+                        r"<[^>]+>",
+                        "",
+                        html.unescape(
+                            str(item.get("announcementTitle", ""))
+                        ),
+                    ),
+                )
+            ]
+            # CNINFO also returns the English report, summary, half-year report,
+            # and half-year summary for this query.  A financial metric branch
+            # needs the first full Chinese annual report, not five overlapping
+            # documents in one LLM context.  Keep the original bounded fallback
+            # when the endpoint does not expose an exact full-report title.
+            if full_chinese_reports:
+                candidates = full_chinese_reports[:1]
         sources: list[Source] = []
-        for item in (announcements or [])[: self.max_results]:
+        for item in candidates:
             if not isinstance(item, Mapping) or not item.get("adjunctUrl"):
                 continue
             if str(item.get("secCode")) != inputs["security_code"]:
@@ -191,18 +222,54 @@ class CninfoDisclosureSource:
                     ToolErrorKind.PERMANENT, "cninfo_contract_changed: security filter mismatch"
                 )
             url = CNINFO_PDF_ROOT + str(item["adjunctUrl"]).lstrip("/")
-            self._consume_egress("fetch")
-            pdf = self.client.get(url, timeout=30.0, follow_redirects=True)
-            pdf.raise_for_status()
-            title = re.sub(r"<[^>]+>", "", html.unescape(str(item.get("announcementTitle", ""))))
-            published = datetime.fromtimestamp(
-                int(item["announcementTime"]) / 1000, tz=timezone.utc
-            ).date()
-            sources.append(decode_pdf_source(
-                url, bytes(pdf.content), max_pages=self.pdf_max_pages,
-                char_limit=self.char_limit,
-                source_id=f"cninfo-{hashlib.sha1(url.encode()).hexdigest()[:12]}",
-                title=title, source_type="disclosure_pdf",
-                published_at=published, source_tier="primary", preferred_terms=preferred_terms,
-            ))
+            try:
+                self._consume_egress("fetch")
+                pdf = self.client.get(
+                    url,
+                    timeout=30.0,
+                    follow_redirects=True,
+                )
+                pdf.raise_for_status()
+                title = re.sub(
+                    r"<[^>]+>",
+                    "",
+                    html.unescape(
+                        str(item.get("announcementTitle", ""))
+                    ),
+                )
+                published = datetime.fromtimestamp(
+                    int(item["announcementTime"]) / 1000,
+                    tz=timezone.utc,
+                ).date()
+                sources.append(
+                    decode_pdf_source(
+                        url,
+                        bytes(pdf.content),
+                        max_pages=self.pdf_max_pages,
+                        char_limit=self.char_limit,
+                        source_id=(
+                            "cninfo-"
+                            + hashlib.sha1(
+                                url.encode()
+                            ).hexdigest()[:12]
+                        ),
+                        title=title,
+                        source_type="disclosure_pdf",
+                        published_at=published,
+                        source_tier="primary",
+                        preferred_terms=preferred_terms,
+                    )
+                )
+            except httpx.TimeoutException as exc:
+                raise DisclosureSourceError(
+                    ToolErrorKind.TIMEOUT,
+                    "cninfo_pdf_timeout",
+                ) from exc
+            except ToolExecutionError:
+                raise
+            except Exception as exc:
+                raise DisclosureSourceError(
+                    ToolErrorKind.TRANSIENT,
+                    f"cninfo_pdf_failed error_type={type(exc).__name__}",
+                ) from exc
         return sources

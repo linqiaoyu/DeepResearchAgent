@@ -15,9 +15,11 @@ from deepresearch_agent.schemas import (
     CriticReport,
     Evidence,
     Issue,
+    NumericFields,
     ResearchPlan,
     ResearchState,
     RetryTask,
+    StructuredDataRequest,
     SubQuestion,
 )
 from deepresearch_agent.settings import Settings
@@ -63,6 +65,144 @@ def _evidence(
 
 
 class ResearchSufficiencyTest(unittest.TestCase):
+    def test_requested_metric_coverage_blocks_aggregate_sufficiency(self) -> None:
+        state = ResearchState(topic="贵州茅台三项财务指标")
+        state.plan = ResearchPlan(
+            topic=state.topic,
+            sub_questions=[
+                SubQuestion(
+                    id="finance",
+                    question="营业收入、归母净利润、主营业务毛利率",
+                    search_queries=["600519 年度报告"],
+                    structured_data_requests=[
+                        StructuredDataRequest(
+                            capability="financial_indicators",
+                            company_name="贵州茅台",
+                            symbol="600519",
+                            periods=["20251231"],
+                            metrics=[
+                                "营业收入",
+                                "归母净利润",
+                                "主营业务毛利率",
+                            ],
+                        )
+                    ],
+                )
+            ],
+        )
+        state.completed_tasks = ["finance"]
+        state.evidence_store = [
+            Evidence(
+                id=f"{metric}-evidence",
+                research_id=state.research_id,
+                sub_question_id="finance",
+                claim=f"贵州茅台 2025 年{metric}为 1 元",
+                claim_type="data",
+                source_url=f"https://{index}.example/report",
+                source_title=metric,
+                source_pub_date=date(2026, 4, 16),
+                extract_text=f"贵州茅台 2025 年{metric}为 1 元",
+                numeric_fields=NumericFields(
+                    entity="贵州茅台",
+                    metric_name=metric,
+                    period="20251231",
+                    value=1,
+                    unit="元",
+                ),
+            )
+            for index, metric in enumerate(
+                ("营业收入", "归母净利润"),
+                start=1,
+            )
+        ]
+
+        result = evaluate_research_sufficiency(
+            state,
+            as_of=date(2026, 7, 26),
+            thresholds=SufficiencyThresholds(
+                min_evidence_count=0,
+                min_independent_domains=0,
+                min_average_confidence=0,
+                require_counterargument=False,
+            ),
+        )
+
+        metrics = result.by_sub_question[0]
+        self.assertFalse(result.sufficient)
+        self.assertEqual(metrics.requested_metric_count, 3)
+        self.assertEqual(metrics.covered_metric_count, 2)
+        self.assertEqual(metrics.missing_metrics, ["主营业务毛利率"])
+        self.assertIn("requested_metric_coverage", metrics.gaps)
+
+        refined = refine_research_plan(
+            state,
+            result,
+            as_of=date(2026, 7, 26),
+            iteration=2,
+        )
+        self.assertIn("主营业务毛利率", refined["finance"][0])
+        self.assertNotIn("营业收入", refined["finance"][0])
+
+    def test_current_metric_without_requested_comparison_remains_a_gap(
+        self,
+    ) -> None:
+        state = ResearchState(topic="贵州茅台 2025 年营收及同比")
+        state.plan = ResearchPlan(
+            topic=state.topic,
+            sub_questions=[
+                SubQuestion(
+                    id="finance",
+                    question="2025 年营业收入及同比",
+                    search_queries=["600519 年度报告"],
+                    structured_data_requests=[
+                        StructuredDataRequest(
+                            capability="financial_indicators",
+                            symbol="600519",
+                            periods=["20251231", "20241231"],
+                            metrics=["营业收入"],
+                        )
+                    ],
+                )
+            ],
+        )
+        state.completed_tasks = ["finance"]
+        state.evidence_store = [
+            Evidence(
+                research_id=state.research_id,
+                sub_question_id="finance",
+                claim="2025 年营业收入为 168,838,102,514.79 元。",
+                claim_type="data",
+                source_url="https://cninfo.test/annual.pdf",
+                source_title="年度报告",
+                source_pub_date=date(2026, 4, 16),
+                extract_text="2025 年营业收入为 168,838,102,514.79 元。",
+                numeric_fields=NumericFields(
+                    entity="贵州茅台",
+                    metric_name="营业收入",
+                    period="20251231",
+                    dimension="合并",
+                    value=168_838_102_514.79,
+                    unit="元",
+                ),
+            )
+        ]
+
+        result = evaluate_research_sufficiency(
+            state,
+            as_of=date(2026, 7, 26),
+            thresholds=SufficiencyThresholds(
+                min_evidence_count=0,
+                min_independent_domains=0,
+                min_average_confidence=0,
+                require_counterargument=False,
+            ),
+        )
+        metrics = result.by_sub_question[0]
+
+        self.assertFalse(result.sufficient)
+        self.assertEqual(metrics.missing_metrics, ["营业收入"])
+        self.assertIn("requested_metric_coverage", metrics.gaps)
+
     def test_sufficiency_score_is_sensitive_before_components_saturate(
         self,
     ) -> None:

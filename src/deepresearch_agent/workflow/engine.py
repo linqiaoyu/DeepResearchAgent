@@ -6,6 +6,7 @@ import time
 import traceback
 from collections.abc import Sequence
 from dataclasses import asdict
+from datetime import datetime
 from typing import Annotated, Any, TypedDict
 from urllib.parse import urlsplit
 
@@ -99,6 +100,7 @@ from deepresearch_agent.trajectory import (
     NodeTransitionTrace,
     SignalReadTrace,
     TrajectoryRecorder,
+    TrajectoryTermination,
     active_trajectory_recorder,
     trajectory_recording,
 )
@@ -351,6 +353,12 @@ class DeepResearchEngine:
             max_external_fetch_requests=(
                 self.settings.max_external_fetch_requests_per_run
             ),
+            max_authority_search_requests=(
+                self.settings.max_authority_search_requests_per_run
+            ),
+            max_authority_fetch_requests=(
+                self.settings.max_authority_fetch_requests_per_run
+            ),
         )
         self._bind_run_tool_context(self.run_tool_context)
         if resume:
@@ -418,6 +426,12 @@ class DeepResearchEngine:
                             ),
                             "max_external_fetch_requests_per_run": (
                                 self.settings.max_external_fetch_requests_per_run
+                            ),
+                            "max_authority_search_requests_per_run": (
+                                self.settings.max_authority_search_requests_per_run
+                            ),
+                            "max_authority_fetch_requests_per_run": (
+                                self.settings.max_authority_fetch_requests_per_run
                             ),
                             "research_loop_enabled": (
                                 self.settings.research_loop_enabled
@@ -493,29 +507,68 @@ class DeepResearchEngine:
                         interrupt_before=interrupt_before,
                         interrupt_after=interrupt_after,
                     )
-            except BudgetExceededError:
+                state = self._state_from_graph_values(result)
+                if state.status == "done" and not state.final_report:
+                    state.status = "failed"
+                    state.metadata["terminal_failure"] = {
+                        "reason": (
+                            "workflow_completed_without_final_report"
+                        ),
+                        "phase": state.current_phase,
+                    }
+                    self.graph.update_state(
+                        config,
+                        self._state_output(state),
+                    )
+                    raise RuntimeError(
+                        "Workflow completed without final_report; "
+                        "refusing silent success"
+                    )
+            except BudgetExceededError as exc:
                 state = self.load_state(research_id) or state
                 state.status = "budget_exceeded"
                 state.metadata["llm_budget_exceeded"] = True
                 state.metadata["llm_run_total_cny"] = (
-                    self.llm_client.run_total_cny(research_id) if self.llm_client else 0.0
+                    self.llm_client.run_total_cny(research_id)
+                    if self.llm_client
+                    else 0.0
                 )
-                self.graph.update_state(config, self._state_output(state))
+                self._capture_external_request_budget(state)
+                self.graph.update_state(
+                    config,
+                    self._state_output(state),
+                )
+                self._persist_run_sidecars(
+                    state=state,
+                    research_id=research_id,
+                    recorder=recorder,
+                    manifest_started_at=manifest_started_at,
+                    termination=TrajectoryTermination(
+                        status="budget_exceeded",
+                        phase=state.current_phase,
+                        error_type=type(exc).__name__,
+                        error_message=str(exc) or type(exc).__name__,
+                    ),
+                )
                 self.logger.event("run_finished", status=state.status)
                 return state
             except ToolExecutionError as exc:
                 if exc.kind != ToolErrorKind.BUDGET_EXCEEDED:
+                    self._persist_failed_run(
+                        state=state,
+                        research_id=research_id,
+                        config=config,
+                        recorder=recorder,
+                        manifest_started_at=manifest_started_at,
+                        error=exc,
+                    )
                     raise
                 state = self.load_state(research_id) or state
                 before = self._state_output(state)
                 state.status = "budget_exceeded"
-                snapshot = (
-                    self.run_tool_context.external_request_budget.snapshot()
-                    if self.run_tool_context
-                    and self.run_tool_context.external_request_budget
-                    else {}
+                snapshot = self._capture_external_request_budget(
+                    state
                 )
-                state.metadata["external_request_budget"] = snapshot
                 record_agent_decision(
                     state,
                     AgentDecision(
@@ -524,13 +577,28 @@ class DeepResearchEngine:
                         inputs=snapshot,
                         criterion="external search and fetch requests must remain within the run-wide allowance",
                         outcome=str(exc),
-                        alternatives_considered=["continue after budget refusal"],
+                        alternatives_considered=[
+                            "continue after budget refusal"
+                        ],
                     ),
                 )
                 DecisionGate.validate(
-                    "external_request_budget", before, self._state_output(state)
+                    "external_request_budget",
+                    before,
+                    self._state_output(state),
                 )
-                partial_report = self.reporter.report(state)
+                try:
+                    with trajectory_recording(recorder):
+                        partial_report = self.reporter.report(state)
+                except Exception as report_exc:
+                    self.logger.event(
+                        "budget_partial_report_failed",
+                        error_type=type(report_exc).__name__,
+                    )
+                    partial_report = (
+                        f"# {state.topic}\n\n"
+                        "本次研究在生成部分报告前耗尽运行级预算。"
+                    )
                 state.final_report = (
                     f"{partial_report}\n\n"
                     "## 数据缺失与资源耗尽\n\n"
@@ -539,33 +607,71 @@ class DeepResearchEngine:
                     "信息，不能视为完整研究结论。\n\n"
                     f"耗尽原因：{exc}\n"
                 )
-                self.graph.update_state(config, self._state_output(state))
+                self.graph.update_state(
+                    config,
+                    self._state_output(state),
+                )
+                self._persist_run_sidecars(
+                    state=state,
+                    research_id=research_id,
+                    recorder=recorder,
+                    manifest_started_at=manifest_started_at,
+                    termination=TrajectoryTermination(
+                        status="budget_exceeded",
+                        phase=state.current_phase,
+                        error_type=type(exc).__name__,
+                        error_message=str(exc) or type(exc).__name__,
+                    ),
+                )
                 self.logger.event("run_finished", status=state.status)
                 return state
             except Exception as exc:
-                self.logger.event(
-                    "run_failed",
-                    error_type=type(exc).__name__,
-                    error=str(exc),
-                    traceback=traceback.format_exc(),
+                self._persist_failed_run(
+                    state=state,
+                    research_id=research_id,
+                    config=config,
+                    recorder=recorder,
+                    manifest_started_at=manifest_started_at,
+                    error=exc,
                 )
                 raise
-        state = self._state_from_graph_values(result)
-        if state.status == "done" and not state.final_report:
-            state.status = "failed"
-            state.metadata["terminal_failure"] = {
-                "reason": "workflow_completed_without_final_report",
-                "phase": state.current_phase,
-            }
-            self.graph.update_state(config, self._state_output(state))
-            self.logger.event(
-                "run_failed",
-                error_type="WorkflowCompletionError",
-                error="workflow completed without final_report",
+            self._capture_external_request_budget(state)
+            self._persist_run_sidecars(
+                state=state,
+                research_id=research_id,
+                recorder=recorder,
+                manifest_started_at=manifest_started_at,
+                termination=TrajectoryTermination(
+                    status="completed",
+                    phase=state.current_phase,
+                ),
             )
-            raise RuntimeError(
-                "Workflow completed without final_report; refusing silent success"
-            )
+            self.logger.event("run_finished", status=state.status)
+            return state
+
+    def _capture_external_request_budget(
+        self,
+        state: ResearchState,
+    ) -> dict[str, Any]:
+        snapshot = (
+            self.run_tool_context.external_request_budget.snapshot()
+            if self.run_tool_context
+            and self.run_tool_context.external_request_budget
+            else {}
+        )
+        state.metadata["external_request_budget"] = snapshot
+        return snapshot
+
+    def _persist_run_sidecars(
+        self,
+        *,
+        state: ResearchState,
+        research_id: str,
+        recorder: TrajectoryRecorder | None,
+        manifest_started_at: datetime,
+        termination: TrajectoryTermination,
+    ) -> None:
+        self._capture_external_request_budget(state)
         manifest_path = None
         if self.settings.run_manifest_enabled:
             try:
@@ -579,11 +685,16 @@ class DeepResearchEngine:
                     self.settings.runs_root,
                 )
             except Exception as exc:
-                state.metadata.setdefault("degradation_events", []).append(
+                state.metadata.setdefault(
+                    "degradation_events",
+                    [],
+                ).append(
                     {
                         "tool": "run_manifest",
                         "reason": "write_failed",
-                        "impact": "run manifest sidecar unavailable",
+                        "impact": (
+                            "run manifest sidecar unavailable"
+                        ),
                         "attempts": 1,
                     }
                 )
@@ -592,17 +703,86 @@ class DeepResearchEngine:
                     error_type=type(exc).__name__,
                 )
         if recorder and self.settings.trajectory_record_enabled:
-            artifacts = {"report.md": state.final_report or ""}
+            artifacts = (
+                {"report.md": state.final_report or ""}
+                if (
+                    termination.status
+                    in {"completed", "budget_exceeded"}
+                    or state.final_report is not None
+                )
+                else {}
+            )
             recorder.finalize(
-                manifest_ref=str(manifest_path) if manifest_path else None,
+                manifest_ref=(
+                    str(manifest_path) if manifest_path else None
+                ),
                 artifacts=artifacts,
+                termination=termination,
             )
             recorder.write(
-                self.settings.runs_root / research_id / "trajectory.json"
+                self.settings.runs_root
+                / research_id
+                / "trajectory.json"
             )
-        with correlation_context(run_id=research_id, node="workflow"):
-            self.logger.event("run_finished", status=state.status)
-        return state
+
+    def _persist_failed_run(
+        self,
+        *,
+        state: ResearchState,
+        research_id: str,
+        config: dict[str, Any],
+        recorder: TrajectoryRecorder | None,
+        manifest_started_at: datetime,
+        error: Exception,
+    ) -> None:
+        state = self.load_state(research_id) or state
+        state.status = "failed"
+        terminal = state.metadata.get("terminal_failure", {})
+        if not isinstance(terminal, dict):
+            terminal = {}
+        state.metadata["terminal_failure"] = {
+            **terminal,
+            "phase": state.current_phase,
+            "error_type": type(error).__name__,
+            "error_message": str(error) or type(error).__name__,
+        }
+        self._capture_external_request_budget(state)
+        try:
+            self.graph.update_state(
+                config,
+                self._state_output(state),
+            )
+        except Exception as checkpoint_exc:
+            self.logger.event(
+                "terminal_checkpoint_write_failed",
+                error_type=type(checkpoint_exc).__name__,
+            )
+        self.logger.event(
+            "run_failed",
+            error_type=type(error).__name__,
+            error=str(error),
+            traceback=traceback.format_exc(),
+        )
+        try:
+            self._persist_run_sidecars(
+                state=state,
+                research_id=research_id,
+                recorder=recorder,
+                manifest_started_at=manifest_started_at,
+                termination=TrajectoryTermination(
+                    status="failed",
+                    phase=state.current_phase,
+                    error_type=type(error).__name__,
+                    error_message=(
+                        str(error) or type(error).__name__
+                    ),
+                ),
+            )
+        except Exception as sidecar_exc:
+            self.logger.event(
+                "terminal_sidecar_write_failed",
+                error_type=type(sidecar_exc).__name__,
+            )
 
     def load_state(self, research_id: str) -> ResearchState | None:
         snapshot = self.graph.get_state(self._config(research_id))
@@ -1142,6 +1322,25 @@ class DeepResearchEngine:
                     error=str(exc),
                     traceback=traceback.format_exc(),
                 )
+                recorder = active_trajectory_recorder()
+                if recorder:
+                    recorder.record_node_transition(
+                        NodeTransitionTrace(
+                            node=name,
+                            input_summary=_trace_graph_summary(
+                                graph_state
+                            ),
+                            output_summary={
+                                "status": "failed",
+                                "error_type": type(exc).__name__,
+                            },
+                            status="failed",
+                            error_type=type(exc).__name__,
+                            error_message=(
+                                str(exc) or type(exc).__name__
+                            ),
+                        )
+                    )
                 raise
             self.logger.event(
                 "node_finished",
@@ -1328,6 +1527,31 @@ class DeepResearchEngine:
             )
         if "web_fetch" not in selected_capabilities:
             priority_urls = []
+        structured_evidence = (
+            self.researcher.structured_evidence(
+                state.research_id,
+                sub_question,
+            )
+            if "structured_data_provider" in selected_capabilities
+            else []
+        )
+        structured_stats = (
+            dict(self.researcher.last_structured_stats)
+            if "structured_data_provider" in selected_capabilities
+            else {
+                "requests": len(
+                    sub_question.structured_data_requests
+                ),
+                "records": 0,
+                "symbol_resolution_failures": 0,
+                "execution_failures": 0,
+            }
+        )
+        symbol_resolutions = (
+            list(self.researcher.last_symbol_resolutions)
+            if "structured_data_provider" in selected_capabilities
+            else []
+        )
         budget_metadata = state.metadata.get("branch_budget", {})
         allocated_calls = budget_metadata.get("allocated_calls", {})
         if self._branch_budget_enabled() and isinstance(
@@ -1396,31 +1620,6 @@ class DeepResearchEngine:
                 search_calls = 0
                 branch_exhausted = False
                 source_decisions = []
-        structured_evidence = (
-            self.researcher.structured_evidence(
-                state.research_id,
-                sub_question,
-            )
-            if "structured_data_provider" in selected_capabilities
-            else []
-        )
-        structured_stats = (
-            dict(self.researcher.last_structured_stats)
-            if "structured_data_provider" in selected_capabilities
-            else {
-                "requests": len(
-                    sub_question.structured_data_requests
-                ),
-                "records": 0,
-                "symbol_resolution_failures": 0,
-                "execution_failures": 0,
-            }
-        )
-        symbol_resolutions = (
-            list(self.researcher.last_symbol_resolutions)
-            if "structured_data_provider" in selected_capabilities
-            else []
-        )
         output: ResearchGraphState = {
             "research_sources": {
                 sub_question.id: [source.model_dump(mode="json") for source in sources]

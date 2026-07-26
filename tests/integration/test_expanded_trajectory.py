@@ -23,6 +23,7 @@ from deepresearch_agent.trajectory import (
     SignalReadTrace,
     ToolCallTrace,
     TrajectoryRecorder,
+    TrajectoryTermination,
     load_trajectory,
     trajectory_recording,
     validate_strict_replay_trajectory,
@@ -121,6 +122,13 @@ class ExpandedTrajectoryTest(unittest.TestCase):
         recorder.finalize(manifest_ref=None, artifacts={"report.md": "synthetic"})
         valid = recorder.trajectory
         validate_strict_replay_trajectory(valid)
+        self.assertEqual(valid.schema_version, 4)
+        self.assertEqual(valid.termination.status, "completed")
+        missing_termination = valid.model_copy(
+            update={"termination": None}
+        )
+        with self.assertRaisesRegex(ValueError, "termination missing"):
+            validate_strict_replay_trajectory(missing_termination)
         missing = valid.model_copy(deep=True)
         missing.request.pop("recorded_plan")
         with self.assertRaisesRegex(ValueError, "request missing required field"):
@@ -253,7 +261,7 @@ class ExpandedTrajectoryTest(unittest.TestCase):
             )
         )
 
-        self.assertEqual(recorder.trajectory.schema_version, 3)
+        self.assertEqual(recorder.trajectory.schema_version, 4)
         self.assertEqual(
             recorder.trajectory.signal_reads[0].signal_type,
             "repeated_critic_issue",
@@ -266,6 +274,80 @@ class ExpandedTrajectoryTest(unittest.TestCase):
             recorder.trajectory.tool_calls[0].transport,
             "mcp",
         )
+
+    def test_legacy_v3_fixture_remains_read_only_compatible(self) -> None:
+        fixture = (
+            Path(__file__).resolve().parents[1]
+            / "fixtures"
+            / "trajectories"
+            / "synthetic"
+            / "fake_provider_synthetic_trajectory.json"
+        )
+
+        trajectory = load_trajectory(fixture)
+        validate_strict_replay_trajectory(trajectory)
+
+        self.assertEqual(trajectory.schema_version, 3)
+        self.assertIsNone(trajectory.termination)
+
+    def test_v4_budget_and_failure_termination_contracts(self) -> None:
+        request = {
+            "topic": "termination",
+            "mode": "deterministic",
+            "depth_level": 1,
+            "recorded_plan": {
+                "topic": "termination",
+                "depth_level": 1,
+                "sub_questions": [
+                    {
+                        "id": "q",
+                        "question": "q",
+                        "search_queries": ["q"],
+                        "expected_source_types": ["official"],
+                    }
+                ],
+                "estimated_sources": 1,
+                "success_criteria": [],
+            },
+        }
+        budget = TrajectoryRecorder(
+            run_id="budget-termination",
+            request=request,
+        )
+        budget.finalize(
+            manifest_ref=None,
+            artifacts={"report.md": "partial"},
+            termination=TrajectoryTermination(
+                status="budget_exceeded",
+                phase="researching",
+                error_type="ToolExecutionError",
+                error_message="budget exhausted",
+            ),
+        )
+        validate_strict_replay_trajectory(budget.trajectory)
+
+        failed = TrajectoryRecorder(
+            run_id="failed-termination",
+            request=request,
+        )
+        failed.terminate(
+            TrajectoryTermination(
+                status="failed",
+                phase="extracting",
+                error_type="RuntimeError",
+                error_message="fixture failure",
+            )
+        )
+        validate_strict_replay_trajectory(failed.trajectory)
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "requires error_type and error_message",
+        ):
+            TrajectoryTermination(
+                status="failed",
+                phase="extracting",
+            )
 
     def test_expanded_018_mcp_and_skill_trace_strictly_replays(
         self,

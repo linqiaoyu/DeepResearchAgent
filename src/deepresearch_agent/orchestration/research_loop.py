@@ -8,6 +8,11 @@ from urllib.parse import urlsplit
 from pydantic import Field
 
 from deepresearch_agent.decisions import record_agent_decision
+from deepresearch_agent.metric_coverage import (
+    MetricCoverageItem,
+    canonical_metric,
+    evaluate_metric_coverage,
+)
 from deepresearch_agent.schemas import (
     AgentDecision,
     Evidence,
@@ -169,6 +174,9 @@ class SubquestionSufficiency(StrictModel):
     freshest_evidence_age_days: int | None = Field(default=None, ge=0)
     unresolved_critic_issues: int = Field(ge=0)
     missing_counterargument: bool
+    requested_metric_count: int = Field(default=0, ge=0)
+    covered_metric_count: int = Field(default=0, ge=0)
+    missing_metrics: list[str] = Field(default_factory=list)
     sufficient: bool
     gaps: list[str] = Field(default_factory=list)
 
@@ -190,6 +198,12 @@ def evaluate_research_sufficiency(
     if not state.plan:
         return ResearchSufficiency(score=0.0, sufficient=False)
     issue_counts = _issue_counts(state)
+    coverage_by_subquestion: dict[str, list[MetricCoverageItem]] = {}
+    for item in evaluate_metric_coverage(state):
+        coverage_by_subquestion.setdefault(
+            item.sub_question_id,
+            [],
+        ).append(item)
     metrics: list[SubquestionSufficiency] = []
     component_scores: list[float] = []
     for sub_question in state.plan.sub_questions:
@@ -214,6 +228,19 @@ def evaluate_research_sufficiency(
         )
         missing_counterargument = not _has_counterargument(evidence)
         unresolved = issue_counts.get(sub_question.id, 0)
+        requested_coverage = coverage_by_subquestion.get(
+            sub_question.id,
+            [],
+        )
+        covered_metric_count = sum(
+            1 for item in requested_coverage
+            if item.status == "cited"
+        )
+        missing_metrics = [
+            item.metric
+            for item in requested_coverage
+            if item.status != "cited"
+        ]
         gaps: list[str] = []
         if evidence_count < thresholds.min_evidence_count:
             gaps.append("evidence_count")
@@ -229,6 +256,8 @@ def evaluate_research_sufficiency(
             gaps.append("unresolved_critic_issues")
         if thresholds.require_counterargument and missing_counterargument:
             gaps.append("counterargument")
+        if missing_metrics:
+            gaps.append("requested_metric_coverage")
         metrics.append(
             SubquestionSufficiency(
                 sub_question_id=sub_question.id,
@@ -238,6 +267,9 @@ def evaluate_research_sufficiency(
                 freshest_evidence_age_days=freshest_age,
                 unresolved_critic_issues=unresolved,
                 missing_counterargument=missing_counterargument,
+                requested_metric_count=len(requested_coverage),
+                covered_metric_count=covered_metric_count,
+                missing_metrics=missing_metrics,
                 sufficient=not gaps,
                 gaps=gaps,
             )
@@ -272,6 +304,13 @@ def evaluate_research_sufficiency(
                 ),
             ]
         )
+        if requested_coverage:
+            component_scores.append(
+                _ratio(
+                    covered_metric_count,
+                    len(requested_coverage),
+                )
+            )
     score = (
         sum(component_scores) / len(component_scores)
         if component_scores
@@ -361,6 +400,24 @@ def refine_research_plan(
                         issue.issue_type,
                         "官方来源 补充核验",
                     ),
+                )
+            )
+        if "requested_metric_coverage" in metrics.gaps:
+            targeted = sub_question.model_copy(deep=True)
+            missing = {
+                canonical_metric(item)
+                for item in metrics.missing_metrics
+            }
+            for request in targeted.structured_data_requests:
+                request.metrics = [
+                    item
+                    for item in request.metrics
+                    if canonical_metric(item) in missing
+                ]
+            queries.append(
+                build_replan_query(
+                    targeted,
+                    "年度报告 定向补齐指标",
                 )
             )
         if "independent_source_domains" in metrics.gaps:

@@ -103,6 +103,7 @@ class Evidence(StrictModel):
     source_url: str
     source_title: str
     source_pub_date: date | None = None
+    source_page: int | None = Field(default=None, ge=1)
     extract_text: str
     extract_offset_start: int = 0
     confidence: float = Field(default=0.75, ge=0, le=1)

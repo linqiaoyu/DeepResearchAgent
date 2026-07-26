@@ -4,7 +4,12 @@ import unittest
 from datetime import date
 
 from deepresearch_agent.agents.researcher import ResearcherAgent
-from deepresearch_agent.schemas import Source, SubQuestion
+from deepresearch_agent.schemas import (
+    Source,
+    StructuredDataRequest,
+    SubQuestion,
+)
+from deepresearch_agent.tools import ToolErrorKind, ToolExecutionError
 
 
 class CountingSearchProvider:
@@ -40,6 +45,123 @@ class CountingSearchProvider:
 
 
 class ResearcherSearchBudgetTests(unittest.TestCase):
+    def test_financial_disclosure_short_circuits_redundant_web_fetch(
+        self,
+    ) -> None:
+        class ExhaustedFetchProvider(CountingSearchProvider):
+            def fetch(self, url: str) -> Source:
+                raise ToolExecutionError(
+                    ToolErrorKind.BUDGET_EXCEEDED,
+                    "web fetch lane exhausted",
+                )
+
+        class Disclosure:
+            def search(self, *_args: object, **_kwargs: object) -> list[Source]:
+                return [
+                    Source(
+                        id="annual-report",
+                        title="贵州茅台 2025 年年度报告",
+                        url="https://cninfo.test/600519.pdf",
+                        source_type="disclosure_pdf",
+                        published_at=date(2026, 4, 16),
+                        content="营业收入 168838102514.79 元",
+                        source_tier="primary",
+                    )
+                ]
+
+        provider = ExhaustedFetchProvider()
+        researcher = ResearcherAgent(
+            search_tool=provider,
+            fetch_tool=provider,
+            disclosure_source=Disclosure(),
+            max_searches_per_run=20,
+            as_of=date(2026, 7, 26),
+        )
+        sub_question = SubQuestion(
+            id="finance",
+            question="贵州茅台（600519）2025 年财务指标",
+            search_queries=["600519 年度报告"],
+            structured_data_requests=[
+                StructuredDataRequest(
+                    capability="financial_indicators",
+                    symbol="600519",
+                )
+            ],
+        )
+
+        sources, records, _calls, exhausted, _decisions = (
+            researcher.research_with_budget(
+                sub_question,
+                max_search_calls=None,
+                enable_disclosure=True,
+                enable_web_search=True,
+                enable_web_fetch=True,
+            )
+        )
+
+        self.assertFalse(exhausted)
+        self.assertEqual(provider.queries, [])
+        self.assertEqual(provider.fetched_urls, [])
+        self.assertIn(
+            "https://cninfo.test/600519.pdf",
+            {item.url for item in sources},
+        )
+        self.assertEqual(
+            [record.query for record in records],
+            ["[disclosure] 600519 年度报告"],
+        )
+
+    def test_event_disclosure_does_not_short_circuit_web_research(
+        self,
+    ) -> None:
+        class Disclosure:
+            def search(self, *_args: object, **_kwargs: object) -> list[Source]:
+                return [
+                    Source(
+                        id="event",
+                        title="项目公告",
+                        url="https://cninfo.test/event.pdf",
+                        source_type="disclosure_pdf",
+                        published_at=date(2026, 4, 16),
+                        content="项目进展",
+                        source_tier="primary",
+                    )
+                ]
+
+        provider = CountingSearchProvider()
+        researcher = ResearcherAgent(
+            search_tool=provider,
+            fetch_tool=provider,
+            disclosure_source=Disclosure(),
+            as_of=date(2026, 7, 26),
+        )
+        sub_question = SubQuestion(
+            id="event",
+            question="宁德时代（300750）项目公告与后续报道",
+            search_queries=["300750 项目进展"],
+        )
+
+        sources, _records, _calls, exhausted, _decisions = (
+            researcher.research_with_budget(
+                sub_question,
+                max_search_calls=None,
+                enable_disclosure=True,
+                enable_web_search=True,
+                enable_web_fetch=True,
+            )
+        )
+
+        self.assertFalse(exhausted)
+        self.assertEqual(provider.queries, ["300750 项目进展"])
+        self.assertEqual(provider.fetched_urls, ["https://example.com/1"])
+        self.assertEqual(
+            {item.url for item in sources},
+            {
+                "https://cninfo.test/event.pdf",
+                "https://example.com/1",
+            },
+        )
+
     def test_selected_fetch_hydrates_results_and_consumes_branch_budget(
         self,
     ) -> None:

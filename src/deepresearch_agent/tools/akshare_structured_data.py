@@ -17,7 +17,6 @@ class AKShareStructuredDataProvider:
     """AKShare-backed adapter behind a small whitelisted structured data contract."""
 
     METRIC_ALIASES = {
-        "营业总收入": "营业收入",
         "营收": "营业收入",
         "归母净利润": "归母净利润",
         "净利润": "净利润",
@@ -74,8 +73,12 @@ class AKShareStructuredDataProvider:
         symbol_info = self.symbol_resolve(symbol)
         entity = symbol_info.entity if symbol_info else symbol
         metric_filter = {self._normalize_metric(metric) for metric in (metrics or self.DEFAULT_METRICS)}
-        period_filter = set(periods or [])
+        period_filter = {
+            f"{period}1231" if len(period) == 4 and period.isdigit() else period
+            for period in (periods or [])
+        }
         records: list[StructuredDataRecord] = []
+        seen_records: set[tuple[str, str, float, str]] = set()
         for row in frame.to_dict("records"):
             metric_name = self._normalize_metric(str(row.get("指标", "")).strip())
             if metric_name not in metric_filter:
@@ -90,6 +93,10 @@ class AKShareStructuredDataProvider:
                 numeric_value = self._float_or_none(value)
                 if numeric_value is None:
                     continue
+                record_key = (metric_name, period, numeric_value, unit)
+                if record_key in seen_records:
+                    continue
+                seen_records.add(record_key)
                 records.append(
                     StructuredDataRecord(
                         entity=entity,

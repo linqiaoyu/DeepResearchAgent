@@ -41,7 +41,8 @@ def run_demo() -> None:
     if state.evaluation:
         print(state.evaluation.model_dump_json(indent=2))
     if engine.llm_client:
-        print(f"llm_ledger_total_cny={engine.llm_client.ledger_total_cny():.6f}")
+        print(f"llm_run_total_cny={engine.llm_client.run_total_cny(state.research_id):.8f}")
+        print(f"llm_global_ledger_total_cny={engine.llm_client.ledger_total_cny():.8f}")
 
 
 def run_eval() -> None:

@@ -4,7 +4,14 @@ import unittest
 from datetime import date
 
 from deepresearch_agent.agents import ReporterAgent
-from deepresearch_agent.schemas import Evidence, NumericFields, ResearchPlan, ResearchState, SubQuestion
+from deepresearch_agent.schemas import (
+    Evidence,
+    NumericFields,
+    ResearchPlan,
+    ResearchState,
+    StructuredDataRequest,
+    SubQuestion,
+)
 
 
 class ReporterFinanceTemplateTests(unittest.TestCase):
@@ -45,6 +52,256 @@ class ReporterFinanceTemplateTests(unittest.TestCase):
         self.assertIn("报告期/时点: 20241231", report)
         self.assertIn("口径: 累计", report)
         self.assertIn("单位: 元", report)
+
+    def test_three_requested_metrics_with_two_covered_names_the_gap(self) -> None:
+        state = ResearchState(topic="贵州茅台 2025 年财务指标")
+        state.plan = ResearchPlan(
+            topic=state.topic,
+            sub_questions=[
+                SubQuestion(
+                    id="finance",
+                    question="营业收入、归母净利润与主营业务毛利率是多少？",
+                    search_queries=["600519 年度报告"],
+                    structured_data_requests=[
+                        StructuredDataRequest(
+                            capability="financial_indicators",
+                            symbol="600519",
+                            periods=["20251231", "20241231"],
+                            metrics=[
+                                "营业收入",
+                                "归母净利润",
+                                "主营业务毛利率",
+                            ],
+                        )
+                    ],
+                )
+            ],
+        )
+        state.completed_tasks = ["finance"]
+        state.evidence_store = [
+            self._metric_evidence(
+                state,
+                "revenue-2025",
+                "营业收入",
+                "20251231",
+                168_838_102_514.79,
+                61,
+            ),
+            self._metric_evidence(
+                state,
+                "revenue-2024",
+                "营业收入",
+                "20241231",
+                170_899_152_276.34,
+                61,
+            ),
+            self._metric_evidence(
+                state,
+                "profit-2025",
+                "归母净利润",
+                "20251231",
+                82_320_067_101.68,
+                62,
+            ),
+            self._metric_evidence(
+                state,
+                "profit-2024",
+                "归母净利润",
+                "20241231",
+                86_228_146_421.62,
+                62,
+            ),
+        ]
+
+        report = ReporterAgent().report(state)
+
+        self.assertIn("## 指标覆盖状态", report)
+        self.assertIn("营业收入（请求报告期：2024, 2025）", report)
+        self.assertIn("年报 p61", report)
+        self.assertIn("归母净利润（请求报告期：2024, 2025）", report)
+        self.assertIn("年报 p62", report)
+        self.assertIn(
+            "主营业务毛利率（请求报告期：2024, 2025）：已检索，"
+            "但未获得可引用的完整指标证据",
+            report,
+        )
+        coverage = state.metadata["requested_metric_coverage"]
+        self.assertEqual(
+            {
+                item["metric"]: item["status"]
+                for item in coverage
+            },
+            {
+                "营业收入": "cited",
+                "归母净利润": "cited",
+                "主营业务毛利率": "searched_unavailable",
+            },
+        )
+
+    def test_pdf_margin_header_closes_main_business_margin_requirement(
+        self,
+    ) -> None:
+        state = ResearchState(topic="贵州茅台 2025 年主营业务毛利率")
+        state.plan = ResearchPlan(
+            topic=state.topic,
+            sub_questions=[
+                SubQuestion(
+                    id="finance",
+                    question="主营业务毛利率是多少？",
+                    search_queries=["600519 年度报告"],
+                    structured_data_requests=[
+                        StructuredDataRequest(
+                            capability="financial_indicators",
+                            symbol="600519",
+                            periods=["20251231"],
+                            metrics=["主营业务毛利率"],
+                        )
+                    ],
+                )
+            ],
+        )
+        state.completed_tasks = ["finance"]
+        state.evidence_store = [
+            self._metric_evidence(
+                state,
+                "margin-2025",
+                "毛利率",
+                "20251231",
+                91.23,
+                10,
+                unit="%",
+            )
+        ]
+
+        report = ReporterAgent().report(state)
+
+        self.assertIn("主营业务毛利率（请求报告期：2025）", report)
+        self.assertIn("年报 p10", report)
+        self.assertEqual(
+            state.metadata["requested_metric_coverage"][0]["status"],
+            "cited",
+        )
+
+    def test_current_period_without_prior_or_yoy_is_explicitly_incomplete(
+        self,
+    ) -> None:
+        state = ResearchState(topic="贵州茅台 2025 年营收及同比")
+        state.plan = ResearchPlan(
+            topic=state.topic,
+            sub_questions=[
+                SubQuestion(
+                    id="finance",
+                    question="2025 年营业收入及同比",
+                    search_queries=["600519 年度报告"],
+                    structured_data_requests=[
+                        StructuredDataRequest(
+                            capability="financial_indicators",
+                            symbol="600519",
+                            periods=["20251231", "20241231"],
+                            metrics=["营业收入"],
+                        )
+                    ],
+                )
+            ],
+        )
+        state.completed_tasks = ["finance"]
+        state.evidence_store = [
+            self._metric_evidence(
+                state,
+                "revenue-2025",
+                "营业收入",
+                "20251231",
+                168_838_102_514.79,
+                61,
+            )
+        ]
+
+        report = ReporterAgent().report(state)
+        coverage = state.metadata["requested_metric_coverage"][0]
+
+        self.assertEqual(coverage["status"], "searched_unavailable")
+        self.assertEqual(coverage["missing_periods"], ["2024"])
+        self.assertIn("已取得部分证据", report)
+        self.assertIn("缺失报告期：2024", report)
+
+    def test_current_period_with_explicit_yoy_closes_comparison(
+        self,
+    ) -> None:
+        state = ResearchState(topic="贵州茅台 2025 年毛利率及同比")
+        state.plan = ResearchPlan(
+            topic=state.topic,
+            sub_questions=[
+                SubQuestion(
+                    id="finance",
+                    question="2025 年主营业务毛利率及同比",
+                    search_queries=["600519 年度报告"],
+                    structured_data_requests=[
+                        StructuredDataRequest(
+                            capability="financial_indicators",
+                            symbol="600519",
+                            periods=["20251231", "20241231"],
+                            metrics=["主营业务毛利率"],
+                        )
+                    ],
+                )
+            ],
+        )
+        state.completed_tasks = ["finance"]
+        evidence = self._metric_evidence(
+            state,
+            "margin-2025-yoy",
+            "毛利率",
+            "20251231",
+            91.23,
+            10,
+            unit="%",
+        )
+        evidence.claim = (
+            "2025 年主营业务毛利率为 91.23%，同比减少 0.78 个百分点。"
+        )
+        evidence.extract_text = evidence.claim
+        state.evidence_store = [evidence]
+
+        ReporterAgent().report(state)
+        coverage = state.metadata["requested_metric_coverage"][0]
+
+        self.assertEqual(coverage["status"], "cited")
+        self.assertTrue(coverage["comparison_observed"])
+        self.assertEqual(coverage["missing_periods"], ["2024"])
+
+    def _metric_evidence(
+        self,
+        state: ResearchState,
+        evidence_id: str,
+        metric: str,
+        period: str,
+        value: float,
+        page: int,
+        *,
+        unit: str = "元",
+    ) -> Evidence:
+        claim = f"贵州茅台 {period} {metric}为 {value} 元。"
+        return Evidence(
+            id=evidence_id,
+            research_id=state.research_id,
+            sub_question_id="finance",
+            claim=claim,
+            claim_type="data",
+            source_url="https://static.cninfo.com.cn/600519.pdf",
+            source_title="贵州茅台 2025 年年度报告",
+            source_pub_date=date(2026, 4, 16),
+            source_page=page,
+            extract_text=claim,
+            numeric_fields=NumericFields(
+                entity="贵州茅台",
+                metric_name=metric,
+                period=period,
+                dimension="合并",
+                value=value,
+                unit=unit,
+            ),
+            source_tier="primary",
+        )
 
 
 if __name__ == "__main__":

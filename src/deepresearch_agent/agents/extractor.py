@@ -11,6 +11,7 @@ from deepresearch_agent.settings import project_root
 
 SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
 NUMBER_RE = re.compile(r"(\$?\d+(?:\.\d+)?%?|\d+(?:\.\d+)?)")
+PDF_PAGE_MARKER_RE = re.compile(r"\[\[PDF_PAGE=(\d+)\]\]")
 
 
 class ExtractorAgent:
@@ -44,6 +45,7 @@ class ExtractorAgent:
             sentences = [s.strip() for s in SENTENCE_RE.split(source.content) if len(s.strip()) > 30]
             for offset, sentence in enumerate(sentences[:4]):
                 claim_type = self._classify(sentence)
+                extract_offset_start = source.content.find(sentence)
                 evidence_id = str(uuid5(NAMESPACE_URL, f"{research_id}:{sub_question.id}:{source.url}:{offset}:{sentence}"))
                 evidence.append(
                     Evidence(
@@ -55,8 +57,12 @@ class ExtractorAgent:
                         source_url=source.url,
                         source_title=source.title,
                         source_pub_date=source.published_at,
+                        source_page=self._source_page(
+                            source.content,
+                            extract_offset_start,
+                        ),
                         extract_text=sentence,
-                        extract_offset_start=offset,
+                        extract_offset_start=max(0, extract_offset_start),
                         confidence=self._guarded_confidence(
                             self._confidence(sentence, source.credibility),
                             finding.risk_score if finding else 0.0,
@@ -142,6 +148,10 @@ class ExtractorAgent:
                     source_url=source.url,
                     source_title=source.title,
                     source_pub_date=source.published_at,
+                    source_page=self._source_page(
+                        source.content,
+                        source.content.find(claim.extract_text),
+                    ),
                     extract_text=claim.extract_text,
                     extract_offset_start=source.content.find(claim.extract_text),
                     confidence=self._guarded_confidence(
@@ -164,6 +174,23 @@ class ExtractorAgent:
             "repair_attempts": result.repair_attempts,
         }
         return evidence
+
+    def _source_page(self, content: str, extract_offset_start: int) -> int | None:
+        """Resolve the nearest preceding decoder page marker for one extract."""
+        if extract_offset_start < 0:
+            return None
+        marker_at_start = PDF_PAGE_MARKER_RE.match(
+            content,
+            extract_offset_start,
+        )
+        if marker_at_start:
+            return int(marker_at_start.group(1))
+        matches = list(
+            PDF_PAGE_MARKER_RE.finditer(
+                content[:extract_offset_start]
+            )
+        )
+        return int(matches[-1].group(1)) if matches else None
 
     def _numeric_fields_incomplete(self, claim: ExtractedClaim) -> bool:
         if claim.claim_type != "data":

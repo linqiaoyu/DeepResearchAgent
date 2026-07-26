@@ -89,7 +89,10 @@ def decode_pdf_source(
         reader = PdfReader(io.BytesIO(content), strict=False)
         page_text = [page.extract_text() or "" for page in reader.pages[: max(1, max_pages)]]
         selected_indexes = _preferred_pdf_page_indexes(page_text, preferred_terms)
-        text = "\n".join(page_text[index] for index in selected_indexes)
+        text = "\n".join(
+            f"[[PDF_PAGE={index + 1}]]\n{page_text[index]}"
+            for index in selected_indexes
+        )
     except Exception as exc:
         raise PdfDecodeError(
             f"pdf_decode_failed url={url} error_type={type(exc).__name__}"

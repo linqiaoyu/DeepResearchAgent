@@ -11,8 +11,9 @@ from deepresearch_agent.settings import Settings, project_root
 class PlannerAgent:
     STRUCTURED_CAPABILITIES = {"symbol_resolve", "financial_indicators", "price_history"}
     FINANCIAL_METRIC_TERMS = (
-        "营业收入", "营收", "营业成本", "毛利率", "归母净利润", "净利润",
-        "资产负债", "现金流", "每股收益", "净资产收益率",
+        "营业收入", "营收", "营业成本", "主营业务毛利率", "毛利率",
+        "归母净利润", "净利润", "资产负债", "现金流", "每股收益",
+        "净资产收益率",
     )
     LISTED_COMPANIES = {
         "贵州茅台": "600519",
@@ -56,7 +57,7 @@ class PlannerAgent:
                                 capability="financial_indicators",
                                 company_name=company_name,
                                 symbol=code,
-                                periods=re.findall(r"20\d{2}", topic),
+                                periods=self._annual_periods(topic),
                                 metrics=metrics,
                             )
                         ],
@@ -137,7 +138,21 @@ class PlannerAgent:
         frozen broad-research snapshots; this route is for a concrete metric
         request, not a loose company research topic.
         """
-        metrics = [term for term in self.FINANCIAL_METRIC_TERMS if term in topic]
+        matched_metrics = [
+            term for term in self.FINANCIAL_METRIC_TERMS if term in topic
+        ]
+        metrics = [
+            term
+            for term in matched_metrics
+            if not any(
+                term != other and term in other
+                for other in matched_metrics
+            )
+        ]
+        metrics = [
+            "主营业务毛利率" if term == "毛利率" else term
+            for term in metrics
+        ]
         if not metrics:
             return None
         code_match = re.search(r"(?<!\d)(\d{6})(?!\d)", topic)
@@ -148,6 +163,10 @@ class PlannerAgent:
             return None
         code = code_match.group(1) if code_match else self.LISTED_COMPANIES[company_name]
         return code, company_name, metrics
+
+    def _annual_periods(self, topic: str) -> list[str]:
+        years = dict.fromkeys(re.findall(r"20\d{2}", topic))
+        return [f"{year}1231" for year in years]
 
     def _llm_plan(self, topic: str, depth_level: int, research_id: str) -> ResearchPlan:
         assert self.llm_client is not None
@@ -258,7 +277,7 @@ class PlannerAgent:
                 capability="financial_indicators",
                 company_name=company_name,
                 symbol=code,
-                periods=re.findall(r"20\d{2}", topic),
+                periods=self._annual_periods(topic),
                 metrics=metrics,
             ),
         )

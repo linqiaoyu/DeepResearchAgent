@@ -132,6 +132,7 @@ class TavilySearchProviderTests(unittest.TestCase):
     def test_real_chinese_pdf_decodes_into_evidence(self) -> None:
         source = self._pdf_source()
         assert source is not None
+        self.assertIn("[[PDF_PAGE=1]]", source.content)
         self.assertIn("宁德时代新能源科技股份有限公司", source.content)
         self.assertNotIn("\ufffd", source.content)
         evidence = ExtractorAgent().extract(
@@ -141,6 +142,7 @@ class TavilySearchProviderTests(unittest.TestCase):
         )
         self.assertTrue(evidence)
         self.assertIn("宁德时代", evidence[0].extract_text)
+        self.assertEqual(evidence[0].source_page, 1)
 
     def test_pdf_decode_failure_is_a_structured_permanent_error(self) -> None:
         response = FakeResponse(

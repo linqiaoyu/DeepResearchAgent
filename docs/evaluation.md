@@ -17,8 +17,8 @@ content-affecting until measured.
 
 ## Metrics
 
-- `task_success_rate`: report generated with at least one evidence record
-- `citation_accuracy`: in deterministic mode, citation markers in bullet claims map to Evidence rows and the cited claim has deterministic text overlap with `Evidence.claim` or `Evidence.extract_text`; in LLM mode this is `null` with a reason because paraphrase-aware judging is not implemented yet
+- `task_success_rate`: report generated with at least one evidence record; in every execution mode, any detected financial numeric-citation mismatch forces this metric to `0`
+- `citation_accuracy`: in deterministic mode, citation markers in bullet claims map to Evidence rows, the cited claim has deterministic text overlap with `Evidence.claim` or `Evidence.extract_text`, and recognized financial values are supported by the union of the explicitly mapped Evidence rows; in LLM mode this remains `null` with a reason because paraphrase-aware judging is not implemented, while the mechanical numeric audit still applies to task success
 - `citation_resolution_rate`: citation markers that resolve to real Evidence rows, computed in both deterministic and LLM modes
 - `citation_repair_retry_rate`: Golden Set mechanical metric equal to the share of runs where Reporter performed one structured evidence-id repair retry before rendering
 - `uncited_claim_rate`: Golden Set mechanical metric equal to uncited rendered ReportClaims divided by all rendered ReportClaims
@@ -27,7 +27,24 @@ content-affecting until measured.
 - `faithfulness`: bullet claims in the report carry citations
 - `cost_usd`, `cost_cny`, `latency_seconds`, `token_used`, `price_source`: operational metrics for Pareto analysis. LLM mode accounts natively in CNY from the LiteLLM ledger.
 
-Unsupported or invalid bullet citations are counted as `citation_error` bad cases in deterministic scoring. Golden Set LLM rounds additionally run a judge-backed `citation_support_rate` over extracted report claims and evidence.
+The mechanical financial numeric-citation audit runs in every execution mode
+and recognizes revenue, net profit, gross margin, and operating-cost amounts or
+rates. It normalizes
+`元`/`万元`/`亿元`, allows rounding within half of the displayed numeric
+resolution, and preserves percentage or percentage-point direction from words
+such as `增长` and `下降`. Years, footnote numbers, and page locators are not
+treated as financial values. Resolution uses only
+`report_footnote_evidence`; positional Evidence inference remains prohibited.
+The audit is deliberately mechanical rather than a semantic LLM judge.
+
+Unsupported or invalid bullet citations are counted as `citation_error` bad
+cases in deterministic scoring. A recognized financial value that is not
+supported by its explicitly cited Evidence union additionally records
+`numeric_citation_mismatch` and forces task success to zero in every mode. It
+also lowers deterministic citation accuracy; LLM citation accuracy remains
+`null` rather than presenting a partial mechanical check as a full
+paraphrase-aware score. Golden Set LLM rounds additionally run a judge-backed
+`citation_support_rate` over extracted report claims and evidence.
 
 Production version: compute true critic recall from seeded issues or manually labeled bad cases.
 

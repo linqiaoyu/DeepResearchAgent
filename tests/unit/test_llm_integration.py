@@ -69,7 +69,8 @@ class LLMIntegrationTests(unittest.TestCase):
         self.assertEqual(request.capability, "financial_indicators")
         self.assertEqual(request.symbol, "600519")
         self.assertEqual(request.company_name, "贵州茅台")
-        self.assertEqual(request.metrics, ["营业收入", "毛利率"])
+        self.assertEqual(request.metrics, ["营业收入", "主营业务毛利率"])
+        self.assertEqual(request.periods, ["20251231"])
 
     def test_budget_fuse_raises_after_recording_ledger(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -280,6 +281,22 @@ class LLMIntegrationTests(unittest.TestCase):
         self.assertTrue(plan.sub_questions)
         self.assertTrue(all(not sub_question.structured_data_requests for sub_question in plan.sub_questions))
 
+    def test_financial_planner_uses_annual_periods_and_specific_metrics(self) -> None:
+        plan = PlannerAgent().plan(
+            "贵州茅台（600519）2025 年营业收入、归母净利润与毛利率分别是多少？"
+            "相较 2024 年的变化如何？",
+            depth_level=1,
+        )
+
+        request = plan.sub_questions[0].structured_data_requests[0]
+        self.assertEqual(request.periods, ["20251231", "20241231"])
+        self.assertEqual(
+            request.metrics,
+            ["营业收入", "主营业务毛利率", "归母净利润"],
+        )
+        self.assertNotIn("净利润", request.metrics)
+        self.assertNotIn("毛利率", request.metrics)
+
     def test_llm_planner_discards_invalid_structured_requests(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             env_path = Path(tmp) / ".env"
@@ -355,6 +372,10 @@ class LLMIntegrationTests(unittest.TestCase):
         self.assertEqual(request.symbol, "600519")
         self.assertEqual(request.company_name, "贵州茅台")
         self.assertIn("归母净利润", request.metrics)
+        self.assertNotIn("净利润", request.metrics)
+        self.assertIn("主营业务毛利率", request.metrics)
+        self.assertNotIn("毛利率", request.metrics)
+        self.assertEqual(request.periods, ["20251231"])
         self.assertEqual(plan.sub_questions[0].search_queries[0], "600519 年度报告")
 
     def test_llm_planner_financial_question_executes_disclosure_source(self) -> None:

@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import json
 import hashlib
+from collections.abc import Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterator, Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from deepresearch_agent.schemas import AgentDecision, StrictModel, utc_now
 from deepresearch_agent.security import redact
@@ -51,8 +52,24 @@ class NodeTransitionTrace(StrictModel):
     node: str
     input_summary: dict[str, Any]
     output_summary: dict[str, Any]
+    status: Literal["completed", "failed"] = "completed"
+    error_type: str | None = None
+    error_message: str | None = None
     sequence: int | None = Field(default=None, ge=1)
     recorded_at: datetime | None = None
+
+    @model_validator(mode="after")
+    def _validate_failure_contract(self) -> NodeTransitionTrace:
+        if self.status == "completed":
+            if self.error_type or self.error_message:
+                raise ValueError(
+                    "completed node transition must not include error fields"
+                )
+        elif not (self.error_type and self.error_message):
+            raise ValueError(
+                "failed node transition requires error_type and error_message"
+            )
+        return self
 
 
 class SignalReadTrace(StrictModel):
@@ -72,8 +89,33 @@ class MemoryWriteTrace(StrictModel):
     value_summary: dict[str, Any]
 
 
+class TrajectoryTermination(StrictModel):
+    """Typed terminal outcome persisted for every v4 trajectory."""
+
+    status: Literal["completed", "budget_exceeded", "failed"]
+    phase: str = Field(min_length=1)
+    error_type: str | None = None
+    error_message: str | None = None
+
+    @model_validator(mode="after")
+    def _validate_error_contract(self) -> TrajectoryTermination:
+        has_type = bool(self.error_type)
+        has_message = bool(self.error_message)
+        if self.status == "completed":
+            if has_type or has_message:
+                raise ValueError(
+                    "completed trajectory termination must not include error fields"
+                )
+        elif not (has_type and has_message):
+            raise ValueError(
+                f"{self.status} trajectory termination requires "
+                "error_type and error_message"
+            )
+        return self
+
+
 class AgentTrajectory(StrictModel):
-    schema_version: int = 3
+    schema_version: int = 4
     run_id: str
     recorded_at: datetime = Field(default_factory=utc_now)
     request: dict[str, Any]
@@ -85,6 +127,7 @@ class AgentTrajectory(StrictModel):
     memory_writes: list[MemoryWriteTrace] = Field(default_factory=list)
     run_manifest_ref: str | None = None
     artifacts: dict[str, str] = Field(default_factory=dict)
+    termination: TrajectoryTermination | None = None
 
 
 class ReplayResult(StrictModel):
@@ -147,19 +190,33 @@ class TrajectoryRecorder:
         *,
         manifest_ref: str | None,
         artifacts: dict[str, str],
+        termination: TrajectoryTermination | None = None,
     ) -> None:
         self.trajectory.run_manifest_ref = manifest_ref
         self.trajectory.artifacts = dict(sorted(artifacts.items()))
+        self.trajectory.termination = (
+            termination
+            or self.trajectory.termination
+            or TrajectoryTermination(status="completed", phase="done")
+        )
+
+    def terminate(self, termination: TrajectoryTermination) -> None:
+        self.trajectory.termination = termination
 
     def write(self, path: Path) -> Path:
         path.parent.mkdir(parents=True, exist_ok=True)
+        payload = _redact_json_value(
+            self.trajectory.model_dump(mode="json")
+        )
+        _rekey_redacted_llm_calls(payload)
         encoded = json.dumps(
-            self.trajectory.model_dump(mode="json"),
+            payload,
             ensure_ascii=False,
             indent=2,
             sort_keys=True,
+            allow_nan=False,
         )
-        path.write_text(redact(encoded) + "\n", encoding="utf-8")
+        path.write_text(encoded + "\n", encoding="utf-8")
         return path
 
 
@@ -195,20 +252,81 @@ def normalized_llm_key(*, role: str, prompt: list[dict[str, str]]) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+def _redact_json_value(value: Any) -> Any:
+    """Redact string leaves without applying regex substitutions to JSON syntax.
+
+    Applying text redaction after ``json.dumps`` can replace an unquoted
+    18-digit numeric literal with ``[REDACTED_ID]`` and corrupt the sidecar.
+    Numeric values therefore remain typed while both mapping keys and string
+    values continue through the shared redaction policy.
+    """
+
+    if isinstance(value, str):
+        return redact(value)
+    if isinstance(value, Mapping):
+        return {
+            redact(str(key)): _redact_json_value(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, (list, tuple)):
+        return [_redact_json_value(item) for item in value]
+    return value
+
+
+def _rekey_redacted_llm_calls(payload: Any) -> None:
+    """Keep exact replay keys aligned with the persisted, redacted prompts."""
+
+    if not isinstance(payload, dict):
+        return
+    calls = payload.get("llm_calls", [])
+    if not isinstance(calls, list):
+        return
+    for call in calls:
+        if not isinstance(call, dict):
+            continue
+        role = call.get("role")
+        prompt = call.get("prompt")
+        if not isinstance(role, str) or not isinstance(prompt, list):
+            continue
+        if not all(
+            isinstance(item, dict)
+            and isinstance(item.get("role"), str)
+            and isinstance(item.get("content"), str)
+            for item in prompt
+        ):
+            continue
+        call["normalized_key"] = normalized_llm_key(
+            role=role,
+            prompt=prompt,
+        )
+
+
 def validate_strict_replay_trajectory(trajectory: AgentTrajectory) -> None:
     """Reject incomplete or internally inconsistent strict-replay input."""
-    if trajectory.schema_version != 3:
+    if trajectory.schema_version not in {3, 4}:
         raise ValueError(
-            "trajectory schema_version mismatch: expected 3, "
+            "trajectory schema_version mismatch: expected 3 or 4, "
             f"actual {trajectory.schema_version}"
         )
+    if trajectory.schema_version == 3:
+        if trajectory.termination is not None:
+            raise ValueError(
+                "legacy v3 trajectory must not include v4 termination"
+            )
+        termination_status = "completed"
+    else:
+        if trajectory.termination is None:
+            raise ValueError(
+                "trajectory termination missing for schema_version 4"
+            )
+        termination_status = trajectory.termination.status
     missing = [
         key for key in ("topic", "mode", "depth_level", "recorded_plan")
         if key not in trajectory.request
     ]
     if missing:
         raise ValueError("trajectory request missing required field(s): " + ", ".join(missing))
-    if not trajectory.artifacts:
+    if termination_status in {"completed", "budget_exceeded"} and not trajectory.artifacts:
         raise ValueError("trajectory artifacts missing: expected final artifact(s)")
     traces = [
         *trajectory.llm_calls,

@@ -20,6 +20,8 @@ from deepresearch_agent.tools import (
     FixtureStructuredDataProvider,
     SearchProvider,
     StructuredDataProvider,
+    ToolErrorKind,
+    ToolExecutionError,
 )
 from deepresearch_agent.tools.source_ranking import (
     rerank_sources,
@@ -82,6 +84,7 @@ class ResearcherAgent:
         branch_calls = 0
         branch_exhausted = False
         primary_hydrated = False
+        authority_returned = False
 
         def consume_call() -> bool:
             nonlocal branch_calls, branch_exhausted
@@ -128,6 +131,9 @@ class ResearcherAgent:
                 )
                 for source in disclosed:
                     seen[source.url] = source
+                authority_returned = bool(disclosed)
+                if financial_intent and authority_returned:
+                    primary_hydrated = True
 
         # Prior URLs are re-check targets, never the entire retrieval plan.
         # When a branch ceiling exists, at least one call is reserved for an
@@ -182,13 +188,30 @@ class ResearcherAgent:
             if sub_question.expected_source_types:
                 source_type = sub_question.expected_source_types[idx % len(sub_question.expected_source_types)]
             requested_top_k = max(top_k_per_query, 3) if enable_web_fetch else top_k_per_query
-            results = self.search_tool.search(
-                query,
-                top_k=requested_top_k,
-                source_type=source_type,
-            )
-            if not results and source_type and consume_call():
-                results = self.search_tool.search(query, top_k=requested_top_k)
+            try:
+                results = self.search_tool.search(
+                    query,
+                    top_k=requested_top_k,
+                    source_type=source_type,
+                )
+                if not results and source_type and consume_call():
+                    results = self.search_tool.search(
+                        query,
+                        top_k=requested_top_k,
+                    )
+            except ToolExecutionError as exc:
+                if exc.kind != ToolErrorKind.BUDGET_EXCEEDED:
+                    raise
+                if not authority_returned:
+                    raise
+                branch_exhausted = True
+                records.append(
+                    SearchRecord(
+                        query=f"[external_search_budget_exceeded] {query}",
+                        source_ids=[],
+                    )
+                )
+                break
             latency_ms = int((time.perf_counter() - started) * 1000)
             records.append(SearchRecord(query=query, source_ids=[source.id for source in results], latency_ms=latency_ms))
             ranking_enabled = enable_web_fetch or source_decision_enabled
@@ -216,7 +239,24 @@ class ResearcherAgent:
                         )
                     )
                     break
-                fetched = self.fetch_tool.fetch(source.url)
+                try:
+                    fetched = self.fetch_tool.fetch(source.url)
+                except ToolExecutionError as exc:
+                    if exc.kind != ToolErrorKind.BUDGET_EXCEEDED:
+                        raise
+                    if not authority_returned:
+                        raise
+                    branch_exhausted = True
+                    records.append(
+                        SearchRecord(
+                            query=(
+                                "[external_fetch_budget_exceeded] "
+                                f"{source.url}"
+                            ),
+                            source_ids=[],
+                        )
+                    )
+                    break
                 fetched_urls.append(source.url)
                 records.append(
                     SearchRecord(
@@ -232,6 +272,8 @@ class ResearcherAgent:
                     if fetched.source_tier == "primary":
                         primary_hydrated = True
                         break
+            if branch_exhausted:
+                break
         decisions = (
             [
                 source_rerank_decision(

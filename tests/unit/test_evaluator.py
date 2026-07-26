@@ -4,7 +4,13 @@ import unittest
 from datetime import date
 
 from deepresearch_agent.agents import Evaluator
-from deepresearch_agent.schemas import CriticReport, Evidence, Issue, ResearchState
+from deepresearch_agent.schemas import (
+    CriticReport,
+    Evidence,
+    Issue,
+    NumericFields,
+    ResearchState,
+)
 
 
 class EvaluatorTests(unittest.TestCase):
@@ -24,6 +30,36 @@ class EvaluatorTests(unittest.TestCase):
         ]
         state.final_report = "- Advisor productivity improved 18%. [^1]\n\n[^1]: A"
         state.report_footnote_evidence = {1: state.evidence_store[0].id}
+        return state
+
+    def _state_with_financial_report(self, claim: str) -> ResearchState:
+        state = ResearchState(topic="贵州茅台 2025 年财务表现")
+        state.evidence_store = [
+            Evidence(
+                research_id=state.research_id,
+                sub_question_id="finance",
+                claim=(
+                    "2025年营业收入168,838,102,514.79元，2024年"
+                    "170,899,152,276.34元，同比下降1.21%；归母净利润"
+                    "8,232,006.710168万元；主营业务毛利率91.23%，"
+                    "同比下降0.78个百分点。"
+                ),
+                claim_type="data",
+                source_url="https://example.com/annual-report.pdf",
+                source_title="贵州茅台2025年年度报告",
+                source_pub_date=date(2026, 3, 1),
+                source_page=61,
+                extract_text=(
+                    "金额单位：元。营业收入168,838,102,514.79，"
+                    "上年同期170,899,152,276.34，同比下降1.21%。"
+                    "归母净利润8,232,006.710168万元。主营业务毛利率"
+                    "91.23%，同比下降0.78个百分点。第61页。"
+                ),
+                source_tier="primary",
+            )
+        ]
+        state.final_report = f"- {claim} [^7]\n\n[^7]: 贵州茅台2025年年度报告，p.999"
+        state.report_footnote_evidence = {7: state.evidence_store[0].id}
         return state
 
     def _critic_issue(self, index: int) -> Issue:
@@ -75,6 +111,132 @@ class EvaluatorTests(unittest.TestCase):
 
         self.assertLess(result.citation_accuracy, 1.0)
         self.assertEqual(result.bad_case_categories["citation_error"], 1)
+
+    def test_financial_numeric_audit_accepts_units_rounding_and_ignores_locator_numbers(
+        self,
+    ) -> None:
+        state = self._state_with_financial_report(
+            "贵州茅台2025年营业收入1688.38亿元，2024年1708.99亿元，"
+            "同比下降1.21%；归母净利润823.20亿元；主营业务毛利率"
+            "91.23%，同比下降0.78个百分点，见年报p.999。"
+        )
+
+        result = Evaluator().evaluate(state)
+
+        self.assertEqual(result.task_success_rate, 1.0)
+        self.assertEqual(result.citation_accuracy, 1.0)
+        self.assertNotIn("numeric_citation_mismatch", result.bad_case_categories)
+
+    def test_financial_numeric_audit_rejects_030_numeric_mutations(self) -> None:
+        mutations = {
+            "magnitude": (
+                "贵州茅台2025年营业收入16883.81亿元，2024年1708.99亿元，"
+                "同比下降1.21%；归母净利润823.20亿元；主营业务毛利率"
+                "91.23%，同比下降0.78个百分点。"
+            ),
+            "decimal": (
+                "贵州茅台2025年营业收入1688.38亿元，2024年1708.99亿元，"
+                "同比下降1.21%；归母净利润823.20亿元；主营业务毛利率"
+                "9.123%，同比下降0.78个百分点。"
+            ),
+            "direction": (
+                "贵州茅台2025年营业收入1688.38亿元，2024年1708.99亿元，"
+                "同比增长1.21%；归母净利润823.20亿元；主营业务毛利率"
+                "91.23%，同比下降0.78个百分点。"
+            ),
+        }
+
+        for name, claim in mutations.items():
+            with self.subTest(name=name):
+                result = Evaluator().evaluate(self._state_with_financial_report(claim))
+
+                self.assertEqual(result.task_success_rate, 0.0)
+                self.assertEqual(result.citation_accuracy, 0.0)
+                self.assertEqual(
+                    result.bad_case_categories["numeric_citation_mismatch"],
+                    1,
+                )
+
+    def test_numeric_audit_does_not_treat_extractor_claim_as_source_truth(
+        self,
+    ) -> None:
+        state = ResearchState(topic="贵州茅台 2025 年营业收入")
+        evidence = Evidence(
+            research_id=state.research_id,
+            sub_question_id="finance",
+            claim="2025年营业收入为16883.81亿元。",
+            claim_type="data",
+            source_url="https://example.com/annual-report.pdf",
+            source_title="贵州茅台2025年年度报告",
+            source_pub_date=date(2026, 4, 16),
+            source_page=61,
+            extract_text="2025年营业收入为1688.381亿元。",
+            numeric_fields=NumericFields(
+                entity="贵州茅台",
+                metric_name="营业收入",
+                period="20251231",
+                dimension="合并",
+                value=16883.81,
+                unit="亿元",
+            ),
+            source_tier="primary",
+        )
+        state.evidence_store = [evidence]
+        state.final_report = (
+            "- 2025年营业收入为16883.81亿元。 [^1]\n\n"
+            "[^1]: 贵州茅台2025年年度报告 p61"
+        )
+        state.report_footnote_evidence = {1: evidence.id}
+
+        result = Evaluator().evaluate(state)
+
+        self.assertEqual(result.task_success_rate, 0.0)
+        self.assertEqual(result.citation_accuracy, 0.0)
+        self.assertEqual(
+            result.bad_case_categories["numeric_citation_mismatch"],
+            1,
+        )
+
+    def test_grounded_numeric_fields_can_interpret_pdf_table_rate(self) -> None:
+        state = ResearchState(topic="贵州茅台 2025 年主营业务毛利率")
+        evidence = Evidence(
+            research_id=state.research_id,
+            sub_question_id="finance",
+            claim="主营业务毛利率为91.23%。",
+            claim_type="data",
+            source_url="https://example.com/annual-report.pdf",
+            source_title="贵州茅台2025年年度报告",
+            source_pub_date=date(2026, 4, 16),
+            source_page=10,
+            extract_text=(
+                "分行业 营业收入 营业成本 毛利率（%）\n"
+                "酒类 168774585187.65 14805900139.59 91.23"
+            ),
+            numeric_fields=NumericFields(
+                entity="贵州茅台",
+                metric_name="毛利率",
+                period="20251231",
+                dimension="主营业务",
+                value=91.23,
+                unit="%",
+            ),
+            source_tier="primary",
+        )
+        state.evidence_store = [evidence]
+        state.final_report = (
+            "- 主营业务毛利率为91.23%。 [^1]\n\n"
+            "[^1]: 贵州茅台2025年年度报告 p10"
+        )
+        state.report_footnote_evidence = {1: evidence.id}
+
+        result = Evaluator().evaluate(state)
+
+        self.assertEqual(result.task_success_rate, 1.0)
+        self.assertEqual(result.citation_accuracy, 1.0)
+        self.assertNotIn(
+            "numeric_citation_mismatch",
+            result.bad_case_categories,
+        )
 
     def test_invalid_citation_marker_counts_as_citation_error(self) -> None:
         state = ResearchState(topic="wealth AI")
@@ -128,6 +290,24 @@ class EvaluatorTests(unittest.TestCase):
         self.assertNotIn("citation_error", result.bad_case_categories)
         self.assertEqual(result.cost_cny, 0.000123)
         self.assertEqual(result.price_source, "v4flash_console_calibrated_20260612")
+
+    def test_llm_mode_financial_numeric_mismatch_fails_task_without_inventing_score(
+        self,
+    ) -> None:
+        state = self._state_with_financial_report(
+            "贵州茅台2025年营业收入16883.81亿元，2024年1708.99亿元，"
+            "同比下降1.21%；归母净利润823.20亿元；主营业务毛利率"
+            "91.23%，同比下降0.78个百分点。"
+        )
+        state.metadata["execution_mode"] = "llm"
+
+        result = Evaluator().evaluate(state)
+
+        self.assertEqual(result.task_success_rate, 0.0)
+        self.assertIsNone(result.citation_accuracy)
+        self.assertEqual(result.citation_resolution_rate, 1.0)
+        self.assertEqual(result.bad_case_categories["numeric_citation_mismatch"], 1)
+        self.assertNotIn("citation_error", result.bad_case_categories)
 
     def test_llm_mode_reports_citation_repair_and_uncited_claim_rates(self) -> None:
         state = self._state_with_supported_report()

@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from deepresearch_agent.citations import build_footnote_maps
 from deepresearch_agent.decisions import append_decision_record
 from deepresearch_agent.llm import LLMClient, LLMClientError, StructuredOutputError
+from deepresearch_agent.metric_coverage import evaluate_metric_coverage
 from deepresearch_agent.schemas import (
     Evidence,
     ReportClaim,
@@ -62,6 +63,11 @@ class ReporterAgent:
                 report = self._deterministic_report(state)
         else:
             report = self._deterministic_report(state)
+        report = self._append_metric_coverage(
+            report,
+            state,
+            footnotes.evidence_id_to_footnote,
+        )
         return append_decision_record(report, state.agent_decisions)
 
     def structured_output(self, state: ResearchState) -> StructuredResearchOutput:
@@ -164,7 +170,8 @@ class ReporterAgent:
             )
             lines.append(
                 f"[^{ref_map[item.id]}]: {item.source_title}. {item.source_url} "
-                f"({item.source_pub_date.isoformat() if item.source_pub_date else 'unknown'}){provenance}"
+                f"({item.source_pub_date.isoformat() if item.source_pub_date else 'unknown'})"
+                f"{f' [page={item.source_page}]' if item.source_page else ''}{provenance}"
             )
         return "\n".join(lines)
 
@@ -193,6 +200,7 @@ class ReporterAgent:
                                     "source_url": item.source_url,
                                     "source_title": item.source_title,
                                     "source_pub_date": item.source_pub_date.isoformat() if item.source_pub_date else "unknown",
+                                    "source_page": item.source_page,
                                     "extract_text": item.extract_text,
                                     "numeric_fields": item.numeric_fields.model_dump(mode="json")
                                     if item.numeric_fields
@@ -512,7 +520,8 @@ class ReporterAgent:
             )
             lines.append(
                 f"[^{ref_map[item.id]}]: {item.source_title}. {item.source_url} "
-                f"({item.source_pub_date.isoformat() if item.source_pub_date else 'unknown'}){provenance}"
+                f"({item.source_pub_date.isoformat() if item.source_pub_date else 'unknown'})"
+                f"{f' [page={item.source_page}]' if item.source_page else ''}{provenance}"
             )
         self.last_stats["claim_provenance"] = claim_provenance
         return "\n".join(lines), invalid_references, missing_reference_backfills
@@ -630,6 +639,78 @@ class ReporterAgent:
         if fields.unit:
             parts.append(f"单位: {fields.unit}")
         return f"{item.claim}（{'; '.join(parts)}）" if parts else item.claim
+
+    def _append_metric_coverage(
+        self,
+        report: str,
+        state: ResearchState,
+        ref_map: dict[str, int],
+    ) -> str:
+        coverage = evaluate_metric_coverage(state)
+        if not coverage:
+            return report
+        state.metadata["requested_metric_coverage"] = [
+            item.model_dump(mode="json")
+            for item in coverage
+        ]
+        evidence_by_id = {
+            item.id: item
+            for item in state.evidence_store
+        }
+        lines = [report.rstrip(), "", "## 指标覆盖状态", ""]
+        for item in coverage:
+            periods = (
+                f"（请求报告期：{', '.join(item.requested_periods)}）"
+                if item.requested_periods
+                else ""
+            )
+            if item.status == "cited":
+                rendered: list[str] = []
+                for evidence_id in item.evidence_ids:
+                    evidence = evidence_by_id.get(evidence_id)
+                    if not evidence or evidence_id not in ref_map:
+                        continue
+                    provenance = (
+                        f"，年报 p{evidence.source_page}"
+                        if evidence.source_page
+                        else (
+                            "，接口/字段 "
+                            f"{evidence.structured_record.data_source}."
+                            f"{evidence.structured_record.metric_name}"
+                            if evidence.structured_record
+                            else ""
+                        )
+                    )
+                    rendered.append(
+                        f"{self._evidence_claim_text(evidence)}"
+                        f"{provenance} [^{ref_map[evidence_id]}]"
+                    )
+                if rendered:
+                    lines.append(
+                        f"- {item.metric}{periods}："
+                        + "；".join(rendered)
+                    )
+                    continue
+            if item.status == "searched_unavailable":
+                missing = (
+                    f"；缺失报告期：{', '.join(item.missing_periods)}"
+                    if item.missing_periods
+                    else ""
+                )
+                availability = (
+                    "已取得部分证据，但未获得可引用的完整指标或同比证据"
+                    if item.evidence_ids
+                    else "已检索，但未获得可引用的完整指标证据"
+                )
+                lines.append(
+                    f"- {item.metric}{periods}：{availability}{missing}。"
+                )
+            else:
+                lines.append(
+                    f"- {item.metric}{periods}：未完成检索；运行在该指标"
+                    "检索完成前终止。"
+                )
+        return "\n".join(lines)
 
     def _affected_claims(
         self,

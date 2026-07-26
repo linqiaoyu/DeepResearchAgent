@@ -3,12 +3,18 @@ from __future__ import annotations
 import re
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from pathlib import Path
 from typing import Any
 
 from deepresearch_agent.agents.researcher import ResearcherAgent
-from deepresearch_agent.schemas import Source
+from deepresearch_agent.schemas import (
+    ResearchState,
+    Source,
+    StructuredDataRequest,
+    SubQuestion,
+)
 from deepresearch_agent.tools import (
     ContractSearchProvider,
     RunToolContext,
@@ -16,7 +22,11 @@ from deepresearch_agent.tools import (
     ToolExecutionError,
 )
 from deepresearch_agent.tools.tavily_search import TavilySearchProvider
-from deepresearch_agent.trajectory import TrajectoryRecorder, trajectory_recording
+from deepresearch_agent.trajectory import (
+    TrajectoryRecorder,
+    load_trajectory,
+    trajectory_recording,
+)
 from deepresearch_agent.settings import Settings
 from deepresearch_agent.workflow import DeepResearchEngine
 
@@ -47,6 +57,141 @@ class _HttpStub:
 
 
 class ExternalRequestBudgetTests(unittest.TestCase):
+    def test_default_authority_lane_covers_bounded_disclosure_retries(self) -> None:
+        snapshot = RunToolContext.for_run().external_request_budget.snapshot()
+
+        self.assertEqual(snapshot["max_authority_search_requests"], 3)
+        self.assertEqual(snapshot["max_authority_fetch_requests"], 18)
+
+    def test_default_web_lane_remains_twenty_requests_per_kind(self) -> None:
+        context = RunToolContext.for_run()
+        for _ in range(20):
+            context.consume_external_request("search", tool="tavily_search")
+            context.consume_external_request("fetch", tool="tavily_search")
+
+        with self.assertRaises(ToolExecutionError):
+            context.consume_external_request("search", tool="tavily_search")
+        with self.assertRaises(ToolExecutionError):
+            context.consume_external_request("fetch", tool="tavily_search")
+        snapshot = context.external_request_budget.snapshot()
+
+        self.assertEqual(snapshot["search_requests"], 20)
+        self.assertEqual(snapshot["fetch_requests"], 20)
+        self.assertEqual(snapshot["authority_search_requests"], 0)
+        self.assertEqual(snapshot["authority_fetch_requests"], 0)
+        self.assertEqual(
+            snapshot["accepted_by_tool"]["tavily_search"],
+            {"search": 20, "fetch": 20},
+        )
+        self.assertEqual(
+            snapshot["rejected_by_tool"]["tavily_search"],
+            {"search": 1, "fetch": 1},
+        )
+
+    def test_external_budget_consumption_is_thread_safe(self) -> None:
+        context = RunToolContext.for_run(max_external_fetch_requests=20)
+
+        def consume() -> bool:
+            try:
+                context.consume_external_request(
+                    "fetch",
+                    tool="tavily_search",
+                )
+            except ToolExecutionError:
+                return False
+            return True
+
+        with ThreadPoolExecutor(max_workers=16) as executor:
+            accepted = list(executor.map(lambda _: consume(), range(64)))
+        snapshot = context.external_request_budget.snapshot()
+
+        self.assertEqual(sum(accepted), 20)
+        self.assertEqual(snapshot["fetch_requests"], 20)
+        self.assertEqual(
+            snapshot["accepted_by_tool"]["tavily_search"]["fetch"],
+            20,
+        )
+        self.assertEqual(
+            snapshot["rejected_by_tool"]["tavily_search"]["fetch"],
+            44,
+        )
+
+    def test_structured_provider_runs_before_web_budget_failure(self) -> None:
+        events: list[str] = []
+
+        class OrderingResearcher:
+            last_structured_stats = {
+                "requests": 1,
+                "records": 0,
+                "symbol_resolution_failures": 0,
+                "execution_failures": 0,
+            }
+            last_symbol_resolutions: list[dict[str, str]] = []
+
+            def structured_evidence(
+                self,
+                _research_id: str,
+                _sub_question: SubQuestion,
+            ) -> list[Any]:
+                events.append("structured")
+                return []
+
+            def research_with_budget(
+                self,
+                _sub_question: SubQuestion,
+                **_kwargs: Any,
+            ) -> tuple[Any, ...]:
+                events.append("web")
+                raise ToolExecutionError(
+                    ToolErrorKind.BUDGET_EXCEEDED,
+                    "web budget exhausted",
+                )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            engine = DeepResearchEngine(
+                settings=Settings(
+                    storage_path=Path(tmp) / "research.db",
+                    structured_logging_enabled=False,
+                )
+            )
+            engine.researcher = OrderingResearcher()
+            sub_question = SubQuestion(
+                id="finance",
+                question="贵州茅台 2025 年营业收入",
+                search_queries=["600519 营业收入 年度报告"],
+                structured_data_requests=[
+                    StructuredDataRequest(
+                        capability="financial_indicators",
+                        symbol="600519",
+                        periods=["20251231"],
+                        metrics=["营业收入"],
+                    )
+                ],
+            )
+            state = ResearchState(topic=sub_question.question)
+            state.metadata["capability_selections"] = {
+                sub_question.id: {
+                    "selected_capabilities": [
+                        "structured_data_provider",
+                        "web_search",
+                    ]
+                }
+            }
+            try:
+                with self.assertRaises(ToolExecutionError):
+                    engine._research_one_node(
+                        {
+                            "research_state": state.model_dump(mode="json"),
+                            "fanout_sub_question": sub_question.model_dump(
+                                mode="json"
+                            ),
+                        }
+                    )
+            finally:
+                engine._checkpoint_conn.close()
+
+        self.assertEqual(events, ["structured", "web"])
+
     def test_critic_retry_style_search_is_refused_and_traced_at_run_limit(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             client = _HttpStub()
@@ -134,10 +279,18 @@ class ExternalRequestBudgetTests(unittest.TestCase):
                     runs_root=Path(tmp) / "runs",
                     max_external_search_requests_per_run=0,
                     structured_logging_enabled=False,
+                    run_manifest_enabled=False,
+                    trajectory_record_enabled=True,
                 ),
                 search_tool=provider,
             )
             state = engine.run(topic="budget refusal", depth_level=1)
+            trajectory = load_trajectory(
+                Path(tmp)
+                / "runs"
+                / state.research_id
+                / "trajectory.json"
+            )
             engine._checkpoint_conn.close()
 
         self.assertEqual(state.status, "budget_exceeded")
@@ -151,6 +304,24 @@ class ExternalRequestBudgetTests(unittest.TestCase):
         self.assertTrue(state.final_report)
         self.assertIn("数据缺失与资源耗尽", state.final_report or "")
         self.assertIn("0/0", state.final_report or "")
+        self.assertEqual(
+            trajectory.termination.status,
+            "budget_exceeded",
+        )
+        self.assertEqual(
+            trajectory.termination.error_type,
+            "ToolExecutionError",
+        )
+        self.assertEqual(
+            trajectory.artifacts["report.md"],
+            state.final_report,
+        )
+        self.assertGreaterEqual(
+            state.metadata["external_request_budget"][
+                "rejected_by_tool"
+            ]["tavily_search"]["search"],
+            1,
+        )
 
 
 if __name__ == "__main__":

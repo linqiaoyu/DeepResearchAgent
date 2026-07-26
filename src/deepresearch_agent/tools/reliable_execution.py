@@ -53,39 +53,91 @@ class ExternalRequestBudget:
 
     max_search_requests: int
     max_fetch_requests: int
+    max_authority_search_requests: int = 3
+    max_authority_fetch_requests: int = 18
     search_requests: int = 0
     fetch_requests: int = 0
+    authority_search_requests: int = 0
+    authority_fetch_requests: int = 0
+    accepted_by_tool: dict[str, dict[str, int]] = field(default_factory=dict)
+    rejected_by_tool: dict[str, dict[str, int]] = field(default_factory=dict)
     rejected_events: list[dict[str, int | str]] = field(default_factory=list)
+    _lock: Any = field(default_factory=threading.Lock, repr=False, compare=False)
 
     def consume(self, request_kind: str, *, tool: str) -> None:
         if request_kind not in {"search", "fetch"}:
             raise ValueError(f"unknown external request kind: {request_kind}")
-        count_name = f"{request_kind}_requests"
-        limit_name = f"max_{request_kind}_requests"
-        consumed = getattr(self, count_name)
-        limit = getattr(self, limit_name)
-        if consumed >= limit:
-            self.rejected_events.append(
-                {
-                    "tool": tool,
-                    "request_kind": request_kind,
-                    "consumed": consumed,
-                    "limit": limit,
-                }
-            )
-            raise ToolExecutionError(
-                ToolErrorKind.BUDGET_EXCEEDED,
-                f"run-wide external {request_kind} request budget exhausted "
-                f"for {tool}: {consumed}/{limit}",
-            )
-        setattr(self, count_name, consumed + 1)
+        lane = "authority" if tool == "disclosure_source" else "web"
+        prefix = "authority_" if lane == "authority" else ""
+        count_name = f"{prefix}{request_kind}_requests"
+        limit_name = f"max_{prefix}{request_kind}_requests"
+        with self._lock:
+            consumed = getattr(self, count_name)
+            limit = getattr(self, limit_name)
+            if consumed >= limit:
+                self._increment(self.rejected_by_tool, tool, request_kind)
+                self.rejected_events.append(
+                    {
+                        "tool": tool,
+                        "request_kind": request_kind,
+                        "lane": lane,
+                        "consumed": consumed,
+                        "limit": limit,
+                    }
+                )
+                raise ToolExecutionError(
+                    ToolErrorKind.BUDGET_EXCEEDED,
+                    f"run-wide {lane} {request_kind} request budget exhausted "
+                    f"for {tool}: {consumed}/{limit}",
+                )
+            setattr(self, count_name, consumed + 1)
+            self._increment(self.accepted_by_tool, tool, request_kind)
 
-    def snapshot(self) -> dict[str, int]:
+    def snapshot(self) -> dict[str, Any]:
+        with self._lock:
+            return {
+                "search_requests": self.search_requests,
+                "max_search_requests": self.max_search_requests,
+                "fetch_requests": self.fetch_requests,
+                "max_fetch_requests": self.max_fetch_requests,
+                "authority_search_requests": self.authority_search_requests,
+                "max_authority_search_requests": (
+                    self.max_authority_search_requests
+                ),
+                "authority_fetch_requests": self.authority_fetch_requests,
+                "max_authority_fetch_requests": (
+                    self.max_authority_fetch_requests
+                ),
+                "total_search_requests": (
+                    self.search_requests + self.authority_search_requests
+                ),
+                "total_fetch_requests": (
+                    self.fetch_requests + self.authority_fetch_requests
+                ),
+                "accepted_by_tool": self._counter_snapshot(
+                    self.accepted_by_tool
+                ),
+                "rejected_by_tool": self._counter_snapshot(
+                    self.rejected_by_tool
+                ),
+            }
+
+    def _increment(
+        self,
+        counters: dict[str, dict[str, int]],
+        tool: str,
+        request_kind: str,
+    ) -> None:
+        tool_counts = counters.setdefault(tool, {"search": 0, "fetch": 0})
+        tool_counts[request_kind] += 1
+
+    def _counter_snapshot(
+        self,
+        counters: dict[str, dict[str, int]],
+    ) -> dict[str, dict[str, int]]:
         return {
-            "search_requests": self.search_requests,
-            "max_search_requests": self.max_search_requests,
-            "fetch_requests": self.fetch_requests,
-            "max_fetch_requests": self.max_fetch_requests,
+            tool: dict(counts)
+            for tool, counts in sorted(counters.items())
         }
 
 
@@ -153,12 +205,20 @@ class RunToolContext:
         max_retries: int = 6,
         max_external_search_requests: int = 20,
         max_external_fetch_requests: int = 20,
+        max_authority_search_requests: int = 3,
+        max_authority_fetch_requests: int = 18,
     ) -> "RunToolContext":
         return cls(
             retry_budget=RetryBudget(max_retries=max_retries),
             external_request_budget=ExternalRequestBudget(
                 max_search_requests=max_external_search_requests,
                 max_fetch_requests=max_external_fetch_requests,
+                max_authority_search_requests=(
+                    max_authority_search_requests
+                ),
+                max_authority_fetch_requests=(
+                    max_authority_fetch_requests
+                ),
             ),
         )
 

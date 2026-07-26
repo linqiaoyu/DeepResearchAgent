@@ -4,6 +4,7 @@ import re
 import time
 from collections import Counter
 
+from deepresearch_agent.agents.numeric_citations import has_financial_numeric_mismatch
 from deepresearch_agent.schemas import EvaluationResult, Evidence, ResearchState
 
 CITATION_RE = re.compile(r"\[\^(\d+)\]")
@@ -16,7 +17,13 @@ class Evaluator:
         report = state.final_report or ""
         evidence_count = len(state.evidence_store)
         claim_lines = [line for line in report.splitlines() if line.startswith("- ")]
-        citation_total, supported_citations, unresolved_citations = self._score_citations(
+        execution_mode = state.metadata.get("execution_mode")
+        (
+            citation_total,
+            supported_citations,
+            unresolved_citations,
+            numeric_citation_mismatches,
+        ) = self._score_citations(
             claim_lines,
             state.evidence_store,
             state.report_footnote_evidence,
@@ -36,7 +43,6 @@ class Evaluator:
         citation_resolution_rate = (
             (citation_total - unresolved_citations) / citation_total if citation_total else 0.0
         )
-        execution_mode = state.metadata.get("execution_mode")
 
         if execution_mode == "llm":
             citation_accuracy = None
@@ -66,6 +72,8 @@ class Evaluator:
         bad_case_categories = Counter(issue.issue_type for issue in issues)
         if citation_errors:
             bad_case_categories["citation_error"] += citation_errors
+        if numeric_citation_mismatches:
+            bad_case_categories["numeric_citation_mismatch"] += numeric_citation_mismatches
         llm_stats = state.metadata.get("llm_stats", {})
         extractor_stats = llm_stats.get("extractor", []) if isinstance(llm_stats, dict) else []
         invalid_extract_text = sum(int(item.get("invalid_extract_text", 0)) for item in extractor_stats)
@@ -97,7 +105,11 @@ class Evaluator:
 
         return EvaluationResult(
             research_id=state.research_id,
-            task_success_rate=1.0 if state.final_report and evidence_count else 0.0,
+            task_success_rate=(
+                1.0
+                if state.final_report and evidence_count and not numeric_citation_mismatches
+                else 0.0
+            ),
             citation_accuracy=round(citation_accuracy, 3) if citation_accuracy is not None else None,
             citation_accuracy_reason=citation_accuracy_reason,
             citation_resolution_rate=round(citation_resolution_rate, 3),
@@ -121,7 +133,7 @@ class Evaluator:
         claim_lines: list[str],
         evidence_store: list[Evidence],
         report_footnote_evidence: dict[int, str] | None = None,
-    ) -> tuple[int, int, int]:
+    ) -> tuple[int, int, int, int]:
         evidence_by_id = {item.id: item for item in evidence_store}
         footnote_to_evidence = {
             number: evidence_by_id[evidence_id]
@@ -131,6 +143,7 @@ class Evaluator:
         citation_total = 0
         supported_citations = 0
         unresolved_citations = 0
+        numeric_citation_mismatches = 0
 
         for line in claim_lines:
             citation_numbers = [int(match) for match in CITATION_RE.findall(line)]
@@ -138,16 +151,32 @@ class Evaluator:
                 continue
 
             claim_text = self._claim_text(line)
+            cited_evidence = [
+                footnote_to_evidence[citation_number]
+                for citation_number in citation_numbers
+                if citation_number in footnote_to_evidence
+            ]
+            numeric_mismatch = (
+                bool(cited_evidence)
+                and has_financial_numeric_mismatch(claim_text, cited_evidence)
+            )
+            if numeric_mismatch:
+                numeric_citation_mismatches += 1
             for citation_number in citation_numbers:
                 citation_total += 1
                 evidence = footnote_to_evidence.get(citation_number)
                 if not evidence:
                     unresolved_citations += 1
                     continue
-                if self._is_supported(claim_text, evidence):
+                if not numeric_mismatch and self._is_supported(claim_text, evidence):
                     supported_citations += 1
 
-        return citation_total, supported_citations, unresolved_citations
+        return (
+            citation_total,
+            supported_citations,
+            unresolved_citations,
+            numeric_citation_mismatches,
+        )
 
     def _claim_text(self, line: str) -> str:
         text = line.removeprefix("- ").strip()
