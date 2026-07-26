@@ -1289,8 +1289,11 @@
       "flags": {
         "CONFIG_FAIL_FAST_ENABLED": true,
         "CONTEXT_PACKER_ENABLED": false,
+        "CRITIC_ENABLED": true,
         "DYNAMIC_CAPABILITY_ENABLED": true,
+        "EXTRACTOR_ENABLED": true,
         "INJECTION_GUARD_ENABLED": false,
+        "PROCEDURAL_MEMORY_ENABLED": false,
         "RUN_MANIFEST_ENABLED": true,
         "STRUCTURED_LOGGING_ENABLED": true,
         "STRUCTURED_OUTPUT_ENABLED": true,
