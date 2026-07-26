@@ -456,6 +456,16 @@ class TrajectoryReplayTests(unittest.TestCase):
                 topic="贵州茅台 600519 2025 年营业收入研究",
                 depth_level=1,
             )
+            self.assertTrue(
+                any(
+                    item.source_page == 6
+                    and item.numeric_fields is not None
+                    and item.numeric_fields.metric_name
+                    == "营业收入"
+                    and item.numeric_fields.period == "2025年"
+                    for item in state.evidence_store
+                )
+            )
             engine._checkpoint_conn.close()
             trajectory = load_trajectory(
                 root
