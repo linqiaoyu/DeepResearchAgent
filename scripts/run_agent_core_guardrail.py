@@ -138,6 +138,7 @@ def _run_case(
             raise RuntimeError(
                 f"run cost {cost_cny:.8f} exceeded {max_run_cost_cny:.8f}"
             )
+        trajectory = _trajectory(case_dir, state.research_id)
         result = {
             **score,
             "topic": case.topic,
@@ -177,8 +178,11 @@ def _run_case(
                 "external_request_budget",
                 {},
             ),
-            "authority_channel_calls": _authority_channel_calls(state),
-            "termination": _termination(case_dir, state.research_id),
+            "authority_channel_calls": _authority_channel_calls(
+                state,
+                trajectory,
+            ),
+            "termination": trajectory.get("termination"),
         }
         (case_dir / "result.json").write_text(
             json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True)
@@ -228,23 +232,31 @@ def _assert_live_purity(engine: DeepResearchEngine) -> dict[str, str]:
     }
 
 
-def _authority_channel_calls(state: Any) -> dict[str, int]:
+def _authority_channel_calls(
+    state: Any,
+    trajectory: dict[str, Any],
+) -> dict[str, int]:
     requests = state.metadata.get("external_request_budget", {})
     accepted = requests.get("accepted_by_tool", {})
     disclosure = accepted.get("disclosure_source", {})
     structured_stats = state.metadata.get("structured_data_stats", {})
+    tool_calls = trajectory.get("tool_calls", [])
     return {
         "cninfo_logical_calls": sum(
             1
-            for decision in state.agent_decisions
-            if decision.decision_type == "capability_selection"
-            and "disclosure_source" in decision.inputs.get(
-                "selected_capabilities", []
-            )
+            for item in tool_calls
+            if item.get("tool_spec", {}).get("name")
+            == "disclosure_source"
         ),
         "cninfo_http_search_requests": int(disclosure.get("search", 0)),
         "cninfo_http_fetch_requests": int(disclosure.get("fetch", 0)),
         "akshare_logical_requests": sum(
+            1
+            for item in tool_calls
+            if item.get("tool_spec", {}).get("name")
+            == "structured_data_provider"
+        ),
+        "akshare_requested_operations": sum(
             int(item.get("requests", 0))
             for item in structured_stats.values()
             if isinstance(item, dict)
@@ -254,13 +266,12 @@ def _authority_channel_calls(state: Any) -> dict[str, int]:
     }
 
 
-def _termination(case_dir: Path, run_id: str) -> dict[str, Any] | None:
+def _trajectory(case_dir: Path, run_id: str) -> dict[str, Any]:
     path = case_dir / "runs" / run_id / "trajectory.json"
     if not path.exists():
-        return None
+        return {}
     payload = json.loads(path.read_text(encoding="utf-8"))
-    value = payload.get("termination")
-    return value if isinstance(value, dict) else None
+    return payload if isinstance(payload, dict) else {}
 
 
 def _resolve(value: str) -> Path:
