@@ -474,7 +474,7 @@ def _statement_evidence(
                 NAMESPACE_URL,
                 (
                     f"{research_id}:{sub_question.id}:{source.url}:"
-                    f"{row.metric}:{period}:{row.extract_offset}"
+                    f"{row.metric}:{period}"
                 ),
             )
         ),
@@ -523,8 +523,7 @@ def _margin_evidence(
                 NAMESPACE_URL,
                 (
                     f"{research_id}:{sub_question.id}:{source.url}:"
-                    f"主营业务毛利率:{current_period}:"
-                    f"{row.extract_offset}"
+                    f"主营业务毛利率:{current_period}"
                 ),
             )
         ),

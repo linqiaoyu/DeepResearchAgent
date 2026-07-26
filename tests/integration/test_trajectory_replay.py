@@ -84,9 +84,19 @@ class OfflineRecordingDisclosure:
             source_type="disclosure_pdf",
             published_at=date(2026, 3, 30),
             content=(
+                "贵州茅台酒股份有限公司2025 年年度报告\n"
+                "投资者联系邮箱：ir@moutai.example\n"
+                "[[PDF_PAGE=6]]\n"
+                "七、近三年主要会计数据和财务指标\n"
+                "(一) 主要会计数据\n"
+                "单位：元 币种：人民币\n"
+                "主要会计数据 2025年 2024年 "
+                "本期比上年同期增减(%) 2023年\n"
+                "营业收入 168,838,102,514.79 "
+                "170,899,152,276.34 -1.21 "
+                "147,693,604,994.14\n"
                 "[[PDF_PAGE=42]]\n"
                 "贵州茅台2025年营业收入为1708.99亿元。\n"
-                "投资者联系邮箱：ir@moutai.example"
             ),
             credibility=1.0,
             source_tier="primary",
@@ -145,7 +155,18 @@ class OfflineScriptedCompletion:
                         "question": payload["topic"],
                         "search_queries": ["600519 年度报告"],
                         "expected_source_types": ["official"],
-                        "structured_data_requests": [],
+                        "structured_data_requests": [
+                            {
+                                "capability": "financial_indicators",
+                                "company_name": "贵州茅台",
+                                "symbol": "600519",
+                                "periods": [
+                                    "20251231",
+                                    "20241231",
+                                ],
+                                "metrics": ["营业收入"],
+                            }
+                        ],
                         "priority": 5,
                     }
                 ],

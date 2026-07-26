@@ -349,6 +349,51 @@ class FinancialTableExtractorTests(unittest.TestCase):
             )
         )
 
+    def test_financial_evidence_ids_survive_redacted_prefix_length_change(
+        self,
+    ) -> None:
+        source = self._annual_report().model_copy(
+            update={
+                "content": (
+                    "投资者邮箱：ir@moutai.example\n"
+                    + self._annual_report().content
+                )
+            }
+        )
+        redacted = source.model_copy(
+            update={
+                "content": source.content.replace(
+                    "ir@moutai.example",
+                    "[REDACTED_EMAIL]",
+                )
+            }
+        )
+        sub_question = self._sub_question()
+
+        original = ExtractorAgent(
+            llm_client=_ExtractorLLM([]),  # type: ignore[arg-type]
+        ).extract(
+            "redaction-stable",
+            sub_question,
+            [source],
+        )
+        replayed = ExtractorAgent(
+            llm_client=_ExtractorLLM([]),  # type: ignore[arg-type]
+        ).extract(
+            "redaction-stable",
+            sub_question,
+            [redacted],
+        )
+
+        self.assertNotEqual(
+            [item.extract_offset_start for item in original],
+            [item.extract_offset_start for item in replayed],
+        )
+        self.assertEqual(
+            [item.id for item in original],
+            [item.id for item in replayed],
+        )
+
     def test_multiple_industry_rows_without_total_fail_closed(
         self,
     ) -> None:
