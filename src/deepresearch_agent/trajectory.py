@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import datetime
@@ -29,6 +30,9 @@ class LLMCallTrace(StrictModel):
     attempt: int = Field(ge=1)
     repair: bool = False
     error: str | None = None
+    sequence: int | None = Field(default=None, ge=1)
+    recorded_at: datetime | None = None
+    normalized_key: str | None = None
 
 
 class ToolCallTrace(StrictModel):
@@ -39,12 +43,16 @@ class ToolCallTrace(StrictModel):
     attempts: int = Field(ge=0)
     transport: Literal["local", "mcp"] = "local"
     server: str | None = None
+    sequence: int | None = Field(default=None, ge=1)
+    recorded_at: datetime | None = None
 
 
 class NodeTransitionTrace(StrictModel):
     node: str
     input_summary: dict[str, Any]
     output_summary: dict[str, Any]
+    sequence: int | None = Field(default=None, ge=1)
+    recorded_at: datetime | None = None
 
 
 class SignalReadTrace(StrictModel):
@@ -65,7 +73,7 @@ class MemoryWriteTrace(StrictModel):
 
 
 class AgentTrajectory(StrictModel):
-    schema_version: int = 2
+    schema_version: int = 3
     run_id: str
     recorded_at: datetime = Field(default_factory=utc_now)
     request: dict[str, Any]
@@ -89,14 +97,40 @@ class ReplayResult(StrictModel):
 class TrajectoryRecorder:
     def __init__(self, *, run_id: str, request: dict[str, Any]) -> None:
         self.trajectory = AgentTrajectory(run_id=run_id, request=request)
+        self._sequence = 0
+
+    def _next_trace_fields(self) -> dict[str, Any]:
+        existing = [
+            item.sequence
+            for item in (
+                *self.trajectory.llm_calls,
+                *self.trajectory.tool_calls,
+                *self.trajectory.node_transitions,
+            )
+            if item.sequence is not None
+        ]
+        self._sequence = max([self._sequence, *existing], default=0) + 1
+        return {"sequence": self._sequence, "recorded_at": utc_now()}
 
     def record_llm_call(self, call: LLMCallTrace) -> None:
+        payload = call.model_dump()
+        payload.update(self._next_trace_fields())
+        payload["normalized_key"] = normalized_llm_key(
+            role=call.role, prompt=call.prompt
+        )
+        call = LLMCallTrace.model_validate(payload)
         self.trajectory.llm_calls.append(call)
 
     def record_tool_call(self, call: ToolCallTrace) -> None:
+        payload = call.model_dump()
+        payload.update(self._next_trace_fields())
+        call = ToolCallTrace.model_validate(payload)
         self.trajectory.tool_calls.append(call)
 
     def record_node_transition(self, transition: NodeTransitionTrace) -> None:
+        payload = transition.model_dump()
+        payload.update(self._next_trace_fields())
+        transition = NodeTransitionTrace.model_validate(payload)
         self.trajectory.node_transitions.append(transition)
 
     def record_decision(self, decision: AgentDecision) -> None:
@@ -148,6 +182,63 @@ def trajectory_recording(
 
 def active_trajectory_recorder() -> TrajectoryRecorder | None:
     return _ACTIVE_RECORDER.get()
+
+
+def normalized_llm_key(*, role: str, prompt: list[dict[str, str]]) -> str:
+    """Stable exact cache key; it deliberately has no fuzzy matching mode."""
+    payload = json.dumps(
+        {"role": role, "prompt": prompt},
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def validate_strict_replay_trajectory(trajectory: AgentTrajectory) -> None:
+    """Reject incomplete or internally inconsistent strict-replay input."""
+    if trajectory.schema_version != 3:
+        raise ValueError(
+            "trajectory schema_version mismatch: expected 3, "
+            f"actual {trajectory.schema_version}"
+        )
+    missing = [
+        key for key in ("topic", "mode", "depth_level", "recorded_plan")
+        if key not in trajectory.request
+    ]
+    if missing:
+        raise ValueError("trajectory request missing required field(s): " + ", ".join(missing))
+    if not trajectory.artifacts:
+        raise ValueError("trajectory artifacts missing: expected final artifact(s)")
+    traces = [
+        *trajectory.llm_calls,
+        *trajectory.tool_calls,
+        *trajectory.node_transitions,
+    ]
+    missing_fields: list[str] = []
+    sequences: list[int] = []
+    for trace in traces:
+        name = type(trace).__name__
+        if trace.sequence is None:
+            missing_fields.append(f"{name}.sequence")
+        else:
+            sequences.append(trace.sequence)
+        if trace.recorded_at is None:
+            missing_fields.append(f"{name}.recorded_at")
+    if missing_fields:
+        raise ValueError("trajectory trace missing required field(s): " + ", ".join(missing_fields))
+    if (
+        len(sequences) != len(set(sequences))
+        or sorted(sequences) != list(range(1, len(sequences) + 1))
+    ):
+        raise ValueError("trajectory trace sequence mismatch: expected contiguous FIFO order")
+    for call in trajectory.llm_calls:
+        expected = normalized_llm_key(role=call.role, prompt=call.prompt)
+        if call.normalized_key != expected:
+            raise ValueError(
+                "trajectory LLM normalized_key mismatch: expected exact prompt key "
+                f"for role {call.role}"
+            )
 
 
 def load_trajectory(path: Path) -> AgentTrajectory:

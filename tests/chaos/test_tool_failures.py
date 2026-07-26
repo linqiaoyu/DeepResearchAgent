@@ -76,8 +76,18 @@ class ToolFailureChaosTests(unittest.TestCase):
             with patch(
                 "deepresearch_agent.workflow.engine.RunToolContext.for_run",
                 return_value=run_context,
-            ):
+            ) as context_factory:
                 state = engine.run(topic="AI Agent 财富管理可靠性研究", depth_level=1)
+            self.assertGreater(
+                context_factory.call_count,
+                0,
+                "RunToolContext injection ineffective: engine did not call for_run",
+            )
+            self.assertIs(
+                context_factory.return_value,
+                run_context,
+                "RunToolContext injection ineffective: factory did not return the test context",
+            )
             breaker = run_context.breakers["web_search"]
             engine._checkpoint_conn.close()
         self.assertEqual(state.status, "done")

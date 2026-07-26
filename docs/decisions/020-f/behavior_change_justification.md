@@ -25,6 +25,27 @@
 
 ## 覆盖核对
 
+### 逐 hunk 映射（Git diff 行口径）
+
+下表的行数是 `git diff --numstat f35e175^1 f35e175 -- <file>` 的新增加删除；
+同一 JSON 逻辑行的删除与新增各计一行。长字符串报告替换保持为一个 hunk，不把其
+内嵌换行误计为文件行。
+
+| 快照文件 | hunk / 行号范围 | 行数 | 归因类别(F1–F4) | 一句话理由 |
+| --- | --- | ---: | --- | --- |
+| finance_structured.json | 22, 27, 852（派生指标/manifest） | 6 | F2/F4 | Critic 呈现与报告重排后的派生 characterization。 |
+| finance_structured.json | 347（`final_report`） | 2 | F2/F3/F4 | Critic 缺失、unknown 日期与补充事实进入读者报告。 |
+| finance_structured.json | 745–823（`node_summaries`） | 66 | F2/F4 | 详细分析去重、补充事实重排及 Critic 未执行节点摘要。 |
+| finance_structured.json | 合计 | 74 | — | 与 `--numstat` 的 58 additions + 16 deletions 一致。 |
+| wealth_research.json | 22, 27, 1071（派生指标/manifest） | 6 | F2/F4 | Critic 呈现与报告重排后的派生 characterization。 |
+| wealth_research.json | 467（`final_report`） | 2 | F2/F3/F4 | Critic 缺失、unknown 日期与补充事实进入读者报告。 |
+| wealth_research.json | 837–999（`node_summaries`） | 130 | F2/F4 | 详细分析去重、补充事实重排及 Critic 未执行节点摘要。 |
+| wealth_research.json | 合计 | 138 | — | 与 `--numstat` 的 118 additions + 20 deletions 一致。 |
+
+四处测试断言（`test_decision_weaving.py`、`test_numeric_consistency.py`、
+`test_reflection.py`、`test_research_loop.py`）各自单列为 F1：它们把旧自然语言
+查询/停止文本约束改为字段化查询与稳定语义标记，并未降低任何通过条件。
+
 - `finance_structured.json` 的 74 个 diff 行由上表的 F2、F3、F4 输出和派生数值覆盖。
 - `wealth_research.json` 的 138 个 diff 行由同样类别覆盖；该主题有更多无法关联的证据，故 `补充事实` 和 `node_summaries` 的变化更多。
 - `test_decision_weaving.py`、`test_numeric_consistency.py`、`test_reflection.py`、`test_research_loop.py` 的四处断言均由 F1 覆盖。
