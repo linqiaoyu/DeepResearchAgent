@@ -2,11 +2,12 @@
 
 ## 决策
 
-CNINFO 是优先的一手通道，但不是整个研究请求的单点失败条件。连接、timeout、5xx、
-rate limit、auth、404、空结果和协议格式异常都在 CNINFO adapter 内 fail closed：不构造、
-不猜测任何公告；随后允许 Researcher 查询较低权威的 web 通道。报告必须新增“数据获取
-降级”章节，说明 authority 失败及证据覆盖影响。唯一不降级继续的是 run-wide 外部请求
-预算拒绝，因为继续请求会绕过成本/配额安全合同。
+CNINFO 是优先的一手通道，但不是整个研究请求的单点失败条件。设计合同要求连接、timeout、
+5xx、rate limit、auth、404、空结果和协议格式异常都在 CNINFO adapter 内 fail closed：不构造、
+不猜测任何公告；随后允许 Researcher 查询较低权威的 web 通道，并在报告“数据获取降级”
+章节说明 authority 失败及证据覆盖影响。下表逐行区分已经注入到报告级的行为、只验证到
+adapter 的行为和仍未注入的设计分支，不能把整组设计合同表述为全部实测。唯一不降级继续
+的是 run-wide 外部请求预算拒绝，因为继续请求会绕过成本/配额安全合同。
 
 这一选择优于整体 fail closed 的理由是：authority 失败不等于用户问题不可研究，二手来源
 仍可形成带 source tier 的有限答案；但静默 fallback 会让读者把二手材料误认成一手闭合，
@@ -21,18 +22,22 @@ deadline，因此一次完整 retry envelope 的硬上限是 120s，而不是原
 
 | 故障 | 通道 | 注入识别 / 生产上限 | retry / circuit | 降级行为 | 用户可见 |
 |---|---|---|---|---|---|
-| connection refused/reset | CNINFO stock/query/PDF | 0ms / logical ≤120s | transient，最多 3 attempt；3 个失败 logical call 后 circuit open，后续 0 attempt fast-fail | CNINFO 返回空，不接纳伪 authority；转 web | 是，`disclosure_source / transient` |
-| transport timeout / 挂起 | CNINFO logical call | 0ms 即时 timeout 注入；另有真实 Event 阻塞 30ms deadline 测试；logical ≤120s | detached worker 不重试；provider 在旧 worker 退出前 quarantine，新 run 零外呼 | 转 web | 是，`timeout` |
-| HTTP 503/5xx | CNINFO query/PDF | 0ms / logical ≤120s | transient，最多 3 attempt | 转 web | 是，`transient` |
-| HTTP 429 | CNINFO query/PDF | 分类单测即时 / logical ≤120s | rate_limited，最多 3 attempt，独立 backoff policy | 转 web | 是，`rate_limited` |
-| HTTP 401/403 | CNINFO query/PDF | 分类单测即时 / 单 attempt | auth，不重试 | 转 web | 是，`auth` |
-| HTTP 404 | CNINFO query/PDF | 0ms / 单 attempt | not_found，不重试 | 转 web | 是，`not_found` |
-| `announcements=[]` | CNINFO query | 0ms / 单 attempt | 成功调用但显式 `not_found` 事件 | 转 web | 是，“no matching document” |
-| 缺 `announcements` / 非列表 | CNINFO query | 0ms / 单 attempt | permanent，不重试；authority 内 fail closed | 转 web | 是，`permanent` |
-| 非空 announcement 缺 URL / 证券代码不符 | CNINFO payload | 0ms / 单 attempt | permanent，不重试；拒绝脏 authority | 转 web | 是，`permanent` |
-| web transient/timeout/429 | web search/fetch | 各 attempt 受既有 ToolSpec timeout | 按 typed policy retry，失败/恢复均记 event；circuit 可 fast-fail | 返回已有 Evidence 或空集 | 是，已有 chaos tests 覆盖 |
-| CNINFO 后 web 也完全失败 | authority + web | 两个通道各自有界 | 各自预算/circuit 独立 | 完成空 Evidence 报告，不伪造答案 | 是，“尚未收集到足够证据” + 降级章节 |
-| run-wide request budget 拒绝 | 任一外部通道 | 消耗前立即 | 不重试、不 fallback 绕过 | `budget_exceeded` partial report / terminal | 是，预算决策记录 |
+| stock `ConnectError` | CNINFO stock lookup | 0ms / logical ≤120s | transient，最多 3 attempt；3 个失败 logical call 后 circuit open，后续 0 attempt fast-fail | CNINFO 返回空，不接纳伪 authority；转 web | 是，E2E 验证 `disclosure_source / transient` |
+| 即时 transport timeout | CNINFO logical call | 0ms 注入 / logical ≤120s | typed timeout，最多 3 attempt | 转 web | E2E 降级章节已验证 |
+| 真正挂起 | CNINFO logical call | Event 阻塞、30ms deadline，断言 `<100ms` 返回；logical 配置上限 ≤120s | detached worker 不重试；provider 在旧 worker 退出前 quarantine，新 run 零外呼 | adapter 允许上层转 web | 只验证到 adapter/跨 run 隔离，未单独跑完整报告 |
+| query HTTP 503 | CNINFO query | 0ms / logical ≤120s | transient，最多 3 attempt | 转 web | 报告降级章节已验证；typed reason 在 adapter 层验证 |
+| HTTP 429 | CNINFO query/PDF | **CNINFO 响应注入未验证** / logical ≤120s | 代码设计为 rate_limited、最多 3 attempt | 设计为转 web | 报告级路径未验证 |
+| HTTP 401/403 | CNINFO query/PDF | **CNINFO 响应注入未验证** / logical ≤120s | 代码设计为 auth、单 attempt | 设计为转 web | 报告级路径未验证 |
+| HTTP 404 | CNINFO query/PDF | 未单独计时 / logical ≤120s | not_found，单 attempt | 转 web | adapter 已验证；报告可见性未单独验证 |
+| `announcements=[]` | CNINFO query | 0ms / logical ≤120s | 成功调用但显式 `not_found` 事件，单 attempt | 转 web | 报告降级章节已验证；typed reason 在 adapter 层验证 |
+| 缺 `announcements` | CNINFO query | 0ms / logical ≤120s | permanent，单 attempt；authority 内 fail closed | 转 web | 是，E2E 已验证 |
+| `announcements` 非列表 / 证券代码不符 | CNINFO payload | **未注入** | 代码设计为 permanent / fail closed | 设计为转 web | 报告级路径未验证 |
+| 非空 announcement 缺 URL | CNINFO payload | 未单独计时 / logical ≤120s | permanent，单 attempt；拒绝脏 authority | 转 web | adapter 已验证；报告可见性未单独验证 |
+| web transient/timeout/429/auth/circuit | web search/fetch | 同步注入；未做真实网络计时 | 按 typed policy retry，失败/恢复均记 event；circuit 可 fast-fail | 返回已有 Evidence 或空集 | 是，E2E chaos 覆盖 |
+| web 全失败 | web search/fetch | 同步注入 | 有界 retry/circuit | 完成空 Evidence 报告，不伪造答案 | 是，“尚未收集到足够证据” |
+| CNINFO 失败且 web 真挂起 | authority + web | **组合注入未验证** | 两通道设计上各自有界 | 预期为空 Evidence | 报告级路径未验证 |
+| web run-wide request budget 拒绝 | web search/fetch | 消耗前同步拒绝 | 不重试、不 fallback 绕过 | `budget_exceeded` partial report / terminal | terminal 与报告字节回放已验证；具体提示文字未单独断言 |
+| authority request budget 拒绝 | CNINFO | 消耗前同步拒绝 | adapter hard rejection | 不绕过预算 | Engine terminal/报告级路径未单独验证 |
 
 探针原始计数：connection/timeout 各 3 HTTP calls；503 为 6（每 attempt 的 stock GET +
 announcement POST）；empty/malformed 各 2；对应 JSON 保存于 ignored
@@ -64,9 +69,10 @@ strict replay 作为质量论据。
   request boundary 的 cancellation guard。
 
 逐项命令和原始失败输出在 ignored
-`_collab/033/removal_validation/failure_handling.txt` 与 `failure_replay.txt`；原恢复态 43/43
-输出在 `final_green.txt`，加入真实阻塞后定向套件 45/45；阻塞红灯与恢复输出在
-`blocking_timeout_isolation.txt`。
+`_collab/033/removal_validation/failure_handling.txt` 与 `failure_replay.txt`；恢复态是
+`final_green.txt` 中原 43 项套件，加上 `blocking_timeout_isolation.txt` 中新增的 2 项阻塞
+探针，不把它们误称为一份 45/45 原始输出。15 项 mutation 是代表性守卫，不是矩阵每一
+行都做了一次独立移除实验。
 
 ## 已知边界
 
@@ -75,5 +81,9 @@ strict replay 作为质量论据。
   boundary 协作取消；HTTPX 自身的 30s transport timeout 仍是实际资源回收边界。任意不
   配合 cancellation scope 的第三方同步 operation，其内部副作用仍无法由通用 executor 强杀。
 - circuit breaker 当前按 Engine run context 隔离，不跨进程共享，不能代表供应商全局健康。
-- 同时注入“CNINFO 失败 + web 挂起”的组合只由已有 total-retrieval chaos 覆盖，没有真实
-  provider 故障演练；最小后续修复是录制一个经授权的真实 provider outage run。
+- 未注入 CNINFO 429、401/403、connection reset、PDF 5xx/404、`announcements` 非列表和
+  证券代码不符；404、invalid entry 与 CNINFO circuit 也没有各自的报告级可见性测试。
+- 同时注入“CNINFO 失败 + web 挂起”的组合没有覆盖，也没有真实 provider outage 或真实
+  120 秒等待实验；最小后续修复是补组合 chaos，再录制一个经授权的真实 provider outage。
+- 失败回放覆盖 disclosure provider failure、预算失败和 pre-plan failure，尚未覆盖 detached
+  timeout、open circuit 或其他节点失败的严格重放。

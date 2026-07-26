@@ -59,7 +59,29 @@
 21 flags`，专门的默认值文档测试 10 项通过。
 移除/变异验证保存于 `_collab/033/removal_validation/00_...` 至 `04_...`：分别覆盖一次
 命令构造错误及修正、dataclass default 漂移、loader default 漂移、CI 命令删除和恢复态；
-`22_...` 另证明删除动态规则生成行会立刻让 `.env.example` 校验失败。
+`22_...` 另证明删除动态规则生成行会立刻让 `.env.example` 校验失败。最终又补做三项：
+`25_...` 把 README 的 dynamic 默认值改错后该检查失败；`26_...` 删除 semantic judge 的
+manifest 分类后集合检查失败；`27_...` 让 loader 忽略 semantic judge 环境覆盖后覆盖测试
+失败。当前恢复态是 21 flags / 10 tests；旧 `04_...` 里的 20/6 只保留为历史序列，不能
+代表最终状态。
+
+## 仍然存在的校验边界
+
+- 自动同步覆盖 21 个 bool 和动态 capability rules JSON，不覆盖所有非布尔 Settings。
+- README 扫描只识别精确的 `NAME=true|false` 声明；自由文本同义表述可能逃逸。
+- CI 单测只检查命令字符串存在，注释也可能误通过；真实 workflow 当前确实有可执行 step，
+  但后续应把 YAML step 结构纳入解析校验。
+- loader 默认一致性由单测保证，不是同步脚本单独完成；因此 CI 必须同时跑全套测试。
+
+## 规则收缩的补充说明
+
+旧的“additive 默认翻转与 golden 必须组成连续两 commit 原子对”被收缩为“改默认与对应
+characterization 同一任务内完成并单独说明”。原因是连续 commit 形状本身不能防止行为
+错误，而且会人为规定开发历史；真正要保护的是可归因 diff 和完成后的全量 gate。旧文中
+“整卡失败标签/生产代码行数上界不存在”、产品 Agent 不等同 Codex 角色、Review Gate
+状态和核心能力优先级也被删除：前两项是历史争议澄清而非持续执行动作，后两项是产品
+状态/路线，应归档在 decisions 与 roadmap。生产化自检没有消失，改为报告中的“demo-only
+边界与已知限制”责任，而不是复制固定问题清单。
 
 ## 结构参考边界
 
