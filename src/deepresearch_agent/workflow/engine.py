@@ -74,6 +74,7 @@ from deepresearch_agent.skills import (
 from deepresearch_agent.storage import SQLiteStore
 from deepresearch_agent.tools import (
     CapabilityRegistry,
+    CninfoDisclosureSource,
     DeterministicCapabilitySelector,
     FIXED_CAPABILITY_SET,
     SearchProvider,
@@ -217,11 +218,15 @@ class DeepResearchEngine:
                 configured_structured_provider
             )
         )
+        configured_disclosure_source = disclosure_source or CninfoDisclosureSource(
+            pdf_max_pages=self.settings.pdf_max_pages,
+            char_limit=self.settings.tavily_raw_content_char_limit,
+        )
         self.capability_registry: CapabilityRegistry = (
             build_capability_registry(
                 search_provider=configured_search_tool,
                 structured_data_provider=configured_structured_provider,
-                disclosure_source=disclosure_source,
+                disclosure_source=configured_disclosure_source,
             )
         )
         self.skill_loader = SkillPackLoader(
@@ -256,7 +261,7 @@ class DeepResearchEngine:
             fetch_tool=self.capability_registry.resolve("web_fetch"),
             disclosure_source=(
                 self.capability_registry.resolve("disclosure_source")
-                if disclosure_source is not None
+                if configured_disclosure_source is not None
                 else None
             ),
             as_of=self.settings.as_of,
