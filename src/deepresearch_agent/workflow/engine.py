@@ -20,6 +20,7 @@ from deepresearch_agent.memory import (
     EpisodicMemory,
     EpisodicQuery,
     ProceduralMemory,
+    ProceduralQuery,
     ProceduralRecord,
     ProceduralSufficiencyResult,
     WorkingMemoryQuery,
@@ -2113,6 +2114,7 @@ class DeepResearchEngine:
 
     def _planning(self, state: ResearchState) -> None:
         state.plan = self.planner.plan(state.topic, state.depth_level, research_id=state.research_id)
+        self._apply_procedural_memory(state)
         recorder = active_trajectory_recorder()
         if recorder:
             recorder.trajectory.request["recorded_plan"] = (
@@ -2151,6 +2153,57 @@ class DeepResearchEngine:
         state.pending_tasks = [item.id for item in state.plan.sub_questions]
         state.token_used += 900
         state.cost_used += 0.002
+
+    def _apply_procedural_memory(self, state: ResearchState) -> None:
+        """Adopt only an observed sufficient strategy for the same question type."""
+        if not state.plan:
+            return
+        for index, sub_question in enumerate(state.plan.sub_questions):
+            history = self.procedural_memory.query(
+                ProceduralQuery(question_type=classify_subquestion(sub_question))
+            )
+            candidates = [
+                record for record in history.records
+                if record.sufficiency_result.sufficient and record.strategy
+            ]
+            if not candidates:
+                continue
+            selected = max(
+                candidates,
+                key=lambda record: (
+                    record.sufficiency_result.score,
+                    record.run_id,
+                    record.sub_question_id,
+                    record.iteration,
+                    record.strategy,
+                ),
+            )
+            if tuple(sub_question.search_queries) == selected.strategy:
+                continue
+            state.plan.sub_questions[index] = sub_question.model_copy(
+                update={"search_queries": list(selected.strategy)}
+            )
+            record_agent_decision(
+                state,
+                AgentDecision(
+                    decision_type="procedural_memory_read",
+                    made_by="PlannerAgent",
+                    inputs={
+                        "question_type": history.question_type,
+                        "records_considered": len(history.records),
+                        "prior_queries": sub_question.search_queries,
+                    },
+                    criterion=(
+                        "adopt the highest-scoring sufficient observed strategy "
+                        "for the exact deterministic question type"
+                    ),
+                    outcome=f"adopted_queries={list(selected.strategy)}",
+                    alternatives_considered=[
+                        "keep_current_queries",
+                        "use_insufficient_observation",
+                    ],
+                ),
+            )
 
     def _extracting(self, state: ResearchState) -> None:
         if not state.plan:

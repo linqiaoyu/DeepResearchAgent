@@ -90,14 +90,17 @@ class CninfoDisclosureSource:
         self.context.consume_external_request(request_kind, tool="disclosure_source")
 
     def search(
-        self, security_code: str, keyword: str, start_date: date, end_date: date
+        self, security_code: str, keyword: str, start_date: date, end_date: date,
+        *, preferred_terms: tuple[str, ...] = (),
     ) -> list[Source]:
         inputs = {
             "security_code": security_code, "keyword": keyword,
             "start_date": start_date.isoformat(), "end_date": end_date.isoformat(),
         }
         result = ReliableToolExecutor().execute(
-            DISCLOSURE_TOOL_SPEC, lambda: self._request(inputs), self.context
+            DISCLOSURE_TOOL_SPEC,
+            lambda: self._request(inputs, preferred_terms=preferred_terms),
+            self.context,
         )
         recorder = active_trajectory_recorder()
         if recorder:
@@ -113,7 +116,9 @@ class CninfoDisclosureSource:
             raise DisclosureSourceError(result.error.kind, result.error.message)
         return list(result.value or [])
 
-    def _request(self, inputs: Mapping[str, str]) -> list[Source]:
+    def _request(
+        self, inputs: Mapping[str, str], *, preferred_terms: tuple[str, ...] = ()
+    ) -> list[Source]:
         try:
             column, plate = cninfo_exchange_for_security_code(inputs["security_code"])
             self._consume_egress("fetch")
@@ -179,6 +184,6 @@ class CninfoDisclosureSource:
                 char_limit=self.char_limit,
                 source_id=f"cninfo-{hashlib.sha1(url.encode()).hexdigest()[:12]}",
                 title=title, source_type="disclosure_pdf",
-                published_at=published, source_tier="primary",
+                published_at=published, source_tier="primary", preferred_terms=preferred_terms,
             ))
         return sources

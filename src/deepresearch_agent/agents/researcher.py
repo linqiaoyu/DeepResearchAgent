@@ -104,13 +104,21 @@ class ResearcherAgent:
             code = code_match.group(1) if code_match else (
                 "300750" if "宁德时代" in joined else ""
             )
-            keyword = next(
+            financial_intent = any(
+                request.capability == "financial_indicators"
+                for request in sub_question.structured_data_requests
+            )
+            keyword = "年度报告" if financial_intent else next(
                 (term for term in ("匈牙利", "德布勒森", "投产") if term in joined),
                 "公告",
             )
             if code and consume_call():
                 disclosed = self.disclosure_source.search(
-                    code, keyword, date(2000, 1, 1), self.as_of
+                    code, keyword, date(2000, 1, 1), self.as_of,
+                    preferred_terms=(
+                        "合并资产负债表", "合并利润表", "营业收入", "营业成本",
+                        "毛利率", "归属于母公司股东的净利润", "主营业务分行业情况",
+                    ) if financial_intent else (),
                 )
                 records.append(
                     SearchRecord(

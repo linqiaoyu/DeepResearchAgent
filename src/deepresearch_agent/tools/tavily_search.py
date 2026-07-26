@@ -80,14 +80,16 @@ def decode_pdf_source(
     source_type: str = "web_fetch_pdf",
     published_at: date | None = UNKNOWN_PUBLISHED_AT,
     source_tier: str = "unknown",
+    preferred_terms: tuple[str, ...] = (),
 ) -> Source:
     """Decode PDF bytes through the single pypdf path used by all tools."""
     from pypdf import PdfReader
 
     try:
         reader = PdfReader(io.BytesIO(content), strict=False)
-        pages = reader.pages[: max(1, max_pages)]
-        text = "\n".join(page.extract_text() or "" for page in pages)
+        page_text = [page.extract_text() or "" for page in reader.pages[: max(1, max_pages)]]
+        selected_indexes = _preferred_pdf_page_indexes(page_text, preferred_terms)
+        text = "\n".join(page_text[index] for index in selected_indexes)
     except Exception as exc:
         raise PdfDecodeError(
             f"pdf_decode_failed url={url} error_type={type(exc).__name__}"
@@ -105,6 +107,28 @@ def decode_pdf_source(
         source_tier=source_tier,
         content_truncated=len(reader.pages) > max_pages or len(text) > char_limit,
     )
+
+
+def _preferred_pdf_page_indexes(
+    page_text: list[str], preferred_terms: tuple[str, ...]
+) -> list[int]:
+    """Select target pages plus immediate table context without raising a budget."""
+    if not preferred_terms:
+        return list(range(len(page_text)))
+    matched = {
+        index
+        for index, text in enumerate(page_text)
+        if any(term in text for term in preferred_terms)
+    }
+    if not matched:
+        return list(range(len(page_text)))
+    with_context = {
+        adjacent
+        for index in matched
+        for adjacent in (index - 1, index, index + 1)
+        if 0 <= adjacent < len(page_text)
+    }
+    return sorted(with_context)
 
 
 class TavilySearchProvider:

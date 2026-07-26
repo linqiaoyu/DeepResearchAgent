@@ -10,6 +10,14 @@ from deepresearch_agent.settings import Settings, project_root
 
 class PlannerAgent:
     STRUCTURED_CAPABILITIES = {"symbol_resolve", "financial_indicators", "price_history"}
+    FINANCIAL_METRIC_TERMS = (
+        "营业收入", "营收", "营业成本", "毛利率", "归母净利润", "净利润",
+        "资产负债", "现金流", "每股收益", "净资产收益率",
+    )
+    LISTED_COMPANIES = {
+        "贵州茅台": "600519",
+        "宁德时代": "300750",
+    }
 
     def __init__(
         self,
@@ -30,6 +38,36 @@ class PlannerAgent:
         return self._deterministic_plan(topic, depth_level)
 
     def _deterministic_plan(self, topic: str, depth_level: int = 2) -> ResearchPlan:
+        financial_request = self._financial_metric_request(topic)
+        if financial_request is not None:
+            code, company_name, metrics = financial_request
+            return ResearchPlan(
+                topic=topic,
+                depth_level=depth_level,
+                sub_questions=[
+                    SubQuestion(
+                        id="financial_metrics",
+                        question=topic,
+                        search_queries=[f"{code} {metric} 年度报告" for metric in metrics],
+                        expected_source_types=["official"],
+                        structured_data_requests=[
+                            StructuredDataRequest(
+                                capability="financial_indicators",
+                                company_name=company_name,
+                                symbol=code,
+                                periods=re.findall(r"20\d{2}", topic),
+                                metrics=metrics,
+                            )
+                        ],
+                        priority=5,
+                    )
+                ],
+                estimated_sources=3,
+                success_criteria=[
+                    "Financial metrics are traceable to a first-party disclosure.",
+                    "Every key finding has at least one source-backed citation.",
+                ],
+            )
         base_dimensions = [
             (
                 "market_pain",
@@ -88,6 +126,27 @@ class PlannerAgent:
                 "Evaluation metrics include citation accuracy, relevance, faithfulness, cost, and latency.",
             ],
         )
+
+    def _financial_metric_request(
+        self, topic: str
+    ) -> tuple[str, str | None, list[str]] | None:
+        """Recognise only explicit A-share financial-metric questions.
+
+        Deliberately excluding generic terms such as ``业绩`` preserves the
+        frozen broad-research snapshots; this route is for a concrete metric
+        request, not a loose company research topic.
+        """
+        metrics = [term for term in self.FINANCIAL_METRIC_TERMS if term in topic]
+        if not metrics:
+            return None
+        code_match = re.search(r"(?<!\d)(\d{6})(?!\d)", topic)
+        company_name = next(
+            (name for name in self.LISTED_COMPANIES if name in topic), None
+        )
+        if code_match is None and company_name is None:
+            return None
+        code = code_match.group(1) if code_match else self.LISTED_COMPANIES[company_name]
+        return code, company_name, metrics
 
     def _llm_plan(self, topic: str, depth_level: int, research_id: str) -> ResearchPlan:
         assert self.llm_client is not None
