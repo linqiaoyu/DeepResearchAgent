@@ -216,6 +216,35 @@ class DynamicCapabilitySelectionTest(unittest.TestCase):
         settings = Settings(storage_path=Path("test.db"))
         self.assertFalse(settings.dynamic_capability_enabled)
 
+    def test_default_financial_question_reaches_disclosure_source(self) -> None:
+        """A default engine registers and selects the first-party adapter."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            settings = Settings(
+                storage_path=Path(temp_dir) / "research.db",
+                runs_root=Path(temp_dir) / "runs",
+                run_manifest_enabled=False,
+                structured_logging_enabled=False,
+            )
+            engine = DeepResearchEngine(settings=settings)
+            plan = engine.planner.plan(
+                "贵州茅台（600519）2025 年营业收入和毛利率是多少",
+                depth_level=1,
+            )
+            selection = engine.capability_selector.select(
+                ResearchState(topic=plan.topic), plan.sub_questions[0]
+            )
+            engine._checkpoint_conn.close()
+
+        self.assertEqual(
+            selection.selected_capabilities,
+            (
+                "disclosure_source",
+                "structured_data_provider",
+                "web_fetch",
+                "web_search",
+            ),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
