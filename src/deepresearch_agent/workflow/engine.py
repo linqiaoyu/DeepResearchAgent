@@ -531,6 +531,15 @@ class DeepResearchEngine:
                 DecisionGate.validate(
                     "external_request_budget", before, self._state_output(state)
                 )
+                partial_report = self.reporter.report(state)
+                state.final_report = (
+                    f"{partial_report}\n\n"
+                    "## 数据缺失与资源耗尽\n\n"
+                    "本次研究在检索阶段耗尽运行级外部请求预算，后续检索、"
+                    "抽取、批评与评估未能完成；因此本报告仅保留耗尽前可用的"
+                    "信息，不能视为完整研究结论。\n\n"
+                    f"耗尽原因：{exc}\n"
+                )
                 self.graph.update_state(config, self._state_output(state))
                 self.logger.event("run_finished", status=state.status)
                 return state
