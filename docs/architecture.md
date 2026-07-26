@@ -132,7 +132,8 @@ The graph state uses a `TypedDict` wrapper containing JSON-serializable
 The runtime has two modes:
 
 - `deterministic`: default, no API keys, deterministic local Planner/Extractor/Reporter.
-- `llm`: opt-in, LiteLLM-backed Planner/Extractor/Reporter, deterministic fixture Researcher, deterministic Critic.
+- `llm`: opt-in, LiteLLM-backed Planner/Extractor/Reporter, configured fixture
+  or live search/structured/disclosure providers, and deterministic Critic.
 
 ## Core Contracts
 
@@ -146,7 +147,9 @@ The runtime has two modes:
 - `AgentDecision`: actor, measured inputs, explicit criterion, outcome, alternatives, iteration, and timestamp
 - `DecisionContext`: immutable budget, sufficiency, prior-classification, critic-issue, and preceding-decision snapshot
 - `ReflectionResult`: deterministic cross-round signals plus a separately typed LLM insight seam
-- `AgentTrajectory`: LLM/tool calls, node summaries, decisions, manifest reference, and recorded artifacts
+- `AgentTrajectory`: schema-v4 request/call/node/decision/artifact trace with a
+  typed `completed | budget_exceeded | failed` terminal outcome; legacy schema
+  v3 remains load/validation-compatible and has no `termination` object
 - `NodeContract`: node consumes, produces, invariants, and optional decision gate
 - `LoopSpec`: iteration, budget, no-progress bounds, progress metric, and exhaustion handler
 - `MemoryStore`: typed write/query protocol with scope and lifecycle declarations
@@ -218,9 +221,16 @@ capabilities a sub-question may use.
 Reflector adds two auditable decisions: mechanical signal extraction and procedural-memory
 write. Only deterministic signals enter `DecisionContext`; the placeholder `llm_insight`
 cannot affect behavior before 019.
-`TRAJECTORY_RECORD_ENABLED=false` attaches a redacted recorder at the LLM,
-ToolSpec search, and graph-node boundaries. Strict replay uses recorded fixture
-search responses, fails closed on an unrecorded call, and compares report bytes.
+`TRAJECTORY_RECORD_ENABLED=false` is the default. When enabled, new recordings
+use schema v4 and persist redacted LLM attempts, supported ToolSpec calls, node
+transitions, decisions, artifacts, and a typed terminal outcome. Verified strict
+replay for completed v4 runs consumes recorded LLM, search/fetch,
+structured-data, and disclosure results without network access, fails closed on
+missing calls or exact-prompt drift, and byte-compares the report artifact.
+Round 031 A4f validated this path with a real-provider
+Planner/Extractor/Reporter run. Legacy v3 remains read-only
+load/validation-compatible. Schema-v4 `budget_exceeded` and `failed`
+trajectories are persisted for audit but are currently non-replayable.
 Strategy-level replay is not implemented.
 
 The research-sufficiency back-edge, prior-period path, decision weaving, numeric
@@ -279,7 +289,14 @@ The role-to-model mapping is centralized in `src/deepresearch_agent/llm_config.p
 
 Every LLM call appends one JSON line to `data/runtime/llm_ledger.jsonl`, including role, model, prompt/completion/total tokens, USD/CNY cost, latency, cache-hit field when present, repair attempts, and parse-error status. The directory is gitignored.
 
-The per-run budget fuse defaults to 3 CNY and is configurable with `DEEPRESEARCH_LLM_BUDGET_CNY`. If cumulative run cost exceeds the budget, the engine marks the state `budget_exceeded`, preserves the latest checkpointed partial state, and stops gracefully.
+The per-run budget fuse defaults to 3 CNY and is configurable with
+`DEEPRESEARCH_LLM_BUDGET_CNY`. If cumulative run cost exceeds the budget, the
+engine marks the state `budget_exceeded`, preserves the latest checkpointed
+partial state, and stops gracefully. LLM-budget exhaustion checkpoints the
+partial state and writes a schema-v4 `budget_exceeded` trajectory with phase and
+error fields. Run-wide external-request exhaustion additionally emits a partial
+report artifact. Unexpected exceptions persist a `failed` terminal trajectory
+and failed checkpoint before the exception is re-raised.
 
 In LLM mode, `token_used` and cost fields come from ledger aggregation. The native accounting currency is CNY under `price_source=v4flash_console_calibrated_20260612`; USD is a display field derived from CNY. `citation_accuracy` is reported as `null` because the current scorer is extractive-only, while `citation_resolution_rate` and `critic_catch_rate` remain programmatic. `answer_relevance` and `faithfulness` are reported as `null` with reason fields until a judge is added.
 
@@ -337,7 +354,7 @@ The hardening modules are additive. Default-off modules do not change the determ
 | Config fail-fast | `config_validation.py` | `CONFIG_FAIL_FAST_ENABLED` | `true` | Aggregates missing required configuration before engine construction |
 | Structured business output | `structured_output.py` | `STRUCTURED_OUTPUT_ENABLED` | `true` | Adds tables/timeline/risk objects without replacing prose |
 | API section progress | `progressive_delivery.py`, `api/demo.py` | `PROGRESSIVE_DELIVERY_ENABLED` | `false` | Adds polling sidecars; final report is byte-identical |
-| Trajectory recording | `trajectory.py`, `trajectory_replay.py` | `TRAJECTORY_RECORD_ENABLED` | `false` | Writes a redacted replay sidecar; fixture strict replay only |
+| Trajectory recording | `trajectory.py`, `trajectory_replay.py` | `TRAJECTORY_RECORD_ENABLED` | `false` | Writes redacted schema-v4 sidecars for completed, budget-exceeded, and failed runs; completed fixture and real-LLM runs have verified offline strict replay, while noncompleted trajectories are audit-only |
 | Branch budget | `orchestration/budget.py` | `BRANCH_BUDGET_ENABLED` | `false` | Bounds per-run and per-branch search calls; records allocation decisions |
 | Research sufficiency loop | `orchestration/loops.py`, `orchestration/research_loop.py` | `RESEARCH_LOOP_ENABLED` | `false` | Refines weak queries through a bounded native LangGraph back-edge |
 | Prior research memory | `memory/prior.py` | `PRIOR_MEMORY_ENABLED` | `false` | Uses only the latest earlier snapshot to classify and verify sub-questions |

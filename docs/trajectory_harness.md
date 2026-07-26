@@ -1,20 +1,24 @@
 # Trajectory recording and replay
 
-`TRAJECTORY_RECORD_ENABLED` is dark by default. When enabled, one redacted
-`trajectory.json` sidecar records the run request, every LLM boundary attempt,
-every ToolSpec search call, node input/output summaries, AgentDecision records,
-the run-manifest reference, and the exact report artifact.
+`TRAJECTORY_RECORD_ENABLED` is dark by default. When enabled, new sidecars use
+schema v4 and record the run request, every LLM attempt, supported local or MCP
+ToolSpec calls, node transitions including failures, AgentDecision/signal/memory
+records, the manifest reference, artifacts, and a required typed `termination`
+object. Terminal status is `completed`, `budget_exceeded`, or `failed`;
+noncompleted outcomes require phase, error type, and error message. Legacy
+schema-v3 files remain load/validation-compatible and must not contain the v4
+termination object.
 
-Strict replay consumes recorded tool results instead of calling a search
-provider, fails closed when a required call was not recorded, and requires the
-reproduced report bytes to match. Strategy-level replay is not implemented; the
-CLI and API reject that mode instead of relabeling strict matching.
+Strict replay is verified for completed schema-v4 trajectories. It consumes
+recorded LLM and supported tool results, preserves the recorded run id, enforces
+FIFO and exact prompts, and byte-compares report artifacts without provider
+calls. Schema-v4 `budget_exceeded` and `failed` trajectories validate and
+persist for audit, but replay returns a fail-closed non-replayable `cache_miss`.
+Strategy-level replay remains unimplemented.
 
-The current tests use synthetic deterministic fixture trajectories only. No
-real trajectory has been recorded. A later strategy-level replay design would
-need its own audited matching contract; a policy that asks a new question still
-needs a separately authorized provider call.
-
-All sidecars pass through `security/content.py` redaction on write. The harness
-does not provide a visualization, cross-run aggregation, or a real-client
-recording in this task.
+Coverage is no longer synthetic-only. Fixture tests cover the expanded
+surfaces, a real-shaped LLM/disclosure integration test proves redaction-safe
+offline replay, and Round 031 A4f recorded and reproduced a real-provider
+Planner/Extractor/Reporter plus structured-data/disclosure run byte-for-byte.
+Sidecars remain redacted on write; visualization, cross-run aggregation, and
+production retention/access policy remain unimplemented.

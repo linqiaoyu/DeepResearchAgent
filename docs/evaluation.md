@@ -17,31 +17,50 @@ content-affecting until measured.
 
 ## Metrics
 
-- `task_success_rate`: report generated with at least one evidence record; in every execution mode, any detected financial numeric-citation mismatch forces this metric to `0`
+- `task_success_rate`: narrow MVP gate requiring a final report, at least one
+  evidence record, and zero detected financial numeric-citation mismatch lines.
+  In every execution mode, any detected mismatch forces this metric to `0`.
+  In LLM mode a value of `1` does not imply that unresolved citations,
+  non-financial semantic support, Critic issues, or requested-metric completeness
+  all passed.
 - `citation_accuracy`: in deterministic mode, citation markers in bullet claims map to Evidence rows, the cited claim has deterministic text overlap with `Evidence.claim` or `Evidence.extract_text`, and recognized financial values are supported by the union of the explicitly mapped Evidence rows; in LLM mode this remains `null` with a reason because paraphrase-aware judging is not implemented, while the mechanical numeric audit still applies to task success
 - `citation_resolution_rate`: citation markers that resolve to real Evidence rows, computed in both deterministic and LLM modes
 - `citation_repair_retry_rate`: Golden Set mechanical metric equal to the share of runs where Reporter performed one structured evidence-id repair retry before rendering
 - `uncited_claim_rate`: Golden Set mechanical metric equal to uncited rendered ReportClaims divided by all rendered ReportClaims
 - `critic_catch_rate`: MVP heuristic/proxy for whether the Critic exposed quality issues. Current deterministic logic scores visible issue coverage, using `min(1.0, len(issues) / 3)` when issues are present and `1.0` when no issues are found. It is not true seeded issue recall or human-labeled Critic recall.
-- `answer_relevance`: topic terms appear in the final report
-- `faithfulness`: bullet claims in the report carry citations
+- `answer_relevance`: topic terms appear in the final report in deterministic
+  mode; LLM mode reports `null` until a semantic judge is used
+- `faithfulness`: bullet claims in the report carry citations in deterministic
+  mode; LLM mode reports `null` until a semantic judge is used
 - `cost_usd`, `cost_cny`, `latency_seconds`, `token_used`, `price_source`: operational metrics for Pareto analysis. LLM mode accounts natively in CNY from the LiteLLM ledger.
 
 The mechanical financial numeric-citation audit runs in every execution mode
 and recognizes revenue, net profit, gross margin, and operating-cost amounts or
-rates across every reader-visible report line, including the non-bulleted
-summary. A financial value without an explicit resolvable citation therefore
-fails the audit instead of escaping bullet-only scoring. It normalizes
-`元`/`万元`/`亿元`, allows rounding within half of the displayed numeric
-resolution, and preserves percentage or percentage-point direction from words
-such as `增长` and `下降`. Years, footnote numbers, and page locators are not
-treated as financial values. Resolution uses only
+rates across eligible reader-visible content lines, including the non-bulleted
+summary. Headings and footnote-definition lines are skipped. A financial value
+without an explicit resolvable citation therefore fails the audit instead of
+escaping bullet-only scoring. Mismatches are counted by line, so several wrong
+values on one line contribute one mismatch line. Citation-resolution and
+lexical-support metrics remain bullet-line metrics.
+
+The audit normalizes `元`/`万元`/`亿元`, allows rounding within half of the
+displayed numeric resolution, and preserves increase/decrease direction from
+words such as `增长` and `下降`. Years, footnote numbers, and page locators are
+not treated as financial values. Resolution uses only
 `report_footnote_evidence`; positional Evidence inference remains prohibited.
-When two cited periods are present, the audit may mechanically derive an
-amount YoY rate or a rate percentage-point change. Financial-statement column
-headers bind each value to its year; conflicting LLM-normalized period/value
-pairs are rejected. `营业总收入` and `营业收入` are separate metrics rather than
-aliases.
+Given two distinct source-backed values, it may mechanically derive an amount
+YoY rate or a rate percentage-point change, preferring explicit period order
+when two periods are available. It never reverse-derives a prior rate from a
+current rate plus a claimed change. A compatibility fallback can still derive
+from encounter order when explicit periods are absent, and direct rate parsing
+does not yet distinguish `%` from `百分点`; both are documented gaps for future
+hardening.
+
+When enough ordered header years are parseable, financial-statement column
+headers bind each value to its year. Conflicting LLM-normalized period/value
+pairs are rejected when the source excerpt exposes parseable period candidates;
+a source without such candidates cannot receive the same period check.
+`营业总收入` and `营业收入` are separate metrics rather than aliases.
 An unqualified gross-margin request routed as `主营业务毛利率` additionally
 requires a main-business total dimension such as `酒类` or `小计`; product,
 region, and channel rows cannot close that slot or support its numeric claim.
@@ -52,14 +71,32 @@ excerpt. Structured records remain authoritative at their typed interface
 boundary. The audit is deliberately mechanical rather than a semantic LLM
 judge.
 
-Unsupported or invalid bullet citations are counted as `citation_error` bad
-cases in deterministic scoring. A recognized financial value that is not
-supported by its explicitly cited Evidence union additionally records
+For metric-scoped financial reports, Reporter applies the same numeric-support
+contract before rendering: a summary containing recognized financial numbers
+is replaced with a fixed nonnumeric summary because it has no per-value
+Evidence binding, risks containing unbound financial numbers are downgraded to
+qualitative warnings, and each unverified assumption is audited against the
+union of its own `evidence_ids`. Unsupported numeric assumptions are replaced
+with a qualitative warning that retains any valid citations, and their
+provenance records `numeric_downgraded=true`; nonnumeric assumptions are not
+numerically downgraded.
+
+Unresolved bullet citations are counted as `citation_error` in every mode.
+Resolved-but-lexically-unsupported citations add that category only in
+deterministic mode because LLM mode has no semantic citation judge. A
+recognized financial value that is not supported by its explicitly cited
+Evidence union additionally records
 `numeric_citation_mismatch` and forces task success to zero in every mode. It
 also lowers deterministic citation accuracy; LLM citation accuracy remains
 `null` rather than presenting a partial mechanical check as a full
 paraphrase-aware score. Golden Set LLM rounds additionally run a judge-backed
 `citation_support_rate` over extracted report claims and evidence.
+
+Round 031 regression tests cover magnitude, decimal-place, and
+comparison-direction mutations. Each mutation produces
+`numeric_citation_mismatch` and forces `task_success_rate=0`; the unchanged
+cited report remains accepted. In LLM mode, the same mechanical failure applies
+while `citation_accuracy` correctly remains `null`.
 
 Production version: compute true critic recall from seeded issues or manually labeled bad cases.
 
@@ -459,6 +496,9 @@ The default Critic and seed data support these categories:
 - outdated source
 - missing counterargument
 - unverified projection
+
+Evaluator additionally emits `numeric_citation_mismatch`. It is a mechanical
+report-to-source failure category, not a Critic issue type.
 
 ## Acceptance Criteria
 
