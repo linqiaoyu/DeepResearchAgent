@@ -7,6 +7,7 @@ from pathlib import Path
 from deepresearch_agent.context import (
     ContextBudget,
     HeuristicTokenEstimator,
+    build_token_estimator,
     pack_evidence,
 )
 from deepresearch_agent.schemas import Evidence
@@ -44,6 +45,9 @@ def evidence(
 
 
 class ContextPackerTests(unittest.TestCase):
+    def test_default_token_estimator_is_local_and_deterministic(self) -> None:
+        self.assertIsInstance(build_token_estimator(), HeuristicTokenEstimator)
+
     def test_same_input_produces_same_output(self) -> None:
         items = [evidence("a"), evidence("b"), evidence("c")]
         kwargs = {
