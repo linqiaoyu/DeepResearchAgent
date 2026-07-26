@@ -517,8 +517,20 @@ def _metric_before(text: str, number_start: int) -> str | None:
         return None
 
     metric_position, metric = max(metric_matches)
-    yoy_positions = [match.end() for match in YOY_RE.finditer(window)]
-    if yoy_positions and max(yoy_positions) >= metric_position:
+    yoy_matches = list(YOY_RE.finditer(window))
+    if yoy_matches and yoy_matches[-1].end() >= metric_position:
+        trailing = window[yoy_matches[-1].end() :]
+        amount_at_number = re.match(
+            rf"{NUMBER_PATTERN}\s*(?:亿元|万元|元)",
+            text[number_start:],
+        )
+        if (
+            amount_at_number
+            and re.fullmatch(r"\s*的?\s*", trailing)
+        ):
+            # “较2024年的1,708.99亿元” names the comparison-base
+            # amount. Only the later “下降1.21%” is the YoY result.
+            return metric
         return f"{metric}:yoy"
     return metric
 
