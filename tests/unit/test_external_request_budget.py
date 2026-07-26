@@ -148,6 +148,9 @@ class ExternalRequestBudgetTests(unittest.TestCase):
         self.assertEqual(
             state.metadata["external_request_budget"]["search_requests"], 0,
         )
+        self.assertTrue(state.final_report)
+        self.assertIn("数据缺失与资源耗尽", state.final_report or "")
+        self.assertIn("0/0", state.final_report or "")
 
 
 if __name__ == "__main__":
