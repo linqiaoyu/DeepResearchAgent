@@ -320,9 +320,9 @@ keys are high severity and label the official structured source inconsistency.
 
 The project does not rely on vector memory as the source of truth. Each final claim must be backed by a structured `Evidence` row with an extract from the source. This makes citation verification, numeric conflict detection, and interview explanations concrete.
 
-## Domain Pack Boundary: First Rule Extracted, Domain Still Proposed
+## Domain Pack Boundary: Historical Starting Point and Current Boundary
 
-Task 010's coupling audit found financial behavior hard-coded in core Planner, Critic, Reporter, Researcher, and Golden audit code. There is therefore no `domains/finance` or `domains/competitive` package in the current implementation, and the repository does not claim domain independence yet.
+Task 010's coupling audit found financial behavior hard-coded in core Planner, Critic, Reporter, Researcher, and Golden audit code. That historical state had no `domains/finance` or `domains/competitive` package. The current repository has an explicit finance pack, but does not claim completed domain-independent extraction.
 
 Task 018 moved only the 1299-byte finance normalization rule table into
 `skills/finance-metric-normalization/` with identical SHA-256 and default

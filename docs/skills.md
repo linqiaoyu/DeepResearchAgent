@@ -62,9 +62,8 @@ loader 额外注册 `skill.finance.metric_normalization`，规则内容没有变
 - `agents/reporter.py`：投资建议免责声明与金融报告呈现；
 - Golden audit 与金融 fixture：仍属于现有评测/数据边界。
 
-因此仓库仍没有 `domains/finance` 或 `domains/competitive`。目标 domain pack 的
-`tools/`、`prompts/`、`templates/`、`eval/` 与 `domain.yaml` 约定保持不变；新增领域
-前仍需完成 finance 等价抽取、旧路径兼容、资源哈希和默认 E2E 证明。
+当前仓库已有 `domains/finance` 作为金融 SUT 的显式 pack；这不代表已完成通用领域抽取。
+新增领域仍须通过同样的显式接口接入，并完成资源哈希、旧路径兼容和默认 E2E 证明。
 
 ## 扩展一个 pack
 
