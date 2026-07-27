@@ -16,6 +16,6 @@
   "src/deepresearch_agent/skills/finance.py": 3,
   "src/deepresearch_agent/structured_output.py": 4,
   "src/deepresearch_agent/tools/akshare_structured_data.py": 7,
-  "src/deepresearch_agent/tools/disclosure_source.py": 8,
+  "src/deepresearch_agent/tools/disclosure_source.py": 2,
   "src/deepresearch_agent/tools/fixture_structured_data.py": 2
 }

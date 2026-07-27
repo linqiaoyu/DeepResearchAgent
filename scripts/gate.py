@@ -89,6 +89,10 @@ def run_gate() -> None:
             "domain_boundary",
             [sys.executable, "scripts/check_domain_boundary.py"],
         ),
+        (
+            "disclosure_fixture",
+            [sys.executable, "scripts/build_disclosure_fixture.py", "--check"],
+        ),
         ("settings_documentation", [sys.executable, "scripts/sync_agents_settings.py", "--check"]),
         ("agent_guidance", [sys.executable, "scripts/check_agent_guidance.py"]),
         ("prompt_drift", [sys.executable, "scripts/check_prompt_drift.py"]),

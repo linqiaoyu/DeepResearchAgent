@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import hashlib
 import html
+import json
 import re
 import threading
 from collections.abc import Mapping
 from datetime import date, datetime, timezone
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -81,22 +83,13 @@ class FixtureDisclosureSource:
 
     fidelity = "fixture"
 
-    _ANNUAL_REPORT = Source(
-        id="fixture-primary-catl-2024",
-        title="宁德时代新能源科技股份有限公司2024年年度报告",
-        url="fixture://cninfo/300750/2024-annual-report",
-        source_type="disclosure_pdf",
-        source_tier="primary",
-        published_at=date(2025, 3, 15),
-        credibility=1.0,
-        content=(
-            "[[PDF_PAGE=1]]\n宁德时代新能源科技股份有限公司2024年年度报告\n"
-            "主要会计数据\n单位：人民币百万元\n"
-            "2024年 2023年 2022年\n"
-            "营业收入 362013 400917 328594 -9.70\n"
-            "归属于上市公司股东的净利润 50745 44121 30729 15.01\n"
-        ),
-    )
+    def __init__(self, corpus_path: Path | None = None) -> None:
+        path = corpus_path or Path(__file__).resolve().parents[3] / "data/mock_data/disclosure_corpus.json"
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        documents = payload.get("documents") if isinstance(payload, dict) else None
+        if not isinstance(documents, list):
+            raise ValueError(f"invalid disclosure fixture corpus: {path}")
+        self._documents = [item for item in documents if isinstance(item, dict)]
 
     def set_run_context(self, context: RunToolContext) -> None:
         del context
@@ -111,9 +104,18 @@ class FixtureDisclosureSource:
         preferred_terms: tuple[str, ...] = (),
     ) -> list[Source]:
         del start_date, end_date, preferred_terms
-        if security_code == "300750" and keyword == "年度报告":
-            return [self._ANNUAL_REPORT]
-        return []
+        return [
+            Source.model_validate(
+                {
+                    key: value
+                    for key, value in document.items()
+                    if key in Source.model_fields
+                }
+            )
+            for document in self._documents
+            if document.get("security_code") == security_code
+            and document.get("keyword") == keyword
+        ]
 
 
 class CninfoDisclosureSource:

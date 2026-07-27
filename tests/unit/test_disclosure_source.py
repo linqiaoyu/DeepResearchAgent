@@ -26,6 +26,7 @@ from deepresearch_agent.tools.disclosure_source import (
     CNINFO_QUERY_ENDPOINT,
     CNINFO_STOCK_ENDPOINT,
     DISCLOSURE_TOOL_SPEC,
+    FixtureDisclosureSource,
     cninfo_exchange_for_security_code,
 )
 from deepresearch_agent.settings import Settings
@@ -353,7 +354,7 @@ class DisclosureSourceTests(unittest.TestCase):
         self.assertEqual(registry.get("disclosure_source").tool_spec, DISCLOSURE_TOOL_SPEC)
 
     def test_default_fixture_run_reaches_primary_annual_report_path(self) -> None:
-        """Removing FixtureDisclosureSource's annual-report fixture fails this guard."""
+        """Removing the tracked-PDF corpus fails this primary-source guard."""
         with tempfile.TemporaryDirectory() as tmp:
             storage_path = Path(tmp) / "research.db"
             settings = Settings(storage_path=storage_path, max_critic_iter=1)
@@ -362,7 +363,7 @@ class DisclosureSourceTests(unittest.TestCase):
                 store=SQLiteStore(storage_path),
             ) as engine:
                 state = engine.run(
-                    topic="宁德时代 300750 2024年营业收入和归母净利润",
+                    topic="贵州茅台 600519 2025年营业收入和归母净利润",
                     depth_level=1,
                 )
 
@@ -380,6 +381,13 @@ class DisclosureSourceTests(unittest.TestCase):
                 for evidence in state.evidence_store
             )
         )
+
+    def test_fixture_corpus_retains_pdf_provenance(self) -> None:
+        source = FixtureDisclosureSource().search(
+            "600519", "年度报告", date(2025, 1, 1), date(2026, 7, 26)
+        )[0]
+        self.assertIn("[[PDF_PAGE=6]]", source.content)
+        self.assertIn("168,838,102,514.79", source.content)
 
     def test_registry_rejects_parallel_non_toolspec_metadata(self) -> None:
         registry = CapabilityRegistry()
