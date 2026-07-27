@@ -108,7 +108,11 @@ def decode_pdf_source(
         content=text[:char_limit],
         credibility=1.0 if source_tier == "primary" else 0.8,
         source_tier=source_tier,
-        content_truncated=len(reader.pages) > max_pages or len(text) > char_limit,
+        content_truncated=(
+            len(reader.pages) > max_pages
+            or len(selected_indexes) != len(page_text)
+            or len(text) > char_limit
+        ),
     )
 
 

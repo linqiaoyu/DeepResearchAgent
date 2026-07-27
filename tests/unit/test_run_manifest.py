@@ -128,7 +128,7 @@ class RunManifestTests(unittest.TestCase):
         self.assertIn("planner.md", built.prompt_hashes)
         self.assertIn("pydantic", built.dependency_versions)
         self.assertEqual(len(built.config_hash), 64)
-        self.assertEqual(built.cost_cny_total, 0.3)
+        self.assertEqual(built.cost_cny_total, 0.0)
 
     def test_llm_manifest_uses_the_runtime_client_configuration(self) -> None:
         settings = Settings(

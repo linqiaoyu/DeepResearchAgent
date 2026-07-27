@@ -16,15 +16,13 @@ class SearchFactoryTests(unittest.TestCase):
 
         self.assertIsInstance(provider, FixtureSearchTool)
 
-    def test_real_provider_without_key_falls_back_to_fixture(self) -> None:
-        provider = build_search_provider({"DEEPRESEARCH_SEARCH_PROVIDER": "tavily"})
+    def test_real_provider_without_key_fails_closed(self) -> None:
+        with self.assertRaisesRegex(ValueError, "requires TAVILY_API_KEY"):
+            build_search_provider({"DEEPRESEARCH_SEARCH_PROVIDER": "tavily"})
 
-        self.assertIsInstance(provider, FixtureSearchTool)
-
-    def test_serper_without_key_falls_back_to_fixture(self) -> None:
-        provider = build_search_provider({"DEEPRESEARCH_SEARCH_PROVIDER": "serper"})
-
-        self.assertIsInstance(provider, FixtureSearchTool)
+    def test_serper_without_key_fails_closed(self) -> None:
+        with self.assertRaisesRegex(ValueError, "requires SERPER_API_KEY"):
+            build_search_provider({"DEEPRESEARCH_SEARCH_PROVIDER": "serper"})
 
     def test_tavily_with_key_builds_adapter(self) -> None:
         provider = build_search_provider(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
+from decimal import Decimal
 from typing import Any, Literal
 from uuid import uuid4
 
@@ -78,7 +79,7 @@ class StructuredDataRecord(StrictModel):
     metric_name: str
     period: str
     dimension: str
-    value: float
+    value: Decimal
     unit: str
     data_source: str
     as_of: date
@@ -89,6 +90,8 @@ class NumericFields(StrictModel):
     metric_name: str | None = None
     period: str | None = None
     dimension: str = "未标注"
+    # Parsed text values retain the legacy numeric contract; authoritative
+    # provider records above use Decimal for lossless source fidelity.
     value: float | None = None
     unit: str | None = None
 

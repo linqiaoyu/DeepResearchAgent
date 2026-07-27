@@ -212,7 +212,7 @@ class FinancialTableExtractorTests(unittest.TestCase):
         self.assertEqual(
             coverage,
             {
-                "主营业务毛利率": "cited",
+                "主营业务毛利率": "searched_unavailable",
                 "归母净利润": "cited",
                 "营业收入": "cited",
             },

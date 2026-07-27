@@ -66,9 +66,10 @@ def build_search_provider(
 
     api_key = env.get(key_name, "").strip()
     if not api_key:
-        if recording_mode == "record":
-            raise ValueError(f"{provider_name} record mode requires {key_name}.")
-        return FixtureSearchTool()
+        raise ValueError(
+            f"DEEPRESEARCH_SEARCH_PROVIDER={provider_name} requires {key_name}; "
+            "explicitly select 'fixture' for deterministic search."
+        )
 
     if provider_name == "tavily":
         tavily = TavilySearchProvider(

@@ -4,6 +4,7 @@ import json
 import re
 from collections.abc import Mapping, Sequence
 
+from deepresearch_agent.capability_rules import DEFAULT_CAPABILITY_RULES
 from deepresearch_agent.decisions import record_agent_decision
 from deepresearch_agent.schemas import (
     AgentDecision,
@@ -15,21 +16,6 @@ from deepresearch_agent.tools.capability_registry import (
     CapabilityRegistry,
 )
 
-DEFAULT_CAPABILITY_RULES: dict[str, tuple[str, ...]] = {
-    "financial_metric": (
-        "disclosure_source",
-        "structured_data_provider",
-        "web_fetch",
-        "web_search",
-    ),
-    "market_price": (
-        "structured_data_provider",
-        "web_search",
-    ),
-    "verify": ("web_fetch", "web_search"),
-    "event": ("disclosure_source", "web_fetch", "web_search"),
-    "narrative": ("web_search",),
-}
 FIXED_CAPABILITY_SET = (
     "disclosure_source",
     "web_search",

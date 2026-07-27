@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import re
 import time
+from threading import Lock
 from datetime import date
 from decimal import Decimal
 
@@ -47,8 +48,7 @@ class ResearcherAgent:
         self.disclosure_source = disclosure_source
         self.as_of = as_of or date.today()
         self.searches_used = 0
-        self.last_structured_stats: dict[str, int] = {}
-        self.last_symbol_resolutions: list[dict[str, object]] = []
+        self._search_budget_lock = Lock()
 
     def reset_search_budget(self) -> None:
         self.searches_used = 0
@@ -105,17 +105,14 @@ class ResearcherAgent:
                 [sub_question.question, *sub_question.search_queries]
             )
             code_match = re.search(r"(?<!\d)(\d{6})(?!\d)", joined)
-            code = code_match.group(1) if code_match else (
-                "300750" if "宁德时代" in joined else ""
-            )
+            # A disclosure request must name an unambiguous security.  Do not
+            # invent a company-specific fallback code from question text.
+            code = code_match.group(1) if code_match else ""
             financial_intent = any(
                 request.capability == "financial_indicators"
                 for request in sub_question.structured_data_requests
             )
-            keyword = "年度报告" if financial_intent else next(
-                (term for term in ("匈牙利", "德布勒森", "投产") if term in joined),
-                "公告",
-            )
+            keyword = "年度报告" if financial_intent else "公告"
             if code and consume_call():
                 disclosure_started = time.perf_counter()
                 disclosed = self.disclosure_source.search(
@@ -304,7 +301,9 @@ class ResearcherAgent:
         latency_ms = int((time.perf_counter() - started) * 1000)
         return results, SearchRecord(query=query, source_ids=[source.id for source in results], latency_ms=latency_ms)
 
-    def structured_evidence(self, research_id: str, sub_question: SubQuestion) -> list[Evidence]:
+    def structured_evidence(
+        self, research_id: str, sub_question: SubQuestion
+    ) -> tuple[list[Evidence], dict[str, object], list[dict[str, object]]]:
         evidence: list[Evidence] = []
         stats = {
             "requests": len(sub_question.structured_data_requests),
@@ -312,7 +311,7 @@ class ResearcherAgent:
             "symbol_resolution_failures": 0,
             "execution_failures": 0,
         }
-        self.last_symbol_resolutions = []
+        symbol_resolutions: list[dict[str, object]] = []
         for request in sub_question.structured_data_requests:
             try:
                 records: list[StructuredDataRecord] = []
@@ -321,7 +320,7 @@ class ResearcherAgent:
                     if symbol is None:
                         stats["symbol_resolution_failures"] += 1
                         continue
-                    self.last_symbol_resolutions.append(symbol.model_dump(mode="json"))
+                    symbol_resolutions.append(symbol.model_dump(mode="json"))
                     continue
                 elif request.capability == "financial_indicators":
                     symbol = request.symbol or self._resolve_symbol(request.company_name)
@@ -352,10 +351,10 @@ class ResearcherAgent:
                 for record in records:
                     evidence.append(self._evidence_from_record(research_id, sub_question.id, record))
                 stats["records"] += len(records)
-            except Exception:
+            except Exception as exc:
                 stats["execution_failures"] += 1
-        self.last_structured_stats = stats
-        return evidence
+                stats.setdefault("failure_types", []).append(type(exc).__name__)
+        return evidence, stats, symbol_resolutions
 
     def _resolve_symbol(self, company_name: str | None) -> str | None:
         if not company_name:
@@ -368,10 +367,11 @@ class ResearcherAgent:
             return True
         if self.max_searches_per_run <= 0:
             return False
-        if self.searches_used >= self.max_searches_per_run:
-            return False
-        self.searches_used += 1
-        return True
+        with self._search_budget_lock:
+            if self.searches_used >= self.max_searches_per_run:
+                return False
+            self.searches_used += 1
+            return True
 
     def _evidence_from_record(
         self,

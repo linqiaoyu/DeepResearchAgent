@@ -209,12 +209,9 @@ def _evidence_matches_metric(
 
 
 def _evidence_periods(evidence: Evidence) -> set[str]:
-    periods = {
-        match.group(1)
-        for match in _YEAR_RE.finditer(
-            f"{evidence.claim}\n{evidence.extract_text}"
-        )
-    }
+    # Prose can mention arbitrary comparison years; only typed values prove
+    # that a requested period is covered.
+    periods: set[str] = set()
     if evidence.structured_record:
         periods.add(_period_key(evidence.structured_record.period))
     if evidence.numeric_fields:
@@ -229,16 +226,8 @@ def _comparison_closes_missing_periods(
     missing_periods: list[str],
     comparison_observed: bool,
 ) -> bool:
-    """Allow “较上年” only for the immediate prior annual period."""
-    if (
-        not comparison_observed
-        or len(requested_periods) != 2
-        or len(missing_periods) != 1
-    ):
-        return False
-    latest = max(requested_periods)
-    if latest not in observed_periods:
-        return False
-    if not latest.isdigit() or len(latest) != 4:
-        return False
-    return missing_periods == [str(int(latest) - 1)]
+    # A textual “同比” is not a mechanically recoverable prior-period value.
+    # Keep the argument for backwards-compatible callers, but never turn prose
+    # into coverage.
+    del requested_periods, observed_periods, missing_periods, comparison_observed
+    return False

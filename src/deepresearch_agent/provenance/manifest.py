@@ -31,6 +31,8 @@ class RunManifest(StrictModel):
     flags: dict[str, bool]
     token_total: int = Field(ge=0)
     cost_cny_total: float = Field(ge=0)
+    provider_identity: dict[str, str] = Field(default_factory=dict)
+    realness: Literal["real", "mixed", "fixture"] = "fixture"
     degradation_events: list[dict[str, Any]] = Field(default_factory=list)
     context_events: list[dict[str, Any]] = Field(default_factory=list)
     tool_error_summary: dict[str, int] = Field(default_factory=dict)
@@ -212,6 +214,8 @@ def build_run_manifest(
         flags=settings_flag_snapshot(settings),
         token_total=state.token_used,
         cost_cny_total=_cost_cny_total(state),
+        provider_identity=dict(metadata.get("provider_identity", {})),
+        realness=_realness(metadata.get("provider_identity", {}), settings.execution_mode),
         degradation_events=degradation_events,
         context_events=context_events,
         tool_error_summary={str(key): int(value) for key, value in tool_errors.items()},
@@ -236,10 +240,15 @@ def _cost_cny_total(state: ResearchState) -> float:
         and run_total >= 0
     ):
         return float(run_total)
-    # Deterministic and legacy states do not have an LLM ledger aggregate.
-    # Retain their historical estimated value rather than silently rewriting
-    # old fixture manifests.
-    return state.cost_used
+    return 0.0
+
+
+def _realness(identity: object, mode: str) -> Literal["real", "mixed", "fixture"]:
+    values = list(identity.values()) if isinstance(identity, dict) else []
+    fixture = any("Fixture" in str(value) for value in values) or mode != "llm"
+    if fixture:
+        return "fixture" if mode != "llm" or all("Fixture" in str(value) for value in values) else "mixed"
+    return "real"
 
 
 def settings_flag_snapshot(

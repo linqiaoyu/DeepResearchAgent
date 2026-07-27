@@ -3,9 +3,9 @@
 面向投研分析师的可审计深度研究 Agent：把一个研究问题变成带逐条证据、可比较快照和审计包的报告。
 
 [![CI](https://github.com/linqiaoyu/DeepResearchAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/linqiaoyu/DeepResearchAgent/actions/workflows/ci.yml)
-![Tests](https://img.shields.io/badge/tests-341%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-CI%20verified-brightgreen)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
-![License](https://img.shields.io/badge/license-not%20declared-lightgrey)
+![License](https://img.shields.io/badge/license-Apache--2.0-blue)
 
 [静态演示站](https://deepresearch-agent.jacksonyu1109.workers.dev/) ·
 [快速开始](#快速开始) ·
@@ -65,7 +65,7 @@ sed -n '1,120p' _collab/package-demo/report.md
 | MCP server | 标准库实现 JSON-RPC 2.0 over stdio，目标协议 `2025-06-18`，暴露研究、证据、审计导出、快照比较 4 个 fixture 工具，见 [server.py](src/deepresearch_agent/mcp/server.py)。 |
 | MCP client | 标准库客户端可启动外部 server、发现工具、注册进原 `CapabilityRegistry`，并复用超时/重试/降级契约，见 [client.py](src/deepresearch_agent/mcp/client.py)。 |
 | Skill packs | `SKILL.md` metadata-first 渐进披露；首个金融口径 pack 为 1299 字节等价迁移，SHA-256 `8e69cf6…153baf`，默认 `SKILL_PACKS_ENABLED=false`，见 [finance-metric-normalization](skills/finance-metric-normalization/SKILL.md)。 |
-| 评测与回归 | 本地零 key 全量为 341 tests；另有 2 题面逐字 characterization、8 个 chaos 场景和 Ruff 0.15.15，CI 命令见 [ci.yml](.github/workflows/ci.yml)。 |
+| 评测与回归 | 本地零 key 全量测试由 CI 验证；另有 characterization、chaos 场景和 Ruff，CI 命令见 [ci.yml](.github/workflows/ci.yml)。 |
 
 ## 它如何工作
 

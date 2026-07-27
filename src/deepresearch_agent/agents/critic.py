@@ -3,6 +3,7 @@ from __future__ import annotations
 import itertools
 import json
 import re
+from decimal import Decimal
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -380,8 +381,10 @@ class CriticAgent:
     def _meaningfully_different(self, left: float, right: float) -> bool:
         if left == right:
             return False
-        denominator = max(abs(left), abs(right), 1.0)
-        return abs(left - right) / denominator > self.numeric_relative_tolerance
+        left_decimal = Decimal(str(left))
+        right_decimal = Decimal(str(right))
+        denominator = max(abs(left_decimal), abs(right_decimal), Decimal("1"))
+        return abs(left_decimal - right_decimal) / denominator > Decimal(str(self.numeric_relative_tolerance))
 
     def _numeric_claim_key(self, item: Evidence) -> NumericClaimKey | None:
         fields = item.numeric_fields

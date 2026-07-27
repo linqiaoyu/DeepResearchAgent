@@ -46,6 +46,9 @@ AMOUNT_MULTIPLIERS = {
     "元": Decimal("1"),
     "万元": Decimal("10000"),
     "亿元": Decimal("100000000"),
+    "千元": Decimal("1000"),
+    "百万元": Decimal("1000000"),
+    "亿": Decimal("100000000"),
 }
 
 
@@ -146,16 +149,16 @@ def _extract_text_values(text: str) -> list[FinancialValue]:
             values.append(value)
             positions.append(match.start("number"))
 
-    default_amount_unit = _default_amount_unit(text)
     for match in BARE_COMMA_AMOUNT_RE.finditer(text):
         if any(_spans_overlap(match.span(), span) for span in occupied_spans):
             continue
         metric = _metric_before(text, match.start())
         if not metric:
             continue
+        unit = _local_amount_unit(text, match.start()) or _default_amount_unit(text)
         value = _value_from_text(
             number_text=match.group("number"),
-            unit_text=default_amount_unit,
+            unit_text=unit,
             metric=metric,
             text=text,
             number_start=match.start("number"),
@@ -585,10 +588,16 @@ def _display_step(number_text: str) -> Decimal:
 
 def _normalize_unit(unit_text: str) -> str | None:
     normalized = re.sub(r"\s+", "", unit_text).lower()
+    if "百万元" in normalized:
+        return "百万元"
+    if "千元" in normalized:
+        return "千元"
     if "亿元" in normalized:
         return "亿元"
     if "万元" in normalized:
         return "万元"
+    if normalized == "亿":
+        return "亿"
     if normalized == "元" or normalized.endswith("人民币元"):
         return "元"
     if "百分点" in normalized:
@@ -630,6 +639,16 @@ def is_main_business_margin_dimension(dimension: str | None) -> bool:
             "总计",
         )
     )
+
+
+def _local_amount_unit(text: str, position: int) -> str | None:
+    """Return a unit only when declared in the current PDF/table neighbourhood."""
+    start = max(text.rfind("[[PDF_PAGE=", 0, position), position - 1200)
+    unit_match = list(re.finditer(
+        r"(?:金额)?单位\s*[:：]\s*(?:人民币)?\s*(亿元|万元|元|千元|百万元|亿)",
+        text[start:position],
+    ))
+    return unit_match[-1].group(1) if unit_match else None
 
 
 def _default_amount_unit(text: str) -> str:
@@ -685,7 +704,8 @@ def _derived_yoy_values(
             )
             current, prior = ordered[0], ordered[1]
         else:
-            current, prior = values[0], values[1]
+            # Without typed periods there is no reliable current/prior order.
+            continue
         if kind == "amount":
             if prior.value == 0:
                 continue

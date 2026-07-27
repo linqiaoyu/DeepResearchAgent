@@ -225,10 +225,10 @@ class FinanceGroundedFactRenderer:
         match = _YEAR_RE.search(rendered)
         return match.group(1) if match else ""
 
-    def _format_value(self, value: float, unit: str) -> str:
+    def _format_value(self, value: Decimal, unit: str) -> str:
         decimal = Decimal(str(value))
         if unit == "元":
-            return f"{decimal:,.2f}元"
+            return f"{decimal:,f}元"
         normalized = format(decimal, "f").rstrip("0").rstrip(".")
         return f"{normalized}{unit}"
 

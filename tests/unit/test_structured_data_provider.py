@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import tempfile
+from decimal import Decimal
 import unittest
 from datetime import date
 from pathlib import Path
@@ -78,10 +79,10 @@ class StructuredDataProviderTests(unittest.TestCase):
                 for record in records
             },
             {
-                ("营业收入", "20251231"): 168_838_102_514.79,
-                ("营业收入", "20241231"): 170_899_152_276.34,
-                ("归母净利润", "20251231"): 82_320_067_101.68,
-                ("归母净利润", "20241231"): 86_228_146_421.62,
+                ("营业收入", "20251231"): Decimal("168838102514.79"),
+                ("营业收入", "20241231"): Decimal("170899152276.34"),
+                ("归母净利润", "20251231"): Decimal("82320067101.68"),
+                ("归母净利润", "20241231"): Decimal("86228146421.62"),
             },
         )
         self.assertNotIn(
@@ -177,7 +178,7 @@ class StructuredDataProviderTests(unittest.TestCase):
             ],
         )
 
-        evidence = researcher.structured_evidence("run-1", sub_question)
+        evidence, stats, _resolutions = researcher.structured_evidence("run-1", sub_question)
 
         self.assertEqual(len(evidence), 1)
         self.assertEqual(evidence[0].source_kind, "structured")
@@ -186,7 +187,7 @@ class StructuredDataProviderTests(unittest.TestCase):
         self.assertEqual(evidence[0].structured_record.metric_name, "归母净利润")
         self.assertIsNotNone(evidence[0].numeric_fields)
         self.assertEqual(evidence[0].numeric_fields.period, "20241231")
-        self.assertEqual(researcher.last_structured_stats["records"], 1)
+        self.assertEqual(stats["records"], 1)
 
     def test_symbol_resolve_records_metadata_not_evidence(self) -> None:
         researcher = ResearcherAgent(structured_data_provider=FixtureStructuredDataProvider())
@@ -199,11 +200,11 @@ class StructuredDataProviderTests(unittest.TestCase):
             ],
         )
 
-        evidence = researcher.structured_evidence("run-1", sub_question)
+        evidence, stats, resolutions = researcher.structured_evidence("run-1", sub_question)
 
         self.assertEqual(evidence, [])
-        self.assertEqual(researcher.last_structured_stats["records"], 0)
-        self.assertEqual(researcher.last_symbol_resolutions[0]["symbol"], "300750")
+        self.assertEqual(stats["records"], 0)
+        self.assertEqual(resolutions[0]["symbol"], "300750")
 
 
 if __name__ == "__main__":

@@ -120,21 +120,13 @@ class ExternalRequestBudgetTests(unittest.TestCase):
         events: list[str] = []
 
         class OrderingResearcher:
-            last_structured_stats = {
-                "requests": 1,
-                "records": 0,
-                "symbol_resolution_failures": 0,
-                "execution_failures": 0,
-            }
-            last_symbol_resolutions: list[dict[str, str]] = []
-
             def structured_evidence(
                 self,
                 _research_id: str,
                 _sub_question: SubQuestion,
-            ) -> list[Any]:
+            ) -> tuple[list[Any], dict[str, int], list[dict[str, str]]]:
                 events.append("structured")
-                return []
+                return [], {"requests": 1, "records": 0, "symbol_resolution_failures": 0, "execution_failures": 0}, []
 
             def research_with_budget(
                 self,

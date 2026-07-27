@@ -435,6 +435,12 @@ class DeepResearchEngine:
                 raise ValueError("topic is required for a new research run")
             state = ResearchState(topic=topic, depth_level=depth_level)
             state.metadata["execution_mode"] = self.settings.execution_mode
+            state.metadata["provider_identity"] = {
+                "search": type(self.search_tool).__name__,
+                "structured_data": type(self.structured_data_provider).__name__,
+                "disclosure": type(self.capability_registry.resolve("disclosure_source")).__name__,
+                "llm": type(self.llm_client).__name__ if self.llm_client else "deterministic",
+            }
             research_id = state.research_id
             config = self._config(research_id)
             graph_input = {
@@ -1639,18 +1645,13 @@ class DeepResearchEngine:
             )
         if "web_fetch" not in selected_capabilities:
             priority_urls = []
-        structured_evidence = (
-            self.researcher.structured_evidence(
-                state.research_id,
-                sub_question,
+        if "structured_data_provider" in selected_capabilities:
+            structured_evidence, structured_stats, symbol_resolutions = (
+                self.researcher.structured_evidence(state.research_id, sub_question)
             )
-            if "structured_data_provider" in selected_capabilities
-            else []
-        )
-        structured_stats = (
-            dict(self.researcher.last_structured_stats)
-            if "structured_data_provider" in selected_capabilities
-            else {
+        else:
+            structured_evidence = []
+            structured_stats = {
                 "requests": len(
                     sub_question.structured_data_requests
                 ),
@@ -1658,12 +1659,7 @@ class DeepResearchEngine:
                 "symbol_resolution_failures": 0,
                 "execution_failures": 0,
             }
-        )
-        symbol_resolutions = (
-            list(self.researcher.last_symbol_resolutions)
-            if "structured_data_provider" in selected_capabilities
-            else []
-        )
+            symbol_resolutions = []
         budget_metadata = state.metadata.get("branch_budget", {})
         allocated_calls = budget_metadata.get("allocated_calls", {})
         if self._branch_budget_enabled() and isinstance(
@@ -2914,15 +2910,23 @@ class DeepResearchEngine:
 
     def _append_degradation_notice(self, report: str, state: ResearchState) -> str:
         events = state.metadata.get("degradation_events", [])
-        if not events:
-            return report
-        lines = [report.rstrip(), "", "## 数据获取降级"]
-        for event in events:
+        lines = [report.rstrip()]
+        if events:
+            lines.extend(["", "## 数据获取降级"])
+            for event in events:
+                lines.append(
+                    "- "
+                    f"{event.get('tool', 'tool')} / {event.get('reason', 'unknown')}: "
+                    f"{event.get('impact', 'tool output unavailable')} "
+                    f"(attempts={int(event.get('attempts', 0))})"
+                )
+        critic = state.critic_report
+        if critic and critic.forced_pass:
+            lines.extend(["", "## 质量守卫强制放行"])
             lines.append(
-                "- "
-                f"{event.get('tool', 'tool')} / {event.get('reason', 'unknown')}: "
-                f"{event.get('impact', 'tool output unavailable')} "
-                f"(attempts={int(event.get('attempts', 0))})"
+                f"- Critic 在第 {state.critic_iteration} 轮后仍未通过；"
+                "报告按迭代上限强制放行，未解决问题："
+                + ", ".join(issue.issue_type for issue in critic.issues)
             )
         return "\n".join(lines)
 

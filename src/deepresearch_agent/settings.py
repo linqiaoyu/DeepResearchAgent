@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 import os
+import json
 from dataclasses import dataclass, fields
 from datetime import date
 from pathlib import Path
 from typing import Literal, get_type_hints
+
+from deepresearch_agent.capability_rules import DEFAULT_CAPABILITY_RULES
+
+DEFAULT_CAPABILITY_RULES_JSON = json.dumps(DEFAULT_CAPABILITY_RULES, ensure_ascii=False)
 
 
 @dataclass(frozen=True)
@@ -70,13 +75,7 @@ class Settings:
     numeric_check_relative_tolerance: float = 0.01
     numeric_check_absolute_tolerance: float = 0.01
     dynamic_capability_enabled: bool = True
-    dynamic_capability_rules_json: str = (
-        '{"financial_metric":["disclosure_source","structured_data_provider","web_fetch","web_search"],'
-        '"market_price":["structured_data_provider","web_search"],'
-        '"verify":["web_fetch","web_search"],'
-        '"event":["web_fetch","web_search"],'
-        '"narrative":["web_search"]}'
-    )
+    dynamic_capability_rules_json: str = DEFAULT_CAPABILITY_RULES_JSON
     reflection_enabled: bool = False
     # Round 033 real repeated-run ablation found no adopted strategy and no
     # causal behavior change.  Keep the experimental path opt-in until a
@@ -137,9 +136,9 @@ def load_settings() -> Settings:
     runs_root = Path(os.getenv("DEEPRESEARCH_RUNS_ROOT", "runs"))
     if not runs_root.is_absolute():
         runs_root = root / runs_root
-    mode = os.getenv("DEEPRESEARCH_MODE", "deterministic")
+    mode = os.getenv("DEEPRESEARCH_MODE", "deterministic").strip().lower()
     if mode not in {"deterministic", "llm"}:
-        mode = "deterministic"
+        raise ValueError("DEEPRESEARCH_MODE must be 'deterministic' or 'llm'.")
     as_of_value = os.getenv("DEEPRESEARCH_AS_OF", "").strip()
     as_of = date.fromisoformat(as_of_value) if as_of_value else None
     return Settings(
@@ -277,16 +276,7 @@ def load_settings() -> Settings:
             "DYNAMIC_CAPABILITY_ENABLED", default=True
         ),
         dynamic_capability_rules_json=os.getenv(
-            "DEEPRESEARCH_DYNAMIC_CAPABILITY_RULES_JSON",
-            (
-                '{"financial_metric":'
-                '["disclosure_source","structured_data_provider","web_fetch","web_search"],'
-                '"market_price":'
-                '["structured_data_provider","web_search"],'
-                '"verify":["web_fetch","web_search"],'
-                '"event":["web_fetch","web_search"],'
-                '"narrative":["web_search"]}'
-            ),
+            "DEEPRESEARCH_DYNAMIC_CAPABILITY_RULES_JSON", DEFAULT_CAPABILITY_RULES_JSON
         ),
         reflection_enabled=_env_flag("REFLECTION_ENABLED"),
         procedural_memory_enabled=_env_flag(

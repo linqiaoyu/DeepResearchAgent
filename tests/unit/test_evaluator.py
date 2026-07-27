@@ -633,11 +633,8 @@ class EvaluatorTests(unittest.TestCase):
 
         result = Evaluator().evaluate(state)
 
-        self.assertEqual(result.task_success_rate, 1.0)
-        self.assertNotIn(
-            "numeric_citation_mismatch",
-            result.bad_case_categories,
-        )
+        self.assertEqual(result.task_success_rate, 0.0)
+        self.assertIn("numeric_citation_mismatch", result.bad_case_categories)
 
     def test_comparison_base_amount_is_not_misread_as_yoy(
         self,

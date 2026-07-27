@@ -1057,7 +1057,7 @@
     "manifest": {
       "config_hash": "<normalized-config-hash>",
       "context_events": [],
-      "cost_cny_total": 0.017,
+      "cost_cny_total": 0.0,
       "decision_summary": [
         {
           "alternatives_considered": [
@@ -1314,6 +1314,13 @@
         "planner.md": "17b835c94076ee30521a57fa45404435e6a34bc3b6614e9927d9dd81795d9bc2",
         "reporter.md": "e4f904bb49296b3f21651fd84b233f3fd4ac3f3fbc6a7de3d616e33154728b2a"
       },
+      "provider_identity": {
+        "disclosure": "FixtureDisclosureSource",
+        "llm": "deterministic",
+        "search": "ContractSearchProvider",
+        "structured_data": "TrajectoryStructuredDataProvider"
+      },
+      "realness": "fixture",
       "retrieval_corpus_as_of": "2026-07-09",
       "run_id": "<normalized-id>",
       "started_at": "<normalized-timestamp>",
