@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+# Finance SUT characterization contract; not a domain-generic evaluator.
+
 import hashlib
 import json
 import re

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from deepresearch_agent.evaluation.core_guardrail import (
+from deepresearch_agent.domains.finance.guardrail import (
     GUARDRAIL_CASES,
     guardrail_contract_sha256,
     score_guardrail_report,

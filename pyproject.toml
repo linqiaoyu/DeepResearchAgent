@@ -63,3 +63,5 @@ extend-select = ["TID251"]
 # This characterization test verifies the concrete finance renderer itself;
 # new tests must use an injected pack instead.
 "tests/unit/test_reader_fidelity.py" = ["TID251"]
+# Characterization contract for the finance-only guardrail implementation.
+"tests/unit/test_core_guardrail.py" = ["TID251"]
