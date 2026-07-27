@@ -280,7 +280,11 @@ class DeepResearchEngine:
             if self.settings.execution_mode == "llm"
             else None
         )
-        self.planner = PlannerAgent(llm_client=self.llm_client, settings=self.settings)
+        self.planner = PlannerAgent(
+            llm_client=self.llm_client,
+            settings=self.settings,
+            domain_pack=self.domain_pack,
+        )
         self.researcher = ResearcherAgent(
             search_tool=self.capability_registry.resolve("web_search"),
             structured_data_provider=self.capability_registry.resolve(

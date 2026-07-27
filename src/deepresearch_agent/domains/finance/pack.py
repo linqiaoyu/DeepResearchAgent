@@ -66,3 +66,18 @@ class FinanceDomainPack:
             relative_tolerance=relative_tolerance,
             absolute_tolerance=absolute_tolerance,
         )
+
+    def deterministic_plan(self, topic: str, depth_level: int):
+        from deepresearch_agent.domains.finance.planning import FinancePlanning
+
+        return FinancePlanning().deterministic_plan(topic, depth_level)
+
+    def propagate_plan_identity(self, plan: object, topic: str):
+        from deepresearch_agent.domains.finance.planning import FinancePlanning
+
+        return FinancePlanning().propagate_identity(plan, topic)
+
+    def valid_structured_request(self, request: object) -> bool:
+        from deepresearch_agent.domains.finance.planning import FinancePlanning
+
+        return FinancePlanning().valid_structured_request(request)

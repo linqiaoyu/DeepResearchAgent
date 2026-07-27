@@ -6,7 +6,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from deepresearch_agent.domains.registry import load_domain_pack
-from deepresearch_agent.schemas import Evidence, ResearchState
+from deepresearch_agent.schemas import Evidence, ResearchPlan, ResearchState, StructuredDataRequest
 from deepresearch_agent.settings import Settings
 from deepresearch_agent.workflow import DeepResearchEngine
 
@@ -67,6 +67,15 @@ class _NeutralPack:
     def numeric_consistency_checker(self, *_args: object, **_kwargs: object) -> object:
         return object()
 
+    def deterministic_plan(self, _topic: str, _depth_level: int) -> None:
+        return None
+
+    def propagate_plan_identity(self, plan: ResearchPlan, _topic: str) -> ResearchPlan:
+        return plan
+
+    def valid_structured_request(self, _request: StructuredDataRequest) -> bool:
+        return False
+
 
 class DomainPackRegistryTests(unittest.TestCase):
     def test_engine_composes_an_injected_pack_without_finance_default(self) -> None:
@@ -82,6 +91,7 @@ class DomainPackRegistryTests(unittest.TestCase):
             try:
                 self.assertIs(engine.domain_pack, pack)
                 self.assertIs(engine.researcher.domain_pack, pack)
+                self.assertIs(engine.planner.domain_pack, pack)
                 self.assertIsInstance(engine.reporter.grounded_fact_renderer, _NeutralRenderer)
             finally:
                 engine.close()
