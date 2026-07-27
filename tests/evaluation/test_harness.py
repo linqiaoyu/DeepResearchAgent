@@ -116,6 +116,25 @@ class HarnessTests(unittest.TestCase):
         self.assertEqual(comparison["bad_case_status"], "fail")
         self.assertIn("avg_citation_accuracy dropped", comparison["failures"][0])
 
+    def test_metric_diff_fails_closed_when_a_gated_metric_is_unmeasured(self) -> None:
+        baseline = {
+            "avg_citation_accuracy": 1.0,
+            "avg_citation_resolution_rate": 1.0,
+            "avg_faithfulness": None,
+            "avg_critic_catch_rate": 0.8,
+        }
+        comparison = compare_metric_summaries(current=baseline, baseline=baseline)
+
+        faithfulness = comparison["metrics"]["avg_faithfulness"]
+        self.assertEqual(comparison["status"], "fail")
+        self.assertEqual(faithfulness["status"], "unavailable")
+        self.assertIsNone(faithfulness["delta"])
+        rendered = format_metric_comparison(comparison)
+        self.assertIn("baseline=unavailable current=unavailable", rendered)
+        self.assertTrue(
+            any("avg_faithfulness unavailable" in item for item in comparison["failures"])
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

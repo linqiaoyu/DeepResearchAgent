@@ -90,12 +90,20 @@ def compare_metric_summaries(
     for key in (*QUALITY_METRICS, *OPERATIONAL_METRICS):
         current_value = _numeric(current.get(key))
         baseline_value = _numeric(baseline.get(key))
-        delta = round(current_value - baseline_value, 4)
         gated = key in QUALITY_METRICS
-        status = "pass"
-        if gated and delta < -quality_drop_threshold:
-            status = "fail"
-            failures.append(f"{key} dropped by {abs(delta):.4f}")
+        if current_value is None or baseline_value is None:
+            status = "unavailable"
+            delta = None
+            if gated:
+                failures.append(
+                    f"{key} unavailable: baseline and current must both be measured"
+                )
+        else:
+            delta = round(current_value - baseline_value, 4)
+            status = "pass"
+            if gated and delta < -quality_drop_threshold:
+                status = "fail"
+                failures.append(f"{key} dropped by {abs(delta):.4f}")
         metric_diffs[key] = {
             "baseline": baseline_value,
             "current": current_value,
@@ -133,10 +141,16 @@ def format_metric_comparison(comparison: dict[str, Any]) -> str:
     ]
     for key, diff in comparison["metrics"].items():
         gate = "gated" if diff["gated"] else "info"
-        lines.append(
-            f"- {key}: baseline={diff['baseline']} current={diff['current']} "
-            f"delta={diff['delta']:+.4f} [{gate}/{diff['status']}]"
-        )
+        if diff["status"] == "unavailable":
+            lines.append(
+                f"- {key}: baseline=unavailable current=unavailable "
+                f"delta=unavailable [{gate}/unavailable]"
+            )
+        else:
+            lines.append(
+                f"- {key}: baseline={diff['baseline']} current={diff['current']} "
+                f"delta={diff['delta']:+.4f} [{gate}/{diff['status']}]"
+            )
     if comparison["bad_case_categories"]:
         lines.append("- bad_case_categories:")
         for key, diff in sorted(comparison["bad_case_categories"].items()):
@@ -151,10 +165,10 @@ def format_metric_comparison(comparison: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def _numeric(value: Any) -> float:
+def _numeric(value: Any) -> float | None:
     if isinstance(value, int | float):
         return float(value)
-    return 0.0
+    return None
 
 
 def _compare_bad_cases(current: object, baseline: object) -> dict[str, dict[str, int]]:
