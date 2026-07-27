@@ -81,6 +81,13 @@ class FinanceDomainPack:
 
         return finance_metric_resource_path()
 
+    def metric_claim_pattern(self):
+        from deepresearch_agent.domains.finance.structured_output import (
+            METRIC_CLAIM_PATTERN,
+        )
+
+        return METRIC_CLAIM_PATTERN
+
     def metric_skill_applicable(self, metadata: object, context: str) -> bool:
         from deepresearch_agent.domains.finance.skills import (
             finance_metric_skill_applicable,

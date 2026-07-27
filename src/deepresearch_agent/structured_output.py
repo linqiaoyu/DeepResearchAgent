@@ -20,23 +20,12 @@ from deepresearch_agent.schemas import (
     StructuredResearchOutput,
     TimelineEvent,
 )
-from deepresearch_agent.skills.finance import (
-    finance_metric_resource_path,
-)
+from deepresearch_agent.domains.registry import load_domain_pack
 
 _FIXED_WORKBOOK_TIME = datetime(2026, 7, 9, tzinfo=timezone.utc)
 _FIXED_ZIP_TIME = (2026, 7, 9, 0, 0, 0)
 _MODIFIED_PROPERTY_RE = re.compile(
     rb"(<dcterms:modified\b[^>]*>)[^<]*(</dcterms:modified>)"
-)
-_CHINESE_METRIC_RE = re.compile(
-    r"(?P<entity>[\u4e00-\u9fffA-Za-z0-9]+)\s*"
-    r"(?P<period>\d{4})\s*年?\s*"
-    r"(?P<scope>累计|单季|当季|年初至报告期末|未标注)?"
-    r"(?P<metric>营业总收入|营业收入|业务收入|营收|归母净利润|"
-    r"归属于上市公司股东的净利润|净利润|扣非净利润|"
-    r"扣除非经常性损益后的净利润|毛利率|资本开支|资本支出)"
-    r"\s*为\s*(?P<value>-?\d+(?:\.\d+)?)\s*(?P<unit>亿元|万元|元|%)"
 )
 _ENGLISH_METRICS = (
     (
@@ -343,7 +332,7 @@ def _xlsx_bytes(output: StructuredResearchOutput) -> bytes:
 
 
 def _metric_aliases() -> dict[str, str]:
-    path = finance_metric_resource_path()
+    path = load_domain_pack("finance").metric_table_path()
     payload = json.loads(path.read_text(encoding="utf-8"))
     return {str(key): str(value) for key, value in payload["metric_aliases"].items()}
 
@@ -372,7 +361,7 @@ def _metric_rows_for_evidence(
     if item.claim_type != "data":
         return []
     rows: list[MetricRow] = []
-    for match in _CHINESE_METRIC_RE.finditer(item.claim):
+    for match in load_domain_pack("finance").metric_claim_pattern().finditer(item.claim):
         metric = match.group("metric")
         rows.append(
             MetricRow(

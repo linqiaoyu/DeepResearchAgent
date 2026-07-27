@@ -3,7 +3,7 @@
 043 首先把 concrete finance import 与金融字面量的基线测量变成受版本控制的离线守卫。
 初始基线为 `import_sites=6`、`literal_files=19`、`literal_hits=118`（词表版本见
 `data/domain_boundary/finance_lexicon.json`）。随后核心直接 import 已降至 `0`；金融字面量
-已降至 `10` 个文件、`27` 行。该机制防止债务增长，不等于完整的领域迁移已经完成。
+已降至 `9` 个文件、`23` 行。该机制防止债务增长，不等于完整的领域迁移已经完成。
 
 本次将 Planner 的金融指标识别、年度期解析、结构化请求校验与 LLM 规划后的发行人身份
 补全迁入 finance pack；Engine 将已解析的 pack 传给 Planner，注入中性 pack 的单测证明
@@ -15,6 +15,8 @@ Researcher 的权威披露优先词表也由 pack 提供，通用检索路径不
 金融 skill 的适用性词表与资源定位已迁入 finance pack；原路径仅经注册表保持兼容。
 AKShare 与 fixture structured-data provider 的指标别名、默认指标和交易所标签也改由 pack
 提供；二者原有的“营业总收入”归一化差异经独立方法保留。
+结构化输出的财务指标声明模式与别名表路径同样经 pack 解析，通用输出层不再嵌入
+金融指标或单位词表。
 
 fixture 现从两份受跟踪 PDF 再生：贵州茅台年报第 6 页，以及宁德时代匈牙利项目公告的
 第 1、2 页；每条均保存 PDF SHA-256 与页码。茅台数值另有 `page,x0,top,x1,bottom` bbox
