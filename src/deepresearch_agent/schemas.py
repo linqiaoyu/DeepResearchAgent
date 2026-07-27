@@ -68,6 +68,19 @@ class ResearchPlan(StrictModel):
     success_criteria: list[str] = Field(default_factory=list)
 
 
+class BoundingBox(StrictModel):
+    page: int = Field(ge=1)
+    x0: float = Field(ge=0)
+    top: float = Field(ge=0)
+    x1: float = Field(ge=0)
+    bottom: float = Field(ge=0)
+
+
+class TextBoundingBox(StrictModel):
+    text: str
+    bbox: BoundingBox
+
+
 class Source(StrictModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
     title: str
@@ -81,6 +94,7 @@ class Source(StrictModel):
         exclude_if=lambda value: value == "unknown",
     )
     content_truncated: bool = Field(default=False, exclude_if=lambda value: not value)
+    bbox_index: list[TextBoundingBox] = Field(default_factory=list)
 
 
 class SearchRecord(StrictModel):
@@ -132,6 +146,7 @@ class Evidence(StrictModel):
     source_title: str
     source_pub_date: date | None = None
     source_page: int | None = Field(default=None, ge=1)
+    bbox: BoundingBox | None = None
     extract_text: str
     extract_offset_start: int = 0
     confidence: float = Field(default=0.75, ge=0, le=1)
@@ -311,6 +326,8 @@ class EvaluationResult(StrictModel):
     citation_accuracy: float | None = Field(default=None, ge=0, le=1)
     citation_accuracy_reason: str | None = None
     citation_resolution_rate: float = Field(default=0.0, ge=0, le=1)
+    bbox_resolution_rate: float | None = Field(default=None, ge=0, le=1)
+    bbox_resolution_reason: str | None = None
     citation_repair_retry_rate: float = Field(default=0.0, ge=0, le=1)
     uncited_claim_rate: float = Field(default=0.0, ge=0, le=1)
     critic_catch_rate: float = Field(ge=0, le=1)

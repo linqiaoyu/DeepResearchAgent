@@ -8,7 +8,13 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from deepresearch_agent.agents import ResearcherAgent
-from deepresearch_agent.schemas import Evidence, NumericFields, StructuredDataRequest, SubQuestion
+from deepresearch_agent.schemas import (
+    BoundingBox,
+    Evidence,
+    NumericFields,
+    StructuredDataRequest,
+    SubQuestion,
+)
 from deepresearch_agent.storage import SQLiteStore
 from deepresearch_agent.tools import (
     AKShareStructuredDataProvider,
@@ -150,6 +156,7 @@ class StructuredDataProviderTests(unittest.TestCase):
                 source_title="AKShare financial_indicators 300750 20241231 归母净利润",
                 source_pub_date=record.as_of,
                 extract_text="宁德时代|归母净利润|20241231|累计|50744680000.0|元",
+                bbox=BoundingBox(page=1, x0=10, top=20, x1=30, bottom=40),
                 structured_record=record,
                 numeric_fields=NumericFields(
                     entity=record.entity,
@@ -171,6 +178,7 @@ class StructuredDataProviderTests(unittest.TestCase):
         self.assertEqual(loaded.structured_record.metric_name, "归母净利润")
         self.assertIsNotNone(loaded.numeric_fields)
         self.assertEqual(loaded.numeric_fields.metric_name, "归母净利润")
+        self.assertEqual(loaded.bbox, BoundingBox(page=1, x0=10, top=20, x1=30, bottom=40))
 
     def test_researcher_executes_structured_requests_as_evidence(self) -> None:
         researcher = ResearcherAgent(structured_data_provider=FixtureStructuredDataProvider())

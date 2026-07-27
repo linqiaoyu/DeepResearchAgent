@@ -57,6 +57,9 @@ class EvaluationHarness:
             "avg_citation_resolution_rate": round(
                 sum(r.citation_resolution_rate for r in results) / len(results), 3
             ),
+            "avg_bbox_resolution_rate": _mean_optional(
+                [r.bbox_resolution_rate for r in results]
+            ),
             "avg_critic_catch_rate": round(sum(r.critic_catch_rate for r in results) / len(results), 3),
             "avg_answer_relevance": _mean_optional([r.answer_relevance for r in results]),
             "avg_faithfulness": _mean_optional([r.faithfulness for r in results]),

@@ -81,6 +81,21 @@ class Evaluator:
         citation_resolution_rate = (
             (citation_total - unresolved_citations) / citation_total if citation_total else 0.0
         )
+        paged_numeric_evidence = [
+            item
+            for item in state.evidence_store
+            if item.numeric_fields is not None and item.source_page is not None
+        ]
+        if paged_numeric_evidence:
+            bbox_resolution_rate = round(
+                sum(item.bbox is not None for item in paged_numeric_evidence)
+                / len(paged_numeric_evidence),
+                3,
+            )
+            bbox_resolution_reason = None
+        else:
+            bbox_resolution_rate = None
+            bbox_resolution_reason = "no_paged_numeric_evidence"
 
         answer_completeness = None
         answer_shape = None
@@ -192,6 +207,8 @@ class Evaluator:
             citation_accuracy=round(citation_accuracy, 3) if citation_accuracy is not None else None,
             citation_accuracy_reason=citation_accuracy_reason,
             citation_resolution_rate=round(citation_resolution_rate, 3),
+            bbox_resolution_rate=bbox_resolution_rate,
+            bbox_resolution_reason=bbox_resolution_reason,
             citation_repair_retry_rate=round(citation_repair_retry_rate, 3),
             uncited_claim_rate=round(uncited_claim_rate, 3),
             critic_catch_rate=round(critic_catch_rate, 3),

@@ -5,14 +5,35 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
 
+import pdfplumber
 from pypdf import PdfReader
 
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "data/mock_data/disclosure_corpus.json"
 PDF = ROOT / "tests/fixtures/cninfo_600519_2026-04-16_annual_report.pdf"
+
+
+def _bbox_index() -> list[dict[str, object]]:
+    with pdfplumber.open(PDF) as document:
+        words = document.pages[5].extract_words()
+    return [
+        {
+            "text": str(word["text"]),
+            "bbox": {
+                "page": 6,
+                "x0": round(float(word["x0"]), 3),
+                "top": round(float(word["top"]), 3),
+                "x1": round(float(word["x1"]), 3),
+                "bottom": round(float(word["bottom"]), 3),
+            },
+        }
+        for word in words
+        if re.search(r"\d", str(word["text"]))
+    ]
 
 
 def corpus() -> dict[str, object]:
@@ -35,6 +56,7 @@ def corpus() -> dict[str, object]:
                 "source_pdf": PDF.relative_to(ROOT).as_posix(),
                 "source_pdf_sha256": hashlib.sha256(PDF.read_bytes()).hexdigest(),
                 "page": 6,
+                "bbox_index": _bbox_index(),
                 "content": "[[PDF_PAGE=6]]\n" + text,
             }
         ],

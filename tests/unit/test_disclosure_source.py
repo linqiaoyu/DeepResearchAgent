@@ -381,6 +381,17 @@ class DisclosureSourceTests(unittest.TestCase):
                 for evidence in state.evidence_store
             )
         )
+        primary_numeric = [
+            evidence
+            for evidence in state.evidence_store
+            if evidence.source_url == primary_reports[0].url
+            and evidence.numeric_fields is not None
+        ]
+        self.assertTrue(primary_numeric)
+        self.assertTrue(all(evidence.bbox is not None for evidence in primary_numeric))
+        self.assertTrue(all(evidence.bbox and evidence.bbox.page == 6 for evidence in primary_numeric))
+        self.assertIsNotNone(state.evaluation)
+        self.assertEqual(state.evaluation.bbox_resolution_rate, 1.0)
 
     def test_fixture_corpus_retains_pdf_provenance(self) -> None:
         source = FixtureDisclosureSource().search(
@@ -388,6 +399,14 @@ class DisclosureSourceTests(unittest.TestCase):
         )[0]
         self.assertIn("[[PDF_PAGE=6]]", source.content)
         self.assertIn("168,838,102,514.79", source.content)
+        amount_box = next(
+            item.bbox
+            for item in source.bbox_index
+            if item.text == "168,838,102,514.79"
+        )
+        self.assertEqual(amount_box.page, 6)
+        self.assertLess(amount_box.x0, amount_box.x1)
+        self.assertLess(amount_box.top, amount_box.bottom)
 
     def test_registry_rejects_parallel_non_toolspec_metadata(self) -> None:
         registry = CapabilityRegistry()

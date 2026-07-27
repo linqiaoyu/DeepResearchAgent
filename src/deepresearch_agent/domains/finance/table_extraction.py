@@ -12,6 +12,7 @@ from deepresearch_agent.domains.finance.numeric_citations import (
 )
 from deepresearch_agent.domains.registry import load_domain_pack
 from deepresearch_agent.schemas import (
+    BoundingBox,
     Evidence,
     NumericFields,
     Source,
@@ -535,6 +536,7 @@ def _statement_evidence(
         source_title=source.title,
         source_pub_date=source.published_at,
         source_page=row.page,
+        bbox=_bbox_for_value(source, row.page, value),
         extract_text=row.extract_text,
         extract_offset_start=row.extract_offset,
         confidence=0.99,
@@ -584,6 +586,7 @@ def _margin_evidence(
         source_title=source.title,
         source_pub_date=source.published_at,
         source_page=row.page,
+        bbox=_bbox_for_value(source, row.page, row.current),
         extract_text=row.extract_text,
         extract_offset_start=row.extract_offset,
         confidence=0.99,
@@ -598,6 +601,16 @@ def _margin_evidence(
             unit="%",
         ),
     )
+
+
+def _bbox_for_value(source: Source, page: int, value: str) -> BoundingBox | None:
+    normalized = value.replace(",", "")
+    for item in source.bbox_index:
+        if item.bbox.page != page:
+            continue
+        if item.text.replace(",", "") == normalized:
+            return item.bbox
+    return None
 
 
 def _amount_unit(

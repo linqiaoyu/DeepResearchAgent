@@ -31,6 +31,11 @@ content-affecting until measured.
   unavailable, or fails, this field is `null` with an explicit reason; the
   mechanical numeric audit still applies to task success.
 - `citation_resolution_rate`: citation markers that resolve to real Evidence rows, computed in both deterministic and LLM modes
+- `bbox_resolution_rate`: among numeric Evidence rows carrying a source page,
+  the share with a valid PDF layout anchor `(page, x0, top, x1, bottom)`.
+  It is `null` with reason `no_paged_numeric_evidence` when a run has no such
+  rows; it is currently display-only and does not alter task success or
+  cross-run quality gates.
 - `citation_repair_retry_rate`: Golden Set mechanical metric equal to the share of runs where Reporter performed one structured evidence-id repair retry before rendering
 - `uncited_claim_rate`: Golden Set mechanical metric equal to uncited rendered ReportClaims divided by all rendered ReportClaims
 - `critic_catch_rate`: MVP heuristic/proxy for whether the Critic exposed quality issues. Current deterministic logic scores visible issue coverage, using `min(1.0, len(issues) / 3)` when issues are present and `1.0` when no issues are found. It is not true seeded issue recall or human-labeled Critic recall.

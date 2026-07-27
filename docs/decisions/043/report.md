@@ -14,4 +14,10 @@
 Researcher 的权威披露优先词表也由 pack 提供，通用检索路径不再内联财务报表字段。
 金融 skill 的适用性词表与资源定位已迁入 finance pack；原路径仅经注册表保持兼容。
 
+主披露 fixture 现从受跟踪 PDF 再生，并为第 6 页数值建立 `page,x0,top,x1,bottom` bbox
+索引。数值 Evidence 与 SQLite 持久化、评测结果均携带该锚点；主披露离线回归的
+`bbox_resolution_rate` 为 `1.0`。该指标仅用于可观测性，不参与评分门禁。pdfplumber 的
+引入、许可证和回滚界限见同目录 ADR。表格抽取主路径仍沿用既有文本解析，故 B5 的
+`extract_tables()` 替换部分尚未结案。
+
 本轮未获真实 provider 的新增成本授权，因此不执行付费端到端运行。

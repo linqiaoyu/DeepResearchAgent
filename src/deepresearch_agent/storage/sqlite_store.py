@@ -6,7 +6,13 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-from deepresearch_agent.schemas import EvaluationResult, Evidence, NumericFields, StructuredDataRecord
+from deepresearch_agent.schemas import (
+    BoundingBox,
+    EvaluationResult,
+    Evidence,
+    NumericFields,
+    StructuredDataRecord,
+)
 
 
 class SQLiteStore:
@@ -49,6 +55,7 @@ class SQLiteStore:
                     numeric_fields_incomplete INTEGER NOT NULL DEFAULT 0,
                     source_tier TEXT NOT NULL DEFAULT 'unknown',
                     content_truncated INTEGER NOT NULL DEFAULT 0,
+                    bbox_json TEXT,
                     confidence REAL NOT NULL
                 );
 
@@ -65,6 +72,7 @@ class SQLiteStore:
             self._ensure_column(conn, "evidence", "numeric_fields_incomplete", "INTEGER NOT NULL DEFAULT 0")
             self._ensure_column(conn, "evidence", "source_tier", "TEXT NOT NULL DEFAULT 'unknown'")
             self._ensure_column(conn, "evidence", "content_truncated", "INTEGER NOT NULL DEFAULT 0")
+            self._ensure_column(conn, "evidence", "bbox_json", "TEXT")
 
     def _ensure_column(self, conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:
         columns = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
@@ -79,9 +87,9 @@ class SQLiteStore:
                     id, research_id, sub_question_id, claim, claim_type, source_kind, source_url,
                     source_title, source_pub_date, extract_text, structured_record_json,
                     numeric_fields_json, numeric_fields_incomplete, source_tier,
-                    content_truncated, confidence
+                    content_truncated, bbox_json, confidence
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -100,6 +108,7 @@ class SQLiteStore:
                         int(item.numeric_fields_incomplete),
                         item.source_tier,
                         int(item.content_truncated),
+                        item.bbox.model_dump_json() if item.bbox else None,
                         item.confidence,
                     )
                     for item in items
@@ -129,6 +138,7 @@ class SQLiteStore:
                 numeric_fields_incomplete=bool(row["numeric_fields_incomplete"]),
                 source_tier=row["source_tier"],
                 content_truncated=bool(row["content_truncated"]),
+                bbox=self._bbox(row["bbox_json"]),
                 confidence=row["confidence"],
             )
             for row in rows
@@ -151,6 +161,15 @@ class SQLiteStore:
         except json.JSONDecodeError:
             return None
         return NumericFields.model_validate(payload)
+
+    def _bbox(self, value: str | None) -> BoundingBox | None:
+        if not value:
+            return None
+        try:
+            payload = json.loads(value)
+        except json.JSONDecodeError:
+            return None
+        return BoundingBox.model_validate(payload)
 
     def save_evaluation(self, result: EvaluationResult) -> None:
         with self._connection() as conn:
