@@ -34,6 +34,7 @@ class MetricCoverageItem(StrictModel):
     requested_periods: list[str] = Field(default_factory=list)
     observed_periods: list[str] = Field(default_factory=list)
     evidence_ids: list[str] = Field(default_factory=list)
+    # Display-only provenance; coverage status never depends on this signal.
     comparison_observed: bool = False
     status: Literal["cited", "partially_cited", "searched_unavailable", "not_attempted", "unparsable_period"]
     missing_periods: list[str] = Field(default_factory=list)

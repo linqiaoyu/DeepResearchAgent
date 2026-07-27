@@ -47,6 +47,11 @@ content-affecting until measured.
   within supplied Evidence and marks uncertainty.
 - `cost_usd`, `cost_cny`, `latency_seconds`, `token_used`, `price_source`: operational metrics for Pareto analysis. LLM mode accounts natively in CNY from the LiteLLM ledger.
 
+`comparison_observed` in metric-coverage output is display-only provenance: it
+reports whether matched evidence text contains a comparison phrase such as
+“同比”. It does not participate in coverage status, metric gates, or task
+success, which are determined only by requested periods and cited Evidence.
+
 The mechanical financial numeric-citation audit runs in every execution mode
 and recognizes revenue, net profit, gross margin, and operating-cost amounts or
 rates across eligible reader-visible content lines, including the non-bulleted
