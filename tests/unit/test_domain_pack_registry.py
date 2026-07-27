@@ -60,6 +60,9 @@ class _NeutralPack:
     def primary_source_keyword(self, *, financial_intent: bool) -> str:
         return "primary" if financial_intent else "notice"
 
+    def primary_source_terms(self, *, financial_intent: bool) -> tuple[str, ...]:
+        return ("primary-term",) if financial_intent else ()
+
     def grounded_fact_renderer(self) -> _NeutralRenderer:
         return _NeutralRenderer()
 

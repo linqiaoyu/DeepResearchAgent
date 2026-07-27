@@ -138,10 +138,9 @@ class ResearcherAgent:
                 disclosure_started = time.perf_counter()
                 disclosed = self.disclosure_source.search(
                     code, keyword, date(2000, 1, 1), self.as_of,
-                    preferred_terms=(
-                        "合并资产负债表", "合并利润表", "营业收入", "营业成本",
-                        "毛利率", "归属于母公司股东的净利润", "主营业务分行业情况",
-                    ) if financial_intent else (),
+                    preferred_terms=self.domain_pack.primary_source_terms(
+                        financial_intent=financial_intent
+                    ),
                 )
                 records.append(
                     SearchRecord(
