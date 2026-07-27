@@ -7,9 +7,7 @@ from types import SimpleNamespace
 
 from deepresearch_agent.agents import ExtractorAgent
 from deepresearch_agent.agents.evaluator import Evaluator
-from deepresearch_agent.domains.finance.table_extraction import (
-    authoritative_financial_backfills,
-)
+from deepresearch_agent.domains.registry import load_domain_pack
 from deepresearch_agent.metric_coverage import (
     evaluate_metric_coverage,
 )
@@ -66,10 +64,11 @@ class FinancialTableExtractorTests(unittest.TestCase):
             ],
         )
 
-        evidence = authoritative_financial_backfills(
+        evidence = load_domain_pack("finance").table_extractors().authoritative_backfills(
             "research",
             sub_question,
             [source],
+            rejections=[],
         )
 
         self.assertEqual(len(evidence), 2)
@@ -643,6 +642,33 @@ class FinancialTableExtractorTests(unittest.TestCase):
         )
 
         self.assertEqual(evidence, [])
+
+    def test_statement_yoy_rejection_records_reconciliation_details(self) -> None:
+        source = self._annual_report().model_copy(
+            update={
+                "content": self._annual_report().content.replace(
+                    "170,899,152,276.34 -1.21",
+                    "170,899,152,276.34 9.99",
+                )
+            }
+        )
+        rejections: list[object] = []
+
+        evidence = load_domain_pack("finance").table_extractors().authoritative_backfills(
+            "bad-yoy",
+            self._sub_question(["营业收入"]),
+            [source],
+            rejections=rejections,
+        )
+
+        self.assertEqual(evidence, [])
+        rejection = next(
+            item for item in rejections if getattr(item, "reason") == "statement_yoy_mismatch"
+        )
+        self.assertEqual(getattr(rejection, "expected"), "-1.21")
+        self.assertEqual(getattr(rejection, "actual"), "9.99")
+        self.assertEqual(getattr(rejection, "tolerance"), "0.01")
+        self.assertEqual(getattr(rejection, "source_locator"), "statement.yoy")
 
     def test_disclosed_margin_must_reconcile_with_revenue_and_cost(
         self,

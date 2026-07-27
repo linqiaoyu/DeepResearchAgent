@@ -81,6 +81,22 @@ class AuthoritativeParseRejection:
     reason: str
     page: int | None = None
     matched_text: str | None = None
+    expected: str | None = None
+    actual: str | None = None
+    tolerance: str | None = None
+    source_locator: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ArithmeticCheck:
+    valid: bool
+    expected: Decimal | None
+    actual: Decimal | None
+    tolerance: Decimal
+    source_locator: str
+
+    def __bool__(self) -> bool:
+        return self.valid
 
 
 class FinanceTableExtractors:
@@ -371,12 +387,19 @@ def _find_statement_row(
             _reject(rejections, "unsupported_or_missing_amount_unit", page, prefix[-160:])
             continue
         unit, unit_offset = unit_info
-        if not _yoy_matches(
+        yoy_check = _yoy_matches(
             match.group("current"),
             match.group("prior"),
             match.group("yoy"),
-        ):
-            _reject(rejections, "statement_yoy_mismatch", page, match.group(0))
+        )
+        if not yoy_check:
+            _reject(
+                rejections,
+                "statement_yoy_mismatch",
+                page,
+                match.group(0),
+                arithmetic=yoy_check,
+            )
             continue
         extract_start = unit_offset
         return _StatementRow(
@@ -435,8 +458,15 @@ def _find_statement_table_row(
                     _reject(rejections, "incomplete_statement_table_row", page, str(cells))
                     continue
                 current, prior, yoy, earlier = (str(cell) for cell in cells[1:5])
-                if not _yoy_matches(current, prior, yoy):
-                    _reject(rejections, "statement_yoy_mismatch", page, str(cells))
+                yoy_check = _yoy_matches(current, prior, yoy)
+                if not yoy_check:
+                    _reject(
+                        rejections,
+                        "statement_yoy_mismatch",
+                        page,
+                        str(cells),
+                        arithmetic=yoy_check,
+                    )
                     continue
                 unit_info = _amount_unit(page.body)
                 if unit_info is None:
@@ -495,13 +525,19 @@ def _find_main_business_margin(
             )
         ):
             continue
-        matches = [
-            match
+        candidate_checks = [
+            (match, _margin_matches_arithmetic(match))
             for match in _MARGIN_ROW_RE.finditer(section)
-            if _margin_matches_arithmetic(match)
         ]
+        matches = [match for match, check in candidate_checks if check]
         if not matches:
-            _reject(rejections, "main_business_margin_arithmetic_mismatch", page, section[-160:])
+            _reject(
+                rejections,
+                "main_business_margin_arithmetic_mismatch",
+                page,
+                section[-160:],
+                arithmetic=(candidate_checks[-1][1] if candidate_checks else None),
+            )
             continue
         totals = [
             match
@@ -547,6 +583,7 @@ def _reject(
     reason: str,
     page: _PdfPage,
     matched_text: str,
+    arithmetic: ArithmeticCheck | None = None,
 ) -> None:
     if rejections is not None:
         rejections.append(
@@ -554,6 +591,18 @@ def _reject(
                 reason=reason,
                 page=page.number,
                 matched_text=matched_text[:200],
+                expected=(
+                    str(arithmetic.expected)
+                    if arithmetic is not None and arithmetic.expected is not None
+                    else None
+                ),
+                actual=(
+                    str(arithmetic.actual)
+                    if arithmetic is not None and arithmetic.actual is not None
+                    else None
+                ),
+                tolerance=(str(arithmetic.tolerance) if arithmetic is not None else None),
+                source_locator=(arithmetic.source_locator if arithmetic is not None else None),
             )
         )
 
@@ -731,27 +780,27 @@ def _yoy_matches(
     current_text: str,
     prior_text: str,
     yoy_text: str,
-) -> bool:
+) -> ArithmeticCheck:
     current = _decimal(current_text)
     prior = _decimal(prior_text)
     disclosed = _decimal(yoy_text)
-    if current is None or prior in {None, Decimal("0")}:
-        return False
-    if disclosed is None:
-        return False
+    tolerance = Decimal("0.01")
+    if current is None or prior in {None, Decimal("0")} or disclosed is None:
+        return ArithmeticCheck(False, None, disclosed, tolerance, "statement.yoy")
     computed = (
         (current / prior - Decimal("1"))
         * Decimal("100")
     ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-    return computed == disclosed.quantize(
+    actual = disclosed.quantize(
         Decimal("0.01"),
         rounding=ROUND_HALF_UP,
     )
+    return ArithmeticCheck(computed == actual, computed, actual, tolerance, "statement.yoy")
 
 
 def _margin_matches_arithmetic(
     match: re.Match[str],
-) -> bool:
+) -> ArithmeticCheck:
     revenue = _decimal(match.group("revenue"))
     cost = _decimal(match.group("cost"))
     disclosed = _decimal(match.group("margin"))
@@ -761,17 +810,24 @@ def _margin_matches_arithmetic(
         and disclosed_change is not None
         and disclosed_change < 0
     ):
-        return False
+        return ArithmeticCheck(False, None, disclosed_change, Decimal("0.01"), "margin.direction")
     if revenue in {None, Decimal("0")} or cost is None:
-        return False
+        return ArithmeticCheck(False, None, disclosed, Decimal("0.01"), "margin.rate")
     if disclosed is None:
-        return False
+        return ArithmeticCheck(False, None, disclosed, Decimal("0.01"), "margin.rate")
     computed = (
         (revenue - cost) / revenue * Decimal("100")
     ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-    return computed == disclosed.quantize(
+    actual = disclosed.quantize(
         Decimal("0.01"),
         rounding=ROUND_HALF_UP,
+    )
+    return ArithmeticCheck(
+        computed == actual,
+        computed,
+        actual,
+        Decimal("0.01"),
+        "margin.rate",
     )
 
 
