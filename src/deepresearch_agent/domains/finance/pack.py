@@ -36,3 +36,10 @@ class FinanceDomainPack:
         )
 
         return FinanceGroundedFactRenderer()
+
+    def table_extractors(self):
+        from deepresearch_agent.domains.finance.table_extraction import (
+            FinanceTableExtractors,
+        )
+
+        return FinanceTableExtractors()

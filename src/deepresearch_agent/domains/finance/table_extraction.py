@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+# Finance-domain implementation; generic extraction stays in agents.extractor.
+
 import re
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
@@ -78,6 +80,30 @@ class AuthoritativeParseRejection:
     reason: str
     page: int | None = None
     matched_text: str | None = None
+
+
+class FinanceTableExtractors:
+    """Finance implementation of the domain table-extraction boundary."""
+
+    def authoritative_backfills(
+        self,
+        research_id: str,
+        sub_question: SubQuestion,
+        sources: list[Source],
+        *,
+        rejections: list[AuthoritativeParseRejection],
+    ) -> list[Evidence]:
+        return authoritative_financial_backfills(
+            research_id,
+            sub_question,
+            sources,
+            rejections=rejections,
+        )
+
+    def merge_authoritative_evidence(
+        self, evidence: list[Evidence], backfills: list[Evidence]
+    ) -> list[Evidence]:
+        return merge_authoritative_financial_evidence(evidence, backfills)
 
 
 def authoritative_financial_backfills(

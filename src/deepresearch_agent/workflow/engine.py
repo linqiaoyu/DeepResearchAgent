@@ -297,6 +297,7 @@ class DeepResearchEngine:
         self.extractor = ExtractorAgent(
             llm_client=self.llm_client,
             injection_guard_enabled=self.settings.injection_guard_enabled,
+            domain_pack=self.domain_pack,
         )
         self.critic = CriticAgent(
             today=self.settings.as_of,

@@ -4,15 +4,12 @@ import json
 import re
 from uuid import uuid5, NAMESPACE_URL
 
+from deepresearch_agent.domains.protocols import DomainPack
+from deepresearch_agent.domains.registry import load_domain_pack
 from deepresearch_agent.llm import LLMClient, LLMClientError, StructuredOutputError
 from deepresearch_agent.schemas import Evidence, ExtractedClaim, ExtractedClaims, Source, SubQuestion
 from deepresearch_agent.security import detect_injection, wrap_untrusted
 from deepresearch_agent.settings import project_root
-from deepresearch_agent.agents.financial_table_extractor import (
-    AuthoritativeParseRejection,
-    authoritative_financial_backfills,
-    merge_authoritative_financial_evidence,
-)
 
 SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
 NUMBER_RE = re.compile(r"(\$?\d+(?:\.\d+)?%?|\d+(?:\.\d+)?)")
@@ -25,9 +22,11 @@ class ExtractorAgent:
         llm_client: LLMClient | None = None,
         *,
         injection_guard_enabled: bool = False,
+        domain_pack: DomainPack | None = None,
     ) -> None:
         self.llm_client = llm_client
         self.injection_guard_enabled = injection_guard_enabled
+        self.table_extractors = (domain_pack or load_domain_pack("finance")).table_extractors()
         self.last_stats: dict[str, int | bool | str] = {}
 
     def extract(self, research_id: str, sub_question: SubQuestion, sources: list[Source]) -> list[Evidence]:
@@ -65,8 +64,8 @@ class ExtractorAgent:
         sources: list[Source],
         evidence: list[Evidence],
     ) -> list[Evidence]:
-        rejections: list[AuthoritativeParseRejection] = []
-        backfills = authoritative_financial_backfills(
+        rejections: list[object] = []
+        backfills = self.table_extractors.authoritative_backfills(
             research_id,
             sub_question,
             sources,
@@ -84,7 +83,7 @@ class ExtractorAgent:
                 for item in rejections
             ],
         }
-        return merge_authoritative_financial_evidence(
+        return self.table_extractors.merge_authoritative_evidence(
             evidence,
             backfills,
         )

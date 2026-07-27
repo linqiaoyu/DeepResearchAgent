@@ -27,6 +27,16 @@ class _NeutralRenderer:
         return True
 
 
+class _NeutralTableExtractors:
+    def authoritative_backfills(self, *_args: object, **_kwargs: object) -> list[object]:
+        return []
+
+    def merge_authoritative_evidence(
+        self, evidence: list[object], _backfills: list[object]
+    ) -> list[object]:
+        return evidence
+
+
 class _NeutralPack:
     name = "neutral"
 
@@ -44,6 +54,9 @@ class _NeutralPack:
 
     def grounded_fact_renderer(self) -> _NeutralRenderer:
         return _NeutralRenderer()
+
+    def table_extractors(self) -> _NeutralTableExtractors:
+        return _NeutralTableExtractors()
 
 
 class DomainPackRegistryTests(unittest.TestCase):

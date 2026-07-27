@@ -2,10 +2,27 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from decimal import Decimal
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
     from deepresearch_agent.reporting import GroundedFactRenderer
+
+
+class TableExtractors(Protocol):
+    """Domain-owned parsing and merge policy for authoritative tables."""
+
+    def authoritative_backfills(
+        self,
+        research_id: str,
+        sub_question: Any,
+        sources: list[Any],
+        *,
+        rejections: list[Any],
+    ) -> list[Any]: ...
+
+    def merge_authoritative_evidence(
+        self, evidence: list[Any], backfills: list[Any]
+    ) -> list[Any]: ...
 
 
 class DomainPack(Protocol):
@@ -22,3 +39,5 @@ class DomainPack(Protocol):
     def primary_source_keyword(self, *, financial_intent: bool) -> str: ...
 
     def grounded_fact_renderer(self) -> GroundedFactRenderer: ...
+
+    def table_extractors(self) -> TableExtractors: ...

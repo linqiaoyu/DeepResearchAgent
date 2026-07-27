@@ -1,5 +1,4 @@
 {
-  "src/deepresearch_agent/agents/financial_table_extractor.py": 19,
   "src/deepresearch_agent/agents/numeric_citations.py": 26,
   "src/deepresearch_agent/agents/numeric_checker.py": 4,
   "src/deepresearch_agent/agents/planner.py": 5,
