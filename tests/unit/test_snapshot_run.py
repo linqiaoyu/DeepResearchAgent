@@ -38,15 +38,15 @@ class WorkflowCharacterizationTest(unittest.TestCase):
     maxDiff = None
 
     def test_golden_workflow_outputs_are_byte_identical(self) -> None:
-        for topic, filename in (
-            (snapshot_run.DEFAULT_TOPICS[0], "finance_structured.json"),
-            (snapshot_run.DEFAULT_TOPICS[1], "wealth_research.json"),
-        ):
-            with self.subTest(topic=topic), tempfile.TemporaryDirectory() as temp_dir:
+        for case in snapshot_run.SNAPSHOT_CASES:
+            topic = case["topic"]
+            filename = case["filename"]
+            with self.subTest(filename=filename), tempfile.TemporaryDirectory() as temp_dir:
                 actual = snapshot_run.encode_snapshot(
                     snapshot_run.build_snapshot(
                         topic,
                         runs_root=Path(temp_dir) / "runs",
+                        settings_overrides=case.get("settings_overrides"),
                     )
                 )
                 golden_path = ROOT / "tests" / "golden_output" / filename

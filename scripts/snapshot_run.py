@@ -25,6 +25,29 @@ DEFAULT_TOPICS = (
     "宁德时代 2024 年业绩与欧洲工厂扩张研究",
     "AI Agent 在财富管理行业的落地机会研究",
 )
+SNAPSHOT_CASES = (
+    {
+        "topic": DEFAULT_TOPICS[0],
+        "filename": "finance_structured.json",
+    },
+    {
+        "topic": DEFAULT_TOPICS[1],
+        "filename": "wealth_research.json",
+    },
+    {
+        "topic": DEFAULT_TOPICS[0],
+        "filename": "finance_numeric_injection.json",
+        "settings_overrides": {
+            "numeric_check_enabled": True,
+            "injection_guard_enabled": True,
+        },
+    },
+    {
+        "topic": DEFAULT_TOPICS[1],
+        "filename": "wealth_context_packer.json",
+        "settings_overrides": {"context_packer_enabled": True},
+    },
+)
 FIXED_AS_OF = "2026-07-09"
 NODE_METHODS = (
     "_entry_node",
@@ -108,6 +131,7 @@ def build_snapshot(
     *,
     depth_level: int = 1,
     runs_root: Path | None = None,
+    settings_overrides: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     os.environ["DEEPRESEARCH_MODE"] = "deterministic"
     os.environ["DEEPRESEARCH_SEARCH_PROVIDER"] = "fixture"
@@ -123,10 +147,16 @@ def build_snapshot(
         }
         if hasattr(settings, "runs_root"):
             replacements["runs_root"] = runs_root or temp_root / "runs"
+        replacements.update(settings_overrides or {})
         settings = replace(settings, **replacements)
         engine = SnapshotEngine(settings=settings)
         state = engine.run(topic=topic, depth_level=depth_level)
-        snapshot = _snapshot_payload(state, engine.snapshot_node_events, settings)
+        snapshot = _snapshot_payload(
+            state,
+            engine.snapshot_node_events,
+            settings,
+            settings_overrides=settings_overrides,
+        )
         engine._checkpoint_conn.close()
         return normalize(snapshot)
 
@@ -135,6 +165,8 @@ def _snapshot_payload(
     state: ResearchState,
     node_events: list[dict[str, Any]],
     settings: Any,
+    *,
+    settings_overrides: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     source_credibility = {source.url: source.credibility for source in state.sources}
     evidence_ids = {
@@ -237,6 +269,8 @@ def _snapshot_payload(
     }
     if state.structured_output is not None:
         payload["structured_output"] = state.structured_output.model_dump(mode="json")
+    if settings_overrides:
+        payload["case_settings"] = dict(sorted(settings_overrides.items()))
     return payload
 
 
@@ -357,11 +391,24 @@ def main() -> None:
     parser.add_argument("--topic", required=True)
     parser.add_argument("--depth", type=int, default=1)
     parser.add_argument("--output", required=True)
+    parser.add_argument(
+        "--settings-overrides-json",
+        default="{}",
+        help="JSON object of deterministic Settings overrides for a named case.",
+    )
     args = parser.parse_args()
+
+    settings_overrides = json.loads(args.settings_overrides_json)
+    if not isinstance(settings_overrides, dict):
+        parser.error("--settings-overrides-json must decode to an object")
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
-    snapshot = build_snapshot(args.topic, depth_level=args.depth)
+    snapshot = build_snapshot(
+        args.topic,
+        depth_level=args.depth,
+        settings_overrides=settings_overrides,
+    )
     output.write_text(encode_snapshot(snapshot), encoding="utf-8")
     print(f"snapshot={output}")
     print(f"sha256={snapshot_sha256(snapshot)}")
