@@ -40,6 +40,9 @@ jobs:
       - name: Check documented Settings defaults
         run: python scripts/sync_agents_settings.py --check
 
+      - name: Check shared agent guidance
+        run: python scripts/check_agent_guidance.py
+
       - name: Check prompt drift registry
         run: python scripts/check_prompt_drift.py
 

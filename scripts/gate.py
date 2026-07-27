@@ -63,9 +63,21 @@ def _run(step: str, command: Sequence[str], env: dict[str, str]) -> None:
         raise SystemExit(completed.returncode)
 
 
+def _tracked_diff() -> bytes:
+    completed = subprocess.run(
+        ["git", "diff", "--binary"],
+        check=False,
+        stdout=subprocess.PIPE,
+    )
+    if completed.returncode:
+        raise SystemExit(completed.returncode)
+    return completed.stdout
+
+
 def run_gate() -> None:
     if not check_ci_environment():
         raise SystemExit(1)
+    initial_tracked_diff = _tracked_diff()
     env = os.environ.copy()
     env.update(CI_ENV)
     storage_path = Path(env["DEEPRESEARCH_STORAGE_PATH"])
@@ -73,6 +85,8 @@ def run_gate() -> None:
     storage_path.unlink(missing_ok=True)
     commands = (
         ("ruff", [sys.executable, "-m", "ruff", "check", "src", "tests", "scripts"]),
+        ("settings_documentation", [sys.executable, "scripts/sync_agents_settings.py", "--check"]),
+        ("agent_guidance", [sys.executable, "scripts/check_agent_guidance.py"]),
         ("prompt_drift", [sys.executable, "scripts/check_prompt_drift.py"]),
         ("unittest", [sys.executable, "-m", "unittest", "discover", "-s", "tests"]),
         ("demo_smoke", [sys.executable, "scripts/run_demo.py", "--output", "artifacts/ci_demo/report.md"]),
@@ -84,14 +98,19 @@ def run_gate() -> None:
                 "--limit",
                 "5",
                 "--compare-baseline",
+                "--baseline-path",
+                "data/eval_baseline_v2.json",
                 "--output",
                 "artifacts/ci_eval/latest_metrics.json",
             ],
         ),
-        ("tracked_files_unchanged", ["git", "diff", "--exit-code"]),
     )
     for step, command in commands:
         _run(step, command, env)
+    if _tracked_diff() != initial_tracked_diff:
+        print("failed_step=tracked_files_unchanged", file=sys.stderr)
+        raise SystemExit(1)
+    print("[tracked_files_unchanged] gate created no tracked changes")
 
 
 def main() -> None:

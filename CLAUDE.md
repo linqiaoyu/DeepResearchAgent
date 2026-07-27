@@ -1,44 +1,12 @@
 # CLAUDE.md
 
-本仓库的开发规范以 `AGENTS.md` 为唯一准据，本文件仅补充操作细节。任何流程、纪律、
-铁律与协作规则一律去 `AGENTS.md` 查，本文件不复述、不改写、不补充。
+@AGENTS.md
 
-## 环境
+在分析、规划、修改代码或执行命令前，必须先读取并遵守仓库根目录的 `AGENTS.md`。
+`AGENTS.md` 是完整的项目级规范和事实入口；本文件仅作为 Claude Code 的加载入口，
+不独占项目规则。若两处文字出现冲突，以 `AGENTS.md` 为准。
 
-- 解释器：`.venv/bin/python`（Python 3.12.10）。不要用系统 `python`。
-- `pip install -e ".[dev]"` 成功后，`PYTHONPATH=src` 不再是导入本包的必要条件；为兼容现有 CI、脚本和文档，保留该写法。每条命令仍应带 `PYTHONDONTWRITEBYTECODE=1`。
-- 环境自检：`.venv/bin/python -c "import deepresearch_agent, sys; print(sys.executable); print(deepresearch_agent.__file__)"`。若失败，先检查 editable 安装和 `.pth` 文件，而不是把导入错误当作测试断言失败。
-- macOS 陷阱：重装 editable 环境后先运行 `.venv/bin/python scripts/doctor.py`。它会检测并清除 `__editable__*.pth` 的 `hidden` 标记，再打印解释器、包路径和关键依赖版本；`PYTHONPATH=src` 兼容写法仍可用。
-- Ruff 精确版本 `0.15.15`（`.venv` 与 CI 一致）。注意 `pyproject.toml` 写的是
-  `ruff>=0.5`，精确版本只钉在 `.github/workflows/ci.yml`，两处不一致是已知状况。
+## Claude Code
 
-## 闸门命令
-
-```bash
-# 唯一允许的本地 CI 闸门：它内置并校验 ci.yml 的环境，执行所有 CI 步骤。
-.venv/bin/python scripts/gate.py
-```
-
-## 目录约定
-
-| 路径 | 用途 | 追踪 |
-| --- | --- | --- |
-| `src/deepresearch_agent/` | 包源码（84 文件 / 19005 行） | 是 |
-| `tests/{unit,integration,evaluation,chaos}/` | 374 个测试；`tests/golden_output/` 是逐字行为快照 | 是 |
-| `scripts/` | 29 个 CLI 工具（运行、评测、血统、回放、站点构建） | 是 |
-| `docs/decisions/<编号>/` | 对外发布的脱敏决策记录 | 是 |
-| `data/golden_set/`、`data/mock_data/`、`data/demo/` | 受管评测与 fixture 资产 | 是 |
-| `_collab/<编号>_<短名>/` | 任务提示词、执行报告、本地验证产物 | 否（gitignored） |
-| `runs/`、`artifacts/`、`data/runtime/`、`site/dist/`、`*.db` | 运行产物 | 否（gitignored） |
-
-## 陷阱
-
-- **漏 `PYTHONPATH=src` 会产生 import error，不是真实测试失败。** 实测：带上是
-  `Ran 374 tests ... OK`，不带是 `Ran 338 tests ... FAILED (errors=17)`。这 17 条是
-  模块导入失败，不是断言失败。见到 `errors=17` 先查环境变量再查代码——历史上曾
-  因此把一轮合并误判为失败。
-- `scripts/replay_trajectory.py` 走的 `replay_trajectory()` 会直接写
-  `os.environ["DEEPRESEARCH_MODE"]="deterministic"` 且不还原。同进程内后续代码会
-  受影响。
-- 全量套件在完全干净的环境（`env -i`，无任何 `DEEPRESEARCH_*`）下同样 374 全绿，
-  不依赖 `.env`。未发现 flaky 或时序敏感测试。
+- `@AGENTS.md` 是 Claude Code 官方支持的导入语法，会在会话开始时展开。使用 `/memory`
+  可确认已加载的指令文件；若该导入未加载，不得继续执行仓库任务，先解决配置问题。

@@ -29,7 +29,43 @@ DeepResearchAgent 是自建 Agent Harness；金融投研是首个被测系统（
   回归证据和报告置顶声明；任务已明确授权时不再二次请示。
   **风险：** 破坏“自建 harness”产品主张并形成双框架与供应链债。
 
-## 3. 安全、费用与外部影响
+## 3. 环境、安装、自检与本地门禁
+
+- 本仓库命令使用项目虚拟环境的 `.venv/bin/python`，不得以系统 `python` 代替。当前
+  CI 选择 Python 3.12；实际解释器和依赖版本以 `.venv/bin/python --version`、
+  `pyproject.toml` 与 CI 为准，不能将某个本机补丁版本手抄为长期事实。
+- 安装或重建环境使用
+  `PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pip install -e ".[dev]"`。安装后以
+  `PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -c "import deepresearch_agent, sys; print(sys.executable); print(deepresearch_agent.__file__)"`
+  自检包导入和解释器。导入失败时先排查 editable install 与 `.pth`，不得误报为测试
+  断言失败。
+- macOS 上 editable `.pth` 文件可能带有 `hidden` 标记。重建环境或上述自检失败后，先
+  运行 `PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/doctor.py`；该脚本会修复标记
+  并打印解释器、包路径和关键依赖版本，然后带 `PYTHONPATH=src` 重新执行自检。
+- `PYTHONPATH=src` 是现有 CI、脚本和文档采用的兼容配置；editable install 成功后不是
+  包导入的前提。手工复现 CI 或运行未封装脚本时应显式保留它。缺失该配置造成的
+  `ModuleNotFoundError` 属环境/命令构造问题，必须先修正环境再判断产品或测试失败。
+- 完整本地 CI 的唯一标准入口是
+  `PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/gate.py`。该脚本以
+  `sys.executable` 执行并校验自身环境与 `.github/workflows/ci.yml` 一致，覆盖 CI 的
+  Settings 文档同步检查、指令文件静态检查、Ruff、prompt drift、完整 unittest、确定性
+  demo/eval smoke，以及受跟踪文件未变检查。不得以单个子集替代它；首次失败的原始输出
+  必须保留，修正环境或命令构造后再完整重跑。
+
+## 4. 目录与运行产物边界
+
+- `src/deepresearch_agent/`、`tests/`、`scripts/`、`docs/decisions/`、
+  `data/golden_set/`、`data/mock_data/` 与 `data/demo/` 是受管的源码、测试、文档或
+  fixture 资产；修改须遵守本文件其余规则。当前具体文件数、行数和测试数不是持久规则，
+  需要时用 `rg --files`、版本控制和完整 gate 核验。
+- `_collab/`、`runs/`、`artifacts/`、`data/runtime/`、`site/dist/` 和本地数据库是
+  `.gitignore` 覆盖的协作或运行产物路径；运行产物只写入这些忽略路径。不要删除或用
+  合成材料替换受管 fixture、评测集或下载脚本。
+- `scripts/replay_trajectory.py` 当前只请求 strict replay，且
+  `replay_trajectory()` 对其他 mode 明确拒绝；回放行为、环境副作用和支持范围必须以
+  `src/deepresearch_agent/trajectory_replay.py` 为准，不能沿用历史报告或旧指令中的说法。
+
+## 5. 安全、费用与外部影响
 
 - API key 只从环境或未追踪的 `.env` 读取；不得进入源码、日志、轨迹、报告、产物、
   commit message 或终端输出，只可报告是否存在。
@@ -45,7 +81,7 @@ DeepResearchAgent 是自建 Agent Harness；金融投研是首个被测系统（
 - 借鉴外部代码必须登记来源、版本、许可证和署名义务；许可证不明或不兼容时不得复制。
   **风险：** 组合分发产生许可证侵权。
 
-## 4. 架构与协议边界
+## 6. 架构与协议边界
 
 - 外部 LLM、检索和数据 provider 必须位于工具或 Agent 边界之后；替换 provider 不得
   改写工作流语义。**依据：** 026–030 的 CNINFO、AKShare、Tavily 修复均依赖该边界。
@@ -64,7 +100,7 @@ DeepResearchAgent 是自建 Agent Harness；金融投研是首个被测系统（
   未知 flag fail closed；改变 Evidence 集合或顺序的能力不得只凭 fixture 指标转正。
   **依据：** 027 的默认翻转需要可比性分类；019-E 证明工程可达不等于一手证据闭合。
 
-## 5. 语料、实验与证据纪律
+## 7. 语料、实验与证据纪律
 
 - `data/golden_set/*` 等评测题目、真值与判分合同 immutable；修订只能新建版本，并列
   说明原因与影响。**依据：** Golden v1.1 已知缺陷说明既不能偷改旧版，也不能阻止新版。
@@ -86,7 +122,7 @@ DeepResearchAgent 是自建 Agent Harness；金融投研是首个被测系统（
   单元探针不得外推为管道可达，未验证结论必须标为推测。
   **依据：** 031 A5 的数字错误，以及 025/026 的局部探针边界。
 
-## 6. 测试与交付门禁
+## 8. 测试与交付门禁
 
 - 禁止为通过门禁而弱化断言、删除用例、跳过测试、修改题目/真值/判分方式；测试文件
   变更须逐条说明理由。**依据：** 031 审计确认测试真实性规则防住了真实损害。
@@ -101,7 +137,7 @@ DeepResearchAgent 是自建 Agent Harness；金融投研是首个被测系统（
 - evaluation 指标或评分合同变化必须同步 `docs/evaluation.md` 并单列契约变更。
   **风险：** 同名指标跨代改变含义，制造虚假改善。
 
-## 7. Git、审计与责任
+## 9. Git、审计与责任
 
 - 每轮使用 `task/<编号>-<短名>` 分支；采用 conventional commit；按路径精确 stage，
   禁止 `git add .` / `git add -A`，不得添加虚假 `Co-Authored-By`。
@@ -116,7 +152,7 @@ DeepResearchAgent 是自建 Agent Harness；金融投研是首个被测系统（
 - 可使用 bounded 子审计并行，但必须由一个执行者对实现、验证和报告端到端负责，不以
   handoff 消解责任。**风险：** 多角色拆分后无人对交付闭环负责。
 
-## 8. 由代码生成的默认开关
+## 10. 由代码生成的默认开关
 
 下表由 `scripts/sync_agents_settings.py` 从 `Settings` 与 manifest 分类生成，禁止手改；
 CI 和单元测试均校验。`Settings` 是默认值事实源。**依据：** 027 已将 dynamic
