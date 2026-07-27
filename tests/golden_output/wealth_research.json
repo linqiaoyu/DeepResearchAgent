@@ -11,6 +11,8 @@
     "answer_relevance": 1.0,
     "answer_relevance_reason": null,
     "bad_case_categories": {},
+    "bbox_resolution_rate": null,
+    "bbox_resolution_reason": "no_paged_numeric_evidence",
     "citation_accuracy": 1.0,
     "citation_accuracy_reason": null,
     "citation_repair_retry_rate": 0.0,
