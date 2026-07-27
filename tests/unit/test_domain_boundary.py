@@ -6,6 +6,8 @@ import sys
 import unittest
 from pathlib import Path
 
+from scripts.check_domain_boundary import _concrete_domain_import_sites
+
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -21,6 +23,9 @@ class DomainBoundaryTests(unittest.TestCase):
         )
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertIn("import_sites=6 literal_files=19 literal_hits=118", completed.stdout)
+
+    def test_import_site_count_is_measured_from_source(self) -> None:
+        self.assertEqual(_concrete_domain_import_sites(), 6)
 
     def test_criteria_commands_are_explicit_argument_vectors(self) -> None:
         criteria = json.loads((ROOT / "data/round/043_criteria.json").read_text(encoding="utf-8"))

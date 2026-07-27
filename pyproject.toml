@@ -65,4 +65,6 @@ extend-select = ["TID251"]
 "src/deepresearch_agent/agents/researcher.py" = ["TID251"]
 "src/deepresearch_agent/agents/financial_table_extractor.py" = ["TID251"]
 "src/deepresearch_agent/workflow/engine.py" = ["TID251"]
-"tests/**" = ["TID251"]
+# This characterization test verifies the concrete finance renderer itself;
+# new tests must use an injected pack instead.
+"tests/unit/test_reader_fidelity.py" = ["TID251"]

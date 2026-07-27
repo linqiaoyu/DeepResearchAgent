@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 LEXICON_PATH = ROOT / "data/domain_boundary/finance_lexicon.json"
 ALLOWLIST_PATH = ROOT / "data/domain_boundary/allowlist.json"
 SOURCE_ROOT = ROOT / "src/deepresearch_agent"
+DOMAIN_IMPORT = "deepresearch_agent.domains.finance"
 
 
 def _load_json(path: Path) -> object:
@@ -28,6 +29,23 @@ def _literal_lines(lexicon: tuple[str, ...]) -> dict[str, int]:
         if count:
             hits[path.relative_to(ROOT).as_posix()] = count
     return dict(sorted(hits.items()))
+
+
+def _concrete_domain_import_sites() -> int:
+    """Count concrete finance imports outside the finance implementation.
+
+    This intentionally uses the same textual boundary as Ruff's banned API:
+    every non-domain source line that names the concrete package is a site to
+    migrate.  Keeping the measurement here (rather than a historical literal)
+    makes an accidental new import visible immediately.
+    """
+    return sum(
+        1
+        for path in SOURCE_ROOT.rglob("*.py")
+        if "domains" not in path.relative_to(SOURCE_ROOT).parts
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if DOMAIN_IMPORT in line
+    )
 
 
 def main() -> None:
@@ -55,8 +73,9 @@ def main() -> None:
                 f"{direction} {observed}"
             )
 
+    import_sites = _concrete_domain_import_sites()
     print(
-        f"import_sites=6 literal_files={len(hits)} "
+        f"import_sites={import_sites} literal_files={len(hits)} "
         f"literal_hits={sum(hits.values())} lexicon_terms={len(lexicon)}"
     )
     if failures:
