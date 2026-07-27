@@ -17,9 +17,11 @@ OUTPUT = ROOT / "data/mock_data/disclosure_corpus.json"
 PDF = ROOT / "tests/fixtures/cninfo_600519_2026-04-16_annual_report.pdf"
 
 
-def _bbox_index() -> list[dict[str, object]]:
+def _layout_index() -> tuple[list[dict[str, object]], list[list[list[str | None]]]]:
     with pdfplumber.open(PDF) as document:
-        words = document.pages[5].extract_words()
+        page = document.pages[5]
+        words = page.extract_words()
+        tables = page.extract_tables()
     return [
         {
             "text": str(word["text"]),
@@ -33,13 +35,14 @@ def _bbox_index() -> list[dict[str, object]]:
         }
         for word in words
         if re.search(r"\d", str(word["text"]))
-    ]
+    ], tables
 
 
 def corpus() -> dict[str, object]:
     text = PdfReader(PDF).pages[5].extract_text()
     if not text:
         raise ValueError(f"no extractable text on page 6: {PDF}")
+    bbox_index, table_index = _layout_index()
     return {
         "version": 1,
         "documents": [
@@ -56,7 +59,8 @@ def corpus() -> dict[str, object]:
                 "source_pdf": PDF.relative_to(ROOT).as_posix(),
                 "source_pdf_sha256": hashlib.sha256(PDF.read_bytes()).hexdigest(),
                 "page": 6,
-                "bbox_index": _bbox_index(),
+                "bbox_index": bbox_index,
+                "table_index": table_index,
                 "content": "[[PDF_PAGE=6]]\n" + text,
             }
         ],

@@ -7,6 +7,9 @@ from types import SimpleNamespace
 
 from deepresearch_agent.agents import ExtractorAgent
 from deepresearch_agent.agents.evaluator import Evaluator
+from deepresearch_agent.domains.finance.table_extraction import (
+    authoritative_financial_backfills,
+)
 from deepresearch_agent.metric_coverage import (
     evaluate_metric_coverage,
 )
@@ -40,6 +43,41 @@ class _FailingExtractorLLM:
 
 
 class FinancialTableExtractorTests(unittest.TestCase):
+    def test_statement_table_index_backfills_without_text_row(self) -> None:
+        sub_question = self._sub_question(metrics=["营业收入"])
+        source = Source(
+            title="贵州茅台酒股份有限公司2025年年度报告",
+            url="fixture://primary/table-only",
+            source_type="disclosure_pdf",
+            source_tier="primary",
+            published_at=date(2026, 4, 16),
+            content="[[PDF_PAGE=6]]\n2025年年度报告\n单位：元\n主要会计数据",
+            table_index=[
+                [
+                    ["主要会计数据", "2025年", "2024年", "同比(%)", "2023年"],
+                    [
+                        "营业收入",
+                        "168,838,102,514.79",
+                        "170,899,152,276.34",
+                        "-1.21",
+                        "147,693,604,994.14",
+                    ],
+                ]
+            ],
+        )
+
+        evidence = authoritative_financial_backfills(
+            "research",
+            sub_question,
+            [source],
+        )
+
+        self.assertEqual(len(evidence), 2)
+        self.assertEqual(
+            {item.numeric_fields.period for item in evidence if item.numeric_fields},
+            {"2024年", "2025年"},
+        )
+
     def test_legacy_unparseable_period_remains_an_explicit_coverage_gap(self) -> None:
         # model_construct represents a persisted/replayed state created before
         # StructuredDataRequest gained its fail-closed validator.

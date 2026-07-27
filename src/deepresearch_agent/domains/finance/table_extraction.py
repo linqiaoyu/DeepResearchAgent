@@ -138,7 +138,13 @@ def authoritative_financial_backfills(
             periods = requirements.get(metric, [])
             if not periods:
                 continue
-            row = _find_statement_row(metric, pages, periods, rejections)
+            row = _find_statement_row(
+                metric,
+                pages,
+                periods,
+                source.table_index,
+                rejections,
+            )
             if row is None:
                 continue
             period_values = _period_values(periods, row)
@@ -320,8 +326,18 @@ def _find_statement_row(
     metric: str,
     pages: list[_PdfPage],
     periods: list[str],
+    table_index: list[list[list[str | None]]],
     rejections: list[AuthoritativeParseRejection] | None = None,
 ) -> _StatementRow | None:
+    table_row = _find_statement_table_row(
+        metric,
+        pages,
+        periods,
+        table_index,
+        rejections,
+    )
+    if table_row is not None:
+        return table_row
     label = _STATEMENT_LABELS[metric]
     pattern = re.compile(
         rf"(?m)^(?P<label>{label})\s+"
@@ -387,6 +403,66 @@ def _find_statement_row(
             unit=unit,
         )
     return None
+
+
+def _find_statement_table_row(
+    metric: str,
+    pages: list[_PdfPage],
+    periods: list[str],
+    table_index: list[list[list[str | None]]],
+    rejections: list[AuthoritativeParseRejection] | None,
+) -> _StatementRow | None:
+    """Read a primary-PDF statement table before considering text fallback."""
+    for page in pages:
+        if "主要会计数据" not in page.body:
+            continue
+        for table in table_index:
+            if not table or not table[0] or _compact_cell(table[0][0]) != "主要会计数据":
+                continue
+            header = table[0]
+            header_periods = tuple(
+                _PERIOD_RE.search(cell or "").group(1)
+                for cell in header[1:]
+                if _PERIOD_RE.search(cell or "")
+            )
+            if len(header_periods) != 3 or header_periods[0] != max(periods):
+                _reject(rejections, "unexpected_statement_header_periods", page, str(header))
+                continue
+            for cells in table[1:]:
+                if not cells or not _table_metric_matches(metric, cells[0]):
+                    continue
+                if len(cells) < 5 or any(cell is None for cell in cells[1:5]):
+                    _reject(rejections, "incomplete_statement_table_row", page, str(cells))
+                    continue
+                current, prior, yoy, earlier = (str(cell) for cell in cells[1:5])
+                if not _yoy_matches(current, prior, yoy):
+                    _reject(rejections, "statement_yoy_mismatch", page, str(cells))
+                    continue
+                unit_info = _amount_unit(page.body)
+                if unit_info is None:
+                    _reject(rejections, "unsupported_or_missing_amount_unit", page, page.body[:160])
+                    continue
+                unit, unit_offset = unit_info
+                return _StatementRow(
+                    metric=metric,
+                    page=page.number,
+                    extract_text="\t".join(str(cell or "") for cell in cells),
+                    extract_offset=page.body_offset + unit_offset,
+                    period_values=tuple(zip(header_periods, (current, prior, earlier), strict=True)),
+                    current_period=header_periods[0],
+                    prior_period=header_periods[1],
+                    yoy=yoy,
+                    unit=unit,
+                )
+    return None
+
+
+def _compact_cell(value: str | None) -> str:
+    return re.sub(r"\s+", "", value or "")
+
+
+def _table_metric_matches(metric: str, value: str | None) -> bool:
+    return bool(re.fullmatch(_STATEMENT_LABELS[metric], _compact_cell(value)))
 
 
 def _find_main_business_margin(

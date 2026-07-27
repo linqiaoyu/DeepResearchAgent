@@ -95,6 +95,7 @@ class Source(StrictModel):
     )
     content_truncated: bool = Field(default=False, exclude_if=lambda value: not value)
     bbox_index: list[TextBoundingBox] = Field(default_factory=list)
+    table_index: list[list[list[str | None]]] = Field(default_factory=list)
 
 
 class SearchRecord(StrictModel):

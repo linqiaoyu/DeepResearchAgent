@@ -399,6 +399,8 @@ class DisclosureSourceTests(unittest.TestCase):
         )[0]
         self.assertIn("[[PDF_PAGE=6]]", source.content)
         self.assertIn("168,838,102,514.79", source.content)
+        self.assertEqual(source.table_index[1][0][0], "主要会计数据")
+        self.assertEqual(source.table_index[1][1][1], "168,838,102,514.79")
         amount_box = next(
             item.bbox
             for item in source.bbox_index
