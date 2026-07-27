@@ -14,9 +14,8 @@ from deepresearch_agent.metric_coverage import (
     metric_requirements,
 )
 from deepresearch_agent.reporting import GroundedFactRenderer
-from deepresearch_agent.agents.numeric_citations import (
-    has_financial_numeric_mismatch,
-)
+from deepresearch_agent.domains.protocols import NumericCitationPolicy
+from deepresearch_agent.domains.registry import load_domain_pack
 from deepresearch_agent.schemas import (
     Evidence,
     ReportClaim,
@@ -56,9 +55,14 @@ class ReporterAgent:
         self,
         llm_client: LLMClient | None = None,
         grounded_fact_renderer: GroundedFactRenderer | None = None,
+        numeric_citation_policy: NumericCitationPolicy | None = None,
     ) -> None:
         self.llm_client = llm_client
         self.grounded_fact_renderer = grounded_fact_renderer
+        self.numeric_citation_policy = (
+            numeric_citation_policy
+            or load_domain_pack("finance").numeric_citation_policy()
+        )
         self.last_stats: dict[str, object] = {}
 
     def report(
@@ -594,7 +598,7 @@ class ReporterAgent:
         summary = self._reader_text(draft.summary.strip())
         if (
             financial_contract
-            and has_financial_numeric_mismatch(summary, [])
+            and self.numeric_citation_policy.has_numeric_mismatch(summary, [])
         ):
             summary = (
                 "本报告按权威披露逐项核验题目所列财务指标；"
@@ -718,7 +722,7 @@ class ReporterAgent:
                 rendered_risk = self._reader_text(risk)
                 if (
                     financial_contract
-                    and has_financial_numeric_mismatch(
+                    and self.numeric_citation_policy.has_numeric_mismatch(
                         rendered_risk,
                         [],
                     )
@@ -764,7 +768,7 @@ class ReporterAgent:
                 ]
                 if (
                     financial_contract
-                    and has_financial_numeric_mismatch(
+                    and self.numeric_citation_policy.has_numeric_mismatch(
                         str(provenance["text"]),
                         claim_evidence,
                         required_metrics=required_metrics,

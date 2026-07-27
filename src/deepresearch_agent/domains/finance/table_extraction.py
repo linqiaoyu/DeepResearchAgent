@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from uuid import NAMESPACE_URL, uuid5
 
-from deepresearch_agent.agents.numeric_citations import (
+from deepresearch_agent.domains.finance.numeric_citations import (
     is_main_business_margin_dimension,
 )
 from deepresearch_agent.domains.registry import load_domain_pack

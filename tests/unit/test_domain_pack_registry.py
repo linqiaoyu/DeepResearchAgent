@@ -37,6 +37,14 @@ class _NeutralTableExtractors:
         return evidence
 
 
+class _NeutralNumericCitationPolicy:
+    def has_numeric_mismatch(self, *_args: object, **_kwargs: object) -> bool:
+        return False
+
+    def is_main_business_margin_dimension(self, _dimension: str | None) -> bool:
+        return False
+
+
 class _NeutralPack:
     name = "neutral"
 
@@ -67,6 +75,9 @@ class _NeutralPack:
     def numeric_consistency_checker(self, *_args: object, **_kwargs: object) -> object:
         return object()
 
+    def numeric_citation_policy(self) -> _NeutralNumericCitationPolicy:
+        return _NeutralNumericCitationPolicy()
+
     def deterministic_plan(self, _topic: str, _depth_level: int) -> None:
         return None
 
@@ -92,6 +103,14 @@ class DomainPackRegistryTests(unittest.TestCase):
                 self.assertIs(engine.domain_pack, pack)
                 self.assertIs(engine.researcher.domain_pack, pack)
                 self.assertIs(engine.planner.domain_pack, pack)
+                self.assertIsInstance(
+                    engine.reporter.numeric_citation_policy,
+                    _NeutralNumericCitationPolicy,
+                )
+                self.assertIsInstance(
+                    engine.evaluator.numeric_citation_policy,
+                    _NeutralNumericCitationPolicy,
+                )
                 self.assertIsInstance(engine.reporter.grounded_fact_renderer, _NeutralRenderer)
             finally:
                 engine.close()

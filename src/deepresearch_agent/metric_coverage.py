@@ -6,9 +6,6 @@ from typing import Literal
 
 from pydantic import Field
 
-from deepresearch_agent.agents.numeric_citations import (
-    is_main_business_margin_dimension,
-)
 from deepresearch_agent.domains.protocols import DomainPack
 from deepresearch_agent.domains.registry import load_domain_pack
 from deepresearch_agent.schemas import (
@@ -220,7 +217,9 @@ def _evidence_matches_metric(
         if evidence.numeric_fields
         else None
     )
-    return is_main_business_margin_dimension(dimension)
+    return domain_pack.numeric_citation_policy().is_main_business_margin_dimension(
+        dimension
+    )
 
 
 def _evidence_periods(evidence: Evidence, domain_pack: DomainPack) -> set[str]:

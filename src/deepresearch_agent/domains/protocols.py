@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from decimal import Decimal
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol, Sequence
 
 if TYPE_CHECKING:
     from deepresearch_agent.reporting import GroundedFactRenderer
@@ -24,6 +24,20 @@ class TableExtractors(Protocol):
     def merge_authoritative_evidence(
         self, evidence: list[Any], backfills: list[Any]
     ) -> list[Any]: ...
+
+
+class NumericCitationPolicy(Protocol):
+    """Domain rules for checking numeric claims against cited evidence."""
+
+    def has_numeric_mismatch(
+        self,
+        claim_text: str,
+        cited_evidence: Sequence[Any],
+        *,
+        required_metrics: set[str] | None = None,
+    ) -> bool: ...
+
+    def is_main_business_margin_dimension(self, dimension: str | None) -> bool: ...
 
 
 class DomainPack(Protocol):
@@ -52,6 +66,8 @@ class DomainPack(Protocol):
         relative_tolerance: float,
         absolute_tolerance: float,
     ) -> Any: ...
+
+    def numeric_citation_policy(self) -> NumericCitationPolicy: ...
 
     def deterministic_plan(self, topic: str, depth_level: int) -> Any | None: ...
 

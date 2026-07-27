@@ -320,6 +320,7 @@ class DeepResearchEngine:
             grounded_fact_renderer=(
                 grounded_fact_renderer or self.domain_pack.grounded_fact_renderer()
             ),
+            numeric_citation_policy=self.domain_pack.numeric_citation_policy(),
         )
         semantic_judge = (
             RuntimeSemanticJudge(self.llm_client)
@@ -328,6 +329,7 @@ class DeepResearchEngine:
         )
         self.evaluator = Evaluator(
             semantic_judge=semantic_judge,
+            numeric_citation_policy=self.domain_pack.numeric_citation_policy(),
             semantic_judge_enabled=self.settings.semantic_judge_enabled,
         )
         self.reflector = Reflector()

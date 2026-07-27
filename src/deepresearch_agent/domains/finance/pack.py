@@ -67,6 +67,13 @@ class FinanceDomainPack:
             absolute_tolerance=absolute_tolerance,
         )
 
+    def numeric_citation_policy(self):
+        from deepresearch_agent.domains.finance.numeric_citations import (
+            FinanceNumericCitationPolicy,
+        )
+
+        return FinanceNumericCitationPolicy()
+
     def deterministic_plan(self, topic: str, depth_level: int):
         from deepresearch_agent.domains.finance.planning import FinancePlanning
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from decimal import Decimal, ROUND_HALF_UP
 
-from deepresearch_agent.agents.numeric_citations import (
+from deepresearch_agent.domains.finance.numeric_citations import (
     has_financial_numeric_mismatch,
 )
 from deepresearch_agent.metric_coverage import evaluate_metric_coverage

@@ -4,7 +4,8 @@ import re
 import time
 from collections import Counter
 
-from deepresearch_agent.agents.numeric_citations import has_financial_numeric_mismatch
+from deepresearch_agent.domains.protocols import NumericCitationPolicy
+from deepresearch_agent.domains.registry import load_domain_pack
 from deepresearch_agent.semantic_judge import (
     SemanticJudge,
     SemanticJudgeFailure,
@@ -26,12 +27,17 @@ class Evaluator:
         *,
         semantic_judge: SemanticJudge | None = None,
         semantic_judge_enabled: bool | None = None,
+        numeric_citation_policy: NumericCitationPolicy | None = None,
     ) -> None:
         self.semantic_judge = semantic_judge
         self.semantic_judge_enabled = (
             semantic_judge is not None
             if semantic_judge_enabled is None
             else semantic_judge_enabled
+        )
+        self.numeric_citation_policy = (
+            numeric_citation_policy
+            or load_domain_pack("finance").numeric_citation_policy()
         )
 
     def evaluate(self, state: ResearchState, started_at: float | None = None) -> EvaluationResult:
@@ -342,7 +348,7 @@ class Evaluator:
             ]
             numeric_mismatch = (
                 bool(cited_evidence)
-                and has_financial_numeric_mismatch(
+                and self.numeric_citation_policy.has_numeric_mismatch(
                     claim_text,
                     cited_evidence,
                     required_metrics=required_metrics,
@@ -401,7 +407,7 @@ class Evaluator:
                 if number in footnote_to_evidence
             ]
             claim_text = CITATION_RE.sub("", line.removeprefix("- ")).strip()
-            if has_financial_numeric_mismatch(
+            if self.numeric_citation_policy.has_numeric_mismatch(
                 claim_text,
                 cited_evidence,
                 required_metrics=required_metrics,
