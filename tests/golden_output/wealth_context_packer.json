@@ -1,0 +1,2007 @@
+{
+  "case_settings": {
+    "context_packer_enabled": true
+  },
+  "critic": {
+    "forced_pass": false,
+    "issues": [],
+    "iteration": 1,
+    "overall_quality": 1.0,
+    "passed": true
+  },
+  "depth_level": 1,
+  "evaluation": {
+    "answer_relevance": 1.0,
+    "answer_relevance_reason": null,
+    "bad_case_categories": {},
+    "bbox_resolution_rate": null,
+    "bbox_resolution_reason": "no_paged_numeric_evidence",
+    "citation_accuracy": 1.0,
+    "citation_accuracy_reason": null,
+    "citation_repair_retry_rate": 0.0,
+    "citation_resolution_rate": 1.0,
+    "cost_cny": null,
+    "cost_usd": null,
+    "created_at": "<normalized-timestamp>",
+    "critic_catch_rate": 1.0,
+    "faithfulness": 0.744,
+    "faithfulness_reason": null,
+    "latency_seconds": 0,
+    "operational_measurement": "unavailable",
+    "price_source": null,
+    "task_success_rate": 1.0,
+    "token_used": null,
+    "uncited_claim_rate": 0.0
+  },
+  "evidence": [
+    {
+      "captured_at": "<normalized-timestamp>",
+      "claim": "Consumer fintech products are experimenting with AI guidance for budgeting, portfolio explanation, and financial education.",
+      "claim_type": "fact",
+      "confidence": 0.576,
+      "credibility": 0.72,
+      "extract_text": "Consumer fintech products are experimenting with AI guidance for budgeting, portfolio explanation, and financial education.",
+      "id": "evidence-001",
+      "numeric_fields": null,
+      "source_kind": "text",
+      "source_pub_date": "2026-01-20",
+      "source_title": "Revolut AI Advisor Product Update",
+      "source_url": "https://example.com/news/revolut-ai-advisor-update",
+      "sub_question_id": "current_adoption"
+    },
+    {
+      "captured_at": "<normalized-timestamp>",
+      "claim": "Product teams expect adoption to grow when citations, opt-outs, and audit logs become visible to users.",
+      "claim_type": "fact",
+      "confidence": 0.576,
+      "credibility": 0.72,
+      "extract_text": "Product teams expect adoption to grow when citations, opt-outs, and audit logs become visible to users.",
+      "id": "evidence-002",
+      "numeric_fields": null,
+      "source_kind": "text",
+      "source_pub_date": "2026-01-20",
+      "source_title": "Revolut AI Advisor Product Update",
+      "source_url": "https://example.com/news/revolut-ai-advisor-update",
+      "sub_question_id": "current_adoption"
+    },
+    {
+      "captured_at": "<normalized-timestamp>",
+      "claim": "The stronger use cases are education and explanation rather than direct trade recommendations.",
+      "claim_type": "fact",
+      "confidence": 0.576,
+      "credibility": 0.72,
+      "extract_text": "The stronger use cases are education and explanation rather than direct trade recommendations.",
+      "id": "evidence-003",
+      "numeric_fields": null,
+      "source_kind": "text",
+      "source_pub_date": "2026-01-20",
+      "source_title": "Revolut AI Advisor Product Update",
+      "source_url": "https://example.com/news/revolut-ai-advisor-update",
+      "sub_question_id": "current_adoption"
+    },
+    {
+      "captured_at": "<normalized-timestamp>",
+      "claim": "Advisor productivity improved 18% in pilots that used AI agents for research summaries and client meeting preparation.",
+      "claim_type": "data",
+      "confidence": 0.772,
+      "credibility": 0.84,
+      "extract_text": "Advisor productivity improved 18% in pilots that used AI agents for research summaries and client meeting preparation.",
+      "id": "evidence-004",
+      "numeric_fields": null,
+      "source_kind": "text",
+      "source_pub_date": "2026-04-10",
+      "source_title": "Wealth Management AI Pain Points 2026",
+      "source_url": "https://example.com/reports/wealth-ai-pain-2026",
+      "sub_question_id": "current_adoption"
+    },
+    {
+      "captured_at": "<normalized-timestamp>",
+      "claim": "Assets under management growth remained 7% in the surveyed digital wealth cohort.",
+      "claim_type": "data",
+      "confidence": 0.772,
+      "credibility": 0.84,
+      "extract_text": "Assets under management growth remained 7% in the surveyed digital wealth cohort.",
+      "id": "evidence-005",
+      "numeric_fields": null,
+      "source_kind": "text",
+      "source_pub_date": "2026-04-10",
+      "source_title": "Wealth Management AI Pain Points 2026",
+      "source_url": "https://example.com/reports/wealth-ai-pain-2026",
+      "sub_question_id": "current_adoption"
+    },
+    {
+      "captured_at": "<normalized-timestamp>",
+      "claim": "The report recommends traceable citations for every investment-related recommendation.",
+      "claim_type": "fact",
+      "confidence": 0.672,
+      "credibility": 0.84,
+      "extract_text": "The report recommends traceable citations for every investment-related recommendation.",
+      "id": "evidence-006",
+      "numeric_fields": null,
+      "source_kind": "text",
+      "source_pub_date": "2026-04-10",
+      "source_title": "Wealth Management AI Pain Points 2026",
+      "source_url": "https://example.com/reports/wealth-ai-pain-2026",
+      "sub_question_id": "current_adoption"
+    },
+    {
+      "captured_at": "<normalized-timestamp>",
+      "claim": "Wealth managers report fragmented client data, slow product comparison, and weak personalization as the top pain points.",
+      "claim_type": "fact",
+      "confidence": 0.672,
+      "credibility": 0.84,
+      "extract_text": "Wealth managers report fragmented client data, slow product comparison, and weak personalization as the top pain points.",
+      "id": "evidence-007",
+      "numeric_fields": null,
+      "source_kind": "text",
+      "source_pub_date": "2026-04-10",
+      "source_title": "Wealth Management AI Pain Points 2026",
+      "source_url": "https://example.com/reports/wealth-ai-pain-2026",
+      "sub_question_id": "current_adoption"
+    },
+    {
+      "captured_at": "<normalized-timestamp>",
+      "claim": "AI systems in wealth management must keep auditable evidence, human review paths, and clear risk warnings.",
+      "claim_type": "opinion",
+      "confidence": 0.76,
+      "credibility": 0.95,
+      "extract_text": "AI systems in wealth management must keep auditable evidence, human review paths, and clear risk warnings.",
+      "id": "evidence-008",
+      "numeric_fields": null,
+      "source_kind": "text",
+      "source_pub_date": "2025-12-15",
+      "source_title": "Digital Finance AI Implementation Guideline",
+      "source_url": "https://example.gov/digital-finance-ai-guideline",
+      "sub_question_id": "current_adoption"
+    },
+    {
+      "captured_at": "<normalized-timestamp>",
+      "claim": "Financial institutions should build centralized AI governance for model demand, testing, deployment, evaluation, and exit.",
+      "claim_type": "fact",
+      "confidence": 0.76,
+      "credibility": 0.95,
+      "extract_text": "Financial institutions should build centralized AI governance for model demand, testing, deployment, evaluation, and exit.",
+      "id": "evidence-009",
+      "numeric_fields": null,
+      "source_kind": "text",
+      "source_pub_date": "2025-12-15",
+      "source_title": "Digital Finance AI Implementation Guideline",
+      "source_url": "https://example.gov/digital-finance-ai-guideline",
+      "sub_question_id": "current_adoption"
+    },
+    {
+      "captured_at": "<normalized-timestamp>",
+      "claim": "Regulatory constraints mean an AI agent cannot provide unqualified investment advice without suitability checks and compliance review.",
+      "claim_type": "opinion",
+      "confidence": 0.76,
+      "credibility": 0.95,
+      "extract_text": "Regulatory constraints mean an AI agent cannot provide unqualified investment advice without suitability checks and compliance review.",
+      "id": "evidence-010",
+      "numeric_fields": null,
+      "source_kind": "text",
+      "source_pub_date": "2025-12-15",
+      "source_title": "Digital Finance AI Implementation Guideline",
+      "source_url": "https://example.gov/digital-finance-ai-guideline",
+      "sub_question_id": "current_adoption"
+    },
+    {
+      "captured_at": "<normalized-timestamp>",
+      "claim": "Consumer fintech products are experimenting with AI guidance for budgeting, portfolio explanation, and financial education.",
+      "claim_type": "fact",
+      "confidence": 0.576,
+      "credibility": 0.72,
+      "extract_text": "Consumer fintech products are experimenting with AI guidance for budgeting, portfolio explanation, and financial education.",
+      "id": "evidence-011",
+      "numeric_fields": null,
+      "source_kind": "text",
+      "source_pub_date": "2026-01-20",
+      "source_title": "Revolut AI Advisor Product Update",
+      "source_url": "https://example.com/news/revolut-ai-advisor-update",
+      "sub_question_id": "market_pain"
+    },
+    {
+      "captured_at": "<normalized-timestamp>",
+      "claim": "Product teams expect adoption to grow when citations, opt-outs, and audit logs become visible to users.",
+      "claim_type": "fact",
+      "confidence": 0.576,
+      "credibility": 0.72,
+      "extract_text": "Product teams expect adoption to grow when citations, opt-outs, and audit logs become visible to users.",
+      "id": "evidence-012",
+      "numeric_fields": null,
+      "source_kind": "text",
+      "source_pub_date": "2026-01-20",
+      "source_title": "Revolut AI Advisor Product Update",
+      "source_url": "https://example.com/news/revolut-ai-advisor-update",
+      "sub_question_id": "market_pain"
+    },
+    {
+      "captured_at": "<normalized-timestamp>",
+      "claim": "The stronger use cases are education and explanation rather than direct trade recommendations.",
+      "claim_type": "fact",
+      "confidence": 0.576,
+      "credibility": 0.72,
+      "extract_text": "The stronger use cases are education and explanation rather than direct trade recommendations.",
+      "id": "evidence-013",
+      "numeric_fields": null,
+      "source_kind": "text",
+      "source_pub_date": "2026-01-20",
+      "source_title": "Revolut AI Advisor Product Update",
+      "source_url": "https://example.com/news/revolut-ai-advisor-update",
+      "sub_question_id": "market_pain"
+    },
+    {
+      "captured_at": "<normalized-timestamp>",
+      "claim": "Advisor productivity improved 18% in pilots that used AI agents for research summaries and client meeting preparation.",
+      "claim_type": "data",
+      "confidence": 0.772,
+      "credibility": 0.84,
+      "extract_text": "Advisor productivity improved 18% in pilots that used AI agents for research summaries and client meeting preparation.",
+      "id": "evidence-014",
+      "numeric_fields": null,
+      "source_kind": "text",
+      "source_pub_date": "2026-04-10",
+      "source_title": "Wealth Management AI Pain Points 2026",
+      "source_url": "https://example.com/reports/wealth-ai-pain-2026",
+      "sub_question_id": "market_pain"
+    },
+    {
+      "captured_at": "<normalized-timestamp>",
+      "claim": "Assets under management growth remained 7% in the surveyed digital wealth cohort.",
+      "claim_type": "data",
+      "confidence": 0.772,
+      "credibility": 0.84,
+      "extract_text": "Assets under management growth remained 7% in the surveyed digital wealth cohort.",
+      "id": "evidence-015",
+      "numeric_fields": null,
+      "source_kind": "text",
+      "source_pub_date": "2026-04-10",
+      "source_title": "Wealth Management AI Pain Points 2026",
+      "source_url": "https://example.com/reports/wealth-ai-pain-2026",
+      "sub_question_id": "market_pain"
+    },
+    {
+      "captured_at": "<normalized-timestamp>",
+      "claim": "The report recommends traceable citations for every investment-related recommendation.",
+      "claim_type": "fact",
+      "confidence": 0.672,
+      "credibility": 0.84,
+      "extract_text": "The report recommends traceable citations for every investment-related recommendation.",
+      "id": "evidence-016",
+      "numeric_fields": null,
+      "source_kind": "text",
+      "source_pub_date": "2026-04-10",
+      "source_title": "Wealth Management AI Pain Points 2026",
+      "source_url": "https://example.com/reports/wealth-ai-pain-2026",
+      "sub_question_id": "market_pain"
+    },
+    {
+      "captured_at": "<normalized-timestamp>",
+      "claim": "Wealth managers report fragmented client data, slow product comparison, and weak personalization as the top pain points.",
+      "claim_type": "fact",
+      "confidence": 0.672,
+      "credibility": 0.84,
+      "extract_text": "Wealth managers report fragmented client data, slow product comparison, and weak personalization as the top pain points.",
+      "id": "evidence-017",
+      "numeric_fields": null,
+      "source_kind": "text",
+      "source_pub_date": "2026-04-10",
+      "source_title": "Wealth Management AI Pain Points 2026",
+      "source_url": "https://example.com/reports/wealth-ai-pain-2026",
+      "sub_question_id": "market_pain"
+    },
+    {
+      "captured_at": "<normalized-timestamp>",
+      "claim": "AI systems in wealth management must keep auditable evidence, human review paths, and clear risk warnings.",
+      "claim_type": "opinion",
+      "confidence": 0.76,
+      "credibility": 0.95,
+      "extract_text": "AI systems in wealth management must keep auditable evidence, human review paths, and clear risk warnings.",
+      "id": "evidence-018",
+      "numeric_fields": null,
+      "source_kind": "text",
+      "source_pub_date": "2025-12-15",
+      "source_title": "Digital Finance AI Implementation Guideline",
+      "source_url": "https://example.gov/digital-finance-ai-guideline",
+      "sub_question_id": "market_pain"
+    },
+    {
+      "captured_at": "<normalized-timestamp>",
+      "claim": "Financial institutions should build centralized AI governance for model demand, testing, deployment, evaluation, and exit.",
+      "claim_type": "fact",
+      "confidence": 0.76,
+      "credibility": 0.95,
+      "extract_text": "Financial institutions should build centralized AI governance for model demand, testing, deployment, evaluation, and exit.",
+      "id": "evidence-019",
+      "numeric_fields": null,
+      "source_kind": "text",
+      "source_pub_date": "2025-12-15",
+      "source_title": "Digital Finance AI Implementation Guideline",
+      "source_url": "https://example.gov/digital-finance-ai-guideline",
+      "sub_question_id": "market_pain"
+    },
+    {
+      "captured_at": "<normalized-timestamp>",
+      "claim": "Regulatory constraints mean an AI agent cannot provide unqualified investment advice without suitability checks and compliance review.",
+      "claim_type": "opinion",
+      "confidence": 0.76,
+      "credibility": 0.95,
+      "extract_text": "Regulatory constraints mean an AI agent cannot provide unqualified investment advice without suitability checks and compliance review.",
+      "id": "evidence-020",
+      "numeric_fields": null,
+      "source_kind": "text",
+      "source_pub_date": "2025-12-15",
+      "source_title": "Digital Finance AI Implementation Guideline",
+      "source_url": "https://example.gov/digital-finance-ai-guideline",
+      "sub_question_id": "market_pain"
+    },
+    {
+      "captured_at": "<normalized-timestamp>",
+      "claim": "A bank pilot used planner-researcher-writer agents to summarize fund factsheets, compare products, and prepare relationship manager scripts.",
+      "claim_type": "fact",
+      "confidence": 0.6240000000000001,
+      "credibility": 0.78,
+      "extract_text": "A bank pilot used planner-researcher-writer agents to summarize fund factsheets, compare products, and prepare relationship manager scripts.",
+      "id": "evidence-021",
+      "numeric_fields": null,
+      "source_kind": "text",
+      "source_pub_date": "2026-02-02",
+      "source_title": "Company Case Notes on AI Wealth Assistants",
+      "source_url": "https://example.com/company/ai-wealth-assistant-case",
+      "sub_question_id": "players"
+    },
+    {
+      "captured_at": "<normalized-timestamp>",
+      "claim": "Advisor productivity improved 31% after the assistant was embedded in daily workflows.",
+      "claim_type": "data",
+      "confidence": 0.7240000000000001,
+      "credibility": 0.78,
+      "extract_text": "Advisor productivity improved 31% after the assistant was embedded in daily workflows.",
+      "id": "evidence-022",
+      "numeric_fields": null,
+      "source_kind": "text",
+      "source_pub_date": "2026-02-02",
+      "source_title": "Company Case Notes on AI Wealth Assistants",
+      "source_url": "https://example.com/company/ai-wealth-assistant-case",
+      "sub_question_id": "players"
+    },
+    {
+      "captured_at": "<normalized-timestamp>",
+      "claim": "The project team emphasized source traceability, latency budgets, and manual approval for high-risk suggestions.",
+      "claim_type": "opinion",
+      "confidence": 0.6240000000000001,
+      "credibility": 0.78,
+      "extract_text": "The project team emphasized source traceability, latency budgets, and manual approval for high-risk suggestions.",
+      "id": "evidence-023",
+      "numeric_fields": null,
+      "source_kind": "text",
+      "source_pub_date": "2026-02-02",
+      "source_title": "Company Case Notes on AI Wealth Assistants",
+      "source_url": "https://example.com/company/ai-wealth-assistant-case",
+      "sub_question_id": "players"
+    },
+    {
+      "captured_at": "<normalized-timestamp>",
+      "claim": "Consumer fintech products are experimenting with AI guidance for budgeting, portfolio explanation, and financial education.",
+      "claim_type": "fact",
+      "confidence": 0.576,
+      "credibility": 0.72,
+      "extract_text": "Consumer fintech products are experimenting with AI guidance for budgeting, portfolio explanation, and financial education.",
+      "id": "evidence-024",
+      "numeric_fields": null,
+      "source_kind": "text",
+      "source_pub_date": "2026-01-20",
+      "source_title": "Revolut AI Advisor Product Update",
+      "source_url": "https://example.com/news/revolut-ai-advisor-update",
+      "sub_question_id": "players"
+    },
+    {
+      "captured_at": "<normalized-timestamp>",
+      "claim": "Product teams expect adoption to grow when citations, opt-outs, and audit logs become visible to users.",
+      "claim_type": "fact",
+      "confidence": 0.576,
+      "credibility": 0.72,
+      "extract_text": "Product teams expect adoption to grow when citations, opt-outs, and audit logs become visible to users.",
+      "id": "evidence-025",
+      "numeric_fields": null,
+      "source_kind": "text",
+      "source_pub_date": "2026-01-20",
+      "source_title": "Revolut AI Advisor Product Update",
+      "source_url": "https://example.com/news/revolut-ai-advisor-update",
+      "sub_question_id": "players"
+    },
+    {
+      "captured_at": "<normalized-timestamp>",
+      "claim": "The stronger use cases are education and explanation rather than direct trade recommendations.",
+      "claim_type": "fact",
+      "confidence": 0.576,
+      "credibility": 0.72,
+      "extract_text": "The stronger use cases are education and explanation rather than direct trade recommendations.",
+      "id": "evidence-026",
+      "numeric_fields": null,
+      "source_kind": "text",
+      "source_pub_date": "2026-01-20",
+      "source_title": "Revolut AI Advisor Product Update",
+      "source_url": "https://example.com/news/revolut-ai-advisor-update",
+      "sub_question_id": "players"
+    },
+    {
+      "captured_at": "<normalized-timestamp>",
+      "claim": "AI systems in wealth management must keep auditable evidence, human review paths, and clear risk warnings.",
+      "claim_type": "opinion",
+      "confidence": 0.76,
+      "credibility": 0.95,
+      "extract_text": "AI systems in wealth management must keep auditable evidence, human review paths, and clear risk warnings.",
+      "id": "evidence-027",
+      "numeric_fields": null,
+      "source_kind": "text",
+      "source_pub_date": "2025-12-15",
+      "source_title": "Digital Finance AI Implementation Guideline",
+      "source_url": "https://example.gov/digital-finance-ai-guideline",
+      "sub_question_id": "players"
+    },
+    {
+      "captured_at": "<normalized-timestamp>",
+      "claim": "Financial institutions should build centralized AI governance for model demand, testing, deployment, evaluation, and exit.",
+      "claim_type": "fact",
+      "confidence": 0.76,
+      "credibility": 0.95,
+      "extract_text": "Financial institutions should build centralized AI governance for model demand, testing, deployment, evaluation, and exit.",
+      "id": "evidence-028",
+      "numeric_fields": null,
+      "source_kind": "text",
+      "source_pub_date": "2025-12-15",
+      "source_title": "Digital Finance AI Implementation Guideline",
+      "source_url": "https://example.gov/digital-finance-ai-guideline",
+      "sub_question_id": "players"
+    },
+    {
+      "captured_at": "<normalized-timestamp>",
+      "claim": "Regulatory constraints mean an AI agent cannot provide unqualified investment advice without suitability checks and compliance review.",
+      "claim_type": "opinion",
+      "confidence": 0.76,
+      "credibility": 0.95,
+      "extract_text": "Regulatory constraints mean an AI agent cannot provide unqualified investment advice without suitability checks and compliance review.",
+      "id": "evidence-029",
+      "numeric_fields": null,
+      "source_kind": "text",
+      "source_pub_date": "2025-12-15",
+      "source_title": "Digital Finance AI Implementation Guideline",
+      "source_url": "https://example.gov/digital-finance-ai-guideline",
+      "sub_question_id": "players"
+    }
+  ],
+  "final_report": "# AI Agent 在财富管理行业的落地机会研究\n\n数据截至：2026-04-10\n\n免责声明：本报告为研究性输出，不构成投资建议。\n\n## 摘要\n本报告围绕“AI Agent 在财富管理行业的落地机会研究”拆解为 3 个子问题，累计抽取 29 条证据。当前 Critic 质量分为 1.00，首要结论可追溯到来源 [^1]。\n\n## 关键发现\n- Consumer fintech products are experimenting with AI guidance for budgeting, portfolio explanation, and financial education. [^1]\n- Product teams expect adoption to grow when citations, opt-outs, and audit logs become visible to users. [^2]\n- The stronger use cases are education and explanation rather than direct trade recommendations. [^3]\n- Advisor productivity improved 18% in pilots that used AI agents for research summaries and client meeting preparation. [^4]\n- Assets under management growth remained 7% in the surveyed digital wealth cohort. [^5]\n- The report recommends traceable citations for every investment-related recommendation. [^6]\n\n## 详细分析\n### What concrete pain points make AI Agent 在财富管理行业的落地机会研究 valuable?\n- Advisor productivity improved 18% in pilots that used AI agents for research summaries and client meeting preparation. [^4]\n- Assets under management growth remained 7% in the surveyed digital wealth cohort. [^5]\n### What is the current adoption state and production maturity of AI Agent 在财富管理行业的落地机会研究?\n本节没有可追溯到关键发现的新增分析项。\n### Which major players and implementation paths define AI Agent 在财富管理行业的落地机会研究?\n- Advisor productivity improved 31% after the assistant was embedded in daily workflows. [^12]\n\n## 补充事实\n- Consumer fintech products are experimenting with AI guidance for budgeting, portfolio explanation, and financial education. [^1]\n- Product teams expect adoption to grow when citations, opt-outs, and audit logs become visible to users. [^2]\n- The stronger use cases are education and explanation rather than direct trade recommendations. [^3]\n- The report recommends traceable citations for every investment-related recommendation. [^6]\n- Wealth managers report fragmented client data, slow product comparison, and weak personalization as the top pain points. [^7]\n- AI systems in wealth management must keep auditable evidence, human review paths, and clear risk warnings. [^8]\n- Financial institutions should build centralized AI governance for model demand, testing, deployment, evaluation, and exit. [^9]\n- Regulatory constraints mean an AI agent cannot provide unqualified investment advice without suitability checks and compliance review. [^10]\n- Wealth managers report fragmented client data, slow product comparison, and weak personalization as the top pain points. [^7]\n- AI systems in wealth management must keep auditable evidence, human review paths, and clear risk warnings. [^8]\n- Financial institutions should build centralized AI governance for model demand, testing, deployment, evaluation, and exit. [^9]\n- Regulatory constraints mean an AI agent cannot provide unqualified investment advice without suitability checks and compliance review. [^10]\n- A bank pilot used planner-researcher-writer agents to summarize fund factsheets, compare products, and prepare relationship manager scripts. [^11]\n- The project team emphasized source traceability, latency budgets, and manual approval for high-risk suggestions. [^13]\n- Consumer fintech products are experimenting with AI guidance for budgeting, portfolio explanation, and financial education. [^1]\n- Product teams expect adoption to grow when citations, opt-outs, and audit logs become visible to users. [^2]\n- The stronger use cases are education and explanation rather than direct trade recommendations. [^3]\n- AI systems in wealth management must keep auditable evidence, human review paths, and clear risk warnings. [^8]\n- Financial institutions should build centralized AI governance for model demand, testing, deployment, evaluation, and exit. [^9]\n- Regulatory constraints mean an AI agent cannot provide unqualified investment advice without suitability checks and compliance review. [^10]\n\n## 风险与限制\n- Critic 未执行；本轮不提供质量判断。\n\n## 未验证假设\n- 本轮报告未单独引入低置信度预测性结论。\n\n## 参考来源\n[^1]: Revolut AI Advisor Product Update. https://example.com/news/revolut-ai-advisor-update (2026-01-20) [source_tier=secondary]\n[^2]: Revolut AI Advisor Product Update. https://example.com/news/revolut-ai-advisor-update (2026-01-20) [source_tier=secondary]\n[^3]: Revolut AI Advisor Product Update. https://example.com/news/revolut-ai-advisor-update (2026-01-20) [source_tier=secondary]\n[^4]: Wealth Management AI Pain Points 2026. https://example.com/reports/wealth-ai-pain-2026 (2026-04-10) [source_tier=unknown]\n[^5]: Wealth Management AI Pain Points 2026. https://example.com/reports/wealth-ai-pain-2026 (2026-04-10) [source_tier=unknown]\n[^6]: Wealth Management AI Pain Points 2026. https://example.com/reports/wealth-ai-pain-2026 (2026-04-10) [source_tier=unknown]\n[^7]: Wealth Management AI Pain Points 2026. https://example.com/reports/wealth-ai-pain-2026 (2026-04-10) [source_tier=unknown]\n[^8]: Digital Finance AI Implementation Guideline. https://example.gov/digital-finance-ai-guideline (2025-12-15) [source_tier=primary]\n[^9]: Digital Finance AI Implementation Guideline. https://example.gov/digital-finance-ai-guideline (2025-12-15) [source_tier=primary]\n[^10]: Digital Finance AI Implementation Guideline. https://example.gov/digital-finance-ai-guideline (2025-12-15) [source_tier=primary]\n[^11]: Company Case Notes on AI Wealth Assistants. https://example.com/company/ai-wealth-assistant-case (2026-02-02) [source_tier=unknown]\n[^12]: Company Case Notes on AI Wealth Assistants. https://example.com/company/ai-wealth-assistant-case (2026-02-02) [source_tier=unknown]\n[^13]: Company Case Notes on AI Wealth Assistants. https://example.com/company/ai-wealth-assistant-case (2026-02-02) [source_tier=unknown]\n\n## Agent 决策记录\n\n- `capability_selection` by `ResearcherAgent`：selected=['web_search']。判据：apply configured rule for type=narrative and keep only capabilities declared applicable by the registry; web_fetch is rejected because this branch has no financial, event, or explicit verification intent\n  - 依据：{\"candidate_capabilities\": [\"disclosure_source\", \"structured_data_provider\", \"web_fetch\", \"web_search\"], \"fallback\": false, \"rejected_capabilities\": [\"disclosure_source\", \"structured_data_provider\", \"web_fetch\"], \"selected_capabilities\": [\"web_search\"], \"sub_question_id\": \"market_pain\", \"sub_question_type\": \"narrative\"}\n  - 已考虑替代项：disclosure_source、structured_data_provider、web_fetch、web_search\n- `capability_selection` by `ResearcherAgent`：selected=['web_search']。判据：apply configured rule for type=narrative and keep only capabilities declared applicable by the registry; web_fetch is rejected because this branch has no financial, event, or explicit verification intent\n  - 依据：{\"candidate_capabilities\": [\"disclosure_source\", \"structured_data_provider\", \"web_fetch\", \"web_search\"], \"fallback\": false, \"rejected_capabilities\": [\"disclosure_source\", \"structured_data_provider\", \"web_fetch\"], \"selected_capabilities\": [\"web_search\"], \"sub_question_id\": \"current_adoption\", \"sub_question_type\": \"narrative\"}\n  - 已考虑替代项：disclosure_source、structured_data_provider、web_fetch、web_search\n- `capability_selection` by `ResearcherAgent`：selected=['web_search']。判据：apply configured rule for type=narrative and keep only capabilities declared applicable by the registry; web_fetch is rejected because this branch has no financial, event, or explicit verification intent\n  - 依据：{\"candidate_capabilities\": [\"disclosure_source\", \"structured_data_provider\", \"web_fetch\", \"web_search\"], \"fallback\": false, \"rejected_capabilities\": [\"disclosure_source\", \"structured_data_provider\", \"web_fetch\"], \"selected_capabilities\": [\"web_search\"], \"sub_question_id\": \"players\", \"sub_question_type\": \"narrative\"}\n  - 已考虑替代项：disclosure_source、structured_data_provider、web_fetch、web_search\n- `branch_budget_allocate` by `BranchBudget`：initial_equal_allocation。判据：allocate within the run total and per-branch cap; on reallocation, lower measured coverage receives capacity first\n  - 依据：{\"allocations\": {\"current_adoption\": {\"allocated\": 7, \"coverage_warning\": null, \"exhausted\": false, \"remaining\": 7, \"used\": 0}, \"market_pain\": {\"allocated\": 7, \"coverage_warning\": null, \"exhausted\": false, \"remaining\": 7, \"used\": 0}, \"players\": {\"allocated\": 6, \"coverage_warning\": null, \"exhausted\": false, \"remaining\": 6, \"used\": 0}}, \"metrics\": {\"current_adoption\": null, \"market_pain\": null, \"players\": null}, \"per_branch_cap\": 10, \"rationale\": \"divide the run budget equally before LangGraph Send fan-out, subject to the per-branch cap\", \"total_budget\": 20, \"total_used\": 0}\n  - 已考虑替代项：equal_allocation、reallocate_to_weaker_branches、stop_exhausted_branches\n- `source_rerank` by `ResearcherAgent`：ranked=3 fetched=0 primary_hit=False。判据：rank exchange, statutory, regulator, association, and generic official-publication paths ahead of unknown and secondary sources; prefer HTML to PDF within the same tier; classification and rerank only because web_fetch was not selected\n  - 依据：{\"fetch_enabled\": false, \"fetch_order\": [], \"original_order\": [\"https://example.com/reports/wealth-ai-pain-2026\", \"https://example.com/news/revolut-ai-advisor-update\", \"https://example.gov/digital-finance-ai-guideline\"], \"ranked_order\": [\"https://example.com/reports/wealth-ai-pain-2026\", \"https://example.com/news/revolut-ai-advisor-update\", \"https://example.gov/digital-finance-ai-guideline\"], \"skipped_candidates\": [\"https://example.com/reports/wealth-ai-pain-2026\", \"https://example.com/news/revolut-ai-advisor-update\", \"https://example.gov/digital-finance-ai-guideline\"], \"source_tiers\": {\"https://example.com/news/revolut-ai-advisor-update\": \"secondary\", \"https://example.com/reports/wealth-ai-pain-2026\": \"unknown\", \"https://example.gov/digital-finance-ai-guideline\": \"primary\"}, \"sub_question_id\": \"market_pain\"}\n  - 已考虑替代项：https://example.com/reports/wealth-ai-pain-2026、https://example.com/news/revolut-ai-advisor-update、https://example.gov/digital-finance-ai-guideline\n- `source_rerank` by `ResearcherAgent`：ranked=3 fetched=0 primary_hit=False。判据：rank exchange, statutory, regulator, association, and generic official-publication paths ahead of unknown and secondary sources; prefer HTML to PDF within the same tier; classification and rerank only because web_fetch was not selected\n  - 依据：{\"fetch_enabled\": false, \"fetch_order\": [], \"original_order\": [\"https://example.gov/digital-finance-ai-guideline\", \"https://example.com/news/revolut-ai-advisor-update\", \"https://example.com/reports/wealth-ai-pain-2026\"], \"ranked_order\": [\"https://example.gov/digital-finance-ai-guideline\", \"https://example.com/news/revolut-ai-advisor-update\", \"https://example.com/reports/wealth-ai-pain-2026\"], \"skipped_candidates\": [\"https://example.gov/digital-finance-ai-guideline\", \"https://example.com/news/revolut-ai-advisor-update\", \"https://example.com/reports/wealth-ai-pain-2026\"], \"source_tiers\": {\"https://example.com/news/revolut-ai-advisor-update\": \"secondary\", \"https://example.com/reports/wealth-ai-pain-2026\": \"unknown\", \"https://example.gov/digital-finance-ai-guideline\": \"primary\"}, \"sub_question_id\": \"current_adoption\"}\n  - 已考虑替代项：https://example.gov/digital-finance-ai-guideline、https://example.com/news/revolut-ai-advisor-update、https://example.com/reports/wealth-ai-pain-2026\n- `source_rerank` by `ResearcherAgent`：ranked=3 fetched=0 primary_hit=False。判据：rank exchange, statutory, regulator, association, and generic official-publication paths ahead of unknown and secondary sources; prefer HTML to PDF within the same tier; classification and rerank only because web_fetch was not selected\n  - 依据：{\"fetch_enabled\": false, \"fetch_order\": [], \"original_order\": [\"https://example.com/company/ai-wealth-assistant-case\", \"https://example.com/news/revolut-ai-advisor-update\", \"https://example.gov/digital-finance-ai-guideline\"], \"ranked_order\": [\"https://example.com/company/ai-wealth-assistant-case\", \"https://example.com/news/revolut-ai-advisor-update\", \"https://example.gov/digital-finance-ai-guideline\"], \"skipped_candidates\": [\"https://example.com/company/ai-wealth-assistant-case\", \"https://example.com/news/revolut-ai-advisor-update\", \"https://example.gov/digital-finance-ai-guideline\"], \"source_tiers\": {\"https://example.com/company/ai-wealth-assistant-case\": \"unknown\", \"https://example.com/news/revolut-ai-advisor-update\": \"secondary\", \"https://example.gov/digital-finance-ai-guideline\": \"primary\"}, \"sub_question_id\": \"players\"}\n  - 已考虑替代项：https://example.com/company/ai-wealth-assistant-case、https://example.com/news/revolut-ai-advisor-update、https://example.gov/digital-finance-ai-guideline\n- `branch_budget_reallocate` by `BranchBudget`：reallocated_toward_lower_metric_branches。判据：allocate within the run total and per-branch cap; on reallocation, lower measured coverage receives capacity first\n  - 依据：{\"allocations\": {\"current_adoption\": {\"allocated\": 7, \"coverage_warning\": null, \"exhausted\": false, \"remaining\": 4, \"used\": 3}, \"market_pain\": {\"allocated\": 7, \"coverage_warning\": null, \"exhausted\": false, \"remaining\": 4, \"used\": 3}, \"players\": {\"allocated\": 6, \"coverage_warning\": null, \"exhausted\": false, \"remaining\": 3, \"used\": 3}}, \"metrics\": {\"current_adoption\": 3.0, \"market_pain\": 3.0, \"players\": 3.0}, \"per_branch_cap\": 10, \"rationale\": \"after join, distribute remaining capacity in ascending metric order while preserving completed work and the per-branch cap\", \"total_budget\": 20, \"total_used\": 9}\n  - 已考虑替代项：equal_allocation、reallocate_to_weaker_branches、stop_exhausted_branches",
+  "node_summaries": [
+    {
+      "input": {
+        "evidence_count": 29,
+        "phase": "critiquing",
+        "research_records": {
+          "current_adoption": 3,
+          "market_pain": 3,
+          "players": 3
+        },
+        "research_sources": {
+          "current_adoption": 3,
+          "market_pain": 3,
+          "players": 3
+        },
+        "research_structured_evidence": {
+          "current_adoption": 0,
+          "market_pain": 0,
+          "players": 0
+        },
+        "retry_count": 0,
+        "retry_records": {},
+        "retry_sources": {},
+        "source_count": 4,
+        "status": "running"
+      },
+      "node": "critic",
+      "output": {
+        "evidence_count": 29,
+        "phase": "reporting",
+        "retry_count": 0,
+        "source_count": 4,
+        "status": "running"
+      }
+    },
+    {
+      "input": {
+        "evidence_count": 0,
+        "phase": "planning",
+        "research_records": {},
+        "research_sources": {},
+        "research_structured_evidence": {},
+        "retry_count": 0,
+        "retry_records": {},
+        "retry_sources": {},
+        "source_count": 0,
+        "status": "running"
+      },
+      "node": "entry",
+      "output": {
+        "evidence_count": 0,
+        "phase": "planning",
+        "research_records": {},
+        "research_sources": {},
+        "research_structured_evidence": {},
+        "retry_count": 0,
+        "retry_records": {},
+        "retry_sources": {},
+        "source_count": 0,
+        "status": "running"
+      }
+    },
+    {
+      "input": {
+        "evidence_count": 29,
+        "phase": "evaluating",
+        "research_records": {
+          "current_adoption": 3,
+          "market_pain": 3,
+          "players": 3
+        },
+        "research_sources": {
+          "current_adoption": 3,
+          "market_pain": 3,
+          "players": 3
+        },
+        "research_structured_evidence": {
+          "current_adoption": 0,
+          "market_pain": 0,
+          "players": 0
+        },
+        "retry_count": 0,
+        "retry_records": {},
+        "retry_sources": {},
+        "source_count": 4,
+        "status": "running"
+      },
+      "node": "evaluator",
+      "output": {
+        "evidence_count": 29,
+        "phase": "done",
+        "retry_count": 0,
+        "source_count": 4,
+        "status": "done"
+      }
+    },
+    {
+      "input": {
+        "evidence_count": 0,
+        "phase": "extracting",
+        "research_records": {
+          "current_adoption": 3,
+          "market_pain": 3,
+          "players": 3
+        },
+        "research_sources": {
+          "current_adoption": 3,
+          "market_pain": 3,
+          "players": 3
+        },
+        "research_structured_evidence": {
+          "current_adoption": 0,
+          "market_pain": 0,
+          "players": 0
+        },
+        "retry_count": 0,
+        "retry_records": {},
+        "retry_sources": {},
+        "source_count": 4,
+        "status": "running"
+      },
+      "node": "extractor",
+      "output": {
+        "evidence_count": 29,
+        "phase": "critiquing",
+        "retry_count": 0,
+        "source_count": 4,
+        "status": "running"
+      }
+    },
+    {
+      "input": {
+        "evidence_count": 0,
+        "phase": "planning",
+        "research_records": {},
+        "research_sources": {},
+        "research_structured_evidence": {},
+        "retry_count": 0,
+        "retry_records": {},
+        "retry_sources": {},
+        "source_count": 0,
+        "status": "running"
+      },
+      "node": "planner",
+      "output": {
+        "evidence_count": 0,
+        "phase": "researching",
+        "retry_count": 0,
+        "source_count": 0,
+        "status": "running"
+      }
+    },
+    {
+      "input": {
+        "evidence_count": 29,
+        "phase": "reporting",
+        "research_records": {
+          "current_adoption": 3,
+          "market_pain": 3,
+          "players": 3
+        },
+        "research_sources": {
+          "current_adoption": 3,
+          "market_pain": 3,
+          "players": 3
+        },
+        "research_structured_evidence": {
+          "current_adoption": 0,
+          "market_pain": 0,
+          "players": 0
+        },
+        "retry_count": 0,
+        "retry_records": {},
+        "retry_sources": {},
+        "source_count": 4,
+        "status": "running"
+      },
+      "node": "reporter",
+      "output": {
+        "evidence_count": 29,
+        "phase": "evaluating",
+        "retry_count": 0,
+        "source_count": 4,
+        "status": "running"
+      }
+    },
+    {
+      "input": {
+        "evidence_count": 0,
+        "phase": "researching",
+        "research_records": {
+          "current_adoption": 3,
+          "market_pain": 3,
+          "players": 3
+        },
+        "research_sources": {
+          "current_adoption": 3,
+          "market_pain": 3,
+          "players": 3
+        },
+        "research_structured_evidence": {
+          "current_adoption": 0,
+          "market_pain": 0,
+          "players": 0
+        },
+        "retry_count": 0,
+        "retry_records": {},
+        "retry_sources": {},
+        "source_count": 0,
+        "status": "running"
+      },
+      "node": "research_join",
+      "output": {
+        "evidence_count": 0,
+        "phase": "extracting",
+        "retry_count": 0,
+        "source_count": 4,
+        "status": "running"
+      }
+    },
+    {
+      "input": {
+        "evidence_count": 0,
+        "phase": "researching",
+        "retry_count": 0,
+        "source_count": 0,
+        "status": "running",
+        "sub_question_id": "current_adoption"
+      },
+      "node": "research_one",
+      "output": {
+        "evidence_count": 0,
+        "phase": null,
+        "research_records": {
+          "current_adoption": 3
+        },
+        "research_sources": {
+          "current_adoption": 3
+        },
+        "research_structured_evidence": {
+          "current_adoption": 0
+        },
+        "retry_count": 0,
+        "source_count": 0,
+        "status": null
+      }
+    },
+    {
+      "input": {
+        "evidence_count": 0,
+        "phase": "researching",
+        "retry_count": 0,
+        "source_count": 0,
+        "status": "running",
+        "sub_question_id": "market_pain"
+      },
+      "node": "research_one",
+      "output": {
+        "evidence_count": 0,
+        "phase": null,
+        "research_records": {
+          "market_pain": 3
+        },
+        "research_sources": {
+          "market_pain": 3
+        },
+        "research_structured_evidence": {
+          "market_pain": 0
+        },
+        "retry_count": 0,
+        "source_count": 0,
+        "status": null
+      }
+    },
+    {
+      "input": {
+        "evidence_count": 0,
+        "phase": "researching",
+        "retry_count": 0,
+        "source_count": 0,
+        "status": "running",
+        "sub_question_id": "players"
+      },
+      "node": "research_one",
+      "output": {
+        "evidence_count": 0,
+        "phase": null,
+        "research_records": {
+          "players": 3
+        },
+        "research_sources": {
+          "players": 3
+        },
+        "research_structured_evidence": {
+          "players": 0
+        },
+        "retry_count": 0,
+        "source_count": 0,
+        "status": null
+      }
+    },
+    {
+      "input": {
+        "evidence_count": 0,
+        "phase": "researching",
+        "research_records": {},
+        "research_sources": {},
+        "research_structured_evidence": {},
+        "retry_count": 0,
+        "retry_records": {},
+        "retry_sources": {},
+        "source_count": 0,
+        "status": "running"
+      },
+      "node": "research_prepare",
+      "output": {
+        "evidence_count": 0,
+        "phase": "researching",
+        "retry_count": 0,
+        "source_count": 0,
+        "status": "running"
+      }
+    }
+  ],
+  "report_claims": [
+    {
+      "evidence_ids": [
+        "evidence-001"
+      ],
+      "section": "关键发现",
+      "text": "Consumer fintech products are experimenting with AI guidance for budgeting, portfolio explanation, and financial education."
+    },
+    {
+      "evidence_ids": [
+        "evidence-002"
+      ],
+      "section": "关键发现",
+      "text": "Product teams expect adoption to grow when citations, opt-outs, and audit logs become visible to users."
+    },
+    {
+      "evidence_ids": [
+        "evidence-003"
+      ],
+      "section": "关键发现",
+      "text": "The stronger use cases are education and explanation rather than direct trade recommendations."
+    },
+    {
+      "evidence_ids": [
+        "evidence-004"
+      ],
+      "section": "关键发现",
+      "text": "Advisor productivity improved 18% in pilots that used AI agents for research summaries and client meeting preparation."
+    },
+    {
+      "evidence_ids": [
+        "evidence-005"
+      ],
+      "section": "关键发现",
+      "text": "Assets under management growth remained 7% in the surveyed digital wealth cohort."
+    },
+    {
+      "evidence_ids": [
+        "evidence-006"
+      ],
+      "section": "关键发现",
+      "text": "The report recommends traceable citations for every investment-related recommendation."
+    },
+    {
+      "evidence_ids": [
+        "evidence-004"
+      ],
+      "section": "详细分析",
+      "text": "Advisor productivity improved 18% in pilots that used AI agents for research summaries and client meeting preparation."
+    },
+    {
+      "evidence_ids": [
+        "evidence-005"
+      ],
+      "section": "详细分析",
+      "text": "Assets under management growth remained 7% in the surveyed digital wealth cohort."
+    },
+    {
+      "evidence_ids": [
+        "evidence-022"
+      ],
+      "section": "详细分析",
+      "text": "Advisor productivity improved 31% after the assistant was embedded in daily workflows."
+    },
+    {
+      "evidence_ids": [
+        "evidence-001"
+      ],
+      "section": "补充事实",
+      "text": "Consumer fintech products are experimenting with AI guidance for budgeting, portfolio explanation, and financial education."
+    },
+    {
+      "evidence_ids": [
+        "evidence-002"
+      ],
+      "section": "补充事实",
+      "text": "Product teams expect adoption to grow when citations, opt-outs, and audit logs become visible to users."
+    },
+    {
+      "evidence_ids": [
+        "evidence-003"
+      ],
+      "section": "补充事实",
+      "text": "The stronger use cases are education and explanation rather than direct trade recommendations."
+    },
+    {
+      "evidence_ids": [
+        "evidence-006"
+      ],
+      "section": "补充事实",
+      "text": "The report recommends traceable citations for every investment-related recommendation."
+    },
+    {
+      "evidence_ids": [
+        "evidence-007"
+      ],
+      "section": "补充事实",
+      "text": "Wealth managers report fragmented client data, slow product comparison, and weak personalization as the top pain points."
+    },
+    {
+      "evidence_ids": [
+        "evidence-008"
+      ],
+      "section": "补充事实",
+      "text": "AI systems in wealth management must keep auditable evidence, human review paths, and clear risk warnings."
+    },
+    {
+      "evidence_ids": [
+        "evidence-009"
+      ],
+      "section": "补充事实",
+      "text": "Financial institutions should build centralized AI governance for model demand, testing, deployment, evaluation, and exit."
+    },
+    {
+      "evidence_ids": [
+        "evidence-010"
+      ],
+      "section": "补充事实",
+      "text": "Regulatory constraints mean an AI agent cannot provide unqualified investment advice without suitability checks and compliance review."
+    },
+    {
+      "evidence_ids": [
+        "evidence-007"
+      ],
+      "section": "补充事实",
+      "text": "Wealth managers report fragmented client data, slow product comparison, and weak personalization as the top pain points."
+    },
+    {
+      "evidence_ids": [
+        "evidence-008"
+      ],
+      "section": "补充事实",
+      "text": "AI systems in wealth management must keep auditable evidence, human review paths, and clear risk warnings."
+    },
+    {
+      "evidence_ids": [
+        "evidence-009"
+      ],
+      "section": "补充事实",
+      "text": "Financial institutions should build centralized AI governance for model demand, testing, deployment, evaluation, and exit."
+    },
+    {
+      "evidence_ids": [
+        "evidence-010"
+      ],
+      "section": "补充事实",
+      "text": "Regulatory constraints mean an AI agent cannot provide unqualified investment advice without suitability checks and compliance review."
+    },
+    {
+      "evidence_ids": [
+        "evidence-021"
+      ],
+      "section": "补充事实",
+      "text": "A bank pilot used planner-researcher-writer agents to summarize fund factsheets, compare products, and prepare relationship manager scripts."
+    },
+    {
+      "evidence_ids": [
+        "evidence-023"
+      ],
+      "section": "补充事实",
+      "text": "The project team emphasized source traceability, latency budgets, and manual approval for high-risk suggestions."
+    },
+    {
+      "evidence_ids": [
+        "evidence-001"
+      ],
+      "section": "补充事实",
+      "text": "Consumer fintech products are experimenting with AI guidance for budgeting, portfolio explanation, and financial education."
+    },
+    {
+      "evidence_ids": [
+        "evidence-002"
+      ],
+      "section": "补充事实",
+      "text": "Product teams expect adoption to grow when citations, opt-outs, and audit logs become visible to users."
+    },
+    {
+      "evidence_ids": [
+        "evidence-003"
+      ],
+      "section": "补充事实",
+      "text": "The stronger use cases are education and explanation rather than direct trade recommendations."
+    },
+    {
+      "evidence_ids": [
+        "evidence-008"
+      ],
+      "section": "补充事实",
+      "text": "AI systems in wealth management must keep auditable evidence, human review paths, and clear risk warnings."
+    },
+    {
+      "evidence_ids": [
+        "evidence-009"
+      ],
+      "section": "补充事实",
+      "text": "Financial institutions should build centralized AI governance for model demand, testing, deployment, evaluation, and exit."
+    },
+    {
+      "evidence_ids": [
+        "evidence-010"
+      ],
+      "section": "补充事实",
+      "text": "Regulatory constraints mean an AI agent cannot provide unqualified investment advice without suitability checks and compliance review."
+    },
+    {
+      "evidence_ids": [],
+      "section": "风险与限制",
+      "text": "Critic 未执行；本轮不提供质量判断。"
+    },
+    {
+      "evidence_ids": [],
+      "section": "未验证假设",
+      "text": "本轮报告未单独引入低置信度预测性结论。"
+    },
+    {
+      "evidence_ids": [],
+      "section": "Agent 决策记录",
+      "text": "`capability_selection` by `ResearcherAgent`：selected=['web_search']。判据：apply configured rule for type=narrative and keep only capabilities declared applicable by the registry; web_fetch is rejected because this branch has no financial, event, or explicit verification intent"
+    },
+    {
+      "evidence_ids": [],
+      "section": "Agent 决策记录",
+      "text": "`capability_selection` by `ResearcherAgent`：selected=['web_search']。判据：apply configured rule for type=narrative and keep only capabilities declared applicable by the registry; web_fetch is rejected because this branch has no financial, event, or explicit verification intent"
+    },
+    {
+      "evidence_ids": [],
+      "section": "Agent 决策记录",
+      "text": "`capability_selection` by `ResearcherAgent`：selected=['web_search']。判据：apply configured rule for type=narrative and keep only capabilities declared applicable by the registry; web_fetch is rejected because this branch has no financial, event, or explicit verification intent"
+    },
+    {
+      "evidence_ids": [],
+      "section": "Agent 决策记录",
+      "text": "`branch_budget_allocate` by `BranchBudget`：initial_equal_allocation。判据：allocate within the run total and per-branch cap; on reallocation, lower measured coverage receives capacity first"
+    },
+    {
+      "evidence_ids": [],
+      "section": "Agent 决策记录",
+      "text": "`source_rerank` by `ResearcherAgent`：ranked=3 fetched=0 primary_hit=False。判据：rank exchange, statutory, regulator, association, and generic official-publication paths ahead of unknown and secondary sources; prefer HTML to PDF within the same tier; classification and rerank only because web_fetch was not selected"
+    },
+    {
+      "evidence_ids": [],
+      "section": "Agent 决策记录",
+      "text": "`source_rerank` by `ResearcherAgent`：ranked=3 fetched=0 primary_hit=False。判据：rank exchange, statutory, regulator, association, and generic official-publication paths ahead of unknown and secondary sources; prefer HTML to PDF within the same tier; classification and rerank only because web_fetch was not selected"
+    },
+    {
+      "evidence_ids": [],
+      "section": "Agent 决策记录",
+      "text": "`source_rerank` by `ResearcherAgent`：ranked=3 fetched=0 primary_hit=False。判据：rank exchange, statutory, regulator, association, and generic official-publication paths ahead of unknown and secondary sources; prefer HTML to PDF within the same tier; classification and rerank only because web_fetch was not selected"
+    },
+    {
+      "evidence_ids": [],
+      "section": "Agent 决策记录",
+      "text": "`branch_budget_reallocate` by `BranchBudget`：reallocated_toward_lower_metric_branches。判据：allocate within the run total and per-branch cap; on reallocation, lower measured coverage receives capacity first"
+    }
+  ],
+  "report_footnote_evidence": {
+    "1": "evidence-001",
+    "10": "evidence-010",
+    "11": "evidence-021",
+    "12": "evidence-022",
+    "13": "evidence-023",
+    "2": "evidence-002",
+    "3": "evidence-003",
+    "4": "evidence-004",
+    "5": "evidence-005",
+    "6": "evidence-006",
+    "7": "evidence-007",
+    "8": "evidence-008",
+    "9": "evidence-009"
+  },
+  "retry_queue_events": [],
+  "schema_version": 1,
+  "side_effects": {
+    "context_events": [
+      {
+        "budget": 200000,
+        "dropped": [
+          {
+            "evidence_id": "<normalized-id>",
+            "reason": "duplicate_content",
+            "token_estimate": 83
+          },
+          {
+            "evidence_id": "<normalized-id>",
+            "reason": "duplicate_content",
+            "token_estimate": 73
+          },
+          {
+            "evidence_id": "<normalized-id>",
+            "reason": "duplicate_content",
+            "token_estimate": 69
+          },
+          {
+            "evidence_id": "<normalized-id>",
+            "reason": "duplicate_content",
+            "token_estimate": 81
+          },
+          {
+            "evidence_id": "<normalized-id>",
+            "reason": "duplicate_content",
+            "token_estimate": 63
+          },
+          {
+            "evidence_id": "<normalized-id>",
+            "reason": "duplicate_content",
+            "token_estimate": 65
+          },
+          {
+            "evidence_id": "<normalized-id>",
+            "reason": "duplicate_content",
+            "token_estimate": 82
+          },
+          {
+            "evidence_id": "<normalized-id>",
+            "reason": "duplicate_content",
+            "token_estimate": 77
+          },
+          {
+            "evidence_id": "<normalized-id>",
+            "reason": "duplicate_content",
+            "token_estimate": 85
+          },
+          {
+            "evidence_id": "<normalized-id>",
+            "reason": "duplicate_content",
+            "token_estimate": 91
+          },
+          {
+            "evidence_id": "<normalized-id>",
+            "reason": "duplicate_content",
+            "token_estimate": 83
+          },
+          {
+            "evidence_id": "<normalized-id>",
+            "reason": "duplicate_content",
+            "token_estimate": 73
+          },
+          {
+            "evidence_id": "<normalized-id>",
+            "reason": "duplicate_content",
+            "token_estimate": 69
+          },
+          {
+            "evidence_id": "<normalized-id>",
+            "reason": "duplicate_content",
+            "token_estimate": 77
+          },
+          {
+            "evidence_id": "<normalized-id>",
+            "reason": "duplicate_content",
+            "token_estimate": 85
+          },
+          {
+            "evidence_id": "<normalized-id>",
+            "reason": "duplicate_content",
+            "token_estimate": 91
+          }
+        ],
+        "dropped_count": 16,
+        "node": "reporter",
+        "selected_count": 13,
+        "token_total": 1013
+      }
+    ],
+    "degradation_events": [],
+    "manifest": {
+      "config_hash": "<normalized-config-hash>",
+      "context_events": [
+        {
+          "budget": 200000,
+          "dropped": [
+            {
+              "evidence_id": "<normalized-id>",
+              "reason": "duplicate_content",
+              "token_estimate": 83
+            },
+            {
+              "evidence_id": "<normalized-id>",
+              "reason": "duplicate_content",
+              "token_estimate": 73
+            },
+            {
+              "evidence_id": "<normalized-id>",
+              "reason": "duplicate_content",
+              "token_estimate": 69
+            },
+            {
+              "evidence_id": "<normalized-id>",
+              "reason": "duplicate_content",
+              "token_estimate": 81
+            },
+            {
+              "evidence_id": "<normalized-id>",
+              "reason": "duplicate_content",
+              "token_estimate": 63
+            },
+            {
+              "evidence_id": "<normalized-id>",
+              "reason": "duplicate_content",
+              "token_estimate": 65
+            },
+            {
+              "evidence_id": "<normalized-id>",
+              "reason": "duplicate_content",
+              "token_estimate": 82
+            },
+            {
+              "evidence_id": "<normalized-id>",
+              "reason": "duplicate_content",
+              "token_estimate": 77
+            },
+            {
+              "evidence_id": "<normalized-id>",
+              "reason": "duplicate_content",
+              "token_estimate": 85
+            },
+            {
+              "evidence_id": "<normalized-id>",
+              "reason": "duplicate_content",
+              "token_estimate": 91
+            },
+            {
+              "evidence_id": "<normalized-id>",
+              "reason": "duplicate_content",
+              "token_estimate": 83
+            },
+            {
+              "evidence_id": "<normalized-id>",
+              "reason": "duplicate_content",
+              "token_estimate": 73
+            },
+            {
+              "evidence_id": "<normalized-id>",
+              "reason": "duplicate_content",
+              "token_estimate": 69
+            },
+            {
+              "evidence_id": "<normalized-id>",
+              "reason": "duplicate_content",
+              "token_estimate": 77
+            },
+            {
+              "evidence_id": "<normalized-id>",
+              "reason": "duplicate_content",
+              "token_estimate": 85
+            },
+            {
+              "evidence_id": "<normalized-id>",
+              "reason": "duplicate_content",
+              "token_estimate": 91
+            }
+          ],
+          "dropped_count": 16,
+          "node": "reporter",
+          "selected_count": 13,
+          "token_total": 1013
+        }
+      ],
+      "cost_cny_total": null,
+      "decision_summary": [
+        {
+          "alternatives_considered": [
+            "disclosure_source",
+            "structured_data_provider",
+            "web_fetch",
+            "web_search"
+          ],
+          "criterion": "apply configured rule for type=narrative and keep only capabilities declared applicable by the registry; web_fetch is rejected because this branch has no financial, event, or explicit verification intent",
+          "decision_type": "capability_selection",
+          "inputs": {
+            "candidate_capabilities": [
+              "disclosure_source",
+              "structured_data_provider",
+              "web_fetch",
+              "web_search"
+            ],
+            "fallback": false,
+            "rejected_capabilities": [
+              "disclosure_source",
+              "structured_data_provider",
+              "web_fetch"
+            ],
+            "selected_capabilities": [
+              "web_search"
+            ],
+            "sub_question_id": "market_pain",
+            "sub_question_type": "narrative"
+          },
+          "iteration": null,
+          "made_by": "ResearcherAgent",
+          "outcome": "selected=['web_search']",
+          "timestamp": "<normalized-timestamp>"
+        },
+        {
+          "alternatives_considered": [
+            "disclosure_source",
+            "structured_data_provider",
+            "web_fetch",
+            "web_search"
+          ],
+          "criterion": "apply configured rule for type=narrative and keep only capabilities declared applicable by the registry; web_fetch is rejected because this branch has no financial, event, or explicit verification intent",
+          "decision_type": "capability_selection",
+          "inputs": {
+            "candidate_capabilities": [
+              "disclosure_source",
+              "structured_data_provider",
+              "web_fetch",
+              "web_search"
+            ],
+            "fallback": false,
+            "rejected_capabilities": [
+              "disclosure_source",
+              "structured_data_provider",
+              "web_fetch"
+            ],
+            "selected_capabilities": [
+              "web_search"
+            ],
+            "sub_question_id": "current_adoption",
+            "sub_question_type": "narrative"
+          },
+          "iteration": null,
+          "made_by": "ResearcherAgent",
+          "outcome": "selected=['web_search']",
+          "timestamp": "<normalized-timestamp>"
+        },
+        {
+          "alternatives_considered": [
+            "disclosure_source",
+            "structured_data_provider",
+            "web_fetch",
+            "web_search"
+          ],
+          "criterion": "apply configured rule for type=narrative and keep only capabilities declared applicable by the registry; web_fetch is rejected because this branch has no financial, event, or explicit verification intent",
+          "decision_type": "capability_selection",
+          "inputs": {
+            "candidate_capabilities": [
+              "disclosure_source",
+              "structured_data_provider",
+              "web_fetch",
+              "web_search"
+            ],
+            "fallback": false,
+            "rejected_capabilities": [
+              "disclosure_source",
+              "structured_data_provider",
+              "web_fetch"
+            ],
+            "selected_capabilities": [
+              "web_search"
+            ],
+            "sub_question_id": "players",
+            "sub_question_type": "narrative"
+          },
+          "iteration": null,
+          "made_by": "ResearcherAgent",
+          "outcome": "selected=['web_search']",
+          "timestamp": "<normalized-timestamp>"
+        },
+        {
+          "alternatives_considered": [
+            "equal_allocation",
+            "reallocate_to_weaker_branches",
+            "stop_exhausted_branches"
+          ],
+          "criterion": "allocate within the run total and per-branch cap; on reallocation, lower measured coverage receives capacity first",
+          "decision_type": "branch_budget_allocate",
+          "inputs": {
+            "allocations": {
+              "current_adoption": {
+                "allocated": 7,
+                "coverage_warning": null,
+                "exhausted": false,
+                "remaining": 7,
+                "used": 0
+              },
+              "market_pain": {
+                "allocated": 7,
+                "coverage_warning": null,
+                "exhausted": false,
+                "remaining": 7,
+                "used": 0
+              },
+              "players": {
+                "allocated": 6,
+                "coverage_warning": null,
+                "exhausted": false,
+                "remaining": 6,
+                "used": 0
+              }
+            },
+            "metrics": {
+              "current_adoption": null,
+              "market_pain": null,
+              "players": null
+            },
+            "per_branch_cap": 10,
+            "rationale": "divide the run budget equally before LangGraph Send fan-out, subject to the per-branch cap",
+            "total_budget": 20,
+            "total_used": 0
+          },
+          "iteration": null,
+          "made_by": "BranchBudget",
+          "outcome": "initial_equal_allocation",
+          "timestamp": "<normalized-timestamp>"
+        },
+        {
+          "alternatives_considered": [
+            "https://example.com/reports/wealth-ai-pain-2026",
+            "https://example.com/news/revolut-ai-advisor-update",
+            "https://example.gov/digital-finance-ai-guideline"
+          ],
+          "criterion": "rank exchange, statutory, regulator, association, and generic official-publication paths ahead of unknown and secondary sources; prefer HTML to PDF within the same tier; classification and rerank only because web_fetch was not selected",
+          "decision_type": "source_rerank",
+          "inputs": {
+            "fetch_enabled": false,
+            "fetch_order": [],
+            "original_order": [
+              "https://example.com/reports/wealth-ai-pain-2026",
+              "https://example.com/news/revolut-ai-advisor-update",
+              "https://example.gov/digital-finance-ai-guideline"
+            ],
+            "ranked_order": [
+              "https://example.com/reports/wealth-ai-pain-2026",
+              "https://example.com/news/revolut-ai-advisor-update",
+              "https://example.gov/digital-finance-ai-guideline"
+            ],
+            "skipped_candidates": [
+              "https://example.com/reports/wealth-ai-pain-2026",
+              "https://example.com/news/revolut-ai-advisor-update",
+              "https://example.gov/digital-finance-ai-guideline"
+            ],
+            "source_tiers": {
+              "https://example.com/news/revolut-ai-advisor-update": "secondary",
+              "https://example.com/reports/wealth-ai-pain-2026": "unknown",
+              "https://example.gov/digital-finance-ai-guideline": "primary"
+            },
+            "sub_question_id": "market_pain"
+          },
+          "iteration": null,
+          "made_by": "ResearcherAgent",
+          "outcome": "ranked=3 fetched=0 primary_hit=False",
+          "timestamp": "<normalized-timestamp>"
+        },
+        {
+          "alternatives_considered": [
+            "https://example.gov/digital-finance-ai-guideline",
+            "https://example.com/news/revolut-ai-advisor-update",
+            "https://example.com/reports/wealth-ai-pain-2026"
+          ],
+          "criterion": "rank exchange, statutory, regulator, association, and generic official-publication paths ahead of unknown and secondary sources; prefer HTML to PDF within the same tier; classification and rerank only because web_fetch was not selected",
+          "decision_type": "source_rerank",
+          "inputs": {
+            "fetch_enabled": false,
+            "fetch_order": [],
+            "original_order": [
+              "https://example.gov/digital-finance-ai-guideline",
+              "https://example.com/news/revolut-ai-advisor-update",
+              "https://example.com/reports/wealth-ai-pain-2026"
+            ],
+            "ranked_order": [
+              "https://example.gov/digital-finance-ai-guideline",
+              "https://example.com/news/revolut-ai-advisor-update",
+              "https://example.com/reports/wealth-ai-pain-2026"
+            ],
+            "skipped_candidates": [
+              "https://example.gov/digital-finance-ai-guideline",
+              "https://example.com/news/revolut-ai-advisor-update",
+              "https://example.com/reports/wealth-ai-pain-2026"
+            ],
+            "source_tiers": {
+              "https://example.com/news/revolut-ai-advisor-update": "secondary",
+              "https://example.com/reports/wealth-ai-pain-2026": "unknown",
+              "https://example.gov/digital-finance-ai-guideline": "primary"
+            },
+            "sub_question_id": "current_adoption"
+          },
+          "iteration": null,
+          "made_by": "ResearcherAgent",
+          "outcome": "ranked=3 fetched=0 primary_hit=False",
+          "timestamp": "<normalized-timestamp>"
+        },
+        {
+          "alternatives_considered": [
+            "https://example.com/company/ai-wealth-assistant-case",
+            "https://example.com/news/revolut-ai-advisor-update",
+            "https://example.gov/digital-finance-ai-guideline"
+          ],
+          "criterion": "rank exchange, statutory, regulator, association, and generic official-publication paths ahead of unknown and secondary sources; prefer HTML to PDF within the same tier; classification and rerank only because web_fetch was not selected",
+          "decision_type": "source_rerank",
+          "inputs": {
+            "fetch_enabled": false,
+            "fetch_order": [],
+            "original_order": [
+              "https://example.com/company/ai-wealth-assistant-case",
+              "https://example.com/news/revolut-ai-advisor-update",
+              "https://example.gov/digital-finance-ai-guideline"
+            ],
+            "ranked_order": [
+              "https://example.com/company/ai-wealth-assistant-case",
+              "https://example.com/news/revolut-ai-advisor-update",
+              "https://example.gov/digital-finance-ai-guideline"
+            ],
+            "skipped_candidates": [
+              "https://example.com/company/ai-wealth-assistant-case",
+              "https://example.com/news/revolut-ai-advisor-update",
+              "https://example.gov/digital-finance-ai-guideline"
+            ],
+            "source_tiers": {
+              "https://example.com/company/ai-wealth-assistant-case": "unknown",
+              "https://example.com/news/revolut-ai-advisor-update": "secondary",
+              "https://example.gov/digital-finance-ai-guideline": "primary"
+            },
+            "sub_question_id": "players"
+          },
+          "iteration": null,
+          "made_by": "ResearcherAgent",
+          "outcome": "ranked=3 fetched=0 primary_hit=False",
+          "timestamp": "<normalized-timestamp>"
+        },
+        {
+          "alternatives_considered": [
+            "equal_allocation",
+            "reallocate_to_weaker_branches",
+            "stop_exhausted_branches"
+          ],
+          "criterion": "allocate within the run total and per-branch cap; on reallocation, lower measured coverage receives capacity first",
+          "decision_type": "branch_budget_reallocate",
+          "inputs": {
+            "allocations": {
+              "current_adoption": {
+                "allocated": 7,
+                "coverage_warning": null,
+                "exhausted": false,
+                "remaining": 4,
+                "used": 3
+              },
+              "market_pain": {
+                "allocated": 7,
+                "coverage_warning": null,
+                "exhausted": false,
+                "remaining": 4,
+                "used": 3
+              },
+              "players": {
+                "allocated": 6,
+                "coverage_warning": null,
+                "exhausted": false,
+                "remaining": 3,
+                "used": 3
+              }
+            },
+            "metrics": {
+              "current_adoption": 3.0,
+              "market_pain": 3.0,
+              "players": 3.0
+            },
+            "per_branch_cap": 10,
+            "rationale": "after join, distribute remaining capacity in ascending metric order while preserving completed work and the per-branch cap",
+            "total_budget": 20,
+            "total_used": 9
+          },
+          "iteration": null,
+          "made_by": "BranchBudget",
+          "outcome": "reallocated_toward_lower_metric_branches",
+          "timestamp": "<normalized-timestamp>"
+        }
+      ],
+      "degradation_events": [],
+      "dependency_versions": {
+        "deepresearch-agent": "0.1.0",
+        "fastapi": "0.136.3",
+        "httpx": "0.28.1",
+        "langgraph": "1.2.2",
+        "langgraph-checkpoint-sqlite": "3.1.0",
+        "litellm": "1.86.2",
+        "pydantic": "2.13.4"
+      },
+      "domain": "finance",
+      "ended_at": "<normalized-timestamp>",
+      "evaluation_as_of": "2026-07-09",
+      "flags": {
+        "BRANCH_BUDGET_ENABLED": true,
+        "CONFIG_FAIL_FAST_ENABLED": true,
+        "CONTEXT_PACKER_ENABLED": true,
+        "CRITIC_ENABLED": true,
+        "DYNAMIC_CAPABILITY_ENABLED": true,
+        "EXTRACTOR_ENABLED": true,
+        "INJECTION_GUARD_ENABLED": false,
+        "PROCEDURAL_MEMORY_ENABLED": false,
+        "RUN_MANIFEST_ENABLED": true,
+        "STRUCTURED_LOGGING_ENABLED": true,
+        "STRUCTURED_OUTPUT_ENABLED": true,
+        "TOOL_CONTRACT_ENABLED": true
+      },
+      "mode": "deterministic",
+      "model_strings": {
+        "citation_support": "openai/qwen3.7-plus",
+        "extractor": "openai/deepseek-v4-flash",
+        "judge": "openai/qwen3.7-plus",
+        "planner": "openai/deepseek-v4-flash",
+        "reporter": "openai/deepseek-v4-flash"
+      },
+      "prompt_hashes": {
+        "critic.md": "fd7b56de2e65c335f966f85be911d1e9e31eb5375708291f8ae61d535ab8e882",
+        "extractor.md": "55d22d6195fc69c268cf9ae8bb7d6ffdc585dc226a614f42fbb5497f77e5374f",
+        "judge.md": "2e87f85cb54673ab6f84e0f0fc4b8c108441757e20ecd9ec4c3416df5d893533",
+        "planner.md": "17b835c94076ee30521a57fa45404435e6a34bc3b6614e9927d9dd81795d9bc2",
+        "reporter.md": "e4f904bb49296b3f21651fd84b233f3fd4ac3f3fbc6a7de3d616e33154728b2a"
+      },
+      "provider_identity": {
+        "disclosure": "FixtureDisclosureSource",
+        "llm": "deterministic",
+        "search": "ContractSearchProvider",
+        "structured_data": "TrajectoryStructuredDataProvider"
+      },
+      "realness": "fixture",
+      "retrieval_corpus_as_of": "2026-07-09",
+      "run_id": "<normalized-id>",
+      "started_at": "<normalized-timestamp>",
+      "token_total": 0,
+      "tool_error_summary": {}
+    },
+    "manifest_enabled": true,
+    "tool_error_summary": {}
+  },
+  "status": "done",
+  "structured_output": {
+    "comparison_table": {
+      "data_as_of": "2026-04-10",
+      "question": "AI Agent 在财富管理行业的落地机会研究",
+      "rows": [
+        {
+          "confidence": 0.772,
+          "entity": "digital wealth cohort",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "metric": "Assets under management growth",
+          "normalized_metric": "assets under management growth",
+          "period": "未标注",
+          "scope": "surveyed cohort",
+          "unit": "%",
+          "value": 7.0,
+          "verification_status": "verified"
+        },
+        {
+          "confidence": 0.772,
+          "entity": "digital wealth cohort",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "metric": "Assets under management growth",
+          "normalized_metric": "assets under management growth",
+          "period": "未标注",
+          "scope": "surveyed cohort",
+          "unit": "%",
+          "value": 7.0,
+          "verification_status": "verified"
+        },
+        {
+          "confidence": 0.772,
+          "entity": "wealth management pilot",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "metric": "Advisor productivity",
+          "normalized_metric": "advisor productivity",
+          "period": "未标注",
+          "scope": "pilot cohort",
+          "unit": "%",
+          "value": 18.0,
+          "verification_status": "verified"
+        },
+        {
+          "confidence": 0.772,
+          "entity": "wealth management pilot",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "metric": "Advisor productivity",
+          "normalized_metric": "advisor productivity",
+          "period": "未标注",
+          "scope": "pilot cohort",
+          "unit": "%",
+          "value": 18.0,
+          "verification_status": "verified"
+        },
+        {
+          "confidence": 0.7240000000000001,
+          "entity": "wealth management pilot",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "metric": "Advisor productivity",
+          "normalized_metric": "advisor productivity",
+          "period": "未标注",
+          "scope": "pilot cohort",
+          "unit": "%",
+          "value": 31.0,
+          "verification_status": "verified"
+        }
+      ],
+      "scope_consistent": true,
+      "scope_notes": []
+    },
+    "event_timeline": {
+      "data_as_of": "2026-04-10",
+      "events": [
+        {
+          "event": "AI systems in wealth management must keep auditable evidence, human review paths, and clear risk warnings.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2025-12-15",
+          "source": "https://example.gov/digital-finance-ai-guideline",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "AI systems in wealth management must keep auditable evidence, human review paths, and clear risk warnings.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2025-12-15",
+          "source": "https://example.gov/digital-finance-ai-guideline",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "AI systems in wealth management must keep auditable evidence, human review paths, and clear risk warnings.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2025-12-15",
+          "source": "https://example.gov/digital-finance-ai-guideline",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Financial institutions should build centralized AI governance for model demand, testing, deployment, evaluation, and exit.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2025-12-15",
+          "source": "https://example.gov/digital-finance-ai-guideline",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Financial institutions should build centralized AI governance for model demand, testing, deployment, evaluation, and exit.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2025-12-15",
+          "source": "https://example.gov/digital-finance-ai-guideline",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Financial institutions should build centralized AI governance for model demand, testing, deployment, evaluation, and exit.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2025-12-15",
+          "source": "https://example.gov/digital-finance-ai-guideline",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Regulatory constraints mean an AI agent cannot provide unqualified investment advice without suitability checks and compliance review.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2025-12-15",
+          "source": "https://example.gov/digital-finance-ai-guideline",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Regulatory constraints mean an AI agent cannot provide unqualified investment advice without suitability checks and compliance review.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2025-12-15",
+          "source": "https://example.gov/digital-finance-ai-guideline",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Regulatory constraints mean an AI agent cannot provide unqualified investment advice without suitability checks and compliance review.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2025-12-15",
+          "source": "https://example.gov/digital-finance-ai-guideline",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Consumer fintech products are experimenting with AI guidance for budgeting, portfolio explanation, and financial education.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-01-20",
+          "source": "https://example.com/news/revolut-ai-advisor-update",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Consumer fintech products are experimenting with AI guidance for budgeting, portfolio explanation, and financial education.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-01-20",
+          "source": "https://example.com/news/revolut-ai-advisor-update",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Consumer fintech products are experimenting with AI guidance for budgeting, portfolio explanation, and financial education.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-01-20",
+          "source": "https://example.com/news/revolut-ai-advisor-update",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Product teams expect adoption to grow when citations, opt-outs, and audit logs become visible to users.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-01-20",
+          "source": "https://example.com/news/revolut-ai-advisor-update",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Product teams expect adoption to grow when citations, opt-outs, and audit logs become visible to users.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-01-20",
+          "source": "https://example.com/news/revolut-ai-advisor-update",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Product teams expect adoption to grow when citations, opt-outs, and audit logs become visible to users.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-01-20",
+          "source": "https://example.com/news/revolut-ai-advisor-update",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "The stronger use cases are education and explanation rather than direct trade recommendations.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-01-20",
+          "source": "https://example.com/news/revolut-ai-advisor-update",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "The stronger use cases are education and explanation rather than direct trade recommendations.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-01-20",
+          "source": "https://example.com/news/revolut-ai-advisor-update",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "The stronger use cases are education and explanation rather than direct trade recommendations.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-01-20",
+          "source": "https://example.com/news/revolut-ai-advisor-update",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "A bank pilot used planner-researcher-writer agents to summarize fund factsheets, compare products, and prepare relationship manager scripts.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-02-02",
+          "source": "https://example.com/company/ai-wealth-assistant-case",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Advisor productivity improved 31% after the assistant was embedded in daily workflows.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-02-02",
+          "source": "https://example.com/company/ai-wealth-assistant-case",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "The project team emphasized source traceability, latency budgets, and manual approval for high-risk suggestions.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-02-02",
+          "source": "https://example.com/company/ai-wealth-assistant-case",
+          "thesis_impact": "neutral",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Advisor productivity improved 18% in pilots that used AI agents for research summaries and client meeting preparation.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-04-10",
+          "source": "https://example.com/reports/wealth-ai-pain-2026",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Advisor productivity improved 18% in pilots that used AI agents for research summaries and client meeting preparation.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-04-10",
+          "source": "https://example.com/reports/wealth-ai-pain-2026",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Assets under management growth remained 7% in the surveyed digital wealth cohort.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-04-10",
+          "source": "https://example.com/reports/wealth-ai-pain-2026",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Assets under management growth remained 7% in the surveyed digital wealth cohort.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-04-10",
+          "source": "https://example.com/reports/wealth-ai-pain-2026",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "The report recommends traceable citations for every investment-related recommendation.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-04-10",
+          "source": "https://example.com/reports/wealth-ai-pain-2026",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "The report recommends traceable citations for every investment-related recommendation.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-04-10",
+          "source": "https://example.com/reports/wealth-ai-pain-2026",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Wealth managers report fragmented client data, slow product comparison, and weak personalization as the top pain points.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-04-10",
+          "source": "https://example.com/reports/wealth-ai-pain-2026",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        },
+        {
+          "event": "Wealth managers report fragmented client data, slow product comparison, and weak personalization as the top pain points.",
+          "evidence_ids": [
+            "<normalized-id>"
+          ],
+          "occurred_at": "2026-04-10",
+          "source": "https://example.com/reports/wealth-ai-pain-2026",
+          "thesis_impact": "positive",
+          "verification_status": "verified"
+        }
+      ],
+      "question": "AI Agent 在财富管理行业的落地机会研究"
+    },
+    "risk_matrix": {
+      "data_as_of": "2026-04-10",
+      "question": "AI Agent 在财富管理行业的落地机会研究",
+      "risks": []
+    }
+  },
+  "topic": "AI Agent 在财富管理行业的落地机会研究"
+}
