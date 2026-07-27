@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from collections import defaultdict
 from typing import Literal
 
@@ -13,11 +12,6 @@ from deepresearch_agent.schemas import (
     ResearchState,
     StrictModel,
 )
-
-_COMPARISON_RE = re.compile(
-    r"同比|较上年|比上年|上年同期|较去年|比去年"
-)
-
 
 class MetricRequirement(StrictModel):
     sub_question_id: str
@@ -104,7 +98,7 @@ def evaluate_metric_coverage(
                 requirement.sub_question_id,
                 [],
             )
-            if _evidence_matches_metric(item, requirement.metric, pack)
+            if pack.evidence_matches_metric(item, requirement.metric)
         ]
         observed_periods = sorted({
             period
@@ -124,12 +118,7 @@ def evaluate_metric_coverage(
             set(requested_periods) - set(observed_periods)
         )
         evidence_ids = [item.id for item in matches]
-        comparison_observed = any(
-            _COMPARISON_RE.search(
-                f"{item.claim}\n{item.extract_text}"
-            )
-            for item in matches
-        )
+        comparison_observed = any(pack.comparison_observed(item) for item in matches)
         complete = bool(evidence_ids) and not missing_periods
         attempted = requirement.sub_question_id in state.completed_tasks
         if unparsable_periods:
@@ -177,49 +166,6 @@ def canonical_metric(value: str | None, domain_pack: DomainPack | None = None) -
 
 def _period_key(value: str | None, domain_pack: DomainPack) -> str | None:
     return domain_pack.parse_period(value)
-
-
-def _evidence_metric(evidence: Evidence) -> str | None:
-    if evidence.structured_record:
-        return evidence.structured_record.metric_name
-    if evidence.numeric_fields:
-        return evidence.numeric_fields.metric_name
-    return None
-
-
-def _evidence_matches_metric(
-    evidence: Evidence,
-    required_metric: str,
-    domain_pack: DomainPack,
-) -> bool:
-    evidence_metric = _evidence_metric(evidence)
-    if domain_pack.canonical_metric(evidence_metric) != required_metric:
-        return False
-    if required_metric != "主营业务毛利率":
-        return True
-    normalized_metric = re.sub(
-        r"[\s：:（）()]",
-        "",
-        evidence_metric or "",
-    )
-    if (
-        evidence.structured_record
-        and normalized_metric == "主营业务毛利率"
-    ):
-        # An explicitly typed main-business metric is already scoped at the
-        # structured-provider boundary. Extractor fields remain untrusted
-        # interpretations and must still pass the dimension contract.
-        return True
-    dimension = (
-        evidence.structured_record.dimension
-        if evidence.structured_record
-        else evidence.numeric_fields.dimension
-        if evidence.numeric_fields
-        else None
-    )
-    return domain_pack.numeric_citation_policy().is_main_business_margin_dimension(
-        dimension
-    )
 
 
 def _evidence_periods(evidence: Evidence, domain_pack: DomainPack) -> set[str]:

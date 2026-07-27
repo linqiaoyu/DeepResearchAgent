@@ -88,6 +88,20 @@ class FinanceDomainPack:
 
         return METRIC_CLAIM_PATTERN
 
+    def comparison_observed(self, evidence: object) -> bool:
+        from deepresearch_agent.domains.finance.metric_coverage import (
+            comparison_observed,
+        )
+
+        return comparison_observed(evidence)
+
+    def evidence_matches_metric(self, evidence: object, required_metric: str) -> bool:
+        from deepresearch_agent.domains.finance.metric_coverage import (
+            evidence_matches_metric,
+        )
+
+        return evidence_matches_metric(evidence, required_metric)
+
     def metric_skill_applicable(self, metadata: object, context: str) -> bool:
         from deepresearch_agent.domains.finance.skills import (
             finance_metric_skill_applicable,
