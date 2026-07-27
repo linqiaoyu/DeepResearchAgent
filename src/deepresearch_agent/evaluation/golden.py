@@ -9,8 +9,8 @@ from typing import Any
 import yaml
 
 from deepresearch_agent.evaluation.judge import JudgeScore
+from deepresearch_agent.domains.registry import load_domain_pack
 
-EXPECTED_TYPE_DISTRIBUTION = {"财报解读": 8, "对比研究": 8, "行业研究": 7, "事件时间线": 7}
 EXPECTED_DIFFICULTY_DISTRIBUTION = {"易": 10, "中": 14, "难": 6}
 EXPECTED_FALSE_PREMISE_IDS = ["Q08", "Q16"]
 REQUIRED_QUESTION_FIELDS = {
@@ -74,7 +74,7 @@ def validate_golden_design(design: dict[str, Any]) -> list[str]:
         if not isinstance(gold.get("behavioral"), dict):
             errors.append(f"{qid} gold.behavioral must be a mapping")
 
-    if dict(type_counts) != EXPECTED_TYPE_DISTRIBUTION:
+    if dict(type_counts) != load_domain_pack("finance").golden_type_distribution():
         errors.append(f"type distribution mismatch: {json.dumps(dict(type_counts), ensure_ascii=False)}")
     if dict(difficulty_counts) != EXPECTED_DIFFICULTY_DISTRIBUTION:
         errors.append(

@@ -16,6 +16,7 @@ from deepresearch_agent.metric_coverage import (
     canonical_metric,
     evaluate_metric_coverage,
 )
+from deepresearch_agent.domains.registry import load_domain_pack
 from deepresearch_agent.schemas import (
     AgentDecision,
     Evidence,
@@ -45,7 +46,6 @@ COUNTERARGUMENT_TERMS = {
 MAX_REPLAN_QUERY_CHARS = 48
 MAX_REPLAN_QUERY_CHINESE_CHARS = 48
 MAX_TITLE_COMMON_SUBSTRING_CHARS = 12
-DOCUMENT_TYPE_TOKENS = ("年度报告", "季度报告", "公告", "年报", "季报", "统计", "发布", "报告")
 _INTERNAL_QUERY_TERMS = re.compile(
     r"resolve\s+|unverified_[a-z_]+|[a-z]+_gap|confidence:|"
     r"Projection claim|critic|issue_id|"
@@ -139,25 +139,14 @@ def _validate_replan_query(query: str, title: str) -> None:
     chinese_count = len(re.findall(r"[\u4e00-\u9fff]", query))
     if chinese_count > MAX_REPLAN_QUERY_CHINESE_CHARS:
         raise ValueError("Replan query exceeds Chinese-character limit")
-    if not any(token in query for token in DOCUMENT_TYPE_TOKENS):
+    if not any(token in query for token in load_domain_pack("finance").document_type_tokens()):
         raise ValueError("Replan query requires a target document type")
     if longest_common_substring_length(query, title) > MAX_TITLE_COMMON_SUBSTRING_CHARS:
         raise ValueError("Replan query copies too much sub-question title text")
 
 
 def _document_type_for_direction(direction: str) -> str:
-    explicit = next((token for token in DOCUMENT_TYPE_TOKENS if token in direction), None)
-    if explicit:
-        return explicit
-    if any(token in direction for token in ("统计口径", "数据", "单位")):
-        return "统计"
-    if any(token in direction for token in ("其他", "不同", "独立")):
-        return "发布"
-    if any(token in direction for token in ("风险", "反方", "限制")):
-        return "报告"
-    if any(token in direction for token in ("原始", "证据")):
-        return "年报"
-    return "公告"
+    return load_domain_pack("finance").document_type_for_direction(direction)
 
 
 class SufficiencyThresholds(StrictModel):
@@ -426,7 +415,7 @@ def refine_research_plan(
             queries.append(
                 build_replan_query(
                     targeted,
-                    "年度报告 定向补齐指标",
+                    load_domain_pack("finance").metric_gap_direction(),
                 )
             )
         if "independent_source_domains" in metrics.gaps:
@@ -454,7 +443,7 @@ def refine_research_plan(
             queries.append(
                 build_replan_query(
                     sub_question,
-                    "官方公告 年报 补充证据",
+                    load_domain_pack("finance").evidence_gap_direction(),
                 )
             )
         if "average_confidence" in metrics.gaps:

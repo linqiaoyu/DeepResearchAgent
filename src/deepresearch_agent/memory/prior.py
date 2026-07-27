@@ -16,6 +16,7 @@ from deepresearch_agent.schemas import (
     ResearchState,
     StrictModel,
 )
+from deepresearch_agent.domains.registry import load_domain_pack
 
 if TYPE_CHECKING:
     from deepresearch_agent.orchestration.decision_context import (
@@ -220,22 +221,7 @@ def snapshot_claim_key(
 
 def evidence_explains_change(evidence: Evidence) -> bool:
     text = f"{evidence.claim} {evidence.extract_text}".lower()
-    return any(
-        term in text
-        for term in (
-            "because",
-            "due to",
-            "increase",
-            "decrease",
-            "changed",
-            "同比",
-            "环比",
-            "增长",
-            "下降",
-            "变化",
-            "由于",
-        )
-    )
+    return any(term in text for term in ("because", "due to", "increase", "decrease", "changed")) or load_domain_pack("finance").evidence_explains_change(text)
 
 
 def _best_claim(

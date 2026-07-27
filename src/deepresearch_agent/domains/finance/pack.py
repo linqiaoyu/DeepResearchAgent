@@ -141,6 +141,35 @@ class FinanceDomainPack:
 
         return is_full_annual_report_title(title)
 
+    def golden_type_distribution(self) -> Mapping[str, int]:
+        return {"财报解读": 8, "对比研究": 8, "行业研究": 7, "事件时间线": 7}
+
+    def evidence_explains_change(self, text: str) -> bool:
+        return any(term in text.lower() for term in ("同比", "环比", "增长", "下降", "变化", "由于"))
+
+    def document_type_tokens(self) -> tuple[str, ...]:
+        return ("年度报告", "季度报告", "公告", "年报", "季报", "统计", "发布", "报告")
+
+    def document_type_for_direction(self, direction: str) -> str:
+        explicit = next((token for token in self.document_type_tokens() if token in direction), None)
+        if explicit:
+            return explicit
+        if any(token in direction for token in ("统计口径", "数据", "单位")):
+            return "统计"
+        if any(token in direction for token in ("其他", "不同", "独立")):
+            return "发布"
+        if any(token in direction for token in ("风险", "反方", "限制")):
+            return "报告"
+        if any(token in direction for token in ("原始", "证据")):
+            return "年报"
+        return "公告"
+
+    def metric_gap_direction(self) -> str:
+        return "年度报告 定向补齐指标"
+
+    def evidence_gap_direction(self) -> str:
+        return "官方公告 年报 补充证据"
+
     def metric_skill_applicable(self, metadata: object, context: str) -> bool:
         from deepresearch_agent.domains.finance.skills import (
             finance_metric_skill_applicable,
