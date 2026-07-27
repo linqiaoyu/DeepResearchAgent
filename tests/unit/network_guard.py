@@ -4,19 +4,36 @@ from __future__ import annotations
 
 import socket
 import unittest
-import inspect
+from contextvars import ContextVar, copy_context
 from collections.abc import Callable
 from typing import Any
 
 _ORIGINAL_CONNECT = socket.socket.connect
 _ORIGINAL_CONNECT_EX = socket.socket.connect_ex
 _ALLOW_ATTR = "_deepresearch_allow_network"
+_NETWORK_ALLOWED: ContextVar[bool] = ContextVar(
+    "deepresearch_network_allowed",
+    default=False,
+)
 
 
 def allow_network(test: Callable[..., Any]) -> Callable[..., Any]:
     """Explicit opt-out for a unit test that deliberately requires egress."""
-    setattr(test, _ALLOW_ATTR, True)
-    return test
+    def wrapped(*args: Any, **kwargs: Any) -> Any:
+        token = _NETWORK_ALLOWED.set(True)
+        try:
+            return test(*args, **kwargs)
+        finally:
+            _NETWORK_ALLOWED.reset(token)
+
+    setattr(wrapped, _ALLOW_ATTR, True)
+    return wrapped
+
+
+def run_with_network_context(target: Callable[..., Any]) -> Callable[..., Any]:
+    """Capture the current explicit opt-out for a child worker thread."""
+    context = copy_context()
+    return lambda: context.run(target)
 
 
 def install() -> None:
@@ -49,13 +66,7 @@ def install() -> None:
 
 
 def _current_test_allows_network() -> bool:
-    for frame_info in inspect.stack()[2:]:
-        candidate = frame_info.frame.f_locals.get("self")
-        method_name = getattr(candidate, "_testMethodName", "")
-        method = getattr(candidate, method_name, None)
-        if getattr(method, _ALLOW_ATTR, False):
-            return True
-    return False
+    return _NETWORK_ALLOWED.get()
 
 
 class NetworkGuardedTestCase(unittest.TestCase):

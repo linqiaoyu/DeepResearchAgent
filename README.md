@@ -125,7 +125,7 @@ flowchart LR
 
 | 检查面 | 已验证状态 |
 | --- | --- |
-| 全量回归 | 2026-07-24 本地 deterministic + fixture：`Ran 341 tests`、0 failure；命令与 CI 对齐，见 [ci.yml](.github/workflows/ci.yml)。 |
+| 全量回归 | 本地 deterministic + fixture 门禁；测试数量以 CI 的最新完整运行结果为准，命令见 [ci.yml](.github/workflows/ci.yml)。 |
 | 静态检查 | Ruff `0.15.15` 本地与 CI 精确锁定，见 [pyproject.toml](pyproject.toml) 和 [ci.yml](.github/workflows/ci.yml)。 |
 | 行为等价 | 2 个规范化题面逐字匹配 [golden_output](tests/golden_output/)；未知 manifest flag fail-closed，见 [manifest.py](src/deepresearch_agent/provenance/manifest.py)。 |
 | 故障演练 | 8 个离线 chaos 场景覆盖认证、限流、超时、连续失败、熔断和部分降级，见 [tests/chaos](tests/chaos/)。 |

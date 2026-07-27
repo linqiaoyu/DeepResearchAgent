@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -58,6 +59,9 @@ def main() -> None:
         _fail("AGENTS.md must retain exactly one generated Settings block")
     if agents.index(BEGIN_MARKER) >= agents.index(END_MARKER):
         _fail("AGENTS.md generated Settings markers are out of order")
+    readme = (project_root / "README.md").read_text(encoding="utf-8")
+    if re.search(r"Ran\s+\d+\s+tests", readme):
+        _fail("README.md must not hard-code a test count; refer to CI instead")
     print("agent_guidance_check=true")
 
 
