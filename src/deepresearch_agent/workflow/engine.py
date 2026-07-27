@@ -360,7 +360,13 @@ class DeepResearchEngine:
                 budget_consumed=0
             ),
         )
-        self._checkpoint_conn = sqlite3.connect(self.settings.storage_path, check_same_thread=False)
+        self._checkpoint_conn = sqlite3.connect(
+            self.settings.storage_path,
+            check_same_thread=False,
+            timeout=30,
+        )
+        self._checkpoint_conn.execute("PRAGMA journal_mode=WAL")
+        self._checkpoint_conn.execute("PRAGMA busy_timeout=30000")
         self.checkpointer = SqliteSaver(self._checkpoint_conn)
         self.graph = self._build_graph()
         # This engine owns mutable run-scoped budgets and bindings. Until those
@@ -2687,6 +2693,12 @@ class DeepResearchEngine:
             )
         if self.settings.execution_mode == "llm":
             state.metadata.setdefault("llm_stats", {})["planner"] = self.planner.last_stats
+        planning_rejections = self.planner.last_stats.get(
+            "structured_request_rejections",
+            [],
+        )
+        if planning_rejections:
+            state.metadata["structured_request_rejections"] = planning_rejections
         state.todo_list = [
             TodoItem(id=item.id, title=item.question, status="pending")
             for item in state.plan.sub_questions

@@ -250,6 +250,46 @@ class AgentCoreArchitectureTests(unittest.TestCase):
 
         self.assertEqual(max_active, 1)
 
+    def test_independent_request_engines_share_wal_checkpoint_safely(self) -> None:
+        """Request-scoped engines must not regress to sqlite's five-second lock."""
+        with tempfile.TemporaryDirectory() as tmp:
+            settings = Settings(
+                storage_path=Path(tmp) / "research.db",
+                runs_root=Path(tmp) / "runs",
+                structured_logging_enabled=False,
+            )
+            barrier = threading.Barrier(8)
+            failures: list[BaseException] = []
+            failures_lock = threading.Lock()
+
+            def run_request(index: int) -> None:
+                engine: DeepResearchEngine | None = None
+                try:
+                    barrier.wait(timeout=5)
+                    engine = DeepResearchEngine(
+                        settings=settings,
+                        search_tool=FixtureSearchTool(),
+                    )
+                    engine.run(topic=f"request {index}")
+                except BaseException as exc:
+                    with failures_lock:
+                        failures.append(exc)
+                finally:
+                    if engine is not None:
+                        engine.close()
+
+            threads = [
+                threading.Thread(target=run_request, args=(index,))
+                for index in range(8)
+            ]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join(timeout=15)
+
+        self.assertTrue(all(not thread.is_alive() for thread in threads))
+        self.assertEqual(failures, [])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import random
-import queue
 import threading
 import time
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
@@ -16,6 +16,14 @@ from deepresearch_agent.tools.contracts import (
     ToolErrorKind,
     ToolResult,
     ToolSpec,
+)
+
+
+# Bounded at process scope: detached synchronous providers can occupy workers,
+# but cannot create one unbounded daemon thread per attempt.
+_TOOL_CALL_EXECUTOR = ThreadPoolExecutor(
+    max_workers=16,
+    thread_name_prefix="deepresearch-tool",
 )
 
 
@@ -488,27 +496,25 @@ class ReliableToolExecutor:
         process shutdown) hostage; providers should still use their own transport
         timeout for cancellation at the I/O layer.
         """
-        outcome: queue.Queue[tuple[bool, Any]] = queue.Queue(maxsize=1)
-
-        def invoke() -> None:
+        def invoke() -> Any:
             try:
-                outcome.put((True, operation()))
-            except BaseException as exc:  # preserve provider exception typing
-                outcome.put((False, exc))
+                return operation()
             finally:
                 scope.mark_finished()
 
-        worker = threading.Thread(target=invoke, daemon=True)
-        worker.start()
+        future = _TOOL_CALL_EXECUTOR.submit(invoke)
         try:
-            ok, value = outcome.get(timeout=timeout_s)
-        except queue.Empty as exc:
+            return future.result(timeout=timeout_s)
+        except FutureTimeoutError as exc:
+            # ``concurrent.futures.TimeoutError`` is an alias of the builtin
+            # ``TimeoutError``.  If the future already finished, this was the
+            # provider's own retryable timeout, not a detached worker.
+            if future.done():
+                return future.result()
             scope.cancel()
+            future.cancel()
             raise DetachedToolOperationError(
                 ToolErrorKind.TIMEOUT,
                 f"tool operation timed out after {timeout_s:g}s; "
                 "detached worker quarantined",
             ) from exc
-        if ok:
-            return value
-        raise value

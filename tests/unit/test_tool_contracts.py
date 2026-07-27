@@ -21,6 +21,7 @@ from deepresearch_agent.tools import (
 from deepresearch_agent.tools.contract_adapter import SEARCH_TOOL_SPEC
 from deepresearch_agent.tools.fixture_search import FixtureSearchTool
 from deepresearch_agent.tools.reliable_execution import ToolExecutionError
+from deepresearch_agent.tools.reliable_execution import _TOOL_CALL_EXECUTOR
 from deepresearch_agent.trajectory import TrajectoryRecorder, trajectory_recording
 from deepresearch_agent.workflow import DeepResearchEngine
 
@@ -222,6 +223,18 @@ class ToolContractTests(unittest.TestCase):
         self.assertEqual(result.attempts, 1)
         self.assertEqual(calls, 1)
         self.assertLess(time.monotonic() - started, 0.08)
+
+    def test_timeout_executor_reuses_a_bounded_worker_pool(self) -> None:
+        before = len(_TOOL_CALL_EXECUTOR._threads)
+        for _ in range(100):
+            result = ReliableToolExecutor().execute(
+                SEARCH_TOOL_SPEC.model_copy(update={"timeout_s": 1}),
+                lambda: "ok",
+                RunToolContext(retry_budget=RetryBudget(max_retries=0)),
+            )
+            self.assertTrue(result.ok)
+        self.assertLessEqual(len(_TOOL_CALL_EXECUTOR._threads), 16)
+        self.assertLessEqual(len(_TOOL_CALL_EXECUTOR._threads), before + 16)
 
     def test_per_tool_circuit_policies_are_independent(self) -> None:
         fast_open = SEARCH_TOOL_SPEC.model_copy(
