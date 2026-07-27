@@ -4,6 +4,7 @@ import json
 from datetime import date
 from pathlib import Path
 
+from deepresearch_agent.domains.registry import load_domain_pack
 from deepresearch_agent.schemas import StructuredDataRecord, SymbolInfo
 from deepresearch_agent.settings import project_root
 
@@ -68,9 +69,8 @@ class FixtureStructuredDataProvider:
         return [record for record in records if start_date.isoformat() <= record.period <= end_date.isoformat()]
 
     def _normalize_metric(self, value: str) -> str:
-        aliases = {
-            "营业总收入": "营业收入",
-            "营收": "营业收入",
-        }
         normalized = value.strip()
-        return aliases.get(normalized, normalized)
+        return load_domain_pack("finance").fixture_metric_aliases().get(
+            normalized,
+            normalized,
+        )

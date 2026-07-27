@@ -11,6 +11,10 @@ if TYPE_CHECKING:
 
 from deepresearch_agent.domains.finance.vocabulary import (
     AMOUNT_UNITS,
+    DEFAULT_STRUCTURED_METRICS,
+    FIXTURE_METRIC_ALIASES,
+    MAINLAND_EQUITY_EXCHANGE,
+    STRUCTURED_METRIC_ALIASES,
     canonical_metric,
     parse_period,
 )
@@ -27,6 +31,18 @@ class FinanceDomainPack:
 
     def amount_units(self) -> Mapping[str, Decimal]:
         return AMOUNT_UNITS
+
+    def structured_metric_aliases(self) -> Mapping[str, str]:
+        return STRUCTURED_METRIC_ALIASES
+
+    def fixture_metric_aliases(self) -> Mapping[str, str]:
+        return FIXTURE_METRIC_ALIASES
+
+    def default_structured_metrics(self) -> tuple[str, ...]:
+        return DEFAULT_STRUCTURED_METRICS
+
+    def equity_exchange_label(self) -> str:
+        return MAINLAND_EQUITY_EXCHANGE
 
     def primary_source_keyword(self, *, financial_intent: bool) -> str:
         return "年度报告" if financial_intent else "公告"

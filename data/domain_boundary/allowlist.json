@@ -8,7 +8,5 @@
   "src/deepresearch_agent/research_snapshot.py": 3,
   "src/deepresearch_agent/schemas.py": 1,
   "src/deepresearch_agent/structured_output.py": 4,
-  "src/deepresearch_agent/tools/akshare_structured_data.py": 7,
-  "src/deepresearch_agent/tools/disclosure_source.py": 2,
-  "src/deepresearch_agent/tools/fixture_structured_data.py": 2
+  "src/deepresearch_agent/tools/disclosure_source.py": 2
 }

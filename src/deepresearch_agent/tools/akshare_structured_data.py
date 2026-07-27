@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
 from datetime import date
 from typing import Any
 
+from deepresearch_agent.domains.registry import load_domain_pack
 from deepresearch_agent.schemas import StructuredDataRecord, SymbolInfo
 
 
@@ -16,15 +17,6 @@ class AKShareStructuredDataError(RuntimeError):
 class AKShareStructuredDataProvider:
     fidelity = "real"
     """AKShare-backed adapter behind a small whitelisted structured data contract."""
-
-    METRIC_ALIASES = {
-        "营收": "营业收入",
-        "归母净利润": "归母净利润",
-        "净利润": "净利润",
-        "扣非净利润": "扣非净利润",
-        "毛利率": "毛利率",
-    }
-    DEFAULT_METRICS = ("营业收入", "归母净利润", "净利润", "扣非净利润", "毛利率")
 
     def __init__(
         self,
@@ -58,7 +50,7 @@ class AKShareStructuredDataProvider:
                 return SymbolInfo(
                     entity=name,
                     symbol=code,
-                    exchange="A股",
+                    exchange=load_domain_pack("finance").equity_exchange_label(),
                     name=name,
                     data_source="AKShare: stock_info_a_code_name",
                     as_of=date.today(),
@@ -77,7 +69,13 @@ class AKShareStructuredDataProvider:
         )
         symbol_info = self.symbol_resolve(symbol)
         entity = symbol_info.entity if symbol_info else symbol
-        metric_filter = {self._normalize_metric(metric) for metric in (metrics or self.DEFAULT_METRICS)}
+        metric_filter = {
+            self._normalize_metric(metric)
+            for metric in (
+                metrics
+                or load_domain_pack("finance").default_structured_metrics()
+            )
+        }
         period_filter = {
             f"{period}1231" if len(period) == 4 and period.isdigit() else period
             for period in (periods or [])
@@ -177,7 +175,10 @@ class AKShareStructuredDataProvider:
         raise AKShareStructuredDataError(f"AKShare {capability} failed: {last_error}") from last_error
 
     def _normalize_metric(self, metric_name: str) -> str:
-        return self.METRIC_ALIASES.get(metric_name, metric_name)
+        return load_domain_pack("finance").structured_metric_aliases().get(
+            metric_name,
+            metric_name,
+        )
 
     def _float_or_none(self, value: Any) -> float | None:
         try:

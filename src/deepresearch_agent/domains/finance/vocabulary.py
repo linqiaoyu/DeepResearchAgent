@@ -20,6 +20,19 @@ AMOUNT_UNITS: Mapping[str, Decimal] = {
     "百万元": Decimal("1000000"),
     "亿元": Decimal("100000000"),
 }
+STRUCTURED_METRIC_ALIASES = {
+    "营收": "营业收入",
+    "归母净利润": "归母净利润",
+    "净利润": "净利润",
+    "扣非净利润": "扣非净利润",
+    "毛利率": "毛利率",
+}
+FIXTURE_METRIC_ALIASES = {
+    "营业总收入": "营业收入",
+    "营收": "营业收入",
+}
+DEFAULT_STRUCTURED_METRICS = tuple(STRUCTURED_METRIC_ALIASES.values())
+MAINLAND_EQUITY_EXCHANGE = "A股"
 _YEAR_RE = re.compile(r"(?<!\d)(20\d{2})(?!\d)")
 
 
