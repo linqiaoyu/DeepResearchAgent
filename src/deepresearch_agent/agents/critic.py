@@ -16,14 +16,10 @@ from deepresearch_agent.memory import (
 from deepresearch_agent.counterargument_policy import (
     counterargument_required,
 )
-from deepresearch_agent.agents.numeric_checker import (
-    NumericConsistencyChecker,
-)
+from deepresearch_agent.domains.protocols import DomainPack
+from deepresearch_agent.domains.registry import load_domain_pack
 from deepresearch_agent.research_snapshot import ResearchSnapshot
 from deepresearch_agent.schemas import CriticReport, Evidence, Issue, ResearchState, RetryTask
-from deepresearch_agent.skills.finance import (
-    finance_metric_resource_path,
-)
 
 NUMBER_RE = re.compile(r"(?P<number>\d+(?:\.\d+)?)\s*(?P<suffix>%|percent|x|倍|万|million|billion)?", re.I)
 DATE_RE = re.compile(r"(\d{4}-\d{1,2}(?:-\d{1,2})?|\d{4}年\d{1,2}月(?:\d{1,2}日)?)")
@@ -47,16 +43,18 @@ class CriticAgent:
         injection_guard_enabled: bool = False,
         numeric_check_enabled: bool = False,
         numeric_check_absolute_tolerance: float = 0.01,
+        domain_pack: DomainPack | None = None,
     ) -> None:
         self.today = today or date.today()
         self.max_source_age_days = max_source_age_days
         self.numeric_relative_tolerance = numeric_relative_tolerance
         self.injection_guard_enabled = injection_guard_enabled
         self.numeric_check_enabled = numeric_check_enabled
+        self.domain_pack = domain_pack or load_domain_pack("finance")
         self.metric_table = self._load_metric_table(
-            metric_table_path or finance_metric_resource_path()
+            metric_table_path or self.domain_pack.metric_table_path()
         )
-        self.numeric_checker = NumericConsistencyChecker(
+        self.numeric_checker = self.domain_pack.numeric_consistency_checker(
             self.metric_table,
             relative_tolerance=numeric_relative_tolerance,
             absolute_tolerance=numeric_check_absolute_tolerance,

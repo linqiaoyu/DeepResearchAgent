@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from decimal import Decimal
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
@@ -41,3 +42,13 @@ class DomainPack(Protocol):
     def grounded_fact_renderer(self) -> GroundedFactRenderer: ...
 
     def table_extractors(self) -> TableExtractors: ...
+
+    def metric_table_path(self) -> Path: ...
+
+    def numeric_consistency_checker(
+        self,
+        metric_table: dict[str, Any],
+        *,
+        relative_tolerance: float,
+        absolute_tolerance: float,
+    ) -> Any: ...

@@ -309,6 +309,7 @@ class DeepResearchEngine:
             numeric_check_absolute_tolerance=(
                 self.settings.numeric_check_absolute_tolerance
             ),
+            domain_pack=self.domain_pack,
         )
         self.reporter = ReporterAgent(
             llm_client=self.llm_client,

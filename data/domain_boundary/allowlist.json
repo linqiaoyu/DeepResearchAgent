@@ -1,6 +1,5 @@
 {
   "src/deepresearch_agent/agents/numeric_citations.py": 26,
-  "src/deepresearch_agent/agents/numeric_checker.py": 4,
   "src/deepresearch_agent/agents/planner.py": 5,
   "src/deepresearch_agent/agents/reporter.py": 5,
   "src/deepresearch_agent/agents/researcher.py": 2,

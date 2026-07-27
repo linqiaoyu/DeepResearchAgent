@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from decimal import Decimal
+from pathlib import Path
 
 from typing import TYPE_CHECKING
 
@@ -43,3 +44,25 @@ class FinanceDomainPack:
         )
 
         return FinanceTableExtractors()
+
+    def metric_table_path(self) -> Path:
+        from deepresearch_agent.skills.finance import finance_metric_resource_path
+
+        return finance_metric_resource_path()
+
+    def numeric_consistency_checker(
+        self,
+        metric_table: dict[str, object],
+        *,
+        relative_tolerance: float,
+        absolute_tolerance: float,
+    ):
+        from deepresearch_agent.domains.finance.numeric_checker import (
+            NumericConsistencyChecker,
+        )
+
+        return NumericConsistencyChecker(
+            metric_table,
+            relative_tolerance=relative_tolerance,
+            absolute_tolerance=absolute_tolerance,
+        )

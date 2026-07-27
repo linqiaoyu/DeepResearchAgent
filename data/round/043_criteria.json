@@ -9,7 +9,7 @@
     "id": "B0-literal-ratchet",
     "block": "B0",
     "command": [".venv/bin/python", "scripts/check_domain_boundary.py"],
-    "target": "import_sites=0 literal_files=17 literal_hits=76"
+    "target": "import_sites=0 literal_files=16 literal_hits=72"
   },
   {
     "id": "B0-assets-tracked",

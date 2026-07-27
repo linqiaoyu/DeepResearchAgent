@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+# Finance-domain numeric consistency rules.
+
 import itertools
 import math
 import re

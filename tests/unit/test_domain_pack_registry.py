@@ -58,6 +58,15 @@ class _NeutralPack:
     def table_extractors(self) -> _NeutralTableExtractors:
         return _NeutralTableExtractors()
 
+    def metric_table_path(self) -> Path:
+        return (
+            Path(__file__).parents[2]
+            / "skills/finance-metric-normalization/resources/finance_metric_normalization.json"
+        )
+
+    def numeric_consistency_checker(self, *_args: object, **_kwargs: object) -> object:
+        return object()
+
 
 class DomainPackRegistryTests(unittest.TestCase):
     def test_engine_composes_an_injected_pack_without_finance_default(self) -> None:
