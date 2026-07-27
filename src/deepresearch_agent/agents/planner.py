@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import re
 
+from pydantic import ValidationError
+
 from deepresearch_agent.llm import LLMClient, LLMClientError, StructuredOutputError
 from deepresearch_agent.schemas import ResearchPlan, StructuredDataRequest, SubQuestion
 from deepresearch_agent.settings import Settings, project_root
@@ -37,6 +39,14 @@ class PlannerAgent:
                 return self._llm_plan(topic, depth_level, research_id)
             except (LLMClientError, StructuredOutputError, ValueError) as exc:
                 self.last_stats = {"fallback": True, "error_type": type(exc).__name__}
+                if isinstance(exc, ValidationError):
+                    rejections = [
+                        error
+                        for error in exc.errors(include_url=False)
+                        if "structured_data_requests" in error.get("loc", ())
+                    ]
+                    if rejections:
+                        self.last_stats["structured_request_rejections"] = rejections
         return self._deterministic_plan(topic, depth_level)
 
     def _deterministic_plan(self, topic: str, depth_level: int = 2) -> ResearchPlan:

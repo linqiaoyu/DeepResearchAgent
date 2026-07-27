@@ -25,6 +25,23 @@ class StructuredDataRequest(StrictModel):
     start_date: date | None = None
     end_date: date | None = None
 
+    @model_validator(mode="after")
+    def require_parseable_financial_periods(self) -> StructuredDataRequest:
+        """Reject ambiguous financial periods before a plan can narrow scope."""
+        if self.capability != "financial_indicators":
+            return self
+        from deepresearch_agent.domains.finance.vocabulary import parse_period
+
+        unparsable = [
+            period for period in self.periods if parse_period(period) is None
+        ]
+        if unparsable:
+            raise ValueError(
+                "financial_indicators periods must contain a calendar year or "
+                f"YYYYMMDD date; unparsable_periods={unparsable}"
+            )
+        return self
+
 
 class SubQuestion(StrictModel):
     id: str

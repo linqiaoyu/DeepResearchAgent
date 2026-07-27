@@ -14,6 +14,7 @@ from deepresearch_agent.schemas import (
     SearchRecord,
     Source,
     StructuredDataRecord,
+    StructuredDataRequest,
     SubQuestion,
 )
 from deepresearch_agent.domains.protocols import DomainPack
@@ -332,6 +333,31 @@ class ResearcherAgent:
             "execution_failures": 0,
         }
         failures: list[dict[str, str]] = []
+
+        def record_failure(
+            request: StructuredDataRequest,
+            *,
+            error_type: str,
+            message: str,
+            symbol_resolution: bool = False,
+        ) -> None:
+            key = (
+                "symbol_resolution_failures"
+                if symbol_resolution
+                else "execution_failures"
+            )
+            stats[key] += 1
+            stats[f"failure_type_{error_type}"] = int(
+                stats.get(f"failure_type_{error_type}", 0)
+            ) + 1
+            failures.append(
+                {
+                    "capability": request.capability,
+                    "error_type": error_type,
+                    "message": message[:500],
+                }
+            )
+
         symbol_resolutions: list[dict[str, object]] = []
         for request in sub_question.structured_data_requests:
             try:
@@ -339,14 +365,24 @@ class ResearcherAgent:
                 if request.capability == "symbol_resolve":
                     symbol = self.structured_data_provider.symbol_resolve(request.company_name or "")
                     if symbol is None:
-                        stats["symbol_resolution_failures"] += 1
+                        record_failure(
+                            request,
+                            error_type="SymbolResolutionError",
+                            message="symbol_resolve returned no symbol",
+                            symbol_resolution=True,
+                        )
                         continue
                     symbol_resolutions.append(symbol.model_dump(mode="json"))
                     continue
                 elif request.capability == "financial_indicators":
                     symbol = request.symbol or self._resolve_symbol(request.company_name)
                     if not symbol:
-                        stats["symbol_resolution_failures"] += 1
+                        record_failure(
+                            request,
+                            error_type="SymbolResolutionError",
+                            message="financial_indicators requires a resolvable symbol",
+                            symbol_resolution=True,
+                        )
                         continue
                     records = self.structured_data_provider.financial_indicators(
                         symbol,
@@ -356,10 +392,19 @@ class ResearcherAgent:
                 elif request.capability == "price_history":
                     symbol = request.symbol or self._resolve_symbol(request.company_name)
                     if not symbol:
-                        stats["symbol_resolution_failures"] += 1
+                        record_failure(
+                            request,
+                            error_type="SymbolResolutionError",
+                            message="price_history requires a resolvable symbol",
+                            symbol_resolution=True,
+                        )
                         continue
                     if not request.start_date or not request.end_date:
-                        stats["execution_failures"] += 1
+                        record_failure(
+                            request,
+                            error_type="RequestValidationError",
+                            message="price_history requires start_date and end_date",
+                        )
                         continue
                     records = self.structured_data_provider.price_history(
                         symbol,
@@ -367,21 +412,20 @@ class ResearcherAgent:
                         request.end_date,
                     )
                 else:
-                    stats["execution_failures"] += 1
+                    record_failure(
+                        request,
+                        error_type="UnsupportedCapabilityError",
+                        message=f"unsupported structured capability: {request.capability}",
+                    )
                     continue
                 for record in records:
                     evidence.append(self._evidence_from_record(research_id, sub_question.id, record))
                 stats["records"] += len(records)
             except Exception as exc:
-                stats["execution_failures"] += 1
-                key = f"failure_type_{type(exc).__name__}"
-                stats[key] = int(stats.get(key, 0)) + 1
-                failures.append(
-                    {
-                        "capability": request.capability,
-                        "error_type": type(exc).__name__,
-                        "message": str(exc)[:500],
-                    }
+                record_failure(
+                    request,
+                    error_type=type(exc).__name__,
+                    message=str(exc),
                 )
         if failures:
             stats["failures"] = failures

@@ -17,7 +17,6 @@ from deepresearch_agent.schemas import (
     StrictModel,
 )
 
-_YEAR_RE = re.compile(r"(?<!\d)(20\d{2})(?!\d)")
 _COMPARISON_RE = re.compile(
     r"同比|较上年|比上年|上年同期|较去年|比去年"
 )
@@ -36,7 +35,7 @@ class MetricCoverageItem(StrictModel):
     observed_periods: list[str] = Field(default_factory=list)
     evidence_ids: list[str] = Field(default_factory=list)
     comparison_observed: bool = False
-    status: Literal["cited", "partially_cited", "searched_unavailable", "not_attempted"]
+    status: Literal["cited", "partially_cited", "searched_unavailable", "not_attempted", "unparsable_period"]
     missing_periods: list[str] = Field(default_factory=list)
     reason: str
 
@@ -50,12 +49,31 @@ def metric_requirements(state: ResearchState) -> list[MetricRequirement]:
         for request in sub_question.structured_data_requests:
             if request.capability != "financial_indicators":
                 continue
-            periods = {_period_key(item) for item in request.periods}
-            periods.discard("")
+            normalized_periods = [
+                _period_key(item) for item in request.periods
+            ]
+            periods = set(normalized_periods)
+            # StructuredDataRequest rejects this at planning time.  Retaining
+            # this branch makes legacy/replayed states fail closed too.
+            unparsable = [
+                raw
+                for raw, normalized in zip(
+                    request.periods,
+                    normalized_periods,
+                    strict=False,
+                )
+                if normalized is None
+            ]
             for metric in request.metrics:
                 canonical = canonical_metric(metric)
                 if canonical:
-                    merged[(sub_question.id, canonical)].update(periods)
+                    merged[(sub_question.id, canonical)].update(
+                        period for period in periods if period is not None
+                    )
+                    for raw in unparsable:
+                        merged[(sub_question.id, canonical)].add(
+                            f"unparsable:{raw}"
+                        )
     return [
         MetricRequirement(
             sub_question_id=sub_question_id,
@@ -89,8 +107,17 @@ def evaluate_metric_coverage(
             for item in matches
             for period in _evidence_periods(item)
         })
+        unparsable_periods = sorted(
+            period.removeprefix("unparsable:")
+            for period in requirement.periods
+            if period.startswith("unparsable:")
+        )
+        requested_periods = [
+            period for period in requirement.periods
+            if not period.startswith("unparsable:")
+        ]
         missing_periods = sorted(
-            set(requirement.periods) - set(observed_periods)
+            set(requested_periods) - set(observed_periods)
         )
         evidence_ids = [item.id for item in matches]
         comparison_observed = any(
@@ -101,7 +128,11 @@ def evaluate_metric_coverage(
         )
         complete = bool(evidence_ids) and not missing_periods
         attempted = requirement.sub_question_id in state.completed_tasks
-        if complete:
+        if unparsable_periods:
+            status = "unparsable_period"
+            missing_periods = unparsable_periods + missing_periods
+            reason = "requested periods could not be parsed=" + str(unparsable_periods)
+        elif complete:
             status = "cited"
             reason = "the requested metric has at least one evidence id"
         elif evidence_ids:
@@ -124,7 +155,7 @@ def evaluate_metric_coverage(
             MetricCoverageItem(
                 sub_question_id=requirement.sub_question_id,
                 metric=requirement.metric,
-                requested_periods=requirement.periods,
+                requested_periods=requested_periods + unparsable_periods,
                 observed_periods=observed_periods,
                 evidence_ids=evidence_ids,
                 comparison_observed=comparison_observed,
@@ -140,7 +171,7 @@ def canonical_metric(value: str | None) -> str:
     return _finance_metric(value)
 
 
-def _period_key(value: str | None) -> str:
+def _period_key(value: str | None) -> str | None:
     return parse_period(value)
 
 
@@ -189,8 +220,11 @@ def _evidence_periods(evidence: Evidence) -> set[str]:
     # that a requested period is covered.
     periods: set[str] = set()
     if evidence.structured_record:
-        periods.add(_period_key(evidence.structured_record.period))
+        period = _period_key(evidence.structured_record.period)
+        if period is not None:
+            periods.add(period)
     if evidence.numeric_fields:
-        periods.add(_period_key(evidence.numeric_fields.period))
-    periods.discard("")
+        period = _period_key(evidence.numeric_fields.period)
+        if period is not None:
+            periods.add(period)
     return periods

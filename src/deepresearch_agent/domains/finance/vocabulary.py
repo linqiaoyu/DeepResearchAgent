@@ -28,11 +28,11 @@ def canonical_metric(value: str | None) -> str:
     return METRIC_ALIASES.get(normalized, normalized)
 
 
-def parse_period(value: str | None) -> str:
+def parse_period(value: str | None) -> str | None:
     if not value:
-        return ""
+        return None
     rendered = str(value).strip()
     if re.fullmatch(r"20\d{6}", rendered):
         return rendered[:4]
     match = _YEAR_RE.search(rendered)
-    return match.group(1) if match else ""
+    return match.group(1) if match else None

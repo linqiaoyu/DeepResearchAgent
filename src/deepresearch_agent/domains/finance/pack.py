@@ -16,7 +16,7 @@ class FinanceDomainPack:
     def canonical_metric(self, value: str | None) -> str:
         return canonical_metric(value)
 
-    def parse_period(self, value: str | None) -> str:
+    def parse_period(self, value: str | None) -> str | None:
         return parse_period(value)
 
     def amount_units(self) -> Mapping[str, Decimal]:

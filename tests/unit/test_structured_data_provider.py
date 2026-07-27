@@ -5,6 +5,7 @@ from decimal import Decimal
 import unittest
 from datetime import date
 from pathlib import Path
+from pydantic import ValidationError
 
 from deepresearch_agent.agents import ResearcherAgent
 from deepresearch_agent.schemas import Evidence, NumericFields, StructuredDataRequest, SubQuestion
@@ -17,6 +18,15 @@ from deepresearch_agent.tools import (
 
 
 class StructuredDataProviderTests(unittest.TestCase):
+    def test_financial_request_rejects_unparseable_period_before_execution(self) -> None:
+        with self.assertRaisesRegex(ValidationError, "unparsable_periods=.*TTM"):
+            StructuredDataRequest(
+                capability="financial_indicators",
+                symbol="300750",
+                periods=["2024", "TTM"],
+                metrics=["营业收入"],
+            )
+
     def test_akshare_keeps_total_revenue_distinct_and_deduplicates_rows(self) -> None:
         class Frame:
             def __init__(self, rows: list[dict[str, object]]) -> None:
@@ -188,6 +198,28 @@ class StructuredDataProviderTests(unittest.TestCase):
         self.assertIsNotNone(evidence[0].numeric_fields)
         self.assertEqual(evidence[0].numeric_fields.period, "20241231")
         self.assertEqual(stats["records"], 1)
+
+    def test_unresolved_symbol_is_recorded_as_a_structured_failure(self) -> None:
+        researcher = ResearcherAgent(structured_data_provider=FixtureStructuredDataProvider())
+        sub_question = SubQuestion(
+            id="finance",
+            question="未知公司业绩",
+            search_queries=[],
+            structured_data_requests=[
+                StructuredDataRequest(
+                    capability="financial_indicators",
+                    company_name="不存在的公司",
+                    periods=["2024"],
+                    metrics=["营业收入"],
+                )
+            ],
+        )
+
+        evidence, stats, _resolutions = researcher.structured_evidence("run-1", sub_question)
+
+        self.assertEqual(evidence, [])
+        self.assertEqual(stats["symbol_resolution_failures"], 1)
+        self.assertEqual(stats["failures"][0]["error_type"], "SymbolResolutionError")
 
     def test_structured_numeric_mirror_preserves_decimal_exactly(self) -> None:
         researcher = ResearcherAgent(structured_data_provider=FixtureStructuredDataProvider())

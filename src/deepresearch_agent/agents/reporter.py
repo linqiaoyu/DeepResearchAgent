@@ -1064,6 +1064,11 @@ class ReporterAgent:
                     f"- {item.metric}{periods}：部分已引用；已覆盖 {', '.join(item.observed_periods) or '未标注期间'}，"
                     f"缺少 {', '.join(item.missing_periods) or '未标注期间'}"
                 )
+            elif item.status == "unparsable_period":
+                lines.append(
+                    f"- {item.metric}{periods}：请求报告期无法解析；"
+                    f"未执行静默缩窄。缺失 {', '.join(item.missing_periods)}。"
+                )
             elif item.status == "searched_unavailable":
                 missing = (
                     f"；缺失报告期：{', '.join(item.missing_periods)}"

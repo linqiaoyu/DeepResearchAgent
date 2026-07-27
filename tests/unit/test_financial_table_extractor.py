@@ -40,6 +40,42 @@ class _FailingExtractorLLM:
 
 
 class FinancialTableExtractorTests(unittest.TestCase):
+    def test_legacy_unparseable_period_remains_an_explicit_coverage_gap(self) -> None:
+        # model_construct represents a persisted/replayed state created before
+        # StructuredDataRequest gained its fail-closed validator.
+        request = StructuredDataRequest.model_construct(
+            capability="financial_indicators",
+            company_name="贵州茅台",
+            symbol="600519",
+            periods=["2024", "TTM"],
+            metrics=["营业收入"],
+            start_date=None,
+            end_date=None,
+        )
+        state = ResearchState(topic="贵州茅台营业收入")
+        state.plan = ResearchPlan.model_construct(
+            topic="贵州茅台营业收入",
+            depth_level=2,
+            sub_questions=[
+                SubQuestion.model_construct(
+                    id="finance",
+                    question="营业收入",
+                    search_queries=[],
+                    expected_source_types=[],
+                    structured_data_requests=[request],
+                    priority=3,
+                )
+            ],
+            estimated_sources=6,
+            success_criteria=[],
+        )
+        state.completed_tasks = ["finance"]
+
+        coverage = evaluate_metric_coverage(state)
+
+        self.assertEqual(coverage[0].status, "unparsable_period")
+        self.assertEqual(coverage[0].missing_periods, ["TTM", "2024"])
+
     def _sub_question(
         self,
         metrics: list[str] | None = None,
