@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 import tempfile
+import hashlib
 from unittest import mock
 from datetime import date
 from pathlib import Path
@@ -409,6 +410,22 @@ class DisclosureSourceTests(unittest.TestCase):
         self.assertEqual(amount_box.page, 6)
         self.assertLess(amount_box.x0, amount_box.x1)
         self.assertLess(amount_box.top, amount_box.bottom)
+
+    def test_fixture_corpus_covers_each_tracked_primary_pdf(self) -> None:
+        documents = FixtureDisclosureSource()._documents
+        expected = {
+            "tests/fixtures/cninfo_600519_2026-04-16_annual_report.pdf": {6},
+            "tests/fixtures/catl_2022_070_excerpt.pdf": {1, 2},
+        }
+        observed: dict[str, set[int]] = {}
+        for document in documents:
+            pdf_path = str(document["source_pdf"])
+            observed.setdefault(pdf_path, set()).add(int(document["page"]))
+            self.assertEqual(
+                document["source_pdf_sha256"],
+                hashlib.sha256((ROOT / pdf_path).read_bytes()).hexdigest(),
+            )
+        self.assertEqual(observed, expected)
 
     def test_registry_rejects_parallel_non_toolspec_metadata(self) -> None:
         registry = CapabilityRegistry()

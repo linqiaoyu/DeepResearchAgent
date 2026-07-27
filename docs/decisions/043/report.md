@@ -14,12 +14,13 @@
 Researcher 的权威披露优先词表也由 pack 提供，通用检索路径不再内联财务报表字段。
 金融 skill 的适用性词表与资源定位已迁入 finance pack；原路径仅经注册表保持兼容。
 
-主披露 fixture 现从受跟踪 PDF 再生，并为第 6 页数值建立 `page,x0,top,x1,bottom` bbox
-与 `extract_tables()` 表格索引。数值 Evidence 与 SQLite 持久化、评测结果均携带该锚点；
-主披露离线回归的 `bbox_resolution_rate` 为 `1.0`。主披露的年度指标优先读取表格单元格，
-无表格索引的旧输入仍使用文本兼容回退。该指标仅用于可观测性，不参与评分门禁。pdfplumber
-的引入、许可证和回滚界限见同目录 ADR。结构化算术拒绝详情尚未改造成完整结果对象，故 B5
-现已包含 `expected`、`actual`、`tolerance` 与 `source_locator`；B5 尚未结案的唯一
-流程项是将首次真语料门禁变红及逐条红→绿归因完整归档到轮次报告。
+fixture 现从两份受跟踪 PDF 再生：贵州茅台年报第 6 页，以及宁德时代匈牙利项目公告的
+第 1、2 页；每条均保存 PDF SHA-256 与页码。茅台数值另有 `page,x0,top,x1,bottom` bbox
+及 `extract_tables()` 表格索引。数值 Evidence 与 SQLite 持久化、评测结果均携带该锚点；
+主披露离线回归的 `bbox_resolution_rate` 为 `1.0`。年度指标优先读取表格单元格，无表格
+索引的旧输入仍使用文本兼容回退。该指标仅用于可观测性，不参与评分门禁。pdfplumber 的
+引入、许可证和回滚界限见同目录 ADR。算术拒绝现包含 `expected`、`actual`、`tolerance`
+与 `source_locator`。B5 尚未结案的唯一流程项是将首次真语料门禁变红及逐条红→绿归因
+完整归档到轮次报告。
 
 本轮未获真实 provider 的新增成本授权，因此不执行付费端到端运行。
