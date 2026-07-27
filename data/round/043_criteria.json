@@ -1,0 +1,26 @@
+[
+  {
+    "id": "B0-ruff-boundary",
+    "block": "B0",
+    "command": [".venv/bin/python", "-m", "ruff", "check", "src"],
+    "target": "exit=0"
+  },
+  {
+    "id": "B0-literal-ratchet",
+    "block": "B0",
+    "command": [".venv/bin/python", "scripts/check_domain_boundary.py"],
+    "target": "import_sites=6 literal_files=19 literal_hits=118"
+  },
+  {
+    "id": "B0-assets-tracked",
+    "block": "B0",
+    "command": ["git", "ls-files", "data/domain_boundary"],
+    "target": "2 files"
+  },
+  {
+    "id": "B0-no-production-change",
+    "block": "B0",
+    "command": ["git", "diff", "--quiet", "main", "--", "src/deepresearch_agent"],
+    "target": "exit=0"
+  }
+]

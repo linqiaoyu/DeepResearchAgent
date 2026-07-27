@@ -1,0 +1,21 @@
+{
+  "src/deepresearch_agent/agents/financial_table_extractor.py": 19,
+  "src/deepresearch_agent/agents/numeric_citations.py": 26,
+  "src/deepresearch_agent/agents/numeric_checker.py": 4,
+  "src/deepresearch_agent/agents/planner.py": 5,
+  "src/deepresearch_agent/agents/reporter.py": 5,
+  "src/deepresearch_agent/agents/researcher.py": 2,
+  "src/deepresearch_agent/evaluation/core_guardrail.py": 17,
+  "src/deepresearch_agent/evaluation/gold_audit.py": 3,
+  "src/deepresearch_agent/evaluation/golden.py": 1,
+  "src/deepresearch_agent/memory/prior.py": 1,
+  "src/deepresearch_agent/metric_coverage.py": 3,
+  "src/deepresearch_agent/orchestration/research_loop.py": 4,
+  "src/deepresearch_agent/research_snapshot.py": 3,
+  "src/deepresearch_agent/schemas.py": 1,
+  "src/deepresearch_agent/skills/finance.py": 3,
+  "src/deepresearch_agent/structured_output.py": 4,
+  "src/deepresearch_agent/tools/akshare_structured_data.py": 7,
+  "src/deepresearch_agent/tools/disclosure_source.py": 8,
+  "src/deepresearch_agent/tools/fixture_structured_data.py": 2
+}

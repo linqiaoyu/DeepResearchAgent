@@ -85,6 +85,10 @@ def run_gate() -> None:
     storage_path.unlink(missing_ok=True)
     commands = (
         ("ruff", [sys.executable, "-m", "ruff", "check", "src", "tests", "scripts"]),
+        (
+            "domain_boundary",
+            [sys.executable, "scripts/check_domain_boundary.py"],
+        ),
         ("settings_documentation", [sys.executable, "scripts/sync_agents_settings.py", "--check"]),
         ("agent_guidance", [sys.executable, "scripts/check_agent_guidance.py"]),
         ("prompt_drift", [sys.executable, "scripts/check_prompt_drift.py"]),

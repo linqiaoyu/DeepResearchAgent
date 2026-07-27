@@ -27,6 +27,11 @@ def main() -> None:
     for name in ("fastapi", "langgraph", "litellm", "pypdf", "ruff"):
         print(f"{name}={importlib.metadata.version(name)}")
 
+    hook_installer = Path(__file__).with_name("install_hooks.py")
+    completed = subprocess.run([sys.executable, str(hook_installer)], check=False)
+    if completed.returncode:
+        raise SystemExit(completed.returncode)
+
 
 if __name__ == "__main__":
     main()

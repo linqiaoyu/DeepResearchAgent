@@ -46,9 +46,23 @@ where = ["src"]
 line-length = 100
 target-version = "py312"
 
+[tool.ruff.lint]
+extend-select = ["TID251"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"deepresearch_agent.domains.finance" = { msg = "core must not import a concrete domain; inject DomainPack instead" }
+
 [tool.ruff.lint.per-file-ignores]
 # Script entrypoints prepend src/ for local checkout bootstrap before importing package modules.
 "scripts/dev_server.py" = ["E402"]
 "scripts/run_checkpoint_demo.py" = ["E402"]
 "scripts/run_demo.py" = ["E402"]
 "scripts/run_eval.py" = ["E402"]
+# Existing domain-boundary debt.  This list is a ratchet: it may only shrink.
+"src/deepresearch_agent/domains/**" = ["TID251"]
+"src/deepresearch_agent/schemas.py" = ["TID251"]
+"src/deepresearch_agent/metric_coverage.py" = ["TID251"]
+"src/deepresearch_agent/agents/researcher.py" = ["TID251"]
+"src/deepresearch_agent/agents/financial_table_extractor.py" = ["TID251"]
+"src/deepresearch_agent/workflow/engine.py" = ["TID251"]
+"tests/**" = ["TID251"]
