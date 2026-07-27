@@ -124,6 +124,12 @@ def _merge_dicts(left: dict[str, Any] | None, right: dict[str, Any] | None) -> d
     return merged
 
 
+def _provider_fidelity(provider: object) -> str:
+    """Read the provider's explicit provenance declaration without guessing."""
+    fidelity = getattr(provider, "fidelity", "unknown")
+    return fidelity if fidelity in {"real", "fixture", "replay"} else "unknown"
+
+
 def _research_progress_metric(state: ResearchState) -> float:
     evidence = {item.id: item for item in state.evidence_store}.values()
     components = {
@@ -440,6 +446,16 @@ class DeepResearchEngine:
                 "structured_data": type(self.structured_data_provider).__name__,
                 "disclosure": type(self.capability_registry.resolve("disclosure_source")).__name__,
                 "llm": type(self.llm_client).__name__ if self.llm_client else "deterministic",
+            }
+            state.metadata["provider_fidelity"] = {
+                "search": _provider_fidelity(self.search_tool),
+                "structured_data": _provider_fidelity(self.structured_data_provider),
+                "disclosure": _provider_fidelity(
+                    self.capability_registry.resolve("disclosure_source")
+                ),
+                "llm": _provider_fidelity(self.llm_client)
+                if self.llm_client
+                else "fixture",
             }
             research_id = state.research_id
             config = self._config(research_id)

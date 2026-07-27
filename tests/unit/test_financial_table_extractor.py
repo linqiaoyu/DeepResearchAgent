@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from decimal import Decimal
 from datetime import date
 from types import SimpleNamespace
 
@@ -163,7 +164,7 @@ class FinancialTableExtractorTests(unittest.TestCase):
             5,
         )
         self.assertEqual(margin.source_page, 10)
-        self.assertEqual(margin.numeric_fields.value, 91.23)
+        self.assertEqual(margin.numeric_fields.value, Decimal("91.23"))
         self.assertEqual(
             margin.numeric_fields.dimension,
             "主营业务分行业：酒类",
@@ -212,7 +213,7 @@ class FinancialTableExtractorTests(unittest.TestCase):
         self.assertEqual(
             coverage,
             {
-                "主营业务毛利率": "searched_unavailable",
+                "主营业务毛利率": "partially_cited",
                 "归母净利润": "cited",
                 "营业收入": "cited",
             },
@@ -318,25 +319,25 @@ class FinancialTableExtractorTests(unittest.TestCase):
                 (
                     "营业收入",
                     "2025年",
-                    168_838_102_514.79,
+                    Decimal("168838102514.79"),
                     6,
                 ),
                 (
                     "营业收入",
                     "2024年",
-                    170_899_152_276.34,
+                    Decimal("170899152276.34"),
                     6,
                 ),
                 (
                     "归母净利润",
                     "2025年",
-                    82_320_067_101.68,
+                    Decimal("82320067101.68"),
                     6,
                 ),
                 (
                     "归母净利润",
                     "2024年",
-                    86_228_146_421.62,
+                    Decimal("86228146421.62"),
                     6,
                 ),
             },
@@ -441,7 +442,7 @@ class FinancialTableExtractorTests(unittest.TestCase):
         self.assertEqual(len(evidence), 1)
         fields = evidence[0].numeric_fields
         assert fields is not None
-        self.assertEqual(fields.value, 83.33)
+        self.assertEqual(fields.value, Decimal("83.33"))
         self.assertEqual(
             fields.dimension,
             "主营业务分行业：合计",
@@ -778,7 +779,7 @@ class FinancialTableExtractorTests(unittest.TestCase):
             observed[
                 ("营业收入", "2023年")
             ],
-            147_693_604_994.14,
+            Decimal("147693604994.14"),
         )
         self.assertEqual(
             observed[
@@ -865,8 +866,8 @@ class FinancialTableExtractorTests(unittest.TestCase):
         self.assertEqual(
             values,
             {
-                "2024年": 170_899_152_276.34,
-                "2025年": 168_838_102_514.79,
+                "2024年": Decimal("170899152276.34"),
+                "2025年": Decimal("168838102514.79"),
             },
         )
 
@@ -915,7 +916,7 @@ class FinancialTableExtractorTests(unittest.TestCase):
         self.assertEqual(len(margins), 1)
         self.assertEqual(
             margins[0].numeric_fields.value,
-            91.23,
+            Decimal("91.23"),
         )
         self.assertNotIn(
             "茅台酒 146,499",

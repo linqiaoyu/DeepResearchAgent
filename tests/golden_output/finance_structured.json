@@ -880,7 +880,7 @@
     "manifest": {
       "config_hash": "<normalized-config-hash>",
       "context_events": [],
-      "cost_cny_total": 0.0,
+      "cost_cny_total": null,
       "decision_summary": [
         {
           "alternatives_considered": [
@@ -1143,7 +1143,7 @@
         "search": "ContractSearchProvider",
         "structured_data": "TrajectoryStructuredDataProvider"
       },
-      "realness": "fixture",
+      "realness": "mixed",
       "retrieval_corpus_as_of": "2026-07-09",
       "run_id": "<normalized-id>",
       "started_at": "<normalized-timestamp>",

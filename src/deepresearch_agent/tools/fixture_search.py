@@ -23,6 +23,7 @@ class FixtureSearchTool:
     """
 
     search_counts_toward_budget = True
+    fidelity = "fixture"
 
     def __init__(self, source_path: Path | None = None) -> None:
         self.source_path = source_path or project_root() / "data" / "mock_data" / "sources.json"

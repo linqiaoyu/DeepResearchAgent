@@ -266,10 +266,10 @@ class ReporterFinanceTemplateTests(unittest.TestCase):
         report = ReporterAgent().report(state)
         coverage = state.metadata["requested_metric_coverage"][0]
 
-        self.assertEqual(coverage["status"], "searched_unavailable")
+        self.assertEqual(coverage["status"], "partially_cited")
         self.assertEqual(coverage["missing_periods"], ["2024"])
-        self.assertIn("已取得部分证据", report)
-        self.assertIn("缺失报告期：2024", report)
+        self.assertIn("部分已引用", report)
+        self.assertIn("缺少 2024", report)
 
     def test_current_period_with_explicit_yoy_closes_comparison(
         self,
@@ -312,7 +312,7 @@ class ReporterFinanceTemplateTests(unittest.TestCase):
         ReporterAgent().report(state)
         coverage = state.metadata["requested_metric_coverage"][0]
 
-        self.assertEqual(coverage["status"], "searched_unavailable")
+        self.assertEqual(coverage["status"], "partially_cited")
         self.assertTrue(coverage["comparison_observed"])
         self.assertEqual(coverage["missing_periods"], ["2024"])
 

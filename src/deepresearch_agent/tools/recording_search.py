@@ -40,6 +40,12 @@ class RecordingMetadata:
 class RecordingSearchProvider:
     """Record/replay wrapper for deterministic Golden Set retrieval."""
 
+    @property
+    def fidelity(self) -> str:
+        return "replay" if self.mode == "replay" else str(
+            getattr(self.live_provider, "fidelity", "unknown")
+        )
+
     def __init__(
         self,
         mode: str,

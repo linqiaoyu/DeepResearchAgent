@@ -55,6 +55,10 @@ FETCH_TOOL_SPEC = ToolSpec(
 class ContractSearchProvider:
     """Opt-in adapter; the default factory path returns the original provider."""
 
+    @property
+    def fidelity(self) -> str:
+        return str(getattr(self.provider, "fidelity", "unknown"))
+
     def __init__(
         self,
         provider: SearchProvider,

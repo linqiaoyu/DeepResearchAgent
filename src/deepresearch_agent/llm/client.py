@@ -74,6 +74,7 @@ class LLMCallResult:
 
 
 class LLMClient:
+    fidelity = "real"
     def __init__(
         self,
         ledger_path: Path,

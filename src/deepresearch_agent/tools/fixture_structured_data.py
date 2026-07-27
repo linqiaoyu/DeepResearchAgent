@@ -9,6 +9,7 @@ from deepresearch_agent.settings import project_root
 
 
 class FixtureStructuredDataProvider:
+    fidelity = "fixture"
     """Deterministic structured finance data provider backed by recorded fixtures."""
 
     def __init__(self, fixture_path: Path | None = None) -> None:

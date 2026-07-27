@@ -90,9 +90,9 @@ class NumericFields(StrictModel):
     metric_name: str | None = None
     period: str | None = None
     dimension: str = "未标注"
-    # Parsed text values retain the legacy numeric contract; authoritative
-    # provider records above use Decimal for lossless source fidelity.
-    value: float | None = None
+    # This mirror is consumed by numeric guards, so it must preserve the same
+    # source value as StructuredDataRecord rather than reintroduce float loss.
+    value: Decimal | None = None
     unit: str | None = None
 
 

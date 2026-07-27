@@ -51,6 +51,8 @@ STRUCTURED_DATA_TOOL_SPEC = ToolSpec(
 class TrajectoryStructuredDataProvider:
     """Record structured-provider calls without changing provider semantics."""
 
+    fidelity = "replay"
+
     def __init__(self, provider: StructuredDataProvider) -> None:
         self.provider = provider
 

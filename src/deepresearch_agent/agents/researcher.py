@@ -104,10 +104,24 @@ class ResearcherAgent:
             joined = " ".join(
                 [sub_question.question, *sub_question.search_queries]
             )
-            code_match = re.search(r"(?<!\d)(\d{6})(?!\d)", joined)
+            code_match = re.search(
+                r"(?:股票|证券)?代码\s*[:：]?\s*(\d{6})(?!\d)|[（(](\d{6})[）)]",
+                joined,
+            )
             # A disclosure request must name an unambiguous security.  Do not
-            # invent a company-specific fallback code from question text.
-            code = code_match.group(1) if code_match else ""
+            # invent a company-specific fallback code from question text. A
+            # typed structured request is an equally explicit identifier and
+            # takes precedence over prose formatting.
+            code = next(
+                (
+                    request.symbol
+                    for request in sub_question.structured_data_requests
+                    if request.symbol and re.fullmatch(r"\d{6}", request.symbol)
+                ),
+                "",
+            )
+            if not code and code_match:
+                code = next(group for group in code_match.groups() if group)
             financial_intent = any(
                 request.capability == "financial_indicators"
                 for request in sub_question.structured_data_requests
@@ -353,7 +367,8 @@ class ResearcherAgent:
                 stats["records"] += len(records)
             except Exception as exc:
                 stats["execution_failures"] += 1
-                stats.setdefault("failure_types", []).append(type(exc).__name__)
+                key = f"failure_type_{type(exc).__name__}"
+                stats[key] = int(stats.get(key, 0)) + 1
         return evidence, stats, symbol_resolutions
 
     def _resolve_symbol(self, company_name: str | None) -> str | None:

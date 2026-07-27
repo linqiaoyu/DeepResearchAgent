@@ -5,7 +5,7 @@
 [![CI](https://github.com/linqiaoyu/DeepResearchAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/linqiaoyu/DeepResearchAgent/actions/workflows/ci.yml)
 ![Tests](https://img.shields.io/badge/tests-CI%20verified-brightgreen)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
-![License](https://img.shields.io/badge/license-Apache--2.0-blue)
+![License](https://img.shields.io/badge/license-MIT-blue)
 
 [静态演示站](https://deepresearch-agent.jacksonyu1109.workers.dev/) ·
 [快速开始](#快速开始) ·
@@ -182,4 +182,4 @@ flowchart LR
 
 ## License
 
-仓库当前没有 `LICENSE` 文件，也没有声明可复用许可证；顶部 badge 因此标为 `not declared`。在项目所有者明确选择许可证前，不应推断为 MIT、Apache-2.0 或其他开源授权。
+本项目采用 [MIT License](LICENSE)。

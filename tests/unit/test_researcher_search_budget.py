@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 
 from deepresearch_agent.agents.researcher import ResearcherAgent
@@ -45,6 +46,14 @@ class CountingSearchProvider:
 
 
 class ResearcherSearchBudgetTests(unittest.TestCase):
+    def test_concurrent_budget_consumption_never_exceeds_limit(self) -> None:
+        researcher = ResearcherAgent(
+            search_tool=CountingSearchProvider(), max_searches_per_run=20
+        )
+        with ThreadPoolExecutor(max_workers=16) as pool:
+            allowed = list(pool.map(lambda _: researcher._consume_search_budget_if_needed(), range(80)))
+        self.assertEqual(sum(allowed), 20)
+        self.assertEqual(researcher.searches_used, 20)
     def test_financial_disclosure_short_circuits_redundant_web_fetch(
         self,
     ) -> None:

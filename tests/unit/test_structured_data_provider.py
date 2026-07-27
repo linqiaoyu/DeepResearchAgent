@@ -189,6 +189,19 @@ class StructuredDataProviderTests(unittest.TestCase):
         self.assertEqual(evidence[0].numeric_fields.period, "20241231")
         self.assertEqual(stats["records"], 1)
 
+    def test_structured_numeric_mirror_preserves_decimal_exactly(self) -> None:
+        researcher = ResearcherAgent(structured_data_provider=FixtureStructuredDataProvider())
+        record = next(
+            item
+            for item in researcher.structured_data_provider.financial_indicators(
+                "300750", periods=["20241231"], metrics=["归母净利润"]
+            )
+        )
+        evidence = researcher._evidence_from_record("run-1", "finance", record)
+        assert evidence.numeric_fields is not None
+        self.assertIsInstance(evidence.numeric_fields.value, Decimal)
+        self.assertEqual(evidence.numeric_fields.value, record.value)
+
     def test_symbol_resolve_records_metadata_not_evidence(self) -> None:
         researcher = ResearcherAgent(structured_data_provider=FixtureStructuredDataProvider())
         sub_question = SubQuestion(

@@ -77,6 +77,8 @@ class DisclosureSourceError(ToolExecutionError):
 class FixtureDisclosureSource:
     """Offline disclosure backend used only by deterministic test runs."""
 
+    fidelity = "fixture"
+
     def set_run_context(self, context: RunToolContext) -> None:
         del context
 
@@ -100,6 +102,8 @@ class CninfoDisclosureSource:
     bonds, or non-six-digit identifiers.  Unsupported codes fail closed before
     a network request rather than being queried as Shenzhen securities.
     """
+
+    fidelity = "real"
 
     def __init__(
         self,

@@ -14,7 +14,7 @@ NUMBER_PATTERN = (
 )
 MEASURE_RE = re.compile(
     rf"(?P<number>{NUMBER_PATTERN})\s*"
-    r"(?P<unit>亿元|万元|个百分点|个百\s*分点|元|%|％|pct)",
+    r"(?P<unit>百万元|千元|亿元|万元|亿元|亿|个百分点|个百\s*分点|元|%|％|pct)",
     re.IGNORECASE,
 )
 BARE_COMMA_AMOUNT_RE = re.compile(
@@ -524,7 +524,7 @@ def _metric_before(text: str, number_start: int) -> str | None:
     if yoy_matches and yoy_matches[-1].end() >= metric_position:
         trailing = window[yoy_matches[-1].end() :]
         amount_at_number = re.match(
-            rf"{NUMBER_PATTERN}\s*(?:亿元|万元|元)",
+            rf"{NUMBER_PATTERN}\s*(?:百万元|千元|亿元|万元|亿|元)",
             text[number_start:],
         )
         if (
@@ -643,7 +643,7 @@ def is_main_business_margin_dimension(dimension: str | None) -> bool:
 
 def _local_amount_unit(text: str, position: int) -> str | None:
     """Return a unit only when declared in the current PDF/table neighbourhood."""
-    start = max(text.rfind("[[PDF_PAGE=", 0, position), position - 1200)
+    start = max(0, text.rfind("[[PDF_PAGE=", 0, position), position - 1200)
     unit_match = list(re.finditer(
         r"(?:金额)?单位\s*[:：]\s*(?:人民币)?\s*(亿元|万元|元|千元|百万元|亿)",
         text[start:position],
@@ -652,7 +652,10 @@ def _local_amount_unit(text: str, position: int) -> str | None:
 
 
 def _default_amount_unit(text: str) -> str:
-    unit_match = re.search(r"(?:金额)?单位\s*[:：]\s*(?:人民币)?\s*(亿元|万元|元)", text)
+    unit_match = re.search(
+        r"(?:金额)?单位\s*[:：]\s*(?:人民币)?\s*(百万元|千元|亿元|万元|亿|元)",
+        text,
+    )
     return unit_match.group(1) if unit_match else "元"
 
 

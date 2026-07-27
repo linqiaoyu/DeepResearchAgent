@@ -46,7 +46,7 @@ class MetricCoverageItem(StrictModel):
     observed_periods: list[str] = Field(default_factory=list)
     evidence_ids: list[str] = Field(default_factory=list)
     comparison_observed: bool = False
-    status: Literal["cited", "searched_unavailable", "not_attempted"]
+    status: Literal["cited", "partially_cited", "searched_unavailable", "not_attempted"]
     missing_periods: list[str] = Field(default_factory=list)
     reason: str
 
@@ -122,6 +122,9 @@ def evaluate_metric_coverage(
         if complete:
             status = "cited"
             reason = "the requested metric has at least one evidence id"
+        elif evidence_ids:
+            status = "partially_cited"
+            reason = "the requested metric has cited evidence but lacks requested periods=" + str(missing_periods)
         elif attempted:
             status = "searched_unavailable"
             reason = (

@@ -139,6 +139,7 @@ def _preferred_pdf_page_indexes(
 
 
 class TavilySearchProvider:
+    fidelity = "real"
     """Tavily-backed search adapter behind the SearchProvider contract."""
 
     def __init__(

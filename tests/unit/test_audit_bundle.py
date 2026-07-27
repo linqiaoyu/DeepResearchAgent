@@ -149,7 +149,7 @@ class AuditBundleTests(unittest.TestCase):
                 ledger["cost_cny_source"],
                 "unavailable_no_api_billing",
             )
-            self.assertEqual(bundle_manifest["cost_cny_total"], 0.0)
+            self.assertIsNone(bundle_manifest["cost_cny_total"])
             self.assertFalse(
                 bundle_manifest["cost_cny_total_estimated"]
             )

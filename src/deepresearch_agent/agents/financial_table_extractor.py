@@ -496,7 +496,7 @@ def _statement_evidence(
             metric_name=row.metric,
             period=f"{period}年",
             dimension="年度主要会计数据",
-            value=_decimal_float(value),
+            value=_decimal(value),
             unit=row.unit,
         ),
     )
@@ -545,7 +545,7 @@ def _margin_evidence(
             metric_name="主营业务毛利率",
             period=f"{current_period}年",
             dimension=row.dimension,
-            value=_decimal_float(row.current),
+            value=_decimal(row.current),
             unit="%",
         ),
     )
@@ -579,13 +579,6 @@ def _comparison_direction(
 
 def _absolute_number(value: str) -> str:
     return value.lstrip("+-−")
-
-
-def _decimal_float(value: str) -> float:
-    try:
-        return float(Decimal(value.replace(",", "")))
-    except InvalidOperation as exc:
-        raise ValueError(f"invalid financial number: {value}") from exc
 
 
 def _decimal(value: str) -> Decimal | None:

@@ -65,8 +65,32 @@ class DailyCostGuard:
     def assert_can_start(self) -> None:
         with self._lock:
             state = self._load_current_state()
-            if float(state["spent_cny"]) >= self.limit_cny:
+            if float(state["spent_cny"]) + float(state["reserved_cny"]) >= self.limit_cny:
                 raise DemoLimitExceeded("Daily LLM demo budget has been reached.")
+
+    def reserve(self, amount_cny: float) -> float:
+        """Pre-debit a bounded run before it can issue a paid provider call."""
+        amount = max(0.0, float(amount_cny))
+        with self._lock:
+            state = self._load_current_state()
+            if float(state["spent_cny"]) + float(state["reserved_cny"]) + amount > self.limit_cny:
+                raise DemoLimitExceeded("Daily LLM demo budget has been reached.")
+            state["reserved_cny"] = round(float(state["reserved_cny"]) + amount, 8)
+            self._write_state(state)
+        return amount
+
+    def settle(self, reserved_cny: float, actual_cny: float) -> dict[str, Any]:
+        """Convert a reservation into recorded spend, including failed runs."""
+        with self._lock:
+            state = self._load_current_state()
+            state["reserved_cny"] = round(
+                max(0.0, float(state["reserved_cny"]) - max(0.0, reserved_cny)), 8
+            )
+            state["spent_cny"] = round(
+                float(state["spent_cny"]) + max(0.0, actual_cny), 8
+            )
+            self._write_state(state)
+            return self._payload(state)
 
     def record_spend(self, cost_cny: float) -> dict[str, Any]:
         with self._lock:
@@ -77,7 +101,7 @@ class DailyCostGuard:
 
     def _load_current_state(self) -> dict[str, Any]:
         today = self._today().isoformat()
-        state = {"date": today, "spent_cny": 0.0}
+        state = {"date": today, "spent_cny": 0.0, "reserved_cny": 0.0}
         if self.state_path.exists():
             try:
                 loaded = json.loads(self.state_path.read_text(encoding="utf-8"))
@@ -85,6 +109,7 @@ class DailyCostGuard:
                 loaded = {}
             if isinstance(loaded, dict) and loaded.get("date") == today:
                 state["spent_cny"] = float(loaded.get("spent_cny", 0.0) or 0.0)
+                state["reserved_cny"] = float(loaded.get("reserved_cny", 0.0) or 0.0)
         self._write_state(state)
         return state
 
@@ -94,12 +119,14 @@ class DailyCostGuard:
 
     def _payload(self, state: dict[str, Any]) -> dict[str, Any]:
         spent = float(state["spent_cny"])
+        reserved = float(state["reserved_cny"])
         return {
             "date": state["date"],
             "limit_cny": self.limit_cny,
             "spent_cny": round(spent, 8),
-            "remaining_cny": round(max(0.0, self.limit_cny - spent), 8),
-            "blocked": spent >= self.limit_cny,
+            "reserved_cny": round(reserved, 8),
+            "remaining_cny": round(max(0.0, self.limit_cny - spent - reserved), 8),
+            "blocked": spent + reserved >= self.limit_cny,
         }
 
 
@@ -467,7 +494,7 @@ class DemoService:
     ) -> DemoRunResult:
         self.guard.assert_can_start()
         with self._run_lock:
-            self.guard.assert_can_start()
+            reservation = self.guard.reserve(self.settings.llm_budget_cny)
             run_stamp = f"{run_label}-{int(time.time() * 1000)}"
             storage_path = self.runtime_dir / f"{run_stamp}.db"
             ledger_path = self.settings.llm_ledger_path
@@ -482,10 +509,16 @@ class DemoService:
                 "DEEPRESEARCH_LLM_BUDGET_CNY": str(self.settings.llm_budget_cny),
                 "DEEPRESEARCH_AS_OF": self.settings.demo_as_of.isoformat(),
             }
-            with _temporary_environ(env):
-                state = DeepResearchEngine().run(topic=topic, depth_level=depth_level)
+            try:
+                with _temporary_environ(env):
+                    state = DeepResearchEngine().run(topic=topic, depth_level=depth_level)
+            except Exception:
+                # A provider can charge before surfacing an error; retain the
+                # bounded reservation instead of leaving an unaccounted spend.
+                self.guard.settle(reservation, reservation)
+                raise
         cost_cny = _state_cost_cny(state)
-        guard_payload = self.guard.record_spend(cost_cny)
+        guard_payload = self.guard.settle(reservation, cost_cny)
         return DemoRunResult(
             research_id=state.research_id,
             status=state.status,

@@ -53,6 +53,19 @@ class DailyCostGuardTests(unittest.TestCase):
             self.assertEqual(snapshot["spent_cny"], 0.0)
             self.assertFalse(snapshot["blocked"])
 
+    def test_daily_guard_predebits_and_records_a_failed_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            guard = DailyCostGuard(
+                state_path=Path(tmp) / "guard.json",
+                limit_cny=1.0,
+                today_func=lambda: date(2026, 7, 10),
+            )
+            reservation = guard.reserve(0.6)
+            self.assertEqual(guard.snapshot()["reserved_cny"], 0.6)
+            settled = guard.settle(reservation, reservation)
+            self.assertEqual(settled["spent_cny"], 0.6)
+            self.assertEqual(settled["reserved_cny"], 0.0)
+
 
 @unittest.skipIf(api_main.app is None, "FastAPI is not installed")
 class DemoAPITests(unittest.TestCase):

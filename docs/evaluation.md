@@ -237,6 +237,12 @@ Golden Set score interpretation uses two separate noise bands:
 
 ## Judge
 
+### 指标覆盖状态契约
+
+指标覆盖状态区分 `cited`（所有请求期间均有可引用证据）、`partially_cited`（已有
+可引用证据但仍缺少请求期间）、`searched_unavailable` 和 `not_attempted`。`partially_cited`
+必须同时输出已观察期间与缺失期间；它不会把单期证据或“同比”文字当成缺期数值的证明。
+
 Golden Set judge calls use the unified `LLMClient` with role `judge`; citation
 support uses role `citation_support`. Both roles are locked in `llm_config` to
 `openai/qwen3.7-plus` through DashScope's OpenAI-compatible endpoint. Each full

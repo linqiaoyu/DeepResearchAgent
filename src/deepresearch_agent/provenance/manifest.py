@@ -30,9 +30,9 @@ class RunManifest(StrictModel):
     mode: str
     flags: dict[str, bool]
     token_total: int = Field(ge=0)
-    cost_cny_total: float = Field(ge=0)
+    cost_cny_total: float | None = Field(default=None, ge=0)
     provider_identity: dict[str, str] = Field(default_factory=dict)
-    realness: Literal["real", "mixed", "fixture"] = "fixture"
+    realness: Literal["real", "mixed", "fixture", "replay", "unknown"] = "unknown"
     degradation_events: list[dict[str, Any]] = Field(default_factory=list)
     context_events: list[dict[str, Any]] = Field(default_factory=list)
     tool_error_summary: dict[str, int] = Field(default_factory=dict)
@@ -215,7 +215,7 @@ def build_run_manifest(
         token_total=state.token_used,
         cost_cny_total=_cost_cny_total(state),
         provider_identity=dict(metadata.get("provider_identity", {})),
-        realness=_realness(metadata.get("provider_identity", {}), settings.execution_mode),
+        realness=_realness(metadata.get("provider_fidelity", {})),
         degradation_events=degradation_events,
         context_events=context_events,
         tool_error_summary={str(key): int(value) for key, value in tool_errors.items()},
@@ -223,7 +223,7 @@ def build_run_manifest(
     )
 
 
-def _cost_cny_total(state: ResearchState) -> float:
+def _cost_cny_total(state: ResearchState) -> float | None:
     usage = state.metadata.get("llm_usage")
     if isinstance(usage, dict):
         value = usage.get("total_cost_cny")
@@ -240,15 +240,23 @@ def _cost_cny_total(state: ResearchState) -> float:
         and run_total >= 0
     ):
         return float(run_total)
-    return 0.0
+    return None
 
 
-def _realness(identity: object, mode: str) -> Literal["real", "mixed", "fixture"]:
-    values = list(identity.values()) if isinstance(identity, dict) else []
-    fixture = any("Fixture" in str(value) for value in values) or mode != "llm"
-    if fixture:
-        return "fixture" if mode != "llm" or all("Fixture" in str(value) for value in values) else "mixed"
-    return "real"
+def _realness(
+    fidelity: object,
+) -> Literal["real", "mixed", "fixture", "replay", "unknown"]:
+    """Aggregate explicit provider declarations; absence is never evidence of reality."""
+    if not isinstance(fidelity, dict) or not fidelity:
+        return "unknown"
+    values = list(fidelity.values())
+    allowed = {"real", "fixture", "replay"}
+    if any(value not in allowed for value in values):
+        return "unknown"
+    unique = set(values)
+    if len(unique) == 1:
+        return unique.pop()
+    return "mixed"
 
 
 def settings_flag_snapshot(

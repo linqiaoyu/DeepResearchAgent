@@ -14,6 +14,7 @@ class AKShareStructuredDataError(RuntimeError):
 
 
 class AKShareStructuredDataProvider:
+    fidelity = "real"
     """AKShare-backed adapter behind a small whitelisted structured data contract."""
 
     METRIC_ALIASES = {

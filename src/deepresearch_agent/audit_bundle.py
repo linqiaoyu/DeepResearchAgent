@@ -99,7 +99,7 @@ def export_audit_bundle(
         "token_total_estimated"
     ]
     manifest_payload["token_total_source"] = ledger_payload["token_total_source"]
-    manifest_payload["cost_cny_total"] = ledger_payload["cost_cny"] or 0.0
+    manifest_payload["cost_cny_total"] = ledger_payload["cost_cny"]
     manifest_payload["cost_cny_total_estimated"] = ledger_payload[
         "cost_cny_estimated"
     ]

@@ -17,6 +17,7 @@ from deepresearch_agent.provenance import (
     settings_flag_snapshot,
     write_run_manifest,
 )
+from deepresearch_agent.provenance.manifest import _realness
 from deepresearch_agent.llm_config import DEFAULT_LLM_CONFIG, RoleModelConfig
 from deepresearch_agent.schemas import ResearchState
 from deepresearch_agent.settings import Settings
@@ -45,6 +46,14 @@ def manifest() -> RunManifest:
 
 
 class RunManifestTests(unittest.TestCase):
+    def test_realness_requires_explicit_fidelity_for_every_provider(self) -> None:
+        self.assertEqual(_realness({}), "unknown")
+        self.assertEqual(
+            _realness({"search": "replay", "structured": "replay", "llm": "real"}),
+            "mixed",
+        )
+        self.assertEqual(_realness({"search": "real", "llm": "unknown"}), "unknown")
+
     def test_default_settings_enable_manifest_and_record_all_flags(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             settings = Settings(storage_path=Path(tmp) / "research.db")
@@ -128,7 +137,26 @@ class RunManifestTests(unittest.TestCase):
         self.assertIn("planner.md", built.prompt_hashes)
         self.assertIn("pydantic", built.dependency_versions)
         self.assertEqual(len(built.config_hash), 64)
-        self.assertEqual(built.cost_cny_total, 0.0)
+        self.assertIsNone(built.cost_cny_total)
+
+    def test_manifest_uses_explicit_provider_fidelity(self) -> None:
+        settings = Settings(storage_path=Path("test.db"))
+        built = build_run_manifest(
+            ResearchState(
+                topic="test",
+                metadata={
+                    "provider_fidelity": {
+                        "search": "replay",
+                        "structured_data": "replay",
+                        "disclosure": "fixture",
+                        "llm": "real",
+                    }
+                },
+            ),
+            settings,
+            started_at=datetime(2026, 7, 24, tzinfo=timezone.utc),
+        )
+        self.assertEqual(built.realness, "mixed")
 
     def test_llm_manifest_uses_the_runtime_client_configuration(self) -> None:
         settings = Settings(
