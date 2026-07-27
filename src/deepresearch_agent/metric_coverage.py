@@ -9,8 +9,8 @@ from pydantic import Field
 from deepresearch_agent.agents.numeric_citations import (
     is_main_business_margin_dimension,
 )
-from deepresearch_agent.domains.finance.vocabulary import canonical_metric as _finance_metric
-from deepresearch_agent.domains.finance.vocabulary import parse_period
+from deepresearch_agent.domains.protocols import DomainPack
+from deepresearch_agent.domains.registry import load_domain_pack
 from deepresearch_agent.schemas import (
     Evidence,
     ResearchState,
@@ -41,17 +41,21 @@ class MetricCoverageItem(StrictModel):
     reason: str
 
 
-def metric_requirements(state: ResearchState) -> list[MetricRequirement]:
+def metric_requirements(
+    state: ResearchState,
+    domain_pack: DomainPack | None = None,
+) -> list[MetricRequirement]:
     """Build deterministic metric slots from the typed plan contract."""
     if not state.plan:
         return []
+    pack = domain_pack or load_domain_pack("finance")
     merged: dict[tuple[str, str], set[str]] = defaultdict(set)
     for sub_question in state.plan.sub_questions:
         for request in sub_question.structured_data_requests:
             if request.capability != "financial_indicators":
                 continue
             normalized_periods = [
-                _period_key(item) for item in request.periods
+                _period_key(item, pack) for item in request.periods
             ]
             periods = set(normalized_periods)
             # StructuredDataRequest rejects this at planning time.  Retaining
@@ -66,7 +70,7 @@ def metric_requirements(state: ResearchState) -> list[MetricRequirement]:
                 if normalized is None
             ]
             for metric in request.metrics:
-                canonical = canonical_metric(metric)
+                canonical = pack.canonical_metric(metric)
                 if canonical:
                     merged[(sub_question.id, canonical)].update(
                         period for period in periods if period is not None
@@ -87,26 +91,28 @@ def metric_requirements(state: ResearchState) -> list[MetricRequirement]:
 
 def evaluate_metric_coverage(
     state: ResearchState,
+    domain_pack: DomainPack | None = None,
 ) -> list[MetricCoverageItem]:
     """Resolve every requested metric to cited evidence or an explicit gap."""
     evidence_by_subquestion: dict[str, list[Evidence]] = defaultdict(list)
     for evidence in state.evidence_store:
         evidence_by_subquestion[evidence.sub_question_id].append(evidence)
 
+    pack = domain_pack or load_domain_pack("finance")
     coverage: list[MetricCoverageItem] = []
-    for requirement in metric_requirements(state):
+    for requirement in metric_requirements(state, pack):
         matches = [
             item
             for item in evidence_by_subquestion.get(
                 requirement.sub_question_id,
                 [],
             )
-            if _evidence_matches_metric(item, requirement.metric)
+            if _evidence_matches_metric(item, requirement.metric, pack)
         ]
         observed_periods = sorted({
             period
             for item in matches
-            for period in _evidence_periods(item)
+            for period in _evidence_periods(item, pack)
         })
         unparsable_periods = sorted(
             period.removeprefix("unparsable:")
@@ -168,12 +174,12 @@ def evaluate_metric_coverage(
     return coverage
 
 
-def canonical_metric(value: str | None) -> str:
-    return _finance_metric(value)
+def canonical_metric(value: str | None, domain_pack: DomainPack | None = None) -> str:
+    return (domain_pack or load_domain_pack("finance")).canonical_metric(value)
 
 
-def _period_key(value: str | None) -> str | None:
-    return parse_period(value)
+def _period_key(value: str | None, domain_pack: DomainPack) -> str | None:
+    return domain_pack.parse_period(value)
 
 
 def _evidence_metric(evidence: Evidence) -> str | None:
@@ -187,9 +193,10 @@ def _evidence_metric(evidence: Evidence) -> str | None:
 def _evidence_matches_metric(
     evidence: Evidence,
     required_metric: str,
+    domain_pack: DomainPack,
 ) -> bool:
     evidence_metric = _evidence_metric(evidence)
-    if canonical_metric(evidence_metric) != required_metric:
+    if domain_pack.canonical_metric(evidence_metric) != required_metric:
         return False
     if required_metric != "主营业务毛利率":
         return True
@@ -216,16 +223,16 @@ def _evidence_matches_metric(
     return is_main_business_margin_dimension(dimension)
 
 
-def _evidence_periods(evidence: Evidence) -> set[str]:
+def _evidence_periods(evidence: Evidence, domain_pack: DomainPack) -> set[str]:
     # Prose can mention arbitrary comparison years; only typed values prove
     # that a requested period is covered.
     periods: set[str] = set()
     if evidence.structured_record:
-        period = _period_key(evidence.structured_record.period)
+        period = _period_key(evidence.structured_record.period, domain_pack)
         if period is not None:
             periods.add(period)
     if evidence.numeric_fields:
-        period = _period_key(evidence.numeric_fields.period)
+        period = _period_key(evidence.numeric_fields.period, domain_pack)
         if period is not None:
             periods.add(period)
     return periods

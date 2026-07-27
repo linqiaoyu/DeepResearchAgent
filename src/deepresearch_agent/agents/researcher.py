@@ -18,7 +18,7 @@ from deepresearch_agent.schemas import (
     SubQuestion,
 )
 from deepresearch_agent.domains.protocols import DomainPack
-from deepresearch_agent.domains.finance import FinanceDomainPack
+from deepresearch_agent.domains.registry import load_domain_pack
 from deepresearch_agent.tools import (
     FetchProvider,
     FixtureSearchTool,
@@ -51,7 +51,7 @@ class ResearcherAgent:
         self.max_searches_per_run = max_searches_per_run
         self.disclosure_source = disclosure_source
         self.as_of = as_of or date.today()
-        self.domain_pack = domain_pack or FinanceDomainPack()
+        self.domain_pack = domain_pack or load_domain_pack("finance")
         self.searches_used = 0
         self._search_budget_lock = Lock()
 

@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from decimal import Decimal
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
+
+if TYPE_CHECKING:
+    from deepresearch_agent.reporting import GroundedFactRenderer
 
 
 class DomainPack(Protocol):
@@ -17,3 +20,5 @@ class DomainPack(Protocol):
     def amount_units(self) -> Mapping[str, Decimal]: ...
 
     def primary_source_keyword(self, *, financial_intent: bool) -> str: ...
+
+    def grounded_fact_renderer(self) -> GroundedFactRenderer: ...

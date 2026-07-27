@@ -3,6 +3,11 @@ from __future__ import annotations
 from collections.abc import Mapping
 from decimal import Decimal
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from deepresearch_agent.reporting import GroundedFactRenderer
+
 from deepresearch_agent.domains.finance.vocabulary import (
     AMOUNT_UNITS,
     canonical_metric,
@@ -24,3 +29,10 @@ class FinanceDomainPack:
 
     def primary_source_keyword(self, *, financial_intent: bool) -> str:
         return "年度报告" if financial_intent else "公告"
+
+    def grounded_fact_renderer(self) -> GroundedFactRenderer:
+        from deepresearch_agent.domains.finance.grounded_facts import (
+            FinanceGroundedFactRenderer,
+        )
+
+        return FinanceGroundedFactRenderer()

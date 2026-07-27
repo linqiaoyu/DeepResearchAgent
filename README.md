@@ -139,7 +139,7 @@ flowchart LR
 - MCP 不暴露任意文件读取或命令执行；server 只允许服务端自管运行目录，付费路径需要显式 `allow_paid`，本轮 fixture server 即使确认也拒绝 LLM 执行，见 [server.py](src/deepresearch_agent/mcp/server.py)。
 - 金融仍是当前唯一已实现的领域包；核心侧具体金融 import 由
   [`scripts/check_domain_boundary.py`](scripts/check_domain_boundary.py) 测量并以
-  `import_sites=6` 为棘轮基线。该数字不等于“框架已领域无关”：金融逻辑仍存在于核心
+  初始 `import_sites=6` 已迁移至当前 `import_sites=0`。该数字不等于“框架已领域无关”：金融逻辑仍存在于核心
   Agent，且尚无第二个领域实现，见 [architecture.md](docs/architecture.md)。
 - Docker/Compose 资产存在，但当前验证主机没有 Docker/Podman，因此没有本机引擎级构建证据；现状见 [production_readiness.md](docs/production_readiness.md)。
 - 分析师仍负责问题定义、来源许可、材料性、预测审批、发布和最终投资判断；本项目不构成投资建议，见 [use_case.md](docs/use_case.md)。

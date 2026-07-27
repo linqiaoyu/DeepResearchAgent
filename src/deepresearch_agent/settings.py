@@ -21,6 +21,7 @@ class Settings:
     token_budget: int = 200_000
     default_depth: int = 2
     execution_mode: Literal["deterministic", "llm"] = "deterministic"
+    domain_pack: str = "finance"
     llm_budget_cny: float = 3.0
     llm_ledger_path: Path = Path("data/runtime/llm_ledger.jsonl")
     llm_max_sub_questions: int = 3
@@ -148,6 +149,7 @@ def load_settings() -> Settings:
         extractor_enabled=_env_flag("EXTRACTOR_ENABLED", default=True),
         token_budget=int(os.getenv("DEEPRESEARCH_TOKEN_BUDGET", "200000")),
         execution_mode=mode,
+        domain_pack=os.getenv("DEEPRESEARCH_DOMAIN_PACK", "finance").strip(),
         llm_budget_cny=float(os.getenv("DEEPRESEARCH_LLM_BUDGET_CNY", "3.0")),
         llm_ledger_path=ledger,
         llm_max_sub_questions=int(os.getenv("DEEPRESEARCH_LLM_MAX_SUB_QUESTIONS", "3")),

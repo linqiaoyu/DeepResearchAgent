@@ -17,7 +17,8 @@ from deepresearch_agent.decisions import (
     append_decision_chain,
     record_agent_decision,
 )
-from deepresearch_agent.domains.finance import FinanceGroundedFactRenderer
+from deepresearch_agent.domains.protocols import DomainPack
+from deepresearch_agent.domains.registry import load_domain_pack
 from deepresearch_agent.llm import BudgetExceededError, LLMClient
 from deepresearch_agent.memory import (
     ContextWorkingMemory,
@@ -218,8 +219,10 @@ class DeepResearchEngine:
         procedural_memory: ProceduralMemory | None = None,
         disclosure_source: Any | None = None,
         grounded_fact_renderer: GroundedFactRenderer | None = None,
+        domain_pack: DomainPack | None = None,
     ) -> None:
         self.settings = settings or load_settings()
+        self.domain_pack = domain_pack or load_domain_pack(self.settings.domain_pack)
         if self.settings.config_fail_fast_enabled:
             validate_required_configuration(self.settings)
         self.logger = JsonLogger(enabled=self.settings.structured_logging_enabled)
@@ -289,6 +292,7 @@ class DeepResearchEngine:
                 "disclosure_source"
             ),
             as_of=self.settings.as_of,
+            domain_pack=self.domain_pack,
         )
         self.extractor = ExtractorAgent(
             llm_client=self.llm_client,
@@ -308,7 +312,7 @@ class DeepResearchEngine:
         self.reporter = ReporterAgent(
             llm_client=self.llm_client,
             grounded_fact_renderer=(
-                grounded_fact_renderer or FinanceGroundedFactRenderer()
+                grounded_fact_renderer or self.domain_pack.grounded_fact_renderer()
             ),
         )
         semantic_judge = (

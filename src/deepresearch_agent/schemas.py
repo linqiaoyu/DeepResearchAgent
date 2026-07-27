@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 from decimal import Decimal
+import re
 from typing import Any, Literal
 from uuid import uuid4
 
@@ -30,10 +31,8 @@ class StructuredDataRequest(StrictModel):
         """Reject ambiguous financial periods before a plan can narrow scope."""
         if self.capability != "financial_indicators":
             return self
-        from deepresearch_agent.domains.finance.vocabulary import parse_period
-
         unparsable = [
-            period for period in self.periods if parse_period(period) is None
+            period for period in self.periods if _calendar_year(period) is None
         ]
         if unparsable:
             raise ValueError(
@@ -41,6 +40,15 @@ class StructuredDataRequest(StrictModel):
                 f"YYYYMMDD date; unparsable_periods={unparsable}"
             )
         return self
+
+
+def _calendar_year(value: str | None) -> str | None:
+    """Parse the generic calendar-year forms accepted by the request schema."""
+    rendered = (value or "").strip()
+    if re.fullmatch(r"20\d{6}", rendered):
+        return rendered[:4]
+    match = re.search(r"(?<!\d)(20\d{2})(?!\d)", rendered)
+    return match.group(1) if match else None
 
 
 class SubQuestion(StrictModel):
