@@ -5,10 +5,10 @@
   "avg_citation_resolution_rate": 1.0,
   "avg_critic_catch_rate": 0.933,
   "avg_answer_relevance": 1.0,
-  "avg_faithfulness": 0.759,
-  "avg_latency_seconds": 0.055,
-  "avg_cost_usd": 0.017,
-  "avg_token_used": 9814.8,
+  "avg_faithfulness": 0.715,
+  "avg_latency_seconds": 0.029,
+  "avg_cost_usd": null,
+  "avg_token_used": null,
   "bad_case_categories": {
     "outdated_source": 2
   }

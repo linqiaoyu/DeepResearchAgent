@@ -490,7 +490,9 @@ The comparison gates quality regressions for `avg_citation_accuracy`,
 `avg_citation_resolution_rate`, `avg_faithfulness`, `avg_critic_catch_rate`, and total bad-case count.
 `avg_cost_usd`, `avg_latency_seconds`, and `avg_token_used` are reported as
 operational diffs; latency changes are informational so local machine variance
-does not fail the smoke check.
+does not fail the smoke check. Deterministic fixture runs deliberately report
+cost and token metrics as unavailable: only an `LLMClient` ledger can populate
+those fields.
 
 ## Current Deterministic Baseline
 
@@ -513,12 +515,20 @@ Deterministic evaluation sweep: `PYTHONPATH=src .venv/bin/python scripts/run_eva
 | `avg_critic_catch_rate` | `0.8` |
 | `avg_answer_relevance` | `1.0` |
 | `avg_faithfulness` | `0.923` |
-| `avg_cost_usd` | `0.023` |
-| `avg_token_used` | `9644.8` |
+| `avg_cost_usd` | unavailable (fixture run) |
+| `avg_token_used` | unavailable (fixture run) |
 | `bad_case_categories.numeric_conflict` | `6` |
 
 The baseline comparison status is `pass`. Latency is reported as an
 informational operational diff because it varies by local machine.
+
+### 039 baseline refresh
+
+`data/eval_baseline_v2.json` was refreshed in round 039 after enabling the
+deterministic per-branch budget by default. This changes the fixture evidence
+selection path and therefore its characterization metrics. The refresh also
+records `avg_cost_usd` and `avg_token_used` as `null`: deterministic runs do
+not use an LLM ledger and must not publish synthetic operational figures.
 
 This is a deterministic local fixture run for Gate 4 review, not a production LLM/search benchmark. It does not imply Tavily, LiteLLM, Postgres, or LangGraph production integrations are complete.
 

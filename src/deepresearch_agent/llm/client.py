@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 import time
 from dataclasses import dataclass
 from importlib import import_module
@@ -95,12 +96,14 @@ class LLMClient:
         self._sleep = sleep_func
         self._env_path = env_path or project_root() / ".env"
         self._run_costs_cny: dict[str, float] = {}
+        self._cost_lock = threading.Lock()
         self.logger = logger or JsonLogger()
         self.ledger_path.parent.mkdir(parents=True, exist_ok=True)
         self.global_ledger_path.parent.mkdir(parents=True, exist_ok=True)
 
     def start_run(self, run_id: str) -> None:
-        self._run_costs_cny[run_id] = self._ledger_cost_for_run(run_id)
+        with self._cost_lock:
+            self._run_costs_cny[run_id] = self._ledger_cost_for_run(run_id)
 
     def complete(
         self,
@@ -111,11 +114,16 @@ class LLMClient:
         schema: type[SchemaT] | None = None,
         expected_cost_cny: float | None = None,
     ) -> LLMCallResult:
-        if run_id not in self._run_costs_cny:
-            self.start_run(run_id)
+        with self._cost_lock:
+            if run_id not in self._run_costs_cny:
+                self._run_costs_cny[run_id] = self._ledger_cost_for_run(run_id)
+            current_cost = self._run_costs_cny[run_id]
+            if current_cost >= self.budget_cny:
+                raise BudgetExceededError(run_id, self.budget_cny, current_cost)
         role_config = self.config.roles.get(role)
         if not role_config:
             raise LLMClientError(f"No LLM model configured for role={role}")
+        self._pricing_for_model(role_config.model)
         api_key = self._api_key(role_config.api_key_env)
 
         prompt_messages = list(messages)
@@ -129,6 +137,13 @@ class LLMClient:
                     ),
                 }
             )
+        reservation_cny = expected_cost_cny or self._estimate_max_cost_cny(
+            prompt_messages, role_config.model, role_config.max_completion_tokens
+        )
+        with self._cost_lock:
+            projected = self._run_costs_cny[run_id] + reservation_cny
+            if projected > self.budget_cny:
+                raise BudgetExceededError(run_id, self.budget_cny, projected)
 
         first_error: str | None = None
         with correlation_context(llm_call=role):
@@ -139,6 +154,7 @@ class LLMClient:
                 api_base=role_config.api_base,
                 api_key=api_key,
                 timeout_seconds=role_config.timeout_seconds or self.config.timeout_seconds,
+                max_completion_tokens=role_config.max_completion_tokens,
                 messages=prompt_messages,
             )
         content = raw_result.content
@@ -156,14 +172,14 @@ class LLMClient:
                     structured=True,
                     parse_error=first_error,
                 )
-                self._run_costs_cny[run_id] += raw_result.cost_cny
+                self._add_run_cost(run_id, raw_result.cost_cny)
                 self._enforce_cost_overrun(
                     run_id,
                     expected_cost_cny,
                     raw_result.cost_cny,
                 )
-                if self._run_costs_cny[run_id] > self.budget_cny:
-                    raise BudgetExceededError(run_id, self.budget_cny, self._run_costs_cny[run_id])
+                if self.run_total_cny(run_id) > self.budget_cny:
+                    raise BudgetExceededError(run_id, self.budget_cny, self.run_total_cny(run_id))
                 repair_attempts = 1
                 repair_messages = [
                     *prompt_messages,
@@ -183,6 +199,7 @@ class LLMClient:
                     api_base=role_config.api_base,
                     api_key=api_key,
                     timeout_seconds=role_config.timeout_seconds or self.config.timeout_seconds,
+                    max_completion_tokens=role_config.max_completion_tokens,
                     messages=repair_messages,
                     is_repair=True,
                 )
@@ -212,14 +229,14 @@ class LLMClient:
             structured=bool(schema),
             parse_error=first_error,
         )
-        self._run_costs_cny[run_id] += result.cost_cny
+        self._add_run_cost(run_id, result.cost_cny)
         self._enforce_cost_overrun(
             run_id,
             expected_cost_cny,
             result.cost_cny,
         )
-        if self._run_costs_cny[run_id] > self.budget_cny:
-            raise BudgetExceededError(run_id, self.budget_cny, self._run_costs_cny[run_id])
+        if self.run_total_cny(run_id) > self.budget_cny:
+            raise BudgetExceededError(run_id, self.budget_cny, self.run_total_cny(run_id))
         with correlation_context(llm_call=role):
             self.logger.event(
                 "llm_call",
@@ -231,9 +248,14 @@ class LLMClient:
         return result
 
     def run_total_cny(self, run_id: str) -> float:
-        if run_id not in self._run_costs_cny:
-            self.start_run(run_id)
-        return self._run_costs_cny[run_id]
+        with self._cost_lock:
+            if run_id not in self._run_costs_cny:
+                self._run_costs_cny[run_id] = self._ledger_cost_for_run(run_id)
+            return self._run_costs_cny[run_id]
+
+    def _add_run_cost(self, run_id: str, cost_cny: float) -> None:
+        with self._cost_lock:
+            self._run_costs_cny[run_id] = self._run_costs_cny.get(run_id, 0.0) + cost_cny
 
     def ledger_total_cny(self) -> float:
         total = 0.0
@@ -303,6 +325,7 @@ class LLMClient:
         api_base: str | None,
         api_key: str,
         timeout_seconds: int,
+        max_completion_tokens: int,
         messages: list[dict[str, str]],
         is_repair: bool = False,
     ) -> LLMCallResult:
@@ -319,6 +342,7 @@ class LLMClient:
                         messages=messages,
                         temperature=self.config.temperature,
                         timeout=timeout_seconds,
+                        max_tokens=max_completion_tokens,
                         api_key=api_key,
                         api_base=api_base,
                     )
@@ -393,6 +417,9 @@ class LLMClient:
         )
 
     def _api_key(self, key_name: str) -> str:
+        env_value = os.getenv(key_name, "").strip()
+        if env_value:
+            return env_value
         if self._env_path.exists():
             for line in self._env_path.read_text(encoding="utf-8").splitlines():
                 stripped = line.strip()
@@ -401,9 +428,6 @@ class LLMClient:
                 key, value = stripped.split("=", 1)
                 if key.strip() == key_name and value.strip():
                     return value.strip().strip('"').strip("'")
-        env_value = os.getenv(key_name, "").strip()
-        if env_value:
-            return env_value
         raise LLMClientError(f"Missing {key_name} in .env or container environment.")
 
     def _parse_schema(self, content: str, schema: type[SchemaT]) -> SchemaT:
@@ -463,7 +487,7 @@ class LLMClient:
         usage: dict[str, int],
         model: str,
     ) -> tuple[float, str]:
-        tiers = self.config.pricing_by_model.get(model, ())
+        tiers = self._pricing_for_model(model)
         pricing = next(
             (
                 tier for tier in tiers
@@ -472,7 +496,7 @@ class LLMClient:
             ),
             None,
         )
-        if tiers and pricing is None:
+        if pricing is None:
             raise LLMClientError(
                 f"Prompt exceeds configured pricing tiers for model={model}"
             )
@@ -498,12 +522,38 @@ class LLMClient:
         output_cost = usage["completion_tokens"] * output_rate
         return (
             (input_cost + output_cost) / 1_000_000,
-            (
-                pricing.price_source
-                if pricing
-                else self.config.price_source
-            ),
+            pricing.price_source,
         )
+
+    def _pricing_for_model(self, model: str) -> tuple[Any, ...]:
+        tiers = self.config.pricing_by_model.get(model, ())
+        if not tiers:
+            raise LLMClientError(f"No configured pricing for model={model}")
+        return tiers
+
+    def _estimate_max_cost_cny(
+        self,
+        messages: list[dict[str, str]],
+        model: str,
+        max_completion_tokens: int,
+    ) -> float:
+        # A conservative local token estimate is enough to reserve before a
+        # paid call; the provider is also sent the same output cap.
+        prompt_tokens = sum(max(1, len(item.get("content", "")) // 4) for item in messages)
+        pricing = next(
+            (
+                tier
+                for tier in self._pricing_for_model(model)
+                if tier.max_prompt_tokens is None or prompt_tokens <= tier.max_prompt_tokens
+            ),
+            None,
+        )
+        if pricing is None:
+            raise LLMClientError(f"Prompt exceeds configured pricing tiers for model={model}")
+        return (
+            prompt_tokens * pricing.input_cache_miss_cny_per_million
+            + max_completion_tokens * pricing.output_cny_per_million
+        ) / 1_000_000
 
     def _enforce_cost_overrun(
         self,

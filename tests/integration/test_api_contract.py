@@ -3,6 +3,7 @@ from __future__ import annotations
 import tempfile
 import unittest
 import warnings
+from unittest.mock import patch
 from pathlib import Path
 
 from deepresearch_agent.api import main as api_main
@@ -29,6 +30,8 @@ class FastAPIContractTests(unittest.TestCase):
                 from fastapi.testclient import TestClient
 
                 client = TestClient(api_main.app)
+            token_patch = patch.dict("os.environ", {"DEMO_OWNER_TOKEN": "test-owner"})
+            token_patch.start()
             try:
                 healthz = client.get("/healthz")
                 self.assertEqual(healthz.status_code, 200)
@@ -40,6 +43,7 @@ class FastAPIContractTests(unittest.TestCase):
                 create_response = client.post(
                     "/research",
                     json={"topic": "fastapi contract smoke", "depth_level": 1},
+                    headers={"X-Demo-Owner-Token": "test-owner"},
                 )
                 self.assertEqual(create_response.status_code, 200)
                 created = create_response.json()
@@ -51,7 +55,7 @@ class FastAPIContractTests(unittest.TestCase):
                 self.assertIsNotNone(created["metrics"])
                 research_id = created["research_id"]
 
-                state_response = client.get(f"/research/{research_id}")
+                state_response = client.get(f"/research/{research_id}", headers={"X-Demo-Owner-Token": "test-owner"})
                 self.assertEqual(state_response.status_code, 200)
                 state = state_response.json()
                 self.assertEqual(state["research_id"], research_id)
@@ -59,7 +63,7 @@ class FastAPIContractTests(unittest.TestCase):
                 self.assertEqual(state["status"], "done")
                 self.assertGreater(len(state["evidence_store"]), 0)
 
-                report_response = client.get(f"/research/{research_id}/report")
+                report_response = client.get(f"/research/{research_id}/report", headers={"X-Demo-Owner-Token": "test-owner"})
                 self.assertEqual(report_response.status_code, 200)
                 report = report_response.json()
                 self.assertEqual(report["research_id"], research_id)
@@ -73,10 +77,11 @@ class FastAPIContractTests(unittest.TestCase):
                 self.assertGreaterEqual(len(metrics), 1)
                 self.assertEqual(metrics[0]["research_id"], research_id)
 
-                missing_response = client.get("/research/does-not-exist")
+                missing_response = client.get("/research/does-not-exist", headers={"X-Demo-Owner-Token": "test-owner"})
                 self.assertEqual(missing_response.status_code, 404)
                 self.assertEqual(missing_response.json()["detail"], "research_id not found")
             finally:
+                token_patch.stop()
                 api_main.engine = original_engine
 
 

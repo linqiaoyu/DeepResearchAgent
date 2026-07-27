@@ -9,6 +9,7 @@ from deepresearch_agent.schemas import Evidence, ExtractedClaim, ExtractedClaims
 from deepresearch_agent.security import detect_injection, wrap_untrusted
 from deepresearch_agent.settings import project_root
 from deepresearch_agent.agents.financial_table_extractor import (
+    AuthoritativeParseRejection,
     authoritative_financial_backfills,
     merge_authoritative_financial_evidence,
 )
@@ -64,14 +65,24 @@ class ExtractorAgent:
         sources: list[Source],
         evidence: list[Evidence],
     ) -> list[Evidence]:
+        rejections: list[AuthoritativeParseRejection] = []
         backfills = authoritative_financial_backfills(
             research_id,
             sub_question,
             sources,
+            rejections=rejections,
         )
         self.last_stats = {
             **self.last_stats,
             "authoritative_financial_backfills": len(backfills),
+            "authoritative_parse_rejections": [
+                {
+                    "reason": item.reason,
+                    "page": item.page,
+                    "matched_text": item.matched_text,
+                }
+                for item in rejections
+            ],
         }
         return merge_authoritative_financial_evidence(
             evidence,

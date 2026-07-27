@@ -198,10 +198,13 @@ class Evaluator:
             faithfulness=faithfulness,
             faithfulness_reason=faithfulness_reason,
             latency_seconds=round(latency_seconds, 3),
-            cost_usd=round(state.cost_used, 4),
+            cost_usd=(round(state.cost_used, 4) if cost_cny is not None else None),
             cost_cny=cost_cny,
             price_source=price_source,
-            token_used=state.token_used,
+            token_used=(state.token_used if cost_cny is not None else None),
+            operational_measurement=(
+                "llm_ledger" if cost_cny is not None else "unavailable"
+            ),
             bad_case_categories=dict(bad_case_categories),
         )
 
@@ -228,10 +231,15 @@ class Evaluator:
             )
         return result.model_copy(
             update={
-                "cost_usd": round(state.cost_used, 4),
+                "cost_usd": (
+                    round(state.cost_used, 4) if cost_cny is not None else None
+                ),
                 "cost_cny": cost_cny,
                 "price_source": price_source,
-                "token_used": state.token_used,
+                "token_used": state.token_used if cost_cny is not None else None,
+                "operational_measurement": (
+                    "llm_ledger" if cost_cny is not None else "unavailable"
+                ),
             }
         )
 

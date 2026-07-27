@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import threading
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -74,7 +75,25 @@ class DemoLiveRequest(BaseModel):
 
 
 def run_research(request: ResearchRequest) -> ResearchResponse:
-    state = engine.run(topic=request.topic, depth_level=request.depth_level)
+    reservation = 0.0
+    if engine.settings.execution_mode == "llm":
+        reservation = demo_service.guard.reserve(engine.settings.llm_budget_cny)
+    try:
+        # A request owns its workflow instance.  The module-level engine is a
+        # read-model for checkpoints and metrics; sharing it for execution
+        # would serialize every request behind its run-scoped safety lock.
+        with DeepResearchEngine(settings=engine.settings) as request_engine:
+            state = request_engine.run(
+                topic=request.topic,
+                depth_level=request.depth_level,
+            )
+    except Exception:
+        if reservation:
+            demo_service.guard.settle(reservation, reservation)
+        raise
+    if reservation:
+        from deepresearch_agent.api.demo import _state_cost_cny
+        demo_service.guard.settle(reservation, _state_cost_cny(state))
     return ResearchResponse(
         research_id=state.research_id,
         status=state.status,
@@ -82,6 +101,12 @@ def run_research(request: ResearchRequest) -> ResearchResponse:
         report_url=f"/research/{state.research_id}/report",
         metrics=state.evaluation,
     )
+
+
+def _require_owner_token(token: str | None) -> None:
+    expected = os.getenv("DEMO_OWNER_TOKEN", "").strip()
+    if not expected or token != expected:
+        raise HTTPException(status_code=403, detail="Owner token is required.")
 
 
 if FastAPI is not None:
@@ -124,18 +149,24 @@ if FastAPI is not None:
         return {"status": "ready"}
 
     @app.post("/research", response_model=ResearchResponse)
-    def create_research(request: ResearchRequest) -> ResearchResponse:
+    def create_research(
+        request: ResearchRequest,
+        x_demo_owner_token: str | None = Header(default=None),
+    ) -> ResearchResponse:
+        _require_owner_token(x_demo_owner_token)
         return run_research(request)
 
     @app.get("/research/{research_id}")
-    def get_research(research_id: str) -> dict:
+    def get_research(research_id: str, x_demo_owner_token: str | None = Header(default=None)) -> dict:
+        _require_owner_token(x_demo_owner_token)
         state = engine.load_state(research_id)
         if not state:
             raise HTTPException(status_code=404, detail="research_id not found")
         return state.model_dump(mode="json")
 
     @app.get("/research/{research_id}/report")
-    def get_report(research_id: str) -> dict[str, str]:
+    def get_report(research_id: str, x_demo_owner_token: str | None = Header(default=None)) -> dict[str, str]:
+        _require_owner_token(x_demo_owner_token)
         state = engine.load_state(research_id)
         if not state:
             raise HTTPException(status_code=404, detail="research_id not found")
@@ -169,7 +200,8 @@ if FastAPI is not None:
         return demo_service.questions()
 
     @app.post("/demo/rerun/{question_id}")
-    def demo_rerun(question_id: str) -> dict:
+    def demo_rerun(question_id: str, x_demo_owner_token: str | None = Header(default=None)) -> dict:
+        _require_owner_token(x_demo_owner_token)
         try:
             return demo_service.rerun_golden(question_id)
         except KeyError:

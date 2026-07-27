@@ -10,6 +10,7 @@ class RoleModelConfig:
     api_base: str | None = None
     api_key_env: str = "DEEPSEEK_API_KEY"
     timeout_seconds: int | None = None
+    max_completion_tokens: int = 8192
 
 
 @dataclass(frozen=True)

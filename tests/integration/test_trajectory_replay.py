@@ -288,7 +288,11 @@ class TrajectoryReplayTests(unittest.TestCase):
                         item.decision_type
                         for item in trajectory.agent_decisions
                     },
-                    {"source_rerank"},
+                    {
+                        "source_rerank",
+                        "branch_budget_allocate",
+                        "branch_budget_reallocate",
+                    },
                 )
                 self.assertTrue(trajectory.run_manifest_ref)
                 self.assertEqual(

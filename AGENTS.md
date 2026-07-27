@@ -161,7 +161,7 @@ capability 默认翻为 `true`，旧 AGENTS 仍写 `false`。
 <!-- BEGIN GENERATED SETTINGS DEFAULTS -->
 | 环境变量 | 默认值 | manifest 分类 |
 |---|---:|---|
-| `BRANCH_BUDGET_ENABLED` | `false` | `content_affecting` |
+| `BRANCH_BUDGET_ENABLED` | `true` | `content_affecting` |
 | `CONFIG_FAIL_FAST_ENABLED` | `true` | `operational` |
 | `CONTEXT_PACKER_ENABLED` | `false` | `content_affecting` |
 | `CRITIC_ENABLED` | `true` | `content_affecting` |

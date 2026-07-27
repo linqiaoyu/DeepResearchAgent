@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/linqiaoyu/DeepResearchAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/linqiaoyu/DeepResearchAgent/actions/workflows/ci.yml)
 ![Tests](https://img.shields.io/badge/tests-CI%20verified-brightgreen)
-![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+![Python](https://img.shields.io/badge/python-3.12%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
 [静态演示站](https://deepresearch-agent.jacksonyu1109.workers.dev/) ·

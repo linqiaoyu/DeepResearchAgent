@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+import tempfile
 from unittest import mock
 from datetime import date
 from pathlib import Path
@@ -28,6 +29,7 @@ from deepresearch_agent.tools.disclosure_source import (
     cninfo_exchange_for_security_code,
 )
 from deepresearch_agent.settings import Settings
+from deepresearch_agent.storage import SQLiteStore
 from deepresearch_agent.workflow import DeepResearchEngine
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -349,6 +351,35 @@ class DisclosureSourceTests(unittest.TestCase):
         self.assertIn("security code or company entity", selection.criterion)
         self.assertTrue(state.agent_decisions[0].criterion)
         self.assertEqual(registry.get("disclosure_source").tool_spec, DISCLOSURE_TOOL_SPEC)
+
+    def test_default_fixture_run_reaches_primary_annual_report_path(self) -> None:
+        """Removing FixtureDisclosureSource's annual-report fixture fails this guard."""
+        with tempfile.TemporaryDirectory() as tmp:
+            storage_path = Path(tmp) / "research.db"
+            settings = Settings(storage_path=storage_path, max_critic_iter=1)
+            with DeepResearchEngine(
+                settings=settings,
+                store=SQLiteStore(storage_path),
+            ) as engine:
+                state = engine.run(
+                    topic="宁德时代 300750 2024年营业收入和归母净利润",
+                    depth_level=1,
+                )
+
+        primary_reports = [
+            source
+            for source in state.sources
+            if source.source_type == "disclosure_pdf"
+            and source.source_tier == "primary"
+        ]
+        self.assertEqual(len(primary_reports), 1)
+        self.assertTrue(primary_reports[0].url.startswith("fixture://cninfo/"))
+        self.assertTrue(
+            any(
+                evidence.source_url == primary_reports[0].url
+                for evidence in state.evidence_store
+            )
+        )
 
     def test_registry_rejects_parallel_non_toolspec_metadata(self) -> None:
         registry = CapabilityRegistry()

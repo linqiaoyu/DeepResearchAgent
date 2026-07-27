@@ -40,6 +40,10 @@ class AKShareStructuredDataProvider:
         self.timeout_seconds = timeout_seconds
         self.max_retries = max_retries
         self._sleep = sleep_func
+        self._executor = ThreadPoolExecutor(max_workers=1)
+
+    def close(self) -> None:
+        self._executor.shutdown(wait=False, cancel_futures=True)
 
     def symbol_resolve(self, company_name: str) -> SymbolInfo | None:
         query = company_name.strip()
@@ -158,10 +162,9 @@ class AKShareStructuredDataProvider:
     def _call(self, func: Callable[[], Any], capability: str) -> Any:
         last_error: Exception | None = None
         for attempt in range(self.max_retries + 1):
-            executor = ThreadPoolExecutor(max_workers=1)
             future = None
             try:
-                future = executor.submit(func)
+                future = self._executor.submit(func)
                 return future.result(timeout=self.timeout_seconds)
             except FutureTimeoutError as exc:
                 if future:
@@ -169,8 +172,6 @@ class AKShareStructuredDataProvider:
                 last_error = exc
             except Exception as exc:
                 last_error = exc
-            finally:
-                executor.shutdown(wait=False, cancel_futures=True)
             if attempt < self.max_retries:
                 self._sleep(2**attempt)
         raise AKShareStructuredDataError(f"AKShare {capability} failed: {last_error}") from last_error

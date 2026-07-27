@@ -136,7 +136,7 @@ class DemoAPITests(unittest.TestCase):
                 self.assertEqual(report.json()["report_markdown"], "# demo")
 
                 rerun = client.post("/demo/rerun/Q01")
-                self.assertEqual(rerun.status_code, 429)
+                self.assertEqual(rerun.status_code, 403)
                 self.assertNotIn("DEEPSEEK", rerun.text)
 
                 live = client.post("/demo/live", json={"topic": "demo", "depth_level": 1})

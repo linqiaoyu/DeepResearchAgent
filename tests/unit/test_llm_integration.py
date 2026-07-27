@@ -72,15 +72,16 @@ class LLMIntegrationTests(unittest.TestCase):
         self.assertEqual(request.metrics, ["营业收入", "主营业务毛利率"])
         self.assertEqual(request.periods, ["20251231"])
 
-    def test_budget_fuse_raises_after_recording_ledger(self) -> None:
+    def test_budget_reservation_rejects_before_provider_call(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             env_path = Path(tmp) / ".env"
             env_path.write_text("DEEPSEEK_API_KEY=test-key\n", encoding="utf-8")
             ledger_path = Path(tmp) / "ledger.jsonl"
+            completion = MockCompletion(['{"claims": []}'])
             client = LLMClient(
                 ledger_path=ledger_path,
                 budget_cny=0.000001,
-                completion_func=MockCompletion(['{"claims": []}']),
+                completion_func=completion,
                 sleep_func=lambda _: None,
                 env_path=env_path,
                 global_ledger_path=Path(tmp) / "global_ledger.jsonl",
@@ -94,8 +95,8 @@ class LLMIntegrationTests(unittest.TestCase):
                     messages=[{"role": "user", "content": "hello"}],
                 )
 
-            self.assertTrue(ledger_path.exists())
-            self.assertIn('"role": "extractor"', ledger_path.read_text(encoding="utf-8"))
+            self.assertFalse(ledger_path.exists())
+            self.assertEqual(completion.calls, 0)
 
     def test_v4flash_price_calibration_splits_cache_tokens(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -267,7 +268,13 @@ class LLMIntegrationTests(unittest.TestCase):
                             fallback_model="openai/deepseek-v4-flash-backup",
                             api_base="https://api.deepseek.com",
                         ),
-                    }
+                    },
+                    pricing_by_model={
+                        **DEFAULT_LLM_CONFIG.pricing_by_model,
+                        "openai/deepseek-v4-flash-backup": (
+                            *DEFAULT_LLM_CONFIG.pricing_by_model["openai/deepseek-v4-flash"],
+                        ),
+                    },
                 ),
                 completion_func=completion,
                 sleep_func=lambda _: None,

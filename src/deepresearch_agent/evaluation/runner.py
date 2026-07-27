@@ -61,8 +61,8 @@ class EvaluationHarness:
             "avg_answer_relevance": _mean_optional([r.answer_relevance for r in results]),
             "avg_faithfulness": _mean_optional([r.faithfulness for r in results]),
             "avg_latency_seconds": round(sum(r.latency_seconds for r in results) / len(results), 3),
-            "avg_cost_usd": round(sum(r.cost_usd for r in results) / len(results), 4),
-            "avg_token_used": round(sum(r.token_used for r in results) / len(results), 3),
+            "avg_cost_usd": _mean_optional([r.cost_usd for r in results]),
+            "avg_token_used": _mean_optional([r.token_used for r in results]),
             "bad_case_categories": dict(bad_case_categories),
         }
 

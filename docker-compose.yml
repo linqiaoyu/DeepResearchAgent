@@ -40,16 +40,22 @@ services:
       api:
         condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
   postgres:
     image: postgres:15
     profiles: ["postgres"]
     environment:
       POSTGRES_USER: deepresearch
-      POSTGRES_PASSWORD: deepresearch
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD before enabling the postgres profile}
       POSTGRES_DB: deepresearch
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - deepresearch_pg:/var/lib/postgresql/data
 

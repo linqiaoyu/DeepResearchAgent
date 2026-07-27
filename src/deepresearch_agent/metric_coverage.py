@@ -9,6 +9,8 @@ from pydantic import Field
 from deepresearch_agent.agents.numeric_citations import (
     is_main_business_margin_dimension,
 )
+from deepresearch_agent.domains.finance.vocabulary import canonical_metric as _finance_metric
+from deepresearch_agent.domains.finance.vocabulary import parse_period
 from deepresearch_agent.schemas import (
     Evidence,
     ResearchState,
@@ -19,18 +21,6 @@ _YEAR_RE = re.compile(r"(?<!\d)(20\d{2})(?!\d)")
 _COMPARISON_RE = re.compile(
     r"同比|较上年|比上年|上年同期|较去年|比去年"
 )
-_METRIC_ALIASES = {
-    "营收": "营业收入",
-    "营业收入": "营业收入",
-    "归母净利润": "归母净利润",
-    "归属于母公司股东的净利润": "归母净利润",
-    "归属于上市公司股东的净利润": "归母净利润",
-    "主营业务毛利率": "主营业务毛利率",
-    # The planner resolves an unqualified 毛利率 request to the main-business
-    # contract.  PDF extractors commonly preserve the table header verbatim,
-    # so that exact evidence label must close the same typed requirement.
-    "毛利率": "主营业务毛利率",
-}
 
 
 class MetricRequirement(StrictModel):
@@ -109,15 +99,7 @@ def evaluate_metric_coverage(
             )
             for item in matches
         )
-        complete = bool(evidence_ids) and (
-            not missing_periods
-            or _comparison_closes_missing_periods(
-                requirement.periods,
-                observed_periods,
-                missing_periods,
-                comparison_observed,
-            )
-        )
+        complete = bool(evidence_ids) and not missing_periods
         attempted = requirement.sub_question_id in state.completed_tasks
         if complete:
             status = "cited"
@@ -155,20 +137,11 @@ def evaluate_metric_coverage(
 
 
 def canonical_metric(value: str | None) -> str:
-    if not value:
-        return ""
-    normalized = re.sub(r"[\s：:（）()]", "", value)
-    return _METRIC_ALIASES.get(normalized, normalized)
+    return _finance_metric(value)
 
 
 def _period_key(value: str | None) -> str:
-    if not value:
-        return ""
-    rendered = str(value).strip()
-    if re.fullmatch(r"20\d{6}", rendered):
-        return rendered[:4]
-    match = _YEAR_RE.search(rendered)
-    return match.group(1) if match else rendered
+    return parse_period(value)
 
 
 def _evidence_metric(evidence: Evidence) -> str | None:
@@ -221,16 +194,3 @@ def _evidence_periods(evidence: Evidence) -> set[str]:
         periods.add(_period_key(evidence.numeric_fields.period))
     periods.discard("")
     return periods
-
-
-def _comparison_closes_missing_periods(
-    requested_periods: list[str],
-    observed_periods: list[str],
-    missing_periods: list[str],
-    comparison_observed: bool,
-) -> bool:
-    # A textual “同比” is not a mechanically recoverable prior-period value.
-    # Keep the argument for backwards-compatible callers, but never turn prose
-    # into coverage.
-    del requested_periods, observed_periods, missing_periods, comparison_observed
-    return False

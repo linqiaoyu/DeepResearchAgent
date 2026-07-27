@@ -51,10 +51,12 @@ STRUCTURED_DATA_TOOL_SPEC = ToolSpec(
 class TrajectoryStructuredDataProvider:
     """Record structured-provider calls without changing provider semantics."""
 
-    fidelity = "replay"
-
     def __init__(self, provider: StructuredDataProvider) -> None:
         self.provider = provider
+
+    @property
+    def fidelity(self) -> str:
+        return str(getattr(self.provider, "fidelity", "unknown"))
 
     def symbol_resolve(self, company_name: str) -> SymbolInfo | None:
         return self._call(

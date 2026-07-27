@@ -5,9 +5,7 @@ import os
 import threading
 import time
 from uuid import uuid4
-from collections.abc import Iterator
-from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -20,6 +18,7 @@ from deepresearch_agent.progressive_delivery import (
 )
 from deepresearch_agent.settings import Settings, load_settings, project_root
 from deepresearch_agent.workflow import DeepResearchEngine
+from deepresearch_agent.tools import build_search_provider, build_structured_data_provider
 
 
 class DemoLimitExceeded(RuntimeError):
@@ -105,8 +104,10 @@ class DailyCostGuard:
         if self.state_path.exists():
             try:
                 loaded = json.loads(self.state_path.read_text(encoding="utf-8"))
-            except json.JSONDecodeError:
-                loaded = {}
+            except json.JSONDecodeError as exc:
+                raise DemoLimitExceeded(
+                    "Daily LLM demo budget state is corrupted; refusing new runs."
+                ) from exc
             if isinstance(loaded, dict) and loaded.get("date") == today:
                 state["spent_cny"] = float(loaded.get("spent_cny", 0.0) or 0.0)
                 state["reserved_cny"] = float(loaded.get("reserved_cny", 0.0) or 0.0)
@@ -115,7 +116,9 @@ class DailyCostGuard:
 
     def _write_state(self, state: dict[str, Any]) -> None:
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
-        self.state_path.write_text(json.dumps(state, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        temporary = self.state_path.with_suffix(self.state_path.suffix + ".tmp")
+        temporary.write_text(json.dumps(state, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        os.replace(temporary, self.state_path)
 
     def _payload(self, state: dict[str, Any]) -> dict[str, Any]:
         spent = float(state["spent_cny"])
@@ -299,14 +302,16 @@ class DemoJobStore:
             return {"jobs": []}
         try:
             payload = json.loads(self.path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
-            return {"jobs": []}
+        except json.JSONDecodeError as exc:
+            raise RuntimeError("Demo job state is corrupted; refusing to discard jobs.") from exc
         if not isinstance(payload, dict) or not isinstance(payload.get("jobs"), list):
-            return {"jobs": []}
+            raise RuntimeError("Demo job state has an invalid schema.")
         return payload
 
     def _write_state(self, state: dict[str, Any]) -> None:
-        self.path.write_text(json.dumps(state, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        temporary = self.path.with_suffix(self.path.suffix + ".tmp")
+        temporary.write_text(json.dumps(state, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        os.replace(temporary, self.path)
 
 
 class DemoJobManager:
@@ -346,6 +351,12 @@ class DemoJobManager:
         while True:
             job = self.store.next_queued()
             if not job:
+                # Clear the worker only after rechecking under the same lock
+                # used by enqueue, so an arriving job cannot lose its wakeup.
+                with self._worker_lock:
+                    if self.store.next_queued() is None:
+                        self._worker = None
+                        return
                 return
             self.store.mark_running(job["job_id"])
             try:
@@ -498,7 +509,7 @@ class DemoService:
             run_stamp = f"{run_label}-{int(time.time() * 1000)}"
             storage_path = self.runtime_dir / f"{run_stamp}.db"
             ledger_path = self.settings.llm_ledger_path
-            env = {
+            provider_env = {
                 "DEEPRESEARCH_MODE": "llm",
                 "DEEPRESEARCH_SEARCH_PROVIDER": search_provider,
                 "DEEPRESEARCH_SEARCH_RECORDING_MODE": search_recording_mode,
@@ -510,8 +521,20 @@ class DemoService:
                 "DEEPRESEARCH_AS_OF": self.settings.demo_as_of.isoformat(),
             }
             try:
-                with _temporary_environ(env):
-                    state = DeepResearchEngine().run(topic=topic, depth_level=depth_level)
+                run_settings = replace(
+                    self.settings,
+                    execution_mode="llm",
+                    storage_path=storage_path,
+                    llm_ledger_path=ledger_path,
+                    as_of=self.settings.demo_as_of,
+                )
+                state = DeepResearchEngine(
+                    settings=run_settings,
+                    search_tool=build_search_provider(
+                        provider_env, as_of=run_settings.as_of
+                    ),
+                    structured_data_provider=build_structured_data_provider(provider_env),
+                ).run(topic=topic, depth_level=depth_level)
             except Exception:
                 # A provider can charge before surfacing an error; retain the
                 # bounded reservation instead of leaving an unaccounted spend.
@@ -539,27 +562,15 @@ class DemoService:
 
 
 def _state_cost_cny(state: ResearchState) -> float:
+    candidates: list[float] = []
     if state.evaluation and state.evaluation.cost_cny is not None:
-        return float(state.evaluation.cost_cny)
+        candidates.append(float(state.evaluation.cost_cny))
     usage = state.metadata.get("llm_usage", {})
     if isinstance(usage, dict):
-        return float(usage.get("total_cost_cny", 0.0) or 0.0)
-    return 0.0
+        candidates.append(float(usage.get("total_cost_cny", 0.0) or 0.0))
+    candidates.append(float(state.metadata.get("llm_run_total_cny", 0.0) or 0.0))
+    return max(candidates, default=0.0)
 
 
 def _utc_timestamp() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-
-
-@contextmanager
-def _temporary_environ(values: dict[str, str]) -> Iterator[None]:
-    previous = {key: os.environ.get(key) for key in values}
-    os.environ.update(values)
-    try:
-        yield
-    finally:
-        for key, value in previous.items():
-            if value is None:
-                os.environ.pop(key, None)
-            else:
-                os.environ[key] = value

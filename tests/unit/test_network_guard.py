@@ -15,6 +15,11 @@ class UnitNetworkGuardTests(unittest.TestCase):
             ):
                 sock.connect(("198.51.100.1", 443))
 
+    def test_external_connection_ex_is_rejected(self) -> None:
+        with socket.socket() as sock:
+            with self.assertRaisesRegex(AssertionError, "test attempted network egress"):
+                sock.connect_ex(("198.51.100.1", 443))
+
     @allow_network
     def test_opt_out_marker_is_explicit(self) -> None:
         self.assertTrue(getattr(self.test_opt_out_marker_is_explicit, "_deepresearch_allow_network"))

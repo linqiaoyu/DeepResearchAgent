@@ -87,12 +87,14 @@ def classify_tool_error(error: BaseException) -> ToolErrorKind:
 class RetryBudget:
     max_retries: int
     consumed: int = 0
+    _lock: Any = field(default_factory=threading.Lock, repr=False, compare=False)
 
     def consume(self) -> bool:
-        if self.consumed >= self.max_retries:
-            return False
-        self.consumed += 1
-        return True
+        with self._lock:
+            if self.consumed >= self.max_retries:
+                return False
+            self.consumed += 1
+            return True
 
 
 @dataclass
@@ -205,33 +207,37 @@ class CircuitBreaker:
     consecutive_failures: int = 0
     opened_at: float | None = None
     _half_open_probes_taken: int = 0
+    _lock: Any = field(default_factory=threading.Lock, repr=False, compare=False)
 
     def allow_call(self) -> bool:
-        if self.state == CircuitState.CLOSED:
-            return True
-        if self.state == CircuitState.OPEN:
-            if self.opened_at is None or self.clock() - self.opened_at < self.cooldown_s:
+        with self._lock:
+            if self.state == CircuitState.CLOSED:
+                return True
+            if self.state == CircuitState.OPEN:
+                if self.opened_at is None or self.clock() - self.opened_at < self.cooldown_s:
+                    return False
+                self.state = CircuitState.HALF_OPEN
+                self._half_open_probes_taken = 0
+            if self._half_open_probes_taken >= self.half_open_max_calls:
                 return False
-            self.state = CircuitState.HALF_OPEN
-            self._half_open_probes_taken = 0
-        if self._half_open_probes_taken >= self.half_open_max_calls:
-            return False
-        self._half_open_probes_taken += 1
-        return True
+            self._half_open_probes_taken += 1
+            return True
 
     def record_success(self) -> None:
-        self.state = CircuitState.CLOSED
-        self.consecutive_failures = 0
-        self.opened_at = None
-        self._half_open_probes_taken = 0
+        with self._lock:
+            self.state = CircuitState.CLOSED
+            self.consecutive_failures = 0
+            self.opened_at = None
+            self._half_open_probes_taken = 0
 
     def record_failure(self) -> None:
-        if self.state == CircuitState.HALF_OPEN:
-            self._open()
-            return
-        self.consecutive_failures += 1
-        if self.consecutive_failures >= self.failure_threshold:
-            self._open()
+        with self._lock:
+            if self.state == CircuitState.HALF_OPEN:
+                self._open()
+                return
+            self.consecutive_failures += 1
+            if self.consecutive_failures >= self.failure_threshold:
+                self._open()
 
     def _open(self) -> None:
         self.state = CircuitState.OPEN

@@ -54,7 +54,7 @@ class Settings:
     structured_output_enabled: bool = True
     progressive_delivery_enabled: bool = False
     trajectory_record_enabled: bool = False
-    branch_budget_enabled: bool = False
+    branch_budget_enabled: bool = True
     branch_total_budget: int = 20
     branch_single_cap: int = 10
     research_loop_enabled: bool = False
@@ -195,7 +195,7 @@ def load_settings() -> Settings:
         structured_output_enabled=_env_flag("STRUCTURED_OUTPUT_ENABLED", default=True),
         progressive_delivery_enabled=_env_flag("PROGRESSIVE_DELIVERY_ENABLED"),
         trajectory_record_enabled=_env_flag("TRAJECTORY_RECORD_ENABLED"),
-        branch_budget_enabled=_env_flag("BRANCH_BUDGET_ENABLED"),
+        branch_budget_enabled=_env_flag("BRANCH_BUDGET_ENABLED", default=True),
         branch_total_budget=int(
             os.getenv("DEEPRESEARCH_BRANCH_TOTAL_BUDGET", "20")
         ),

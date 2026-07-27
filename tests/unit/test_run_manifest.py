@@ -79,6 +79,7 @@ class RunManifestTests(unittest.TestCase):
                     settings.procedural_memory_enabled
                 ),
                 "STRUCTURED_OUTPUT_ENABLED": settings.structured_output_enabled,
+                "BRANCH_BUDGET_ENABLED": settings.branch_budget_enabled,
                 "DYNAMIC_CAPABILITY_ENABLED": settings.dynamic_capability_enabled,
             },
         )

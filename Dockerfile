@@ -3,7 +3,7 @@ FROM python:3.12.10-slim-bookworm AS builder
 WORKDIR /build
 COPY pyproject.toml README.md /build/
 COPY src /build/src
-RUN python -m pip wheel --no-cache-dir --wheel-dir /wheels .
+RUN python -m pip wheel --no-cache-dir --wheel-dir /wheels ".[finance,ui]"
 
 FROM python:3.12.10-slim-bookworm AS runtime
 
@@ -16,7 +16,7 @@ RUN groupadd --system --gid 10001 deepresearch \
 
 WORKDIR /app
 COPY --from=builder /wheels /wheels
-RUN python -m pip install --no-cache-dir --no-index --find-links=/wheels deepresearch-agent \
+RUN python -m pip install --no-cache-dir --no-index --find-links=/wheels "deepresearch-agent[finance,ui]" \
     && rm -rf /wheels
 
 COPY src /app/src

@@ -148,7 +148,8 @@ class MCPServerTest(unittest.TestCase):
         run_payload = run_result["structuredContent"]
         self.assertEqual("deterministic", run_payload["mode"])
         self.assertGreater(run_payload["evidence_count"], 0)
-        self.assertGreater(run_payload["estimated_cost_cny"], 0.0)
+        self.assertIsNone(run_payload["estimated_cost_cny"])
+        self.assertEqual(run_payload["operational_measurement"], "unavailable")
         self.assertEqual(0.0, run_payload["real_api_cost_cny"])
 
         evidence_response = self._call(

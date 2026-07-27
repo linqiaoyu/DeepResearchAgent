@@ -314,10 +314,13 @@ class EvaluationResult(StrictModel):
     faithfulness: float | None = Field(default=None, ge=0, le=1)
     faithfulness_reason: str | None = None
     latency_seconds: float = Field(ge=0)
-    cost_usd: float = Field(ge=0)
+    # Only an LLM ledger may populate usage metrics.  Fixture runs must not
+    # manufacture token or currency figures from workflow constants.
+    cost_usd: float | None = Field(default=None, ge=0)
     cost_cny: float | None = Field(default=None, ge=0)
     price_source: str | None = None
-    token_used: int = Field(ge=0)
+    token_used: int | None = Field(default=None, ge=0)
+    operational_measurement: Literal["llm_ledger", "unavailable"] = "unavailable"
     bad_case_categories: dict[str, int] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=utc_now)
 

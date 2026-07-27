@@ -127,7 +127,16 @@ class MCPResearchService:
             "status": state.status,
             "mode": settings.execution_mode,
             "evidence_count": len(state.evidence_store),
-            "estimated_cost_cny": state.cost_used,
+            # Fixture execution has no provider ledger.  Do not present an
+            # invented workflow constant as a monetary estimate.
+            "estimated_cost_cny": (
+                state.evaluation.cost_cny if state.evaluation else None
+            ),
+            "operational_measurement": (
+                state.evaluation.operational_measurement
+                if state.evaluation
+                else "unavailable"
+            ),
             "real_api_cost_cny": 0.0,
         }
 

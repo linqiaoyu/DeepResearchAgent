@@ -31,6 +31,8 @@ from deepresearch_agent.trajectory import ToolCallTrace, active_trajectory_recor
 CNINFO_QUERY_ENDPOINT = "https://www.cninfo.com.cn/new/hisAnnouncement/query"
 CNINFO_STOCK_ENDPOINT = "https://www.cninfo.com.cn/new/data/szse_stock.json"
 CNINFO_PDF_ROOT = "https://static.cninfo.com.cn/"
+_ORG_ID_CACHE: dict[str, str] = {}
+_ORG_ID_CACHE_LOCK = threading.Lock()
 DISCLOSURE_TOOL_SPEC = ToolSpec(
     name="disclosure_source",
     version="1.0.0",
@@ -79,6 +81,23 @@ class FixtureDisclosureSource:
 
     fidelity = "fixture"
 
+    _ANNUAL_REPORT = Source(
+        id="fixture-primary-catl-2024",
+        title="宁德时代新能源科技股份有限公司2024年年度报告",
+        url="fixture://cninfo/300750/2024-annual-report",
+        source_type="disclosure_pdf",
+        source_tier="primary",
+        published_at=date(2025, 3, 15),
+        credibility=1.0,
+        content=(
+            "[[PDF_PAGE=1]]\n宁德时代新能源科技股份有限公司2024年年度报告\n"
+            "主要会计数据\n单位：人民币百万元\n"
+            "2024年 2023年 2022年\n"
+            "营业收入 362013 400917 328594 -9.70\n"
+            "归属于上市公司股东的净利润 50745 44121 30729 15.01\n"
+        ),
+    )
+
     def set_run_context(self, context: RunToolContext) -> None:
         del context
 
@@ -91,7 +110,9 @@ class FixtureDisclosureSource:
         *,
         preferred_terms: tuple[str, ...] = (),
     ) -> list[Source]:
-        del security_code, keyword, start_date, end_date, preferred_terms
+        del start_date, end_date, preferred_terms
+        if security_code == "300750" and keyword == "年度报告":
+            return [self._ANNUAL_REPORT]
         return []
 
 
@@ -116,6 +137,7 @@ class CninfoDisclosureSource:
         executor: ReliableToolExecutor | None = None,
         tool_spec: ToolSpec = DISCLOSURE_TOOL_SPEC,
     ) -> None:
+        self._owns_client = client is None
         self.client = client or httpx.Client(headers={
             "User-Agent": "Mozilla/5.0 (compatible; DeepResearchAgent/0.1)",
             "Referer": "https://www.cninfo.com.cn/",
@@ -132,6 +154,17 @@ class CninfoDisclosureSource:
 
     def set_run_context(self, context: RunToolContext) -> None:
         self.context = context
+
+    def close(self) -> None:
+        close = getattr(self.client, "close", None)
+        if callable(close):
+            close()
+
+    def __enter__(self) -> "CninfoDisclosureSource":
+        return self
+
+    def __exit__(self, *_args: object) -> None:
+        self.close()
 
     @property
     def timed_out_operation_pending(self) -> bool:
@@ -315,16 +348,26 @@ class CninfoDisclosureSource:
     ) -> list[Source]:
         try:
             column, plate = cninfo_exchange_for_security_code(inputs["security_code"])
-            self._consume_egress("fetch", context=context, scope=scope)
-            stock = self.client.get(
-                CNINFO_STOCK_ENDPOINT, timeout=30.0, follow_redirects=True
-            )
-            scope.raise_if_cancelled()
-            stock.raise_for_status()
-            org_id = next((
-                str(item["orgId"]) for item in stock.json().get("stockList", [])
-                if item.get("code") == inputs["security_code"]
-            ), "")
+            with _ORG_ID_CACHE_LOCK:
+                org_id = (
+                    _ORG_ID_CACHE.get(inputs["security_code"], "")
+                    if self._owns_client
+                    else ""
+                )
+            if not org_id:
+                self._consume_egress("fetch", context=context, scope=scope)
+                stock = self.client.get(
+                    CNINFO_STOCK_ENDPOINT, timeout=30.0, follow_redirects=True
+                )
+                scope.raise_if_cancelled()
+                stock.raise_for_status()
+                org_id = next((
+                    str(item["orgId"]) for item in stock.json().get("stockList", [])
+                    if item.get("code") == inputs["security_code"]
+                ), "")
+                if org_id and self._owns_client:
+                    with _ORG_ID_CACHE_LOCK:
+                        _ORG_ID_CACHE[inputs["security_code"]] = org_id
             if not org_id:
                 raise DisclosureSourceError(
                     ToolErrorKind.NOT_FOUND,
@@ -390,6 +433,10 @@ class CninfoDisclosureSource:
             # when the endpoint does not expose an exact full-report title.
             if full_chinese_reports:
                 candidates = full_chinese_reports[:1]
+        # A single research branch needs one authoritative document.  Keeping
+        # this bound for every keyword preserves the documented 120s attempt
+        # ceiling and prevents overlapping PDFs from entering one context.
+        candidates = candidates[:1]
         if candidates and not any(
             isinstance(item, Mapping) and item.get("adjunctUrl")
             for item in candidates

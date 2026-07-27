@@ -34,7 +34,11 @@ class HarnessTests(unittest.TestCase):
             "avg_token_used",
             "bad_case_categories",
         }
-        numeric_aggregate_keys = expected_keys - {"bad_case_categories"}
+        numeric_aggregate_keys = expected_keys - {
+            "bad_case_categories",
+            "avg_cost_usd",
+            "avg_token_used",
+        }
         rate_metric_keys = {
             "avg_task_success_rate",
             "avg_citation_accuracy",
@@ -43,11 +47,7 @@ class HarnessTests(unittest.TestCase):
             "avg_answer_relevance",
             "avg_faithfulness",
         }
-        non_negative_metric_keys = {
-            "avg_latency_seconds",
-            "avg_cost_usd",
-            "avg_token_used",
-        }
+        non_negative_metric_keys = {"avg_latency_seconds"}
 
         self.assertTrue(expected_keys.issubset(summary.keys()))
         self.assertIsInstance(summary["cases"], int)
@@ -64,6 +64,10 @@ class HarnessTests(unittest.TestCase):
         for key in non_negative_metric_keys:
             with self.subTest(key=key):
                 self.assertGreaterEqual(summary[key], 0.0)
+        # Fixture runs have no provider ledger.  The harness must make that
+        # absence explicit rather than emitting synthetic cost/token figures.
+        self.assertIsNone(summary["avg_cost_usd"])
+        self.assertIsNone(summary["avg_token_used"])
 
     def test_metric_diff_allows_latency_fluctuation(self) -> None:
         baseline = {

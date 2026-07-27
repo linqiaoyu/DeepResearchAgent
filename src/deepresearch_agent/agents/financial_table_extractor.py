@@ -8,6 +8,7 @@ from uuid import NAMESPACE_URL, uuid5
 from deepresearch_agent.agents.numeric_citations import (
     is_main_business_margin_dimension,
 )
+from deepresearch_agent.domains.finance.vocabulary import canonical_metric as _finance_metric
 from deepresearch_agent.schemas import (
     Evidence,
     NumericFields,
@@ -39,15 +40,6 @@ _MARGIN_ROW_RE = re.compile(
     r"(?P<change_unit>个百\s*分点|个百分点)"
 )
 _PERIOD_RE = re.compile(r"(?<!\d)((?:19|20)\d{2})(?!\d)")
-_METRIC_ALIASES = {
-    "营收": "营业收入",
-    "营业收入": "营业收入",
-    "归母净利润": "归母净利润",
-    "归属于母公司股东的净利润": "归母净利润",
-    "归属于上市公司股东的净利润": "归母净利润",
-    "毛利率": "主营业务毛利率",
-    "主营业务毛利率": "主营业务毛利率",
-}
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,10 +73,19 @@ class _MarginRow:
     direction: str
 
 
+@dataclass(frozen=True, slots=True)
+class AuthoritativeParseRejection:
+    reason: str
+    page: int | None = None
+    matched_text: str | None = None
+
+
 def authoritative_financial_backfills(
     research_id: str,
     sub_question: SubQuestion,
     sources: list[Source],
+    *,
+    rejections: list[AuthoritativeParseRejection] | None = None,
 ) -> list[Evidence]:
     """Backfill typed financial facts from verbatim primary annual-report rows.
 
@@ -110,7 +111,7 @@ def authoritative_financial_backfills(
             periods = requirements.get(metric, [])
             if not periods:
                 continue
-            row = _find_statement_row(metric, pages, periods)
+            row = _find_statement_row(metric, pages, periods, rejections)
             if row is None:
                 continue
             period_values = _period_values(periods, row)
@@ -142,6 +143,7 @@ def authoritative_financial_backfills(
             row = _find_main_business_margin(
                 pages,
                 current_period,
+                rejections,
             )
             if row is not None:
                 evidence.append(
@@ -291,6 +293,7 @@ def _find_statement_row(
     metric: str,
     pages: list[_PdfPage],
     periods: list[str],
+    rejections: list[AuthoritativeParseRejection] | None = None,
 ) -> _StatementRow | None:
     label = _STATEMENT_LABELS[metric]
     pattern = re.compile(
@@ -318,9 +321,11 @@ def _find_statement_row(
             len(header_periods) != 3
             or header_periods[0] != max(periods)
         ):
+            _reject(rejections, "unexpected_statement_header_periods", page, header[-160:])
             continue
         unit_info = _amount_unit(prefix)
         if unit_info is None:
+            _reject(rejections, "unsupported_or_missing_amount_unit", page, prefix[-160:])
             continue
         unit, unit_offset = unit_info
         if not _yoy_matches(
@@ -328,6 +333,7 @@ def _find_statement_row(
             match.group("prior"),
             match.group("yoy"),
         ):
+            _reject(rejections, "statement_yoy_mismatch", page, match.group(0))
             continue
         extract_start = unit_offset
         return _StatementRow(
@@ -359,6 +365,7 @@ def _find_statement_row(
 def _find_main_business_margin(
     pages: list[_PdfPage],
     current_period: str,
+    rejections: list[AuthoritativeParseRejection] | None = None,
 ) -> _MarginRow | None:
     for page in pages:
         start = page.body.find("主营业务分行业情况")
@@ -391,6 +398,7 @@ def _find_main_business_margin(
             if _margin_matches_arithmetic(match)
         ]
         if not matches:
+            _reject(rejections, "main_business_margin_arithmetic_mismatch", page, section[-160:])
             continue
         totals = [
             match
@@ -406,30 +414,45 @@ def _find_main_business_margin(
             else None
         )
         if selected is None:
+            _reject(rejections, "ambiguous_main_business_margin_row", page, section[-160:])
             continue
         raw_dimension = selected.group("dimension").strip()
         dimension = f"主营业务分行业：{raw_dimension}"
         if not is_main_business_margin_dimension(dimension):
+            _reject(rejections, "unsupported_main_business_margin_dimension", page, raw_dimension)
             continue
         direction = _comparison_direction(
             selected.group("direction"),
             selected.group("margin_yoy"),
         )
+        extract_start = max(0, page.body.rfind("单位", 0, start))
         extract_end = start + selected.end()
         return _MarginRow(
             page=page.number,
-            extract_text=page.body[:extract_end].lstrip("\n"),
-            extract_offset=(
-                page.body_offset
-                + len(page.body)
-                - len(page.body.lstrip("\n"))
-            ),
+            extract_text=page.body[extract_start:extract_end].strip(),
+            extract_offset=page.body_offset + extract_start,
             dimension=dimension,
             current=selected.group("margin"),
             yoy=selected.group("margin_yoy"),
             direction=direction,
         )
     return None
+
+
+def _reject(
+    rejections: list[AuthoritativeParseRejection] | None,
+    reason: str,
+    page: _PdfPage,
+    matched_text: str,
+) -> None:
+    if rejections is not None:
+        rejections.append(
+            AuthoritativeParseRejection(
+                reason=reason,
+                page=page.number,
+                matched_text=matched_text[:200],
+            )
+        )
 
 
 def _period_values(
@@ -556,7 +579,7 @@ def _amount_unit(
 ) -> tuple[str, int] | None:
     matches = list(
         re.finditer(
-            r"单位\s*[:：]\s*(?:人民币)?\s*(亿元|万元|元)",
+            r"单位\s*[:：]\s*(?:人民币)?\s*(亿元|百万元|万元|千元|元)",
             prefix,
         )
     )
@@ -644,11 +667,12 @@ def _entity(
     for request in sub_question.structured_data_requests:
         if request.company_name:
             return request.company_name
-    return re.sub(
+    title = re.sub(
         r"\d{4}\s*年.*$",
         "",
         source.title,
     ).strip()
+    return re.sub(r"^(?:关于|有关)", "", title).strip(" ：:")
 
 
 def _canonical_metric(value: str | None) -> str:
@@ -657,7 +681,7 @@ def _canonical_metric(value: str | None) -> str:
         "",
         value or "",
     )
-    return _METRIC_ALIASES.get(normalized, normalized)
+    return _finance_metric(normalized)
 
 
 def _evidence_slot(

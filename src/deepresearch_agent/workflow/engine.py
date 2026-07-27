@@ -368,6 +368,20 @@ class DeepResearchEngine:
         # than silently cross-contaminate concurrent requests.
         self._run_lock = threading.RLock()
 
+    def close(self) -> None:
+        """Release process resources owned by this engine deterministically."""
+        self._checkpoint_conn.close()
+        for capability in ("disclosure_source", "structured_data_provider"):
+            close = getattr(self.capability_registry.resolve(capability), "close", None)
+            if callable(close):
+                close()
+
+    def __enter__(self) -> "DeepResearchEngine":
+        return self
+
+    def __exit__(self, *_args: object) -> None:
+        self.close()
+
     def run(
         self,
         topic: str | None = None,
@@ -1817,6 +1831,24 @@ class DeepResearchEngine:
         state.metadata["sources_by_subquestion"] = sources_by_subquestion
         state.metadata["structured_data_stats"] = structured_stats_batches
         state.metadata["symbol_resolutions"] = symbol_resolution_batches
+        structured_failures = [
+            {"sub_question_id": sub_question_id, **failure}
+            for sub_question_id, stats in structured_stats_batches.items()
+            if isinstance(stats, dict)
+            for failure in stats.get("failures", [])
+            if isinstance(failure, dict)
+        ]
+        if structured_failures:
+            state.metadata.setdefault("degradation_events", []).extend(
+                {
+                    "tool": "structured_data_provider",
+                    "reason": "structured_data_execution_failure",
+                    "impact": "structured evidence unavailable for a requested capability",
+                    "attempts": 1,
+                    **failure,
+                }
+                for failure in structured_failures
+            )
         if self._branch_budget_enabled() and self.branch_budget:
             for sub_question in state.plan.sub_questions:
                 used = int(budget_usage.get(sub_question.id, 0))
@@ -1851,8 +1883,6 @@ class DeepResearchEngine:
         state.pending_tasks = []
         for item in state.todo_list:
             item.status = "done"
-        state.token_used += 1_500
-        state.cost_used += 0.004
         return self._state_output(
             self._complete_phase(state, graph_state, completed_phase="researching", next_phase="extracting")
         )
@@ -1940,8 +1970,6 @@ class DeepResearchEngine:
             },
         )
         if state.critic_report.passed:
-            state.token_used += 1_700 * max(state.critic_iteration, 1)
-            state.cost_used += 0.005 * max(state.critic_iteration, 1)
             return self._state_output(
                 self._complete_phase(state, graph_state, completed_phase="critiquing", next_phase="reporting")
             )
@@ -2569,8 +2597,6 @@ class DeepResearchEngine:
         if self.settings.execution_mode == "llm":
             state.metadata.setdefault("llm_stats", {})["reporter"] = self.reporter.last_stats
             self._sync_llm_usage(state)
-        else:
-            state.token_used += self._estimate_tokens(state.final_report)
         return self._state_output(
             self._complete_phase(state, graph_state, completed_phase="reporting", next_phase="evaluating")
         )
@@ -2666,8 +2692,6 @@ class DeepResearchEngine:
             for item in state.plan.sub_questions
         ]
         state.pending_tasks = [item.id for item in state.plan.sub_questions]
-        state.token_used += 900
-        state.cost_used += 0.002
 
     def _apply_procedural_memory(self, state: ResearchState) -> None:
         """Adopt only an observed sufficient strategy for the same question type."""
@@ -2753,6 +2777,11 @@ class DeepResearchEngine:
         for sub_question in state.plan.sub_questions:
             relevant_sources = self._sources_for_subquestion(state, sub_question.id)
             extracted = self.extractor.extract(state.research_id, sub_question, relevant_sources)
+            rejections = self.extractor.last_stats.get("authoritative_parse_rejections", [])
+            if rejections:
+                state.metadata.setdefault("authoritative_parse_rejections", []).extend(
+                    [{"sub_question_id": sub_question.id, **item} for item in rejections]
+                )
             if self.settings.execution_mode == "llm":
                 state.metadata.setdefault("llm_stats", {}).setdefault("extractor", []).append(
                     {"sub_question_id": sub_question.id, **self.extractor.last_stats}
@@ -2761,8 +2790,6 @@ class DeepResearchEngine:
                 evidence_by_id[item.id] = item
         state.evidence_store = self._sorted_evidence(list(evidence_by_id.values()))
         self.store.add_evidence_many(state.evidence_store)
-        state.token_used += 2_300
-        state.cost_used += 0.006
 
     def _retry_target_subquestion(
         self,

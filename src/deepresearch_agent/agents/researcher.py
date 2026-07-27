@@ -16,6 +16,8 @@ from deepresearch_agent.schemas import (
     StructuredDataRecord,
     SubQuestion,
 )
+from deepresearch_agent.domains.protocols import DomainPack
+from deepresearch_agent.domains.finance import FinanceDomainPack
 from deepresearch_agent.tools import (
     FetchProvider,
     FixtureSearchTool,
@@ -40,6 +42,7 @@ class ResearcherAgent:
         fetch_tool: FetchProvider | None = None,
         disclosure_source: object | None = None,
         as_of: date | None = None,
+        domain_pack: DomainPack | None = None,
     ) -> None:
         self.search_tool = search_tool or FixtureSearchTool()
         self.fetch_tool = fetch_tool or self.search_tool
@@ -47,6 +50,7 @@ class ResearcherAgent:
         self.max_searches_per_run = max_searches_per_run
         self.disclosure_source = disclosure_source
         self.as_of = as_of or date.today()
+        self.domain_pack = domain_pack or FinanceDomainPack()
         self.searches_used = 0
         self._search_budget_lock = Lock()
 
@@ -126,7 +130,9 @@ class ResearcherAgent:
                 request.capability == "financial_indicators"
                 for request in sub_question.structured_data_requests
             )
-            keyword = "年度报告" if financial_intent else "公告"
+            keyword = self.domain_pack.primary_source_keyword(
+                financial_intent=financial_intent
+            )
             if code and consume_call():
                 disclosure_started = time.perf_counter()
                 disclosed = self.disclosure_source.search(
@@ -325,6 +331,7 @@ class ResearcherAgent:
             "symbol_resolution_failures": 0,
             "execution_failures": 0,
         }
+        failures: list[dict[str, str]] = []
         symbol_resolutions: list[dict[str, object]] = []
         for request in sub_question.structured_data_requests:
             try:
@@ -369,6 +376,15 @@ class ResearcherAgent:
                 stats["execution_failures"] += 1
                 key = f"failure_type_{type(exc).__name__}"
                 stats[key] = int(stats.get(key, 0)) + 1
+                failures.append(
+                    {
+                        "capability": request.capability,
+                        "error_type": type(exc).__name__,
+                        "message": str(exc)[:500],
+                    }
+                )
+        if failures:
+            stats["failures"] = failures
         return evidence, stats, symbol_resolutions
 
     def _resolve_symbol(self, company_name: str | None) -> str | None:
