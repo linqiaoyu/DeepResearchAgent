@@ -4,7 +4,6 @@
   "src/deepresearch_agent/evaluation/golden.py": 1,
   "src/deepresearch_agent/memory/prior.py": 1,
   "src/deepresearch_agent/orchestration/research_loop.py": 4,
-  "src/deepresearch_agent/research_snapshot.py": 3,
   "src/deepresearch_agent/schemas.py": 1,
   "src/deepresearch_agent/tools/disclosure_source.py": 2
 }

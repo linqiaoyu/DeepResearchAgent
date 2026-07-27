@@ -10,6 +10,7 @@ from deepresearch_agent.research_snapshot import (
     NormalizedClaimKey,
     ResearchSnapshot,
     SnapshotClaim,
+    build_demo_followup,
     diff_research_snapshots,
     render_snapshot_diff_markdown,
 )
@@ -99,6 +100,23 @@ def snapshot(
 
 
 class ResearchSnapshotDiffTests(unittest.TestCase):
+    def test_demo_followup_uses_finance_pack_candidates(self) -> None:
+        baseline = snapshot(
+            [
+                claim("revenue", metric="营业收入", value=100.0),
+                claim("non-recurring", metric="扣非净利润", value=50.0),
+            ]
+        )
+
+        followup = build_demo_followup(baseline, as_of=date(2026, 7, 10))
+
+        revenue = next(item for item in followup.claims if item.key.metric == "营业收入")
+        non_recurring = next(
+            item for item in followup.claims if item.key.metric == "扣非净利润"
+        )
+        self.assertEqual(revenue.value, 112.0)
+        self.assertTrue(non_recurring.key.scope.endswith("-调整口径"))
+
     def test_detects_all_six_change_categories(self) -> None:
         old = snapshot(
             [

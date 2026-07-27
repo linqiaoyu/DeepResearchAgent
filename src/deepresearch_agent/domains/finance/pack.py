@@ -102,6 +102,31 @@ class FinanceDomainPack:
 
         return evidence_matches_metric(evidence, required_metric)
 
+    def demo_numeric_claim(self, claims: list[object]) -> object | None:
+        from deepresearch_agent.domains.finance.research_snapshot import (
+            demo_numeric_claim,
+        )
+
+        return demo_numeric_claim(claims)
+
+    def demo_scope_claim(
+        self,
+        claims: list[object],
+        numeric_change: object | None,
+    ) -> object | None:
+        from deepresearch_agent.domains.finance.research_snapshot import (
+            demo_scope_claim,
+        )
+
+        return demo_scope_claim(claims, numeric_change)
+
+    def scope_change_summary(self, label: str) -> str:
+        from deepresearch_agent.domains.finance.research_snapshot import (
+            scope_change_summary,
+        )
+
+        return scope_change_summary(label)
+
     def metric_skill_applicable(self, metadata: object, context: str) -> bool:
         from deepresearch_agent.domains.finance.skills import (
             finance_metric_skill_applicable,

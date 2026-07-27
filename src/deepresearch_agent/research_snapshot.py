@@ -16,6 +16,7 @@ from deepresearch_agent.provenance import (
     compare_manifests,
     settings_flag_snapshot,
 )
+from deepresearch_agent.domains.registry import load_domain_pack
 from deepresearch_agent.schemas import (
     ResearchState,
     StrictModel,
@@ -416,15 +417,19 @@ def build_demo_followup(
             key=lambda claim: float(claim.value or 0.0),
         )
         if productivity_claims
-        else next(
-            (claim for claim in numeric if "营业收入" in claim.key.metric),
-            numeric[0] if numeric else None,
+        else (
+            load_domain_pack("finance").demo_numeric_claim(numeric)
+            or (numeric[0] if numeric else None)
         )
     )
     if numeric_change is not None:
         numeric_change.value = round(float(numeric_change.value) * 1.12, 4)
         numeric_change.text = f"{numeric_change.text}（演示变体：数值更新）"
         numeric_change.claim_id = _claim_id(numeric_change.key, numeric_change.text)
+    domain_scope_claim = load_domain_pack("finance").demo_scope_claim(
+        numeric,
+        numeric_change,
+    )
     scope_change = next(
         (
             claim
@@ -432,7 +437,7 @@ def build_demo_followup(
             if claim is not numeric_change
             and (
                 "assetsundermanagementgrowth" in claim.key.metric
-                or "扣非净利润" in claim.key.metric
+                or claim is domain_scope_claim
             )
         ),
         next((claim for claim in numeric if claim is not numeric_change), None),
@@ -792,7 +797,7 @@ def _summary_change_text(item: SnapshotChange) -> str:
             f"{item.new_value:g}{item.new_unit or ''}。"
         )
     if item.change_type == "scope_change":
-        return f"{label}发生口径调整，相关数值不作直接同比。"
+        return load_domain_pack("finance").scope_change_summary(label)
     if item.change_type == "confidence_change":
         text = (item.new_text or item.old_text or "该论点").rstrip("。！？!?")
         return (
