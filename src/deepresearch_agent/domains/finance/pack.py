@@ -59,9 +59,18 @@ class FinanceDomainPack:
         return FinanceTableExtractors()
 
     def metric_table_path(self) -> Path:
-        from deepresearch_agent.skills.finance import finance_metric_resource_path
+        from deepresearch_agent.domains.finance.skills import (
+            finance_metric_resource_path,
+        )
 
         return finance_metric_resource_path()
+
+    def metric_skill_applicable(self, metadata: object, context: str) -> bool:
+        from deepresearch_agent.domains.finance.skills import (
+            finance_metric_skill_applicable,
+        )
+
+        return finance_metric_skill_applicable(metadata, context)  # type: ignore[arg-type]
 
     def numeric_consistency_checker(
         self,

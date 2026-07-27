@@ -75,6 +75,9 @@ class _NeutralPack:
             / "skills/finance-metric-normalization/resources/finance_metric_normalization.json"
         )
 
+    def metric_skill_applicable(self, _metadata: object, _context: str) -> bool:
+        return False
+
     def numeric_consistency_checker(self, *_args: object, **_kwargs: object) -> object:
         return object()
 

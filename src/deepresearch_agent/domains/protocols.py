@@ -61,6 +61,8 @@ class DomainPack(Protocol):
 
     def metric_table_path(self) -> Path: ...
 
+    def metric_skill_applicable(self, metadata: Any, context: str) -> bool: ...
+
     def numeric_consistency_checker(
         self,
         metric_table: dict[str, Any],
