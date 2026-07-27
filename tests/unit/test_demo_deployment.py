@@ -116,8 +116,7 @@ class DemoAPITests(unittest.TestCase):
                 demo_guard_path=root / "data" / "runtime" / "guard.json",
                 demo_daily_llm_limit_cny=0.0,
             )
-            original_service = api_main.demo_service
-            api_main.demo_service = DemoService(settings=settings, root=root)
+            demo_service = DemoService(settings=settings, root=root)
             with warnings.catch_warnings():
                 warnings.filterwarnings(
                     "ignore",
@@ -125,8 +124,8 @@ class DemoAPITests(unittest.TestCase):
                 )
                 from fastapi.testclient import TestClient
 
-                client = TestClient(api_main.app)
-            try:
+                app = api_main.create_app(demo_service_factory=lambda: demo_service)
+            with TestClient(app) as client:
                 overview = client.get("/demo")
                 self.assertEqual(overview.status_code, 200)
                 self.assertEqual(overview.json()["showcase_report_count"], 1)
@@ -142,8 +141,6 @@ class DemoAPITests(unittest.TestCase):
                 live = client.post("/demo/live", json={"topic": "demo", "depth_level": 1})
                 self.assertEqual(live.status_code, 403)
                 self.assertNotIn("DEMO_OWNER_TOKEN", live.text)
-            finally:
-                api_main.demo_service = original_service
 
 
 class DemoAsyncJobTests(unittest.TestCase):

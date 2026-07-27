@@ -24,11 +24,6 @@ except ModuleNotFoundError:  # Local bare runtime can still use CLI/tests.
     JSONResponse = None
 
 
-configure_langsmith_from_env()
-engine = DeepResearchEngine()
-demo_service = DemoService()
-
-
 class OperationalState:
     def __init__(self) -> None:
         self.accepting = True
@@ -58,15 +53,20 @@ class OperationalState:
         return self.inflight == 0
 
 
-operational_state = OperationalState()
-
-
 @asynccontextmanager
-async def lifespan(_app: object) -> AsyncIterator[None]:
-    operational_state.accepting = True
-    yield
-    operational_state.begin_shutdown()
-    await operational_state.wait_for_drain()
+async def lifespan(app: object) -> AsyncIterator[None]:
+    """Construct process resources only after the ASGI server starts."""
+    configure_langsmith_from_env()
+    app.state.engine = app.state.engine_factory()
+    app.state.demo_service = app.state.demo_service_factory()
+    app.state.operational_state = OperationalState()
+    try:
+        yield
+    finally:
+        operational_state = app.state.operational_state
+        operational_state.begin_shutdown()
+        await operational_state.wait_for_drain()
+        app.state.engine.close()
 
 
 class DemoLiveRequest(BaseModel):
@@ -74,12 +74,17 @@ class DemoLiveRequest(BaseModel):
     depth_level: int = Field(default=1, ge=1, le=3)
 
 
-def run_research(request: ResearchRequest) -> ResearchResponse:
+def run_research(
+    request: ResearchRequest,
+    *,
+    engine: DeepResearchEngine,
+    demo_service: DemoService,
+) -> ResearchResponse:
     reservation = 0.0
     if engine.settings.execution_mode == "llm":
         reservation = demo_service.guard.reserve(engine.settings.llm_budget_cny)
     try:
-        # A request owns its workflow instance.  The module-level engine is a
+        # A request owns its workflow instance.  The lifespan engine is a
         # read-model for checkpoints and metrics; sharing it for execution
         # would serialize every request behind its run-scoped safety lock.
         with DeepResearchEngine(settings=engine.settings) as request_engine:
@@ -109,16 +114,25 @@ def _require_owner_token(token: str | None) -> None:
         raise HTTPException(status_code=403, detail="Owner token is required.")
 
 
-if FastAPI is not None:
+def create_app(
+    *,
+    engine_factory=DeepResearchEngine,
+    demo_service_factory=DemoService,
+):
+    if FastAPI is None:
+        return None
     app = FastAPI(
         title="DeepResearchAgent",
         description="Multi-agent deep research with Evidence Store, Critic, checkpointing, and evaluation harness.",
         version="0.1.0",
         lifespan=lifespan,
     )
+    app.state.engine_factory = engine_factory
+    app.state.demo_service_factory = demo_service_factory
 
     @app.middleware("http")
     async def track_inflight(request: Request, call_next):
+        operational_state = request.app.state.operational_state
         if request.url.path not in {"/health", "/healthz", "/readyz"}:
             if not operational_state.accepting:
                 return JSONResponse(
@@ -140,7 +154,8 @@ if FastAPI is not None:
         return {"status": "ok"}
 
     @app.get("/readyz")
-    def readyz():
+    def readyz(request: Request):
+        operational_state = request.app.state.operational_state
         if not operational_state.accepting:
             return JSONResponse(
                 status_code=503,
@@ -150,81 +165,90 @@ if FastAPI is not None:
 
     @app.post("/research", response_model=ResearchResponse)
     def create_research(
-        request: ResearchRequest,
+        research_request: ResearchRequest,
+        request: Request,
         x_demo_owner_token: str | None = Header(default=None),
     ) -> ResearchResponse:
         _require_owner_token(x_demo_owner_token)
-        return run_research(request)
+        return run_research(
+            research_request,
+            engine=request.app.state.engine,
+            demo_service=request.app.state.demo_service,
+        )
 
     @app.get("/research/{research_id}")
-    def get_research(research_id: str, x_demo_owner_token: str | None = Header(default=None)) -> dict:
+    def get_research(research_id: str, request: Request, x_demo_owner_token: str | None = Header(default=None)) -> dict:
         _require_owner_token(x_demo_owner_token)
+        engine = request.app.state.engine
         state = engine.load_state(research_id)
         if not state:
             raise HTTPException(status_code=404, detail="research_id not found")
         return state.model_dump(mode="json")
 
     @app.get("/research/{research_id}/report")
-    def get_report(research_id: str, x_demo_owner_token: str | None = Header(default=None)) -> dict[str, str]:
+    def get_report(research_id: str, request: Request, x_demo_owner_token: str | None = Header(default=None)) -> dict[str, str]:
         _require_owner_token(x_demo_owner_token)
+        engine = request.app.state.engine
         state = engine.load_state(research_id)
         if not state:
             raise HTTPException(status_code=404, detail="research_id not found")
         return {"research_id": research_id, "report": state.final_report or ""}
 
     @app.get("/metrics")
-    def metrics() -> list[dict]:
+    def metrics(request: Request) -> list[dict]:
+        engine = request.app.state.engine
         return [item.model_dump(mode="json") for item in engine.store.latest_metrics()]
 
     @app.get("/demo")
-    def demo_overview() -> dict:
-        return demo_service.overview()
+    def demo_overview(request: Request) -> dict:
+        return request.app.state.demo_service.overview()
 
     @app.get("/demo/methodology")
-    def demo_methodology() -> dict:
-        return demo_service.methodology()
+    def demo_methodology(request: Request) -> dict:
+        return request.app.state.demo_service.methodology()
 
     @app.get("/demo/reports")
-    def demo_reports() -> list[dict]:
-        return demo_service.reports()
+    def demo_reports(request: Request) -> list[dict]:
+        return request.app.state.demo_service.reports()
 
     @app.get("/demo/reports/{report_id}")
-    def demo_report(report_id: str) -> dict:
+    def demo_report(report_id: str, request: Request) -> dict:
         try:
-            return demo_service.report(report_id)
+            return request.app.state.demo_service.report(report_id)
         except KeyError:
             raise HTTPException(status_code=404, detail="demo report not found") from None
 
     @app.get("/demo/questions")
-    def demo_questions() -> list[dict]:
-        return demo_service.questions()
+    def demo_questions(request: Request) -> list[dict]:
+        return request.app.state.demo_service.questions()
 
     @app.post("/demo/rerun/{question_id}")
-    def demo_rerun(question_id: str, x_demo_owner_token: str | None = Header(default=None)) -> dict:
+    def demo_rerun(question_id: str, request: Request, x_demo_owner_token: str | None = Header(default=None)) -> dict:
         _require_owner_token(x_demo_owner_token)
         try:
-            return demo_service.rerun_golden(question_id)
+            return request.app.state.demo_service.rerun_golden(question_id)
         except KeyError:
             raise HTTPException(status_code=404, detail="golden question not found") from None
         except (DemoLimitExceeded, DemoQueueFull) as exc:
             raise HTTPException(status_code=429, detail=str(exc)) from None
 
     @app.get("/demo/jobs/{job_id}")
-    def demo_job(job_id: str) -> dict:
+    def demo_job(job_id: str, request: Request) -> dict:
         try:
-            return demo_service.job(job_id)
+            return request.app.state.demo_service.job(job_id)
         except KeyError:
             raise HTTPException(status_code=404, detail="demo job not found") from None
 
     @app.post("/demo/live")
     def demo_live(
-        request: DemoLiveRequest,
+        live_request: DemoLiveRequest,
+        request: Request,
         x_demo_owner_token: str | None = Header(default=None),
     ) -> dict:
         try:
-            result = demo_service.run_live(
-                topic=request.topic,
-                depth_level=request.depth_level,
+            result = request.app.state.demo_service.run_live(
+                topic=live_request.topic,
+                depth_level=live_request.depth_level,
                 owner_token=x_demo_owner_token,
             )
         except DemoNotAuthorized as exc:
@@ -239,5 +263,7 @@ if FastAPI is not None:
             "cost_cny": result.cost_cny,
             "guard": result.guard,
         }
-else:
-    app = None
+    return app
+
+
+app = create_app()
