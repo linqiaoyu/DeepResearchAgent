@@ -127,6 +127,20 @@ class FinanceDomainPack:
 
         return scope_change_summary(label)
 
+    def is_full_annual_report_query(self, keyword: str) -> bool:
+        from deepresearch_agent.domains.finance.disclosure_policy import (
+            is_full_annual_report_query,
+        )
+
+        return is_full_annual_report_query(keyword)
+
+    def is_full_annual_report_title(self, title: str) -> bool:
+        from deepresearch_agent.domains.finance.disclosure_policy import (
+            is_full_annual_report_title,
+        )
+
+        return is_full_annual_report_title(title)
+
     def metric_skill_applicable(self, metadata: object, context: str) -> bool:
         from deepresearch_agent.domains.finance.skills import (
             finance_metric_skill_applicable,

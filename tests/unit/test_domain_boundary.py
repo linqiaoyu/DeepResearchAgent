@@ -22,7 +22,7 @@ class DomainBoundaryTests(unittest.TestCase):
             check=False,
         )
         self.assertEqual(completed.returncode, 0, completed.stderr)
-        self.assertIn("import_sites=0 literal_files=7 literal_hits=17", completed.stdout)
+        self.assertIn("import_sites=0 literal_files=6 literal_hits=15", completed.stdout)
 
     def test_import_site_count_is_measured_from_source(self) -> None:
         self.assertEqual(_concrete_domain_import_sites(), 0)

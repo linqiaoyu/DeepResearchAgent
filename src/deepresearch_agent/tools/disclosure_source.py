@@ -13,6 +13,7 @@ from typing import Any
 import httpx
 
 from deepresearch_agent.schemas import Source
+from deepresearch_agent.domains.registry import load_domain_pack
 from deepresearch_agent.tools.contracts import (
     DegradationEvent,
     ToolError,
@@ -412,13 +413,13 @@ class CninfoDisclosureSource:
                 ToolErrorKind.PERMANENT, "cninfo_contract_changed: announcements list missing"
             )
         candidates = list(announcements or [])[: self.max_results]
-        if inputs["keyword"] == "年度报告":
+        disclosure_policy = load_domain_pack("finance")
+        if disclosure_policy.is_full_annual_report_query(inputs["keyword"]):
             full_chinese_reports = [
                 item
                 for item in candidates
                 if isinstance(item, Mapping)
-                and re.search(
-                    r"20\d{2}年年度报告$",
+                and disclosure_policy.is_full_annual_report_title(
                     re.sub(
                         r"<[^>]+>",
                         "",
