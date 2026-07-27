@@ -31,3 +31,7 @@ class DomainBoundaryTests(unittest.TestCase):
         criteria = json.loads((ROOT / "data/round/043_criteria.json").read_text(encoding="utf-8"))
         self.assertGreaterEqual(len(criteria), 4)
         self.assertTrue(all(isinstance(item["command"], list) for item in criteria))
+
+    def test_progress_ledger_declares_the_whole_round(self) -> None:
+        blocks = json.loads((ROOT / "data/round/043_blocks.json").read_text(encoding="utf-8"))
+        self.assertEqual(blocks, [f"B{index}" for index in range(9)])

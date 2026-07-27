@@ -9,6 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CRITERIA_PATH = ROOT / "data/round/043_criteria.json"
+BLOCKS_PATH = ROOT / "data/round/043_blocks.json"
 
 
 def _criteria() -> list[dict[str, object]]:
@@ -23,8 +24,20 @@ def _criteria() -> list[dict[str, object]]:
     return payload
 
 
+def _declared_blocks() -> list[str]:
+    payload = json.loads(BLOCKS_PATH.read_text(encoding="utf-8"))
+    if not isinstance(payload, list) or not all(
+        isinstance(block, str) and block for block in payload
+    ):
+        raise ValueError("declared blocks must be a non-empty list of names")
+    if len(set(payload)) != len(payload):
+        raise ValueError("declared blocks must be unique")
+    return payload
+
+
 def main() -> None:
-    results: dict[str, list[bool]] = {}
+    declared_blocks = _declared_blocks()
+    results: dict[str, list[bool]] = {block: [] for block in declared_blocks}
     for criterion in _criteria():
         command = criterion["command"]
         assert isinstance(command, list)
@@ -39,9 +52,11 @@ def main() -> None:
         )
         block = criterion["block"]
         assert isinstance(block, str)
+        if block not in results:
+            raise ValueError(f"criterion declares unknown block: {block}")
         results.setdefault(block, []).append(passed)
-    closed = sorted(block for block, checks in results.items() if all(checks))
-    open_blocks = sorted(block for block, checks in results.items() if not all(checks))
+    closed = sorted(block for block, checks in results.items() if checks and all(checks))
+    open_blocks = sorted(block for block, checks in results.items() if not checks or not all(checks))
     print(f"closed_blocks={','.join(closed)} open_blocks={','.join(open_blocks)}")
     raise SystemExit(0 if not open_blocks else 1)
 
