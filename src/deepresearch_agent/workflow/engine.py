@@ -5,7 +5,7 @@ import time
 import traceback
 from collections.abc import Sequence
 from datetime import datetime
-from typing import Annotated, Any, TypedDict
+from typing import Any
 from urllib.parse import urlsplit
 
 from deepresearch_agent.agents import CriticAgent, Evaluator, ExtractorAgent, PlannerAgent, ReporterAgent, ResearcherAgent
@@ -26,13 +26,11 @@ from deepresearch_agent.observability import (
 from deepresearch_agent.orchestration import (
     BoundedLoop,
     DecisionGate,
-    GraphRuntime,
     RunScope,
     SearchQuota,
     LoopIterationResult,
     LoopSpec,
     SufficiencyThresholds,
-    validate_contract_graph,
 )
 from deepresearch_agent.provenance import build_run_manifest, write_run_manifest
 from deepresearch_agent.reflection import Reflector
@@ -54,14 +52,10 @@ from deepresearch_agent.workflow.nodes.delivery import DeliveryNodes
 from deepresearch_agent.workflow.nodes.planning import PlanningNodes
 from deepresearch_agent.workflow.nodes.quality import QualityNodes
 from deepresearch_agent.workflow.helpers import WorkflowHelpers
-from deepresearch_agent.workflow.contracts import (
-    build_workflow_contracts,
-    workflow_contract_graph,
-)
+from deepresearch_agent.workflow.graph_assembly import GraphAssembly
+from deepresearch_agent.workflow.state import ResearchGraphState
 from deepresearch_agent.skills import (
     SkillPackLoader,
-    finance_metric_skill_applicable,
-    load_skills_if_enabled,
 )
 from deepresearch_agent.storage import SQLiteStore
 from deepresearch_agent.tools import (
@@ -88,13 +82,6 @@ from deepresearch_agent.trajectory import (
     trajectory_recording,
 )
 from langgraph.checkpoint.sqlite import SqliteSaver
-from langgraph.graph import END, START, StateGraph
-
-
-def _merge_dicts(left: dict[str, Any] | None, right: dict[str, Any] | None) -> dict[str, Any]:
-    merged = dict(left or {})
-    merged.update(right or {})
-    return merged
 
 
 def _provider_fidelity(provider: object) -> str:
@@ -118,27 +105,7 @@ def _research_progress_metric(state: ResearchState) -> float:
     )
 
 
-class ResearchGraphState(TypedDict, total=False):
-    research_state: dict[str, Any]
-    started_at: float
-    stop_after_phase: str | None
-    active_sub_question_ids: list[str]
-    active_retry_task_ids: list[str]
-    fanout_sub_question: dict[str, Any]
-    fanout_retry_task: dict[str, Any]
-    research_sources: Annotated[dict[str, list[dict[str, Any]]], _merge_dicts]
-    research_records: Annotated[dict[str, list[dict[str, Any]]], _merge_dicts]
-    research_structured_evidence: Annotated[dict[str, list[dict[str, Any]]], _merge_dicts]
-    research_structured_stats: Annotated[dict[str, dict[str, int]], _merge_dicts]
-    research_symbol_resolutions: Annotated[dict[str, list[dict[str, Any]]], _merge_dicts]
-    research_decisions: Annotated[dict[str, list[dict[str, Any]]], _merge_dicts]
-    research_budget_usage: Annotated[dict[str, int], _merge_dicts]
-    research_branch_coverage: Annotated[dict[str, dict[str, Any]], _merge_dicts]
-    retry_sources: Annotated[dict[str, list[dict[str, Any]]], _merge_dicts]
-    retry_records: Annotated[dict[str, dict[str, Any]], _merge_dicts]
-
-
-class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryNodes, PlanningNodes, QualityNodes, WorkflowHelpers):
+class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryNodes, PlanningNodes, QualityNodes, WorkflowHelpers, GraphAssembly):
     def __init__(
         self,
         settings: Settings | None = None,
@@ -888,131 +855,3 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
         if not snapshot.values or "research_state" not in snapshot.values:
             return None
         return self._state_from_graph_values(snapshot.values)
-
-    def _build_graph(self):
-        self.node_contracts = build_workflow_contracts(
-            self.settings,
-            self.capability_registry,
-        )
-        validate_contract_graph(self.node_contracts, workflow_contract_graph())
-        graph_runtime = GraphRuntime(self.node_contracts, self.logger)
-        graph = StateGraph(ResearchGraphState, context_schema=RunScope)
-        graph.add_node("entry", graph_runtime.wrap_node("entry", self._entry_node))
-        graph.add_node("planner", graph_runtime.wrap_node("planner", self._planner_node))
-        graph.add_node(
-            "research_prepare",
-            graph_runtime.wrap_node("research_prepare", self._research_prepare_node),
-        )
-        graph.add_node(
-            "research_one",
-            graph_runtime.wrap_node("research_one", self._research_one_node),
-        )
-        graph.add_node(
-            "research_join",
-            graph_runtime.wrap_node("research_join", self._research_join_node),
-        )
-        graph.add_node(
-            "extractor",
-            graph_runtime.wrap_node("extractor", self._extractor_node),
-        )
-        graph.add_node("critic", graph_runtime.wrap_node("critic", self._critic_node))
-        graph.add_node(
-            "reflector",
-            graph_runtime.wrap_node("reflector", self._reflector_node),
-        )
-        graph.add_node(
-            "research_loop_decide",
-            graph_runtime.wrap_node(
-                "research_loop_decide",
-                self._research_loop_decide_node,
-            ),
-        )
-        graph.add_node(
-            "research_refine",
-            graph_runtime.wrap_node("research_refine", self._research_refine_node),
-        )
-        graph.add_node(
-            "retry_prepare",
-            graph_runtime.wrap_node("retry_prepare", self._retry_prepare_node),
-        )
-        graph.add_node(
-            "retry_one",
-            graph_runtime.wrap_node("retry_one", self._retry_one_node),
-        )
-        graph.add_node(
-            "retry_join",
-            graph_runtime.wrap_node("retry_join", self._retry_join_node),
-        )
-        graph.add_node(
-            "reporter",
-            graph_runtime.wrap_node("reporter", self._reporter_node),
-        )
-        graph.add_node(
-            "evaluator",
-            graph_runtime.wrap_node("evaluator", self._evaluator_node),
-        )
-
-        graph.add_edge(START, "entry")
-        graph.add_conditional_edges("entry", self._route_entry)
-        graph.add_conditional_edges("planner", self._route_after_planning)
-        graph.add_conditional_edges("research_prepare", self._send_research_tasks)
-        graph.add_edge("research_one", "research_join")
-        graph.add_conditional_edges("research_join", self._route_after_research)
-        graph.add_conditional_edges("extractor", self._route_after_extraction)
-        graph.add_conditional_edges("critic", self._route_after_critic)
-        graph.add_conditional_edges(
-            "research_loop_decide",
-            self._route_after_research_loop,
-        )
-        graph.add_conditional_edges(
-            "reflector",
-            self._route_after_reflection,
-        )
-        graph.add_edge("research_refine", "research_prepare")
-        graph.add_conditional_edges("retry_prepare", self._send_retry_tasks)
-        graph.add_edge("retry_one", "retry_join")
-        graph.add_edge("retry_join", "critic")
-        graph.add_conditional_edges("reporter", self._route_after_reporting)
-        graph.add_edge("evaluator", END)
-        return graph.compile(checkpointer=self.checkpointer)
-
-    def _entry_node(self, graph_state: ResearchGraphState) -> ResearchGraphState:
-        if not self.settings.skill_packs_enabled:
-            return graph_state
-        state = self._state_from_graph_values(graph_state)
-        skill_metadata = state.metadata.get("skill_packs")
-        if isinstance(skill_metadata, dict) and skill_metadata.get(
-            "selection_complete"
-        ):
-            return graph_state
-        outcome = load_skills_if_enabled(
-            self.settings,
-            self.skill_loader,
-            state.topic,
-            registry=self.capability_registry,
-            state=state,
-            is_applicable=finance_metric_skill_applicable,
-        )
-        state.metadata["skill_packs"] = {
-            "selection_complete": True,
-            "selected_skills": list(outcome.selected_skills),
-            "registered_capabilities": list(
-                outcome.registered_capabilities
-            ),
-        }
-        result = dict(graph_state)
-        result["research_state"] = self._dump_state(state)
-        return result
-
-    def _route_entry(self, graph_state: ResearchGraphState) -> str:
-        state = self._state_from_graph_values(graph_state)
-        if state.status == "done" or state.current_phase == "done":
-            return END
-        return {
-            "planning": "planner",
-            "researching": "research_prepare",
-            "extracting": "extractor",
-            "critiquing": "critic",
-            "reporting": "reporter",
-            "evaluating": "evaluator",
-        }[state.current_phase]
