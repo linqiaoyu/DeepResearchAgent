@@ -12,7 +12,7 @@ from deepresearch_agent.workflow import DeepResearchEngine
 QUALITY_METRICS = (
     "avg_citation_accuracy",
     "avg_citation_resolution_rate",
-    "avg_faithfulness",
+    "avg_citation_density",
     "avg_critic_catch_rate",
 )
 OPERATIONAL_METRICS = (
@@ -61,8 +61,12 @@ class EvaluationHarness:
                 [r.bbox_resolution_rate for r in results]
             ),
             "avg_critic_catch_rate": round(sum(r.critic_catch_rate for r in results) / len(results), 3),
-            "avg_answer_relevance": _mean_optional([r.answer_relevance for r in results]),
-            "avg_faithfulness": _mean_optional([r.faithfulness for r in results]),
+            "avg_lexical_overlap": _mean_optional([r.lexical_overlap for r in results]),
+            "avg_semantic_relevance": _mean_optional([r.semantic_relevance for r in results]),
+            "avg_citation_density": _mean_optional([r.citation_density for r in results]),
+            "avg_semantic_faithfulness": _mean_optional(
+                [r.semantic_faithfulness for r in results]
+            ),
             "avg_latency_seconds": round(sum(r.latency_seconds for r in results) / len(results), 3),
             "avg_cost_usd": _mean_optional([r.cost_usd for r in results]),
             "avg_token_used": _mean_optional([r.token_used for r in results]),

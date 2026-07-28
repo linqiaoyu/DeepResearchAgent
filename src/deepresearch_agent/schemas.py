@@ -342,8 +342,9 @@ class EvaluationResult(StrictModel):
         default=None,
         exclude_if=lambda value: value is None,
     )
-    answer_relevance: float | None = Field(default=None, ge=0, le=1)
-    answer_relevance_reason: str | None = None
+    lexical_overlap: float | None = Field(default=None, ge=0, le=1)
+    semantic_relevance: float | None = Field(default=None, ge=0, le=1)
+    semantic_relevance_reason: str | None = None
     answer_shape: float | None = Field(
         default=None,
         ge=0,
@@ -354,8 +355,9 @@ class EvaluationResult(StrictModel):
         default=None,
         exclude_if=lambda value: value is None,
     )
-    faithfulness: float | None = Field(default=None, ge=0, le=1)
-    faithfulness_reason: str | None = None
+    citation_density: float = Field(default=0.0, ge=0, le=1)
+    semantic_faithfulness: float | None = Field(default=None, ge=0, le=1)
+    semantic_faithfulness_reason: str | None = None
     latency_seconds: float = Field(ge=0)
     # Only an LLM ledger may populate usage metrics.  Fixture runs must not
     # manufacture token or currency figures from workflow constants.

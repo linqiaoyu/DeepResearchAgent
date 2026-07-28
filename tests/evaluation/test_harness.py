@@ -27,8 +27,10 @@ class HarnessTests(unittest.TestCase):
             "avg_citation_accuracy",
             "avg_citation_resolution_rate",
             "avg_critic_catch_rate",
-            "avg_answer_relevance",
-            "avg_faithfulness",
+            "avg_lexical_overlap",
+            "avg_semantic_relevance",
+            "avg_citation_density",
+            "avg_semantic_faithfulness",
             "avg_latency_seconds",
             "avg_cost_usd",
             "avg_token_used",
@@ -38,14 +40,16 @@ class HarnessTests(unittest.TestCase):
             "bad_case_categories",
             "avg_cost_usd",
             "avg_token_used",
+            "avg_semantic_relevance",
+            "avg_semantic_faithfulness",
         }
         rate_metric_keys = {
             "avg_task_success_rate",
             "avg_citation_accuracy",
             "avg_citation_resolution_rate",
             "avg_critic_catch_rate",
-            "avg_answer_relevance",
-            "avg_faithfulness",
+            "avg_lexical_overlap",
+            "avg_citation_density",
         }
         non_negative_metric_keys = {"avg_latency_seconds"}
 
@@ -73,7 +77,7 @@ class HarnessTests(unittest.TestCase):
         baseline = {
             "avg_citation_accuracy": 1.0,
             "avg_citation_resolution_rate": 1.0,
-            "avg_faithfulness": 0.9,
+            "avg_citation_density": 0.9,
             "avg_critic_catch_rate": 0.8,
             "avg_cost_usd": 0.02,
             "avg_latency_seconds": 0.01,
@@ -96,7 +100,7 @@ class HarnessTests(unittest.TestCase):
         baseline = {
             "avg_citation_accuracy": 1.0,
             "avg_citation_resolution_rate": 1.0,
-            "avg_faithfulness": 0.9,
+            "avg_citation_density": 0.9,
             "avg_critic_catch_rate": 0.8,
             "avg_cost_usd": 0.02,
             "avg_latency_seconds": 0.01,
@@ -120,19 +124,19 @@ class HarnessTests(unittest.TestCase):
         baseline = {
             "avg_citation_accuracy": 1.0,
             "avg_citation_resolution_rate": 1.0,
-            "avg_faithfulness": None,
+            "avg_citation_density": None,
             "avg_critic_catch_rate": 0.8,
         }
         comparison = compare_metric_summaries(current=baseline, baseline=baseline)
 
-        faithfulness = comparison["metrics"]["avg_faithfulness"]
+        citation_density = comparison["metrics"]["avg_citation_density"]
         self.assertEqual(comparison["status"], "fail")
-        self.assertEqual(faithfulness["status"], "unavailable")
-        self.assertIsNone(faithfulness["delta"])
+        self.assertEqual(citation_density["status"], "unavailable")
+        self.assertIsNone(citation_density["delta"])
         rendered = format_metric_comparison(comparison)
         self.assertIn("baseline=unavailable current=unavailable", rendered)
         self.assertTrue(
-            any("avg_faithfulness unavailable" in item for item in comparison["failures"])
+            any("avg_citation_density unavailable" in item for item in comparison["failures"])
         )
 
 

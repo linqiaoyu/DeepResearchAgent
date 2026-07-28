@@ -100,7 +100,7 @@ class PlannerAgent:
                 "Every key finding has at least one source-backed citation.",
                 "Time-sensitive financial claims prefer sources published within 12 months.",
                 "The report includes a counterargument or risk section.",
-                "Evaluation metrics include citation accuracy, relevance, faithfulness, cost, and latency.",
+                "Evaluation metrics include citation accuracy, lexical overlap, citation density, cost, and latency.",
             ],
         )
 

@@ -205,14 +205,14 @@ class OfflineScriptedCompletion:
             content = {
                 "answer_completeness": 0.91,
                 "answer_completeness_reason": "fixture completeness",
-                "answer_relevance": 0.92,
-                "answer_relevance_reason": "fixture relevance",
+                "semantic_relevance": 0.92,
+                "semantic_relevance_reason": "fixture relevance",
                 "answer_shape": 0.93,
                 "answer_shape_reason": "fixture answer shape",
                 "citation_support": 0.94,
                 "citation_support_reason": "fixture citation support",
-                "faithfulness": 0.95,
-                "faithfulness_reason": "fixture faithfulness",
+                "semantic_faithfulness": 0.95,
+                "semantic_faithfulness_reason": "fixture faithfulness",
             }
         else:
             evidence_id = payload["evidence"][0]["id"]
@@ -491,7 +491,7 @@ class TrajectoryReplayTests(unittest.TestCase):
                 topic="贵州茅台 600519 2025 年营业收入研究",
                 depth_level=1,
             )
-            self.assertEqual(state.evaluation.answer_relevance, 0.92)
+            self.assertEqual(state.evaluation.semantic_relevance, 0.92)
             self.assertTrue(
                 any(
                     item.source_page == 6

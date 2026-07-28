@@ -99,6 +99,16 @@ class Evaluator:
 
         answer_completeness = None
         answer_shape = None
+        semantic_relevance = None
+        semantic_relevance_reason = None
+        semantic_faithfulness = None
+        semantic_faithfulness_reason = None
+        lexical_overlap = None
+        cited_claim_lines = [line for line in claim_lines if CITATION_RE.search(line)]
+        citation_density = round(
+            len(cited_claim_lines) / max(len(claim_lines), 1),
+            3,
+        )
         if execution_mode == "llm":
             citation_errors = unresolved_citations
             semantic_score, semantic_reason = self._semantic_score(state)
@@ -106,11 +116,9 @@ class Evaluator:
                 citation_accuracy = None
                 citation_accuracy_reason = semantic_reason
                 answer_completeness_reason = semantic_reason
-                answer_relevance = None
-                answer_relevance_reason = semantic_reason
                 answer_shape_reason = semantic_reason
-                faithfulness = None
-                faithfulness_reason = semantic_reason
+                semantic_relevance_reason = semantic_reason
+                semantic_faithfulness_reason = semantic_reason
             else:
                 citation_accuracy = min(
                     semantic_score.citation_support,
@@ -136,17 +144,22 @@ class Evaluator:
                 answer_completeness_reason = (
                     semantic_score.answer_completeness_reason
                 )
-                answer_relevance = round(
-                    semantic_score.answer_relevance,
+                semantic_relevance = round(
+                    semantic_score.semantic_relevance,
                     3,
                 )
-                answer_relevance_reason = (
-                    semantic_score.answer_relevance_reason
+                semantic_relevance_reason = (
+                    semantic_score.semantic_relevance_reason
                 )
                 answer_shape = round(semantic_score.answer_shape, 3)
                 answer_shape_reason = semantic_score.answer_shape_reason
-                faithfulness = round(semantic_score.faithfulness, 3)
-                faithfulness_reason = semantic_score.faithfulness_reason
+                semantic_faithfulness = round(
+                    semantic_score.semantic_faithfulness,
+                    3,
+                )
+                semantic_faithfulness_reason = (
+                    semantic_score.semantic_faithfulness_reason
+                )
         else:
             citation_accuracy = supported_citations / citation_total if citation_total else 0.0
             citation_accuracy_reason = None
@@ -154,13 +167,11 @@ class Evaluator:
             answer_completeness_reason = None
             topic_terms = {term.lower() for term in WORD_RE.findall(state.topic)}
             report_terms = {term.lower() for term in WORD_RE.findall(report)}
-            answer_relevance = round(len(topic_terms & report_terms) / max(len(topic_terms), 1), 3)
-            answer_relevance_reason = None
+            lexical_overlap = round(
+                len(topic_terms & report_terms) / max(len(topic_terms), 1),
+                3,
+            )
             answer_shape_reason = None
-
-            cited_claim_lines = [line for line in claim_lines if CITATION_RE.search(line)]
-            faithfulness = round(len(cited_claim_lines) / max(len(claim_lines), 1), 3)
-            faithfulness_reason = None
 
         issues = state.critic_report.issues if state.critic_report else []
         bad_case_categories = Counter(issue.issue_type for issue in issues)
@@ -214,12 +225,14 @@ class Evaluator:
             critic_catch_rate=round(critic_catch_rate, 3),
             answer_completeness=answer_completeness,
             answer_completeness_reason=answer_completeness_reason,
-            answer_relevance=answer_relevance,
-            answer_relevance_reason=answer_relevance_reason,
+            lexical_overlap=lexical_overlap,
+            semantic_relevance=semantic_relevance,
+            semantic_relevance_reason=semantic_relevance_reason,
             answer_shape=answer_shape,
             answer_shape_reason=answer_shape_reason,
-            faithfulness=faithfulness,
-            faithfulness_reason=faithfulness_reason,
+            citation_density=citation_density,
+            semantic_faithfulness=semantic_faithfulness,
+            semantic_faithfulness_reason=semantic_faithfulness_reason,
             latency_seconds=round(latency_seconds, 3),
             cost_usd=(round(state.cost_used, 4) if cost_cny is not None else None),
             cost_cny=cost_cny,
@@ -328,8 +341,8 @@ class Evaluator:
         state.metadata["semantic_judge"] = {
             "status": "scored",
             "scope": (
-                "completeness,relevance,answer_shape,citation_support,"
-                "faithfulness; numeric correctness excluded"
+                "completeness,semantic_relevance,answer_shape,citation_support,"
+                "semantic_faithfulness; numeric correctness excluded"
             ),
         }
         return score, None

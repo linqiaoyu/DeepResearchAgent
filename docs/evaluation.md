@@ -28,8 +28,10 @@ results rather than define a live scoring contract.
 | `citation_resolution_rate` | resolved citations / citation markers | report footnotes、Evidence | `[0, 1]` | 是 |
 | `bbox_resolution_rate` | valid layout anchors / paged numeric Evidence | `Source.bbox_index`、numeric Evidence | `[0, 1]` 或 `null` | 否（display-only） |
 | `critic_catch_rate` | deterministic visible-issue proxy | Critic issues | `[0, 1]` | 是 |
-| `answer_relevance` | lexical overlap or enabled semantic judge | topic、final report | `[0, 1]` 或 `null` | 否 |
-| `faithfulness` | cited-claim density or enabled semantic judge | claims、citations、Evidence | `[0, 1]` 或 `null` | 是 |
+| `lexical_overlap` | deterministic topic-token overlap | topic、final report | `[0, 1]` | 否 |
+| `citation_density` | cited bullet claims / all bullet claims | rendered claims、citations | `[0, 1]` | 是 |
+| `semantic_relevance` | enabled semantic judge | topic、final report、Evidence | `[0, 1]` 或 `null` | 否 |
+| `semantic_faithfulness` | enabled semantic judge | report、Evidence | `[0, 1]` 或 `null` | 否 |
 | `cost_cny` / `cost_usd` | LLM ledger aggregation / display conversion | LLM ledger | `>= 0` 或 `null` | 否 |
 | `latency_seconds` / `token_used` | run aggregation | run telemetry / LLM ledger | `>= 0` 或 `null` | 否 |
 
@@ -58,14 +60,15 @@ results rather than define a live scoring contract.
 - `answer_completeness`: optional semantic-judge assessment of whether the
   report covers the material parts of the topic, plan, and available Evidence.
   It is `null` outside an enabled, successful semantic-judge call.
-- `answer_relevance`: topic terms appear in the final report in deterministic
-  mode; in LLM mode the optional semantic judge measures topic focus.
+- `lexical_overlap`: deterministic share of topic tokens appearing in the final
+  report. It measures token overlap, not answer relevance.
 - `answer_shape`: optional semantic-judge assessment of whether the result is a
   usable answer with synthesis, findings, qualifications, and appropriate risks.
   It is `null` outside an enabled, successful semantic-judge call.
-- `faithfulness`: bullet claims carry citations in deterministic mode; in LLM
-  mode the optional semantic judge measures whether the whole report stays
-  within supplied Evidence and marks uncertainty.
+- `citation_density`: deterministic share of rendered bullet claims containing a
+  citation. It is not semantic faithfulness.
+- `semantic_relevance` and `semantic_faithfulness`: optional judge outputs;
+  both are `null` outside an enabled, successful semantic-judge call.
 - `cost_usd`, `cost_cny`, `latency_seconds`, `token_used`, `price_source`: operational metrics for Pareto analysis. LLM mode accounts natively in CNY from the LiteLLM ledger.
 
 `comparison_observed` in metric-coverage output is display-only provenance: it

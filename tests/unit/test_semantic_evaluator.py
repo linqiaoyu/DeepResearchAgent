@@ -25,14 +25,14 @@ def semantic_score() -> SemanticJudgeScore:
     return SemanticJudgeScore(
         answer_completeness=0.17,
         answer_completeness_reason="completeness adopted",
-        answer_relevance=0.29,
-        answer_relevance_reason="relevance adopted",
+        semantic_relevance=0.29,
+        semantic_relevance_reason="relevance adopted",
         answer_shape=0.61,
         answer_shape_reason="shape adopted",
         citation_support=0.43,
         citation_support_reason="citation adopted",
-        faithfulness=0.73,
-        faithfulness_reason="faithfulness adopted",
+        semantic_faithfulness=0.73,
+        semantic_faithfulness_reason="faithfulness adopted",
     )
 
 
@@ -112,14 +112,14 @@ class SemanticEvaluatorTests(unittest.TestCase):
         self.assertEqual(judge.calls, 1)
         self.assertEqual(result.answer_completeness, 0.17)
         self.assertEqual(result.answer_completeness_reason, "completeness adopted")
-        self.assertEqual(result.answer_relevance, 0.29)
-        self.assertEqual(result.answer_relevance_reason, "relevance adopted")
+        self.assertEqual(result.semantic_relevance, 0.29)
+        self.assertEqual(result.semantic_relevance_reason, "relevance adopted")
         self.assertEqual(result.answer_shape, 0.61)
         self.assertEqual(result.answer_shape_reason, "shape adopted")
         self.assertEqual(result.citation_accuracy, 0.43)
         self.assertEqual(result.citation_accuracy_reason, "citation adopted")
-        self.assertEqual(result.faithfulness, 0.73)
-        self.assertEqual(result.faithfulness_reason, "faithfulness adopted")
+        self.assertEqual(result.semantic_faithfulness, 0.73)
+        self.assertEqual(result.semantic_faithfulness_reason, "faithfulness adopted")
 
     def test_explicitly_disabled_judge_is_not_called_and_has_null_reasons(self) -> None:
         judge = StubJudge()
@@ -132,13 +132,13 @@ class SemanticEvaluatorTests(unittest.TestCase):
         self.assertEqual(judge.calls, 0)
         for value in (
             result.answer_completeness,
-            result.answer_relevance,
+            result.semantic_relevance,
             result.answer_shape,
             result.citation_accuracy,
-            result.faithfulness,
+            result.semantic_faithfulness,
         ):
             self.assertIsNone(value)
-        self.assertIn("semantic_judge_disabled", result.answer_relevance_reason or "")
+        self.assertIn("semantic_judge_disabled", result.semantic_relevance_reason or "")
 
     def test_judge_failure_never_infers_scores_and_records_degradation(self) -> None:
         state = self._state()
@@ -148,11 +148,11 @@ class SemanticEvaluatorTests(unittest.TestCase):
 
         self.assertIsNone(result.citation_accuracy)
         self.assertIsNone(result.answer_completeness)
-        self.assertIsNone(result.answer_relevance)
+        self.assertIsNone(result.semantic_relevance)
         self.assertIsNone(result.answer_shape)
-        self.assertIsNone(result.faithfulness)
+        self.assertIsNone(result.semantic_faithfulness)
         self.assertEqual(
-            result.faithfulness_reason,
+            result.semantic_faithfulness_reason,
             "semantic_judge_failed: provider_timeout",
         )
         self.assertEqual(state.metadata["semantic_judge"]["status"], "failed")
@@ -168,10 +168,10 @@ class SemanticEvaluatorTests(unittest.TestCase):
         ).evaluate(state)
 
         self.assertIsNone(result.citation_accuracy)
-        self.assertIsNone(result.answer_relevance)
+        self.assertIsNone(result.semantic_relevance)
         self.assertIn(
             "semantic_judge_unavailable",
-            result.answer_relevance_reason or "",
+            result.semantic_relevance_reason or "",
         )
         self.assertEqual(
             state.metadata["semantic_judge"]["status"],
@@ -188,21 +188,23 @@ class SemanticEvaluatorTests(unittest.TestCase):
         self.assertEqual(judge.calls, 0)
         self.assertIsNone(result.answer_completeness)
         self.assertIsNone(result.answer_shape)
-        self.assertIsNotNone(result.answer_relevance)
-        self.assertIsNotNone(result.faithfulness)
+        self.assertIsNone(result.semantic_relevance)
+        self.assertIsNone(result.semantic_faithfulness)
+        self.assertIsNotNone(result.lexical_overlap)
+        self.assertGreaterEqual(result.citation_density, 0.0)
 
     def test_semantic_all_one_cannot_override_mechanical_numeric_failure(self) -> None:
         perfect = SemanticJudgeScore(
             answer_completeness=1.0,
             answer_completeness_reason="complete",
-            answer_relevance=1.0,
-            answer_relevance_reason="relevant",
+            semantic_relevance=1.0,
+            semantic_relevance_reason="relevant",
             answer_shape=1.0,
             answer_shape_reason="well shaped",
             citation_support=1.0,
             citation_support_reason="semantic support",
-            faithfulness=1.0,
-            faithfulness_reason="faithful",
+            semantic_faithfulness=1.0,
+            semantic_faithfulness_reason="faithful",
         )
 
         result = Evaluator(

@@ -37,14 +37,14 @@ class SemanticJudgeScore(StrictModel):
 
     answer_completeness: float = Field(ge=0, le=1)
     answer_completeness_reason: str = Field(min_length=1)
-    answer_relevance: float = Field(ge=0, le=1)
-    answer_relevance_reason: str = Field(min_length=1)
+    semantic_relevance: float = Field(ge=0, le=1)
+    semantic_relevance_reason: str = Field(min_length=1)
     answer_shape: float = Field(ge=0, le=1)
     answer_shape_reason: str = Field(min_length=1)
     citation_support: float = Field(ge=0, le=1)
     citation_support_reason: str = Field(min_length=1)
-    faithfulness: float = Field(ge=0, le=1)
-    faithfulness_reason: str = Field(min_length=1)
+    semantic_faithfulness: float = Field(ge=0, le=1)
+    semantic_faithfulness_reason: str = Field(min_length=1)
 
 
 class SemanticJudgeFailure(RuntimeError):
