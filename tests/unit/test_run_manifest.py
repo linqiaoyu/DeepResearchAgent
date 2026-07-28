@@ -171,7 +171,15 @@ class RunManifestTests(unittest.TestCase):
                     "disclosure": "real",
                     "llm": "real",
                 },
-                "structured_data_stats": {"q": {"executed_requests": 1}},
+                "structured_data_stats": {
+                    "q": {
+                        "requests": 1,
+                        "executed_requests": 1,
+                        "records": 1,
+                        "symbol_resolution_failures": 0,
+                        "execution_failures": 0,
+                    }
+                },
                 "llm_usage": {"by_role": {"planner": {"calls": 1}}},
             },
         )
@@ -187,6 +195,59 @@ class RunManifestTests(unittest.TestCase):
         })
         self.assertEqual(built.actual_provider_fidelity["disclosure"], "unused")
         self.assertEqual(built.actual_realness, "mixed")
+
+    def test_zero_record_structured_call_is_not_real(self) -> None:
+        settings = Settings(storage_path=Path("test.db"), execution_mode="llm")
+        state = ResearchState(
+            topic="test",
+            metadata={
+                "provider_fidelity": {
+                    "search": "real",
+                    "structured_data": "real",
+                    "disclosure": "real",
+                    "llm": "real",
+                },
+                "structured_data_stats": {
+                    "q": {
+                        "requests": 1,
+                        "executed_requests": 1,
+                        "records": 0,
+                        "symbol_resolution_failures": 0,
+                        "execution_failures": 1,
+                    }
+                },
+                "llm_usage": {"by_role": {"planner": {"calls": 1}}},
+            },
+        )
+
+        built = build_run_manifest(
+            state,
+            settings,
+            started_at=datetime(2026, 7, 24, tzinfo=timezone.utc),
+            llm_config=DEFAULT_LLM_CONFIG,
+        )
+
+        self.assertEqual(built.provider_usage["structured_data"], 0)
+        self.assertEqual(built.actual_provider_fidelity["structured_data"], "unused")
+        self.assertEqual(built.actual_realness, "mixed")
+
+    def test_manifest_records_structured_data_stats(self) -> None:
+        stats = {
+            "q": {
+                "requests": 2,
+                "executed_requests": 2,
+                "records": 1,
+                "symbol_resolution_failures": 0,
+                "execution_failures": 1,
+            }
+        }
+        built = build_run_manifest(
+            ResearchState(topic="test", metadata={"structured_data_stats": stats}),
+            Settings(storage_path=Path("test.db")),
+            started_at=datetime(2026, 7, 24, tzinfo=timezone.utc),
+        )
+
+        self.assertEqual(built.structured_data_stats, stats)
 
     def test_llm_manifest_uses_the_runtime_client_configuration(self) -> None:
         settings = Settings(

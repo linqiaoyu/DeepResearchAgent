@@ -17,11 +17,13 @@ from deepresearch_agent.schemas import (
     SubQuestion,
 )
 from deepresearch_agent.storage import SQLiteStore
+from deepresearch_agent.settings import Settings
 from deepresearch_agent.tools import (
     AKShareStructuredDataProvider,
     FixtureStructuredDataProvider,
     build_structured_data_provider,
 )
+from deepresearch_agent.workflow import DeepResearchEngine
 
 
 class StructuredDataProviderTests(unittest.TestCase):
@@ -269,6 +271,37 @@ class StructuredDataProviderTests(unittest.TestCase):
         self.assertEqual(evidence, [])
         self.assertEqual(stats["symbol_resolution_failures"], 1)
         self.assertEqual(stats["failures"][0]["error_type"], "SymbolResolutionError")
+
+    def test_zero_record_execution_records_explicit_degradation(self) -> None:
+        class EmptyFinancialProvider(FixtureStructuredDataProvider):
+            def financial_indicators(
+                self,
+                symbol: str,
+                periods: list[str] | None = None,
+                metrics: list[str] | None = None,
+            ) -> list[object]:
+                return []
+
+        with tempfile.TemporaryDirectory() as tmp:
+            engine = DeepResearchEngine(
+                settings=Settings(
+                    storage_path=Path(tmp) / "research.db",
+                    structured_logging_enabled=False,
+                ),
+                structured_data_provider=EmptyFinancialProvider(),
+            )
+            state = engine.run(topic="宁德时代（300750）2024 年营业收入是多少", depth_level=1)
+            engine._checkpoint_conn.close()
+
+        event = next(
+            item
+            for item in state.metadata["degradation_events"]
+            if item["reason"] == "structured_data_empty_result"
+        )
+        self.assertEqual(event["capability"], "financial_indicators")
+        self.assertEqual(event["symbol"], "300750")
+        self.assertEqual(event["periods"], ["20241231"])
+        self.assertEqual(event["metrics"], ["营业收入"])
 
     def test_structured_numeric_mirror_preserves_decimal_exactly(self) -> None:
         researcher = ResearcherAgent(structured_data_provider=FixtureStructuredDataProvider())

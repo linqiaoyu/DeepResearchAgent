@@ -338,7 +338,7 @@ class ResearcherAgent:
             "symbol_resolution_failures": 0,
             "execution_failures": 0,
         }
-        failures: list[dict[str, str]] = []
+        failures: list[dict[str, object]] = []
 
         def record_failure(
             request: StructuredDataRequest,
@@ -346,6 +346,8 @@ class ResearcherAgent:
             error_type: str,
             message: str,
             symbol_resolution: bool = False,
+            reason: str = "structured_data_execution_failure",
+            symbol: str | None = None,
         ) -> None:
             key = (
                 "symbol_resolution_failures"
@@ -358,7 +360,11 @@ class ResearcherAgent:
             ) + 1
             failures.append(
                 {
+                    "reason": reason,
                     "capability": request.capability,
+                    "symbol": symbol or request.symbol,
+                    "periods": list(request.periods),
+                    "metrics": list(request.metrics),
                     "error_type": error_type,
                     "message": message[:500],
                 }
@@ -428,6 +434,14 @@ class ResearcherAgent:
                 for record in records:
                     evidence.append(self._evidence_from_record(research_id, sub_question.id, record))
                 stats["records"] += len(records)
+                if not records:
+                    record_failure(
+                        request,
+                        error_type="StructuredDataEmptyResult",
+                        message="structured data request returned no records",
+                        reason="structured_data_empty_result",
+                        symbol=symbol,
+                    )
             except Exception as exc:
                 record_failure(
                     request,

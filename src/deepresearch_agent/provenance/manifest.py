@@ -36,6 +36,7 @@ class RunManifest(StrictModel):
     provider_usage: dict[str, int] = Field(default_factory=dict)
     actual_provider_fidelity: dict[str, str] = Field(default_factory=dict)
     actual_realness: Literal["real", "mixed", "fixture", "replay", "unknown"] = "unknown"
+    structured_data_stats: dict[str, dict[str, Any]] = Field(default_factory=dict)
     degradation_events: list[dict[str, Any]] = Field(default_factory=list)
     context_events: list[dict[str, Any]] = Field(default_factory=list)
     tool_error_summary: dict[str, int] = Field(default_factory=dict)
@@ -225,6 +226,7 @@ def build_run_manifest(
         provider_usage=_provider_usage(state),
         actual_provider_fidelity=_actual_provider_fidelity(state),
         actual_realness=_actual_realness(state),
+        structured_data_stats=_structured_data_stats(state),
         degradation_events=degradation_events,
         context_events=context_events,
         tool_error_summary={str(key): int(value) for key, value in tool_errors.items()},
@@ -281,10 +283,10 @@ def _provider_usage(state: ResearchState) -> dict[str, int]:
         ) and not query.startswith("[external_search_budget_exceeded]"):
             search += 1
     structured = sum(
-        int(stats.get("executed_requests", 0))
-        for stats in state.metadata.get("structured_data_stats", {}).values()
+        int(stats.get("records", 0))
+        for stats in _structured_data_stats(state).values()
         if isinstance(stats, dict)
-    ) if isinstance(state.metadata.get("structured_data_stats"), dict) else 0
+    )
     llm_usage = state.metadata.get("llm_usage")
     llm = 1 if isinstance(llm_usage, dict) and llm_usage.get("by_role") else 0
     return {
@@ -292,6 +294,17 @@ def _provider_usage(state: ResearchState) -> dict[str, int]:
         "structured_data": structured,
         "disclosure": disclosure,
         "llm": llm,
+    }
+
+
+def _structured_data_stats(state: ResearchState) -> dict[str, dict[str, Any]]:
+    raw_stats = state.metadata.get("structured_data_stats")
+    if not isinstance(raw_stats, dict):
+        return {}
+    return {
+        str(sub_question_id): dict(stats)
+        for sub_question_id, stats in raw_stats.items()
+        if isinstance(stats, dict)
     }
 
 

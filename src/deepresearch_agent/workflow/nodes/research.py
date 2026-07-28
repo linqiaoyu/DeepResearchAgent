@@ -309,7 +309,9 @@ class ResearchNodes:
             state.metadata.setdefault("degradation_events", []).extend(
                 {
                     "tool": "structured_data_provider",
-                    "reason": "structured_data_execution_failure",
+                    "reason": str(
+                        failure.get("reason", "structured_data_execution_failure")
+                    ),
                     "impact": "structured evidence unavailable for a requested capability",
                     "attempts": 1,
                     **failure,
