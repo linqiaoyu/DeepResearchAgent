@@ -67,6 +67,11 @@ UUID_RE = re.compile(
     r"\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b",
     re.IGNORECASE,
 )
+REDACTED_UUID_RE = re.compile(
+    r"\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}"
+    r"-[0-9a-f]{1,12}\[REDACTED_PHONE\]",
+    re.IGNORECASE,
+)
 ABSOLUTE_PATH_RE = re.compile(r"(?<![\w:/])/(?:[^/\s]+/)+[^/\s]+")
 TIMESTAMP_KEYS = {
     "started_at",
@@ -371,7 +376,8 @@ def normalize(value: Any, *, key: str | None = None) -> Any:
     if isinstance(value, list):
         return [normalize(item) for item in value]
     if isinstance(value, str):
-        normalized = UUID_RE.sub("<normalized-id>", value)
+        normalized = REDACTED_UUID_RE.sub("<normalized-id>", value)
+        normalized = UUID_RE.sub("<normalized-id>", normalized)
         normalized = ABSOLUTE_PATH_RE.sub("<normalized-path>", normalized)
         if normalized.endswith(".db"):
             return "<normalized-db>"

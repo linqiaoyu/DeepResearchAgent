@@ -33,6 +33,11 @@ class SnapshotNormalizationTest(unittest.TestCase):
         self.assertEqual(normalized["path"], "<normalized-path>")
         self.assertNotIn("random_seed", normalized)
 
+    def test_normalizes_uuid_partially_redacted_as_phone(self) -> None:
+        value = "20c0cc5e-2f93-5743-b763-f[REDACTED_PHONE]"
+
+        self.assertEqual(snapshot_run.normalize(value), "<normalized-id>")
+
 
 class WorkflowCharacterizationTest(unittest.TestCase):
     maxDiff = None
