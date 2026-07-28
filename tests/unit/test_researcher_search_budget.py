@@ -56,7 +56,7 @@ class ResearcherSearchBudgetTests(unittest.TestCase):
             allowed = list(pool.map(lambda _: researcher._consume_search_budget_if_needed(scope), range(80)))
         self.assertEqual(sum(allowed), 20)
         self.assertEqual(scope.search_quota.used, 20)
-    def test_financial_disclosure_short_circuits_redundant_web_fetch(
+    def test_financial_disclosure_keeps_selected_search_but_skips_web_fetch(
         self,
     ) -> None:
         class ExhaustedFetchProvider(CountingSearchProvider):
@@ -111,7 +111,7 @@ class ResearcherSearchBudgetTests(unittest.TestCase):
         )
 
         self.assertFalse(exhausted)
-        self.assertEqual(provider.queries, [])
+        self.assertEqual(provider.queries, ["600519 年度报告"])
         self.assertEqual(provider.fetched_urls, [])
         self.assertIn(
             "https://cninfo.test/600519.pdf",
@@ -119,7 +119,7 @@ class ResearcherSearchBudgetTests(unittest.TestCase):
         )
         self.assertEqual(
             [record.query for record in records],
-            ["[disclosure] 600519 年度报告"],
+            ["[disclosure] 600519 年度报告", "600519 年度报告"],
         )
 
     def test_event_disclosure_does_not_short_circuit_web_research(

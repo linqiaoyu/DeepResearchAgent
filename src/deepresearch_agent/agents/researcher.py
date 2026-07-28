@@ -193,7 +193,11 @@ class ResearcherAgent:
         for idx, query in enumerate(
             sub_question.search_queries if enable_web_search else []
         ):
-            if primary_hydrated:
+            # A successfully hydrated disclosure makes additional fetches
+            # redundant, but it must not silently suppress the explicitly
+            # selected independent search provider.  Keep the first query for
+            # cross-source evidence and stop before any further queries.
+            if primary_hydrated and idx > 0:
                 break
             if not consume_call():
                 marker = (
@@ -256,7 +260,7 @@ class ResearcherAgent:
                 )
             for source in ranked:
                 seen[source.url] = source
-                if not enable_web_fetch:
+                if not enable_web_fetch or primary_hydrated:
                     continue
                 if not consume_call():
                     records.append(
