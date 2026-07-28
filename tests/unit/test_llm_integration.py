@@ -69,7 +69,7 @@ class LLMIntegrationTests(unittest.TestCase):
                 self.assertIn("tools", kwargs)
                 return {"choices": [{"message": {"content": "", "tool_calls": [{"function": {"name": "web_search", "arguments": "{}"}}]}}], "usage": {"prompt_tokens": 10, "completion_tokens": 2, "total_tokens": 12}}
             ledger = Path(tmp) / "ledger.jsonl"
-            result = LLMClient(ledger_path=ledger, global_ledger_path=Path(tmp) / "global.jsonl", budget_cny=3, completion_func=completion, env_path=env_path).complete_with_tools(role="extractor", run_id="tool-run", messages=[{"role": "user", "content": "select"}], tools=[{"type": "function", "function": {"name": "web_search", "parameters": {}}}])
+            result = LLMClient(ledger_path=ledger, global_ledger_path=Path(tmp) / "global.jsonl", budget_cny=3, completion_func=completion, env_path=env_path).complete_with_tools(role="capability_selector", run_id="tool-run", messages=[{"role": "user", "content": "select"}], tools=[{"type": "function", "function": {"name": "web_search", "parameters": {}}}])
             self.assertEqual(result.tool_calls[0]["function"]["name"], "web_search")
             self.assertGreater(result.total_tokens, 0)
             self.assertGreaterEqual(result.cost_cny, 0)

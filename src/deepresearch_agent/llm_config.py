@@ -82,6 +82,10 @@ class LLMConfig:
                 model="openai/deepseek-v4-flash",
                 api_base="https://api.deepseek.com",
             ),
+            "capability_selector": RoleModelConfig(
+                model="openai/deepseek-v4-flash",
+                api_base="https://api.deepseek.com",
+            ),
             "reporter": RoleModelConfig(
                 model="openai/deepseek-v4-flash",
                 api_base="https://api.deepseek.com",

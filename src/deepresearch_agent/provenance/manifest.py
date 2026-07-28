@@ -199,7 +199,9 @@ def build_run_manifest(
         started_at=started_at,
         ended_at=ended_at or utc_now(),
         model_strings={
-            role: config.model for role, config in configured_models.roles.items()
+            role: config.model
+            for role, config in configured_models.roles.items()
+            if role != "capability_selector" or settings.llm_tool_selection_enabled
         },
         prompt_hashes=_prompt_hashes(
             root / "prompts",

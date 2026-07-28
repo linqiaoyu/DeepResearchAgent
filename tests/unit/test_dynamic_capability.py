@@ -18,6 +18,11 @@ from deepresearch_agent.tools import (
 )
 from deepresearch_agent.tools.capability_selector import LLMCapabilitySelector
 from deepresearch_agent.workflow import DeepResearchEngine
+from deepresearch_agent.trajectory import (
+    TrajectoryRecorder,
+    trajectory_recording,
+    validate_strict_replay_trajectory,
+)
 
 
 def _registry():
@@ -42,6 +47,46 @@ class DynamicCapabilitySelectionTest(unittest.TestCase):
         self.assertIn("unknown_tool", selection.rejected_capabilities)
         self.assertEqual(state.metadata["degradation_events"][0]["reason"], "unknown_capability")
         self.assertEqual(len(state.agent_decisions), 1)
+
+    def test_llm_selector_records_one_decision_and_trace_per_tool_call(self) -> None:
+        class StubClient:
+            def complete_with_tools(self, **_kwargs):
+                from types import SimpleNamespace
+                return SimpleNamespace(tool_calls=(
+                    {"function": {"name": "web_search"}},
+                    {"function": {"name": "web_fetch"}},
+                ))
+
+        state = ResearchState(topic="能力选择")
+        recorder = TrajectoryRecorder(run_id=state.research_id, request={})
+        with trajectory_recording(recorder):
+            LLMCapabilitySelector(_registry(), StubClient()).select(
+                state, SubQuestion(id="n", question="核实公告", search_queries=["公告"])
+            )
+        decisions = [item for item in state.agent_decisions if item.decision_type == "capability_selection"]
+        calls = [item for item in recorder.trajectory.tool_calls if item.inputs.get("selection_only")]
+        self.assertEqual(len(decisions), len(calls))
+        self.assertTrue(all(item.attempts == 0 for item in calls))
+
+    def test_selection_trace_sequence_mutation_is_rejected_by_strict_replay(self) -> None:
+        class StubClient:
+            def complete_with_tools(self, **_kwargs):
+                from types import SimpleNamespace
+                return SimpleNamespace(tool_calls=({"function": {"name": "web_search"}},))
+
+        state = ResearchState(topic="能力选择")
+        recorder = TrajectoryRecorder(run_id=state.research_id, request={
+            "topic": state.topic, "mode": "llm", "depth_level": 1, "recorded_plan": {}
+        })
+        with trajectory_recording(recorder):
+            LLMCapabilitySelector(_registry(), StubClient()).select(
+                state, SubQuestion(id="n", question="分析战略", search_queries=["战略"])
+            )
+        recorder.finalize(manifest_ref=None, artifacts={"report.md": ""})
+        trace = recorder.trajectory.tool_calls[0]
+        trace.sequence = 2
+        with self.assertRaisesRegex(ValueError, "sequence mismatch"):
+            validate_strict_replay_trajectory(recorder.trajectory)
 
     def test_financial_and_narrative_types_select_from_registry(self) -> None:
         state = ResearchState(topic="能力选择")

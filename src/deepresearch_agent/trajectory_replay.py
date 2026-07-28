@@ -275,6 +275,8 @@ class ReplaySearchProvider:
             deque
         )
         for call in trajectory.tool_calls:
+            if call.inputs.get("selection_only"):
+                continue
             name = call.tool_spec.get("name")
             if name == "web_fetch":
                 self._fetches[str(call.inputs["url"])].append(call)
@@ -388,6 +390,7 @@ class ReplayStructuredDataProvider:
             for call in trajectory.tool_calls
             if call.tool_spec.get("name")
             == "structured_data_provider"
+            and not call.inputs.get("selection_only")
         )
 
     def symbol_resolve(self, company_name: str) -> SymbolInfo | None:
@@ -481,9 +484,10 @@ class ReplayDisclosureSource:
         self._calls: deque[ToolCallTrace] = deque(
             sorted(
                 (
-                    call
-                    for call in trajectory.tool_calls
-                    if call.tool_spec.get("name") == "disclosure_source"
+                call
+                for call in trajectory.tool_calls
+                if call.tool_spec.get("name") == "disclosure_source"
+                and not call.inputs.get("selection_only")
                 ),
                 key=lambda item: item.sequence or 0,
             )
@@ -695,7 +699,10 @@ def replay_trajectory(
         {
             str(call.tool_spec.get("name"))
             for call in trajectory.tool_calls
-            if call.tool_spec.get("name") not in supported_tools
+            if (
+                not call.inputs.get("selection_only")
+                and call.tool_spec.get("name") not in supported_tools
+            )
         }
     )
     if recorded_mode == "llm" and unsupported:

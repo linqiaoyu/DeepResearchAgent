@@ -16,6 +16,7 @@ from deepresearch_agent.schemas import (
 from deepresearch_agent.tools.capability_registry import (
     CapabilityRegistry,
 )
+from deepresearch_agent.trajectory import ToolCallTrace, active_trajectory_recorder
 
 
 class CapabilitySelector(Protocol):
@@ -196,7 +197,7 @@ class LLMCapabilitySelector:
             for item in candidates
         ]
         result = self.llm_client.complete_with_tools(
-            role="extractor",
+            role="capability_selector",
             run_id=state.research_id,
             messages=[
                 {"role": "system", "content": "Select only applicable registered tools."},
@@ -227,13 +228,26 @@ class LLMCapabilitySelector:
             criterion=criterion,
             fallback=False,
         )
-        record_agent_decision(state, AgentDecision(
-            decision_type="capability_selection", made_by="LLMCapabilitySelector",
-            inputs={"sub_question_id": sub_question.id, "candidate_capabilities": list(candidate_names)},
-            criterion=criterion,
-            outcome=f"selected={list(selected)} rejected={list(unknown)}",
-            alternatives_considered=list(candidate_names),
-        ))
+        recorder = active_trajectory_recorder()
+        for name in requested:
+            registered = name in candidate_names
+            if recorder:
+                recorder.record_tool_call(ToolCallTrace(
+                    tool_spec=(
+                        self.registry.get(name).tool_spec.model_dump(mode="json")
+                        if registered else {"name": name, "selection_only": True}
+                    ),
+                    inputs={"selection_only": True, "sub_question_id": sub_question.id},
+                    result={"selected": name},
+                    attempts=0,
+                ))
+            record_agent_decision(state, AgentDecision(
+                decision_type="capability_selection", made_by="LLMCapabilitySelector",
+                inputs={"sub_question_id": sub_question.id, "capability": name, "registered": registered},
+                criterion=criterion,
+                outcome="selected" if registered else "rejected_unknown_capability",
+                alternatives_considered=list(candidate_names),
+            ))
         return selection
 
 

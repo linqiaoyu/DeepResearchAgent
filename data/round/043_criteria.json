@@ -232,4 +232,47 @@
     "command": ["rg", "-n", "^\\| 指标 \\| 算子 \\| 输入 \\| 值域 \\| 是否 gated \\|$", "docs/evaluation.md"],
     "target": "metric table declares operator, input, range, and gate"
   }
+  ,
+  {
+    "id": "B6-tool-call-ledger",
+    "block": "B6",
+    "command": ["env", "PYTHONPATH=src", ".venv/bin/python", "-m", "unittest", "tests.unit.test_llm_integration.LLMIntegrationTests.test_complete_with_tools_records_native_tool_call_in_ledger"],
+    "target": "exit 0; one native tool call records ledger token/cost/latency"
+  },
+  {
+    "id": "B6-default-golden-unchanged",
+    "block": "B6",
+    "command": ["git", "diff", "--exit-code", "tests/golden_output"],
+    "target": "exit 0"
+  },
+  {
+    "id": "B6-unknown-capability-fail-closed",
+    "block": "B6",
+    "command": ["env", "PYTHONPATH=src", ".venv/bin/python", "-m", "unittest", "tests.unit.test_dynamic_capability.DynamicCapabilitySelectionTest.test_llm_selector_rejects_unknown_capability_and_records_degradation"],
+    "target": "exit 0"
+  },
+  {
+    "id": "B6-selection-sequence-replay-guard",
+    "block": "B6",
+    "command": ["env", "PYTHONPATH=src", ".venv/bin/python", "-m", "unittest", "tests.unit.test_dynamic_capability.DynamicCapabilitySelectionTest.test_selection_trace_sequence_mutation_is_rejected_by_strict_replay"],
+    "target": "exit 0"
+  },
+  {
+    "id": "B6-decision-tool-call-parity",
+    "block": "B6",
+    "command": ["env", "PYTHONPATH=src", ".venv/bin/python", "-m", "unittest", "tests.unit.test_dynamic_capability.DynamicCapabilitySelectionTest.test_llm_selector_records_one_decision_and_trace_per_tool_call"],
+    "target": "exit 0"
+  },
+  {
+    "id": "B6-tool-budget-rejection",
+    "block": "B6",
+    "command": ["env", "PYTHONPATH=src", ".venv/bin/python", "-m", "unittest", "tests.unit.test_external_request_budget.ExternalRequestBudgetTests.test_critic_retry_style_search_is_refused_and_traced_at_run_limit"],
+    "target": "exit 0"
+  },
+  {
+    "id": "B6-adr",
+    "block": "B6",
+    "command": ["test", "-f", "docs/decisions/043/adr-llm-tool-selection.md"],
+    "target": "file exists with default and promotion conditions"
+  }
 ]
