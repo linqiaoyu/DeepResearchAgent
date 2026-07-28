@@ -280,5 +280,61 @@
     "command": ["test", "-f", "docs/decisions/043/adr-llm-tool-selection.md"],
     "kind": "artifact_presence",
     "target": "file exists with default and promotion conditions"
+  },
+  {
+    "id": "B8-akshare-probe-archived",
+    "block": "B8",
+    "command": ["test", "-s", "docs/decisions/043/b8-akshare-probe.md"],
+    "kind": "artifact_presence",
+    "target": "exit 0"
+  },
+  {
+    "id": "B8-akshare-real-records",
+    "block": "B8",
+    "command": [".venv/bin/python", "scripts/check_round_invariant.py", "count", "--pattern", "^akshare_financial_indicators_records=[1-9][0-9]*$", "docs/decisions/043/b8-akshare-probe.md"],
+    "target": "exit 0"
+  },
+  {
+    "id": "B8-empty-result-degrades",
+    "block": "B8",
+    "command": ["env", "PYTHONPATH=src", ".venv/bin/python", "-m", "unittest", "tests.unit.test_structured_data_provider.StructuredDataProviderTests.test_zero_record_execution_records_explicit_degradation"],
+    "target": "exit 0"
+  },
+  {
+    "id": "B8-empty-result-not-real",
+    "block": "B8",
+    "command": ["env", "PYTHONPATH=src", ".venv/bin/python", "-m", "unittest", "tests.unit.test_run_manifest.RunManifestTests.test_zero_record_structured_call_is_not_real"],
+    "target": "exit 0"
+  },
+  {
+    "id": "B8-structured-stats-manifest",
+    "block": "B8",
+    "command": ["env", "PYTHONPATH=src", ".venv/bin/python", "-m", "unittest", "tests.unit.test_run_manifest.RunManifestTests.test_manifest_records_structured_data_stats"],
+    "target": "exit 0"
+  },
+  {
+    "id": "B8-grounded-fidelity-degrades",
+    "block": "B8",
+    "command": ["env", "PYTHONPATH=src", ".venv/bin/python", "-m", "unittest", "tests.unit.test_reader_fidelity.ReaderFidelityTests.test_grounded_fact_fidelity_failure_degrades_without_raising"],
+    "target": "exit 0"
+  },
+  {
+    "id": "B8-fatal-grounded-raise-absent",
+    "block": "B8",
+    "command": [".venv/bin/python", "scripts/check_round_invariant.py", "count", "--pattern", "mechanically rendered fact failed", "src/deepresearch_agent/agents/reporter.py"],
+    "target": "0",
+    "expected_returncode": 1
+  },
+  {
+    "id": "B8-fixture-akshare-leg",
+    "block": "B8",
+    "command": [".venv/bin/python", "scripts/check_real_run_manifest.py", "docs/decisions/043/b8-fixture-llm-manifest.json", "--require-structured"],
+    "target": "exit 0"
+  },
+  {
+    "id": "B8-four-layer-real",
+    "block": "B8",
+    "command": [".venv/bin/python", "scripts/check_real_run_manifest.py", "docs/decisions/043/b8-real-run-manifest.json", "--require-all-real"],
+    "target": "exit 0"
   }
 ]
