@@ -1757,7 +1757,7 @@ class DeepResearchEngine:
                 source_decisions,
             ) = self.researcher.research_with_budget(
                 sub_question,
-                run_scope=self.run_scope,
+                run_scope=run_scope,
                 max_search_calls=allocation,
                 priority_urls=priority_urls,
                 enable_web_search=(
@@ -1782,7 +1782,7 @@ class DeepResearchEngine:
                 source_decisions,
             ) = self.researcher.research_with_budget(
                 sub_question,
-                run_scope=self.run_scope,
+                run_scope=run_scope,
                 max_search_calls=None,
                 priority_urls=priority_urls,
                 enable_web_search=(
@@ -1796,7 +1796,7 @@ class DeepResearchEngine:
             )
         else:
             if "web_search" in selected_capabilities:
-                sources, records = self.researcher.research(sub_question, run_scope=self.run_scope)
+                sources, records = self.researcher.research(sub_question, run_scope=run_scope)
                 search_calls = len(records)
                 branch_exhausted = False
                 source_decisions = []
@@ -2576,7 +2576,7 @@ class DeepResearchEngine:
                         ).model_dump(mode="json")
                     },
                 }
-        sources, record = self.researcher.retry(task.query, task.source_type, run_scope=self.run_scope)
+        sources, record = self.researcher.retry(task.query, task.source_type, run_scope=run_scope)
         return {
             "retry_sources": {task.id: [source.model_dump(mode="json") for source in sources]},
             "retry_records": {task.id: record.model_dump(mode="json")},
