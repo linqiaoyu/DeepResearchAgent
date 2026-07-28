@@ -10,10 +10,7 @@ from urllib.parse import urlsplit
 
 from deepresearch_agent.agents import CriticAgent, Evaluator, ExtractorAgent, PlannerAgent, ReporterAgent, ResearcherAgent
 from deepresearch_agent.config_validation import validate_required_configuration
-from deepresearch_agent.decisions import (
-    append_decision_chain,
-    record_agent_decision,
-)
+from deepresearch_agent.decisions import record_agent_decision
 from deepresearch_agent.domains.protocols import DomainPack
 from deepresearch_agent.domains.registry import load_domain_pack
 from deepresearch_agent.llm import BudgetExceededError, LLMClient
@@ -50,9 +47,6 @@ from deepresearch_agent.semantic_judge import RuntimeSemanticJudge
 from deepresearch_agent.reporting import (
     GroundedFactRenderer,
     ReporterContextBuilder,
-    append_degradation_notice,
-    append_prior_differences,
-    append_research_process,
 )
 from deepresearch_agent.research_snapshot import ResearchSnapshot, research_question_id
 from deepresearch_agent.schemas import (
@@ -68,6 +62,7 @@ from deepresearch_agent.settings import Settings, load_settings, project_root
 from deepresearch_agent.workflow.nodes.research import ResearchNodes
 from deepresearch_agent.workflow.nodes.retry import RetryNodes
 from deepresearch_agent.workflow.nodes.research_loop import ResearchLoopNodes
+from deepresearch_agent.workflow.nodes.delivery import DeliveryNodes
 from deepresearch_agent.workflow.contracts import (
     build_workflow_contracts,
     workflow_contract_graph,
@@ -157,7 +152,7 @@ class ResearchGraphState(TypedDict, total=False):
     retry_records: Annotated[dict[str, dict[str, Any]], _merge_dicts]
 
 
-class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes):
+class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryNodes):
     def __init__(
         self,
         settings: Settings | None = None,
@@ -1366,81 +1361,6 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes):
             inputs={"sub_questions": len(state.plan.sub_questions)},
             outputs={"records_written": len(written)},
         )
-
-    def _reporter_node(
-        self, graph_state: ResearchGraphState, *, run_scope: RunScope
-    ) -> ResearchGraphState:
-        state = self._state_from_graph_values(graph_state)
-        if (
-            self.settings.decision_weaving_enabled
-            or self.settings.numeric_check_enabled
-            or self.settings.dynamic_capability_enabled
-        ):
-            state.metadata["stable_reader_evidence_refs"] = True
-        self._sync_tool_degradation(state, run_scope=run_scope)
-        state.evidence_store = self._sorted_evidence(state.evidence_store)
-        report_context = self.reporter_context_builder.build(
-            state,
-            enabled=self.settings.context_packer_enabled,
-            budget=self.settings.reporter_context_token_budget,
-            as_of=self.settings.as_of,
-        )
-        state.final_report = self.reporter.report(
-            state,
-            context_evidence=list(report_context.evidence),
-        )
-        if self.settings.decision_weaving_enabled:
-            state.final_report = append_decision_chain(
-                state.final_report,
-                state.agent_decisions,
-            )
-        if self.settings.structured_output_enabled:
-            state.structured_output = self.reporter.structured_output(state)
-        state.final_report = append_degradation_notice(state.final_report, state)
-        state.final_report = append_research_process(
-            state.final_report,
-            state,
-            enabled=self.settings.research_loop_active,
-        )
-        state.final_report = append_prior_differences(
-            state.final_report,
-            state,
-            enabled=self.settings.prior_memory_enabled,
-        )
-        state.draft_report = state.final_report
-        if self.settings.execution_mode == "llm":
-            state.metadata.setdefault("llm_stats", {})["reporter"] = self.reporter.last_stats
-            self._sync_llm_usage(state)
-        return self._state_output(
-            self._complete_phase(state, graph_state, completed_phase="reporting", next_phase="evaluating")
-        )
-
-    def _route_after_reporting(self, graph_state: ResearchGraphState) -> str:
-        return END if self._state_from_graph_values(graph_state).status == "paused" else "evaluator"
-
-    def _evaluator_node(self, graph_state: ResearchGraphState) -> ResearchGraphState:
-        state = self._state_from_graph_values(graph_state)
-        state.evidence_store = self._sorted_evidence(state.evidence_store)
-        if self.settings.execution_mode == "llm":
-            self._sync_llm_usage(state)
-        state.evaluation = self.evaluator.evaluate(
-            state,
-            started_at=graph_state.get(
-                "started_at",
-                time.perf_counter(),
-            ),
-        )
-        if self.settings.execution_mode == "llm":
-            self._sync_llm_usage(state)
-            state.evaluation = self.evaluator.refresh_operational_metrics(
-                state.evaluation,
-                state,
-            )
-        self.store.save_evaluation(state.evaluation)
-        state.current_phase = "done"
-        state.status = "paused" if graph_state.get("stop_after_phase") == "evaluating" else "done"
-        state.updated_at = utc_now()
-        return self._state_output(state)
 
     def _planning(self, state: ResearchState) -> None:
         state.plan = self.planner.plan(state.topic, state.depth_level, research_id=state.research_id)
