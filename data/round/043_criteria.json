@@ -87,5 +87,42 @@
     "block": "B1",
     "command": ["test", "-s", "_collab/043_stall-diagnosis-and-next-plan/b1-send-runtime-context-probe.md"],
     "target": "probe archive exists and contains raw stdout"
+  },
+  {
+    "id": "B2-engine-slim",
+    "block": "B2",
+    "command": ["wc", "-l", "src/deepresearch_agent/workflow/engine.py"],
+    "target": "<= 900 lines"
+  },
+  {
+    "id": "B2-extracted-files-bounded",
+    "block": "B2",
+    "command": [".venv/bin/python", "scripts/check_workflow_module_size.py"],
+    "target": "all B2 extracted modules <= 600 lines"
+  },
+  {
+    "id": "B2-orchestration-no-reverse-deps",
+    "block": "B2",
+    "command": ["rg", "-c", "from deepresearch_agent\\.(workflow|domains)", "src/deepresearch_agent/orchestration"],
+    "target": "0",
+    "expected_returncode": 1
+  },
+  {
+    "id": "B2-golden-output-unchanged",
+    "block": "B2",
+    "command": ["git", "diff", "--exit-code", "tests/golden_output"],
+    "target": "exit 0"
+  },
+  {
+    "id": "B2-demo-artifact-parity",
+    "block": "B2",
+    "command": ["env", "PYTHONPATH=src", ".venv/bin/python", "-m", "unittest", "tests.integration.test_demo_artifact_parity"],
+    "target": "exit 0 (two deterministic demo artifacts are byte-identical)"
+  },
+  {
+    "id": "B2-full-gate",
+    "block": "B2",
+    "command": [".venv/bin/python", "scripts/gate.py"],
+    "target": "exit 0; tests >= B1 result"
   }
 ]
