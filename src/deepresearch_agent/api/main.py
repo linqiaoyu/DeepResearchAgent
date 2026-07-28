@@ -84,14 +84,10 @@ def run_research(
     if engine.settings.execution_mode == "llm":
         reservation = demo_service.guard.reserve(engine.settings.llm_budget_cny)
     try:
-        # A request owns its workflow instance.  The lifespan engine is a
-        # read-model for checkpoints and metrics; sharing it for execution
-        # would serialize every request behind its run-scoped safety lock.
-        with DeepResearchEngine(settings=engine.settings) as request_engine:
-            state = request_engine.run(
-                topic=request.topic,
-                depth_level=request.depth_level,
-            )
+        state = engine.run(
+            topic=request.topic,
+            depth_level=request.depth_level,
+        )
     except Exception:
         if reservation:
             demo_service.guard.settle(reservation, reservation)
@@ -116,7 +112,7 @@ def _require_owner_token(token: str | None) -> None:
 
 def create_app(
     *,
-    engine_factory=DeepResearchEngine,
+    engine_factory=lambda: DeepResearchEngine(),
     demo_service_factory=DemoService,
 ):
     if FastAPI is None:

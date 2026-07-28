@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import sqlite3
-import threading
 import time
 import traceback
 from collections.abc import Sequence
@@ -381,10 +380,6 @@ class DeepResearchEngine:
         self._checkpoint_conn.execute("PRAGMA busy_timeout=30000")
         self.checkpointer = SqliteSaver(self._checkpoint_conn)
         self.graph = self._build_graph()
-        # This engine owns mutable run-scoped budgets and bindings. Until those
-        # are graph-state fields, a shared engine must serialize runs rather
-        # than silently cross-contaminate concurrent requests.
-        self._run_lock = threading.RLock()
 
     def close(self) -> None:
         """Release process resources owned by this engine deterministically."""
@@ -410,16 +405,15 @@ class DeepResearchEngine:
         interrupt_before: Sequence[str] | None = None,
         interrupt_after: Sequence[str] | None = None,
     ) -> ResearchState:
-        with self._run_lock:
-            return self._run_once(
-                topic=topic,
-                depth_level=depth_level,
-                research_id=research_id,
-                resume=resume,
-                stop_after_phase=stop_after_phase,
-                interrupt_before=interrupt_before,
-                interrupt_after=interrupt_after,
-            )
+        return self._run_once(
+            topic=topic,
+            depth_level=depth_level,
+            research_id=research_id,
+            resume=resume,
+            stop_after_phase=stop_after_phase,
+            interrupt_before=interrupt_before,
+            interrupt_after=interrupt_after,
+        )
 
     def _run_once(
         self,

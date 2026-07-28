@@ -216,7 +216,7 @@ class AgentCoreArchitectureTests(unittest.TestCase):
         self.assertTrue(captured["enable_web_fetch"])
         self.assertTrue(captured["enable_web_search"])
 
-    def test_shared_engine_serializes_mutable_run_context(self) -> None:
+    def test_shared_engine_allows_concurrent_run_scopes(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             engine = DeepResearchEngine(
                 settings=Settings(
@@ -228,6 +228,7 @@ class AgentCoreArchitectureTests(unittest.TestCase):
             )
             active = 0
             max_active = 0
+            results: list[ResearchState] = []
             counter_lock = threading.Lock()
 
             def fake_run_once(**_kwargs: object) -> ResearchState:
@@ -242,7 +243,11 @@ class AgentCoreArchitectureTests(unittest.TestCase):
 
             engine._run_once = fake_run_once  # type: ignore[method-assign]
             threads = [
-                threading.Thread(target=engine.run, kwargs={"topic": str(index)})
+                threading.Thread(
+                    target=lambda index=index: results.append(
+                        engine.run(topic=str(index))
+                    )
+                )
                 for index in range(2)
             ]
             try:
@@ -253,7 +258,8 @@ class AgentCoreArchitectureTests(unittest.TestCase):
             finally:
                 engine._checkpoint_conn.close()
 
-        self.assertEqual(max_active, 1)
+        self.assertEqual(max_active, 2)
+        self.assertEqual(len(results), 2)
 
     def test_independent_request_engines_share_wal_checkpoint_safely(self) -> None:
         """Request-scoped engines must not regress to sqlite's five-second lock."""
