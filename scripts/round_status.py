@@ -21,6 +21,10 @@ def _criteria() -> list[dict[str, object]]:
             raise ValueError("each criterion needs id, block, command, and target")
         if not isinstance(item["command"], list) or not all(isinstance(part, str) for part in item["command"]):
             raise ValueError("criterion command must be a list of strings")
+        if "expected_returncode" in item and not isinstance(item["expected_returncode"], int):
+            raise ValueError("expected_returncode must be an int")
+        if "expected_stdout" in item and not isinstance(item["expected_stdout"], str):
+            raise ValueError("expected_stdout must be a string")
     return payload
 
 
@@ -43,7 +47,13 @@ def main() -> None:
         assert isinstance(command, list)
         completed = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, check=False)
         output = (completed.stdout + completed.stderr).strip().replace("\n", " | ")
-        passed = completed.returncode == 0
+        expected_returncode = criterion.get("expected_returncode", 0)
+        assert isinstance(expected_returncode, int)
+        passed = completed.returncode == expected_returncode
+        expected_stdout = criterion.get("expected_stdout")
+        if expected_stdout is not None:
+            assert isinstance(expected_stdout, str)
+            passed = passed and completed.stdout.strip() == expected_stdout
         if criterion["id"] == "B0-assets-tracked":
             passed = passed and len(completed.stdout.splitlines()) == 2
         print(

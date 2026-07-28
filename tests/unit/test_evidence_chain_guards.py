@@ -5,8 +5,8 @@ from datetime import date
 from pathlib import Path
 
 from deepresearch_agent.agents import ReporterAgent
+from deepresearch_agent.domains.registry import load_domain_pack
 from deepresearch_agent.orchestration.research_loop import (
-    DOCUMENT_TYPE_TOKENS,
     MAX_REPLAN_QUERY_CHINESE_CHARS,
     MAX_TITLE_COMMON_SUBSTRING_CHARS,
     SufficiencyThresholds,
@@ -61,7 +61,9 @@ class EvidenceChainGuardTests(unittest.TestCase):
                     longest_common_substring_length(query, title),
                     MAX_TITLE_COMMON_SUBSTRING_CHARS,
                 )
-                self.assertTrue(any(token in query for token in DOCUMENT_TYPE_TOKENS))
+                self.assertTrue(
+                    any(token in query for token in load_domain_pack("finance").document_type_tokens())
+                )
                 self.assertIn(symbol, query)
                 self.assertNotIn(title, query)
         self.assertEqual(len(generated), 18)

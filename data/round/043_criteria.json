@@ -22,5 +22,70 @@
     "block": "B3",
     "command": [".venv/bin/python", "scripts/check_domain_boundary.py"],
     "target": "import_sites=0"
+  },
+  {
+    "id": "B1-run-lock-absent",
+    "block": "B1",
+    "command": ["rg", "-c", "_run_lock", "src/deepresearch_agent/workflow/engine.py"],
+    "target": "0",
+    "expected_returncode": 1
+  },
+  {
+    "id": "B1-engine-instance-state-absent",
+    "block": "B1",
+    "command": ["rg", "-c", "self\\.branch_budget|self\\.run_tool_context", "src/deepresearch_agent/workflow/engine.py"],
+    "target": "0",
+    "expected_returncode": 1
+  },
+  {
+    "id": "B1-reflective-injection-absent",
+    "block": "B1",
+    "command": ["rg", "-c", "set_run_context|_bind_run_tool_context", "src/deepresearch_agent"],
+    "target": "0",
+    "expected_returncode": 1
+  },
+  {
+    "id": "B1-researcher-instance-count-absent",
+    "block": "B1",
+    "command": ["rg", "-c", "searches_used", "src/deepresearch_agent"],
+    "target": "0",
+    "expected_returncode": 1
+  },
+  {
+    "id": "B1-run-scope-isolation",
+    "block": "B1",
+    "command": ["env", "PYTHONPATH=src", ".venv/bin/python", "-m", "unittest", "tests.integration.test_run_scope_isolation"],
+    "target": "exit 0 (8 concurrent; byte-identical to serial)"
+  },
+  {
+    "id": "B1-api-single-engine",
+    "block": "B1",
+    "command": ["rg", "-c", "DeepResearchEngine\\(", "src/deepresearch_agent/api/main.py"],
+    "target": "1",
+    "expected_stdout": "1"
+  },
+  {
+    "id": "B1-golden-output-unchanged",
+    "block": "B1",
+    "command": ["git", "diff", "--exit-code", "tests/golden_output"],
+    "target": "exit 0"
+  },
+  {
+    "id": "B1-strict-replay",
+    "block": "B1",
+    "command": ["env", "PYTHONPATH=src", ".venv/bin/python", "scripts/replay_trajectory.py", "tests/fixtures/trajectories/synthetic/fake_provider_synthetic_trajectory.json"],
+    "target": "exit 0 (same as pre-change)"
+  },
+  {
+    "id": "B1-full-gate",
+    "block": "B1",
+    "command": [".venv/bin/python", "scripts/gate.py"],
+    "target": "exit 0; tests >= first-run baseline"
+  },
+  {
+    "id": "B1-send-runtime-probe",
+    "block": "B1",
+    "command": ["test", "-s", "_collab/043_stall-diagnosis-and-next-plan/b1-send-runtime-context-probe.md"],
+    "target": "probe archive exists and contains raw stdout"
   }
 ]
