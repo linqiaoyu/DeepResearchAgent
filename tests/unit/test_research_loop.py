@@ -5,6 +5,7 @@ import unittest
 from datetime import date
 from pathlib import Path
 
+from deepresearch_agent.domains.registry import load_domain_pack
 from deepresearch_agent.orchestration import (
     SufficiencyThresholds,
     evaluate_research_sufficiency,
@@ -24,6 +25,9 @@ from deepresearch_agent.schemas import (
 )
 from deepresearch_agent.settings import Settings
 from deepresearch_agent.workflow import DeepResearchEngine
+
+
+FINANCE_DOMAIN_PACK = load_domain_pack("finance")
 
 
 def _state(evidence: list[Evidence]) -> ResearchState:
@@ -139,6 +143,7 @@ class ResearchSufficiencyTest(unittest.TestCase):
             result,
             as_of=date(2026, 7, 26),
             iteration=2,
+            domain_pack=FINANCE_DOMAIN_PACK,
         )
         self.assertIn("主营业务毛利率", refined["finance"][0])
         self.assertNotIn("营业收入", refined["finance"][0])
@@ -512,6 +517,7 @@ class ResearchSufficiencyTest(unittest.TestCase):
             sufficiency,
             as_of=date(2026, 7, 24),
             iteration=2,
+            domain_pack=FINANCE_DOMAIN_PACK,
         )
 
         self.assertNotEqual(refined["sq-1"], previous)

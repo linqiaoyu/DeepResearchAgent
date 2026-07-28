@@ -7,6 +7,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 MAX_LINES = 600
+ENGINE_MAX_LINES = 900
+ENGINE = ROOT / "src/deepresearch_agent/workflow/engine.py"
 MODULES = (
     ROOT / "src/deepresearch_agent/orchestration/graph_runtime.py",
     ROOT / "src/deepresearch_agent/workflow/contracts.py",
@@ -25,6 +27,12 @@ MODULES = (
 
 def main() -> None:
     violations: list[str] = []
+    engine_lines = len(ENGINE.read_text(encoding="utf-8").splitlines())
+    print(f"{ENGINE.relative_to(ROOT)}={engine_lines}")
+    if engine_lines > ENGINE_MAX_LINES:
+        violations.append(
+            f"{ENGINE.relative_to(ROOT)} has {engine_lines} lines (max {ENGINE_MAX_LINES})"
+        )
     for path in MODULES:
         lines = len(path.read_text(encoding="utf-8").splitlines())
         relative = path.relative_to(ROOT)

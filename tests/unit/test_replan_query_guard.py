@@ -4,6 +4,7 @@ import re
 import unittest
 from datetime import date
 
+from deepresearch_agent.domains.registry import load_domain_pack
 from deepresearch_agent.orchestration.decision_context import (
     build_decision_context,
 )
@@ -23,6 +24,9 @@ from deepresearch_agent.schemas import (
     SubQuestion,
     StructuredDataRequest,
 )
+
+
+FINANCE_DOMAIN_PACK = load_domain_pack("finance")
 
 
 class ReplanQueryGuardTests(unittest.TestCase):
@@ -94,6 +98,7 @@ class ReplanQueryGuardTests(unittest.TestCase):
             as_of=date(2026, 7, 25),
             iteration=2,
             decision_context=context,
+            domain_pack=FINANCE_DOMAIN_PACK,
         )
 
         forbidden = re.compile(

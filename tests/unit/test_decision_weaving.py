@@ -5,6 +5,7 @@ from datetime import date
 
 from pydantic import ValidationError
 
+from deepresearch_agent.domains.registry import load_domain_pack
 from deepresearch_agent.orchestration import (
     BoundedLoop,
     BranchBudget,
@@ -25,6 +26,9 @@ from deepresearch_agent.schemas import (
     SubQuestion,
 )
 from deepresearch_agent.settings import Settings
+
+
+FINANCE_DOMAIN_PACK = load_domain_pack("finance")
 
 
 def _planned_state() -> ResearchState:
@@ -218,6 +222,7 @@ class WovenDecisionDependencyTest(unittest.TestCase):
             as_of=date(2026, 7, 24),
             iteration=2,
             decision_context=context,
+            domain_pack=FINANCE_DOMAIN_PACK,
         )
 
         self.assertIn("统计", refined["verify"][0])

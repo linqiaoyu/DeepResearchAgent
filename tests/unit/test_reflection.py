@@ -5,6 +5,7 @@ import unittest
 from datetime import date
 from pathlib import Path
 
+from deepresearch_agent.domains.registry import load_domain_pack
 from deepresearch_agent.orchestration import (
     SufficiencyThresholds,
     build_decision_context,
@@ -34,6 +35,9 @@ from deepresearch_agent.trajectory import (
     ToolCallTrace,
 )
 from deepresearch_agent.workflow import DeepResearchEngine
+
+
+FINANCE_DOMAIN_PACK = load_domain_pack("finance")
 
 
 class ReflectionSkeletonTest(unittest.TestCase):
@@ -634,6 +638,7 @@ class ReflectionDrivenReplanningTest(unittest.TestCase):
             sufficiency,
             as_of=date(2026, 7, 24),
             iteration=3,
+            domain_pack=FINANCE_DOMAIN_PACK,
         )
         context = build_decision_context(
             reflected_state,
@@ -646,6 +651,7 @@ class ReflectionDrivenReplanningTest(unittest.TestCase):
             as_of=date(2026, 7, 24),
             iteration=3,
             decision_context=context,
+            domain_pack=FINANCE_DOMAIN_PACK,
         )
 
         self.assertNotEqual(reflected, baseline)

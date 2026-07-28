@@ -6,6 +6,7 @@ from datetime import date
 from pathlib import Path
 
 from deepresearch_agent.agents import CriticAgent
+from deepresearch_agent.domains.registry import load_domain_pack
 from deepresearch_agent.orchestration import (
     SufficiencyThresholds,
     build_decision_context,
@@ -21,6 +22,9 @@ from deepresearch_agent.schemas import (
 )
 from deepresearch_agent.settings import Settings
 from deepresearch_agent.workflow import DeepResearchEngine
+
+
+FINANCE_DOMAIN_PACK = load_domain_pack("finance")
 
 
 def _evidence(
@@ -353,6 +357,7 @@ class NumericConsistencyTest(unittest.TestCase):
             as_of=date(2026, 7, 24),
             iteration=2,
             decision_context=context,
+            domain_pack=FINANCE_DOMAIN_PACK,
         )
 
         self.assertTrue(

@@ -44,3 +44,17 @@ provider 调用现在接收显式 per-call `RunToolContext`；Researcher 搜索�
 strict-replay 路径指向没有调用缓存的 fake fixture，因而不能证明 CLI。现在的回归守卫先
 录制 deterministic trajectory，再由实际 CLI strict replay，且断言 `reproduced` 和逐字报告
 匹配；这修复了验证资产，不放宽 strict replay 合同。B1 的全部机器判据现为 PASS。
+
+## B2 工作流拆分（CLOSED）
+
+`workflow/engine.py` 已从 3,125 行拆至 857 行；节点、图装配、运行时包装、状态辅助和报告
+装配被迁入边界明确的模块。`check_workflow_module_size.py` 同时实际断言 engine 不超过 900
+行、每个 B2 提取模块不超过 600 行，避免只展示行数而不判定。图装配必须引用带 reducer 的
+`ResearchGraphState`；一次错误地将其替成普通 `dict` 会使 LangGraph Send 扇出报
+`InvalidUpdateError`，已修正并由完整门禁覆盖。
+
+orchestration 的 replan 逻辑不再直接加载 finance pack。它只声明三个方法的窄
+`ReplanDomainPolicy`，由 workflow 节点提供既有 `DomainPack`，因此金融文档类型选择与补齐
+方向保持原行为，且 orchestration 对 workflow/domains 的反向直接依赖为 0。五个既有单测
+只同步新增的显式 policy 参数，未删除断言或减少用例。新增 demo artifact parity 测试在两次
+独立 fixture run 间逐字比较报告；完整门禁通过 584 项测试，golden 输出未变。

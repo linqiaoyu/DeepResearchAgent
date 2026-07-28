@@ -244,6 +244,7 @@ class ResearchLoopNodes:
                 )
                 else None
             ),
+            domain_pack=self.domain_pack,
         )
         state.metadata["next_research_intent"] = refined
         if self.settings.reflection_enabled:

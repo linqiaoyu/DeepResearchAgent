@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from datetime import date
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 from urllib.parse import urlsplit
 
 from pydantic import Field
@@ -16,7 +16,6 @@ from deepresearch_agent.metric_coverage import (
     canonical_metric,
     evaluate_metric_coverage,
 )
-from deepresearch_agent.domains.registry import load_domain_pack
 from deepresearch_agent.schemas import (
     AgentDecision,
     Evidence,
@@ -29,6 +28,16 @@ if TYPE_CHECKING:
     from deepresearch_agent.orchestration.decision_context import (
         DecisionContext,
     )
+
+
+class ReplanDomainPolicy(Protocol):
+    """Domain-owned query directions required by deterministic replanning."""
+
+    def document_type_for_direction(self, direction: str) -> str: ...
+
+    def metric_gap_direction(self) -> str: ...
+
+    def evidence_gap_direction(self) -> str: ...
 
 COUNTERARGUMENT_TERMS = {
     "risk",
@@ -67,11 +76,9 @@ _ISSUE_DIRECTIONS = {
     "contradicts_prior": "前后期官方披露 口径对比",
     "numeric_inconsistency": "官方数据 计算口径 单位 核验",
 }
-
-
 def build_replan_query(
     question: str | SubQuestion,
-    direction: str,
+    document_type: str,
 ) -> str:
     """Build entity/facet/document queries without question-style prose."""
 
@@ -99,9 +106,10 @@ def build_replan_query(
     # the query remains a field assembly and is visibly low-specificity.
     if not identifiers:
         identifiers.append("研究主体")
-    # Only the target document-type field is derived from `direction`: no title
+    # The domain boundary supplies the target document type; no title
     # words, critic prose, or question text is allowed to enter the query.
-    document_type = _document_type_for_direction(direction)
+    if not document_type.strip():
+        raise ValueError("Replan query requires a target document type")
     metric_field = list(dict.fromkeys(metrics)) or ["事项"]
     period_field = list(dict.fromkeys(periods))
     query = " ".join(
@@ -139,14 +147,8 @@ def _validate_replan_query(query: str, title: str) -> None:
     chinese_count = len(re.findall(r"[\u4e00-\u9fff]", query))
     if chinese_count > MAX_REPLAN_QUERY_CHINESE_CHARS:
         raise ValueError("Replan query exceeds Chinese-character limit")
-    if not any(token in query for token in load_domain_pack("finance").document_type_tokens()):
-        raise ValueError("Replan query requires a target document type")
     if longest_common_substring_length(query, title) > MAX_TITLE_COMMON_SUBSTRING_CHARS:
         raise ValueError("Replan query copies too much sub-question title text")
-
-
-def _document_type_for_direction(direction: str) -> str:
-    return load_domain_pack("finance").document_type_for_direction(direction)
 
 
 class SufficiencyThresholds(StrictModel):
@@ -328,6 +330,7 @@ def refine_research_plan(
     as_of: date,
     iteration: int,
     decision_context: DecisionContext | None = None,
+    domain_pack: ReplanDomainPolicy,
 ) -> dict[str, list[str]]:
     if not state.plan:
         raise ValueError("Research re-planning requires an existing plan")
@@ -336,6 +339,12 @@ def refine_research_plan(
         for item in sufficiency.by_sub_question
     }
     refined: dict[str, list[str]] = {}
+    def query(sub_question: SubQuestion, direction: str) -> str:
+        return build_replan_query(
+            sub_question,
+            domain_pack.document_type_for_direction(direction),
+        )
+
     gaps_by_id: dict[str, list[str]] = {}
     for sub_question in state.plan.sub_questions:
         metrics = metrics_by_id[sub_question.id]
@@ -352,34 +361,22 @@ def refine_research_plan(
             in reflection.persistently_weak_subquestions
         ):
             queries.append(
-                build_replan_query(
-                    sub_question,
-                    "官方来源 补充核验",
-                )
+                query(sub_question, "官方来源 补充核验")
             )
         if reflection and reflection.repeatedly_ineffective_sources:
             queries.append(
-                build_replan_query(
-                    sub_question,
-                    "其他一手来源 交叉验证",
-                )
+                query(sub_question, "其他一手来源 交叉验证")
             )
         if reflection and reflection.repeated_critic_issue_types:
             queries.append(
-                build_replan_query(
-                    sub_question,
-                    "官方来源 定向补充证据",
-                )
+                query(sub_question, "官方来源 定向补充证据")
             )
         if (
             reflection
             and reflection.ineffective_replanning_iterations
         ):
             queries.append(
-                build_replan_query(
-                    sub_question,
-                    "不同一手来源 新证据角度",
-                )
+                query(sub_question, "不同一手来源 新证据角度")
             )
         targeted_issues = (
             [
@@ -392,7 +389,7 @@ def refine_research_plan(
         )
         for issue in targeted_issues:
             queries.append(
-                build_replan_query(
+                query(
                     sub_question,
                     _ISSUE_DIRECTIONS.get(
                         issue.issue_type,
@@ -413,59 +410,35 @@ def refine_research_plan(
                     if canonical_metric(item) in missing
                 ]
             queries.append(
-                build_replan_query(
-                    targeted,
-                    load_domain_pack("finance").metric_gap_direction(),
-                )
+                query(targeted, domain_pack.metric_gap_direction())
             )
         if "independent_source_domains" in metrics.gaps:
             queries.append(
-                build_replan_query(
-                    sub_question,
-                    "独立一手来源 交叉验证",
-                )
+                query(sub_question, "独立一手来源 交叉验证")
             )
         if "counterargument" in metrics.gaps:
             queries.append(
-                build_replan_query(
-                    sub_question,
-                    "风险 限制 反方证据",
-                )
+                query(sub_question, "风险 限制 反方证据")
             )
         if "freshness" in metrics.gaps:
             queries.append(
-                build_replan_query(
-                    sub_question,
-                    f"截至 {as_of.isoformat()} 最新官方披露",
-                )
+                query(sub_question, f"截至 {as_of.isoformat()} 最新官方披露")
             )
         if "evidence_count" in metrics.gaps:
             queries.append(
-                build_replan_query(
-                    sub_question,
-                    load_domain_pack("finance").evidence_gap_direction(),
-                )
+                query(sub_question, domain_pack.evidence_gap_direction())
             )
         if "average_confidence" in metrics.gaps:
             queries.append(
-                build_replan_query(
-                    sub_question,
-                    "一手来源 原始披露 核验",
-                )
+                query(sub_question, "一手来源 原始披露 核验")
             )
         if "unresolved_critic_issues" in metrics.gaps:
             queries.append(
-                build_replan_query(
-                    sub_question,
-                    "官方来源 补充核验",
-                )
+                query(sub_question, "官方来源 补充核验")
             )
         if not queries:
             queries.append(
-                build_replan_query(
-                    sub_question,
-                    "一手来源 新证据角度",
-                )
+                query(sub_question, "一手来源 新证据角度")
             )
         sub_question.search_queries = list(dict.fromkeys(queries))[:3]
         refined[sub_question.id] = list(sub_question.search_queries)

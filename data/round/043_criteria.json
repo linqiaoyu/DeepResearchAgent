@@ -91,7 +91,7 @@
   {
     "id": "B2-engine-slim",
     "block": "B2",
-    "command": ["wc", "-l", "src/deepresearch_agent/workflow/engine.py"],
+    "command": [".venv/bin/python", "scripts/check_workflow_module_size.py"],
     "target": "<= 900 lines"
   },
   {
