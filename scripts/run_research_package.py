@@ -151,7 +151,9 @@ def _configure_mode(mode: str, *, as_of: str) -> None:
     else:
         os.environ["DEEPRESEARCH_MODE"] = "deterministic"
         os.environ["DEEPRESEARCH_SEARCH_PROVIDER"] = "fixture"
-        os.environ["DEEPRESEARCH_STRUCTURED_DATA_PROVIDER"] = "fixture"
+        # Fixture orchestration defaults to fixture data, but an explicit
+        # structured-provider choice is an intentional zero-LLM probe input.
+        os.environ.setdefault("DEEPRESEARCH_STRUCTURED_DATA_PROVIDER", "fixture")
 
 
 def _load_env(path: Path) -> None:

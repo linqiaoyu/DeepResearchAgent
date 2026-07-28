@@ -5,14 +5,32 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "run_research_package.py"
+SPEC = spec_from_file_location("run_research_package", SCRIPT)
+assert SPEC and SPEC.loader
+run_research_package = module_from_spec(SPEC)
+SPEC.loader.exec_module(run_research_package)
 
 
 class ResearchPackageTests(unittest.TestCase):
+    def test_fixture_mode_preserves_explicit_structured_provider(self) -> None:
+        with patch.dict(
+            os.environ,
+            {"DEEPRESEARCH_STRUCTURED_DATA_PROVIDER": "akshare"},
+            clear=True,
+        ):
+            run_research_package._configure_mode("fixture", as_of="2026-07-28")
+
+            self.assertEqual(os.environ["DEEPRESEARCH_MODE"], "deterministic")
+            self.assertEqual(os.environ["DEEPRESEARCH_SEARCH_PROVIDER"], "fixture")
+            self.assertEqual(os.environ["DEEPRESEARCH_STRUCTURED_DATA_PROVIDER"], "akshare")
+
     def test_fixture_command_produces_complete_package(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp) / "package"
