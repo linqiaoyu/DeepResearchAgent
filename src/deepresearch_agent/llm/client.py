@@ -362,6 +362,8 @@ class LLMClient:
                         prompt_cache_miss_tokens=usage["prompt_cache_miss_tokens"],
                         completion_tokens=usage["completion_tokens"],
                         total_tokens=usage["total_tokens"],
+                        # USD is display_only: the ledger's authoritative
+                        # accounting amount and budget currency are CNY.
                         cost_usd=cost_cny * self.config.display_cny_to_usd_rate,
                         cost_cny=cost_cny,
                         price_source=price_source,
