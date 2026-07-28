@@ -26,28 +26,28 @@
   {
     "id": "B1-run-lock-absent",
     "block": "B1",
-    "command": ["rg", "-c", "_run_lock", "src/deepresearch_agent/workflow/engine.py"],
+    "command": [".venv/bin/python", "scripts/check_round_invariant.py", "count", "--pattern", "_run_lock", "src/deepresearch_agent/workflow/engine.py"],
     "target": "0",
     "expected_returncode": 1
   },
   {
     "id": "B1-engine-instance-state-absent",
     "block": "B1",
-    "command": ["rg", "-c", "self\\.branch_budget|self\\.run_tool_context|self\\.run_scope", "src/deepresearch_agent/workflow/engine.py"],
+    "command": [".venv/bin/python", "scripts/check_round_invariant.py", "count", "--pattern", "self\\.branch_budget|self\\.run_tool_context|self\\.run_scope", "src/deepresearch_agent/workflow/engine.py"],
     "target": "0",
     "expected_returncode": 1
   },
   {
     "id": "B1-reflective-injection-absent",
     "block": "B1",
-    "command": ["rg", "-c", "set_run_context|_bind_run_tool_context", "src/deepresearch_agent"],
+    "command": [".venv/bin/python", "scripts/check_round_invariant.py", "count", "--pattern", "set_run_context|_bind_run_tool_context", "src/deepresearch_agent"],
     "target": "0",
     "expected_returncode": 1
   },
   {
     "id": "B1-researcher-instance-count-absent",
     "block": "B1",
-    "command": ["rg", "-c", "searches_used", "src/deepresearch_agent"],
+    "command": [".venv/bin/python", "scripts/check_round_invariant.py", "count", "--pattern", "searches_used", "src/deepresearch_agent"],
     "target": "0",
     "expected_returncode": 1
   },
@@ -60,7 +60,7 @@
   {
     "id": "B1-api-single-engine",
     "block": "B1",
-    "command": ["rg", "-c", "DeepResearchEngine\\(", "src/deepresearch_agent/api/main.py"],
+    "command": [".venv/bin/python", "scripts/check_round_invariant.py", "count", "--pattern", "DeepResearchEngine\\(", "src/deepresearch_agent/api/main.py"],
     "target": "1",
     "expected_stdout": "1"
   },
@@ -86,24 +86,25 @@
     "id": "B1-send-runtime-probe",
     "block": "B1",
     "command": ["test", "-s", "_collab/043_stall-diagnosis-and-next-plan/b1-send-runtime-context-probe.md"],
+    "kind": "artifact_presence",
     "target": "probe archive exists and contains raw stdout"
   },
   {
     "id": "B2-engine-slim",
     "block": "B2",
-    "command": [".venv/bin/python", "scripts/check_workflow_module_size.py"],
+    "command": [".venv/bin/python", "scripts/check_workflow_module_size.py", "--scope", "engine"],
     "target": "<= 900 lines"
   },
   {
     "id": "B2-extracted-files-bounded",
     "block": "B2",
-    "command": [".venv/bin/python", "scripts/check_workflow_module_size.py"],
+    "command": [".venv/bin/python", "scripts/check_workflow_module_size.py", "--scope", "extracted"],
     "target": "all B2 extracted modules <= 600 lines"
   },
   {
     "id": "B2-orchestration-no-reverse-deps",
     "block": "B2",
-    "command": ["rg", "-c", "from deepresearch_agent\\.(workflow|domains)", "src/deepresearch_agent/orchestration"],
+    "command": [".venv/bin/python", "scripts/check_round_invariant.py", "count", "--pattern", "from deepresearch_agent\\.(workflow|domains)", "src/deepresearch_agent/orchestration"],
     "target": "0",
     "expected_returncode": 1
   },
@@ -140,7 +141,7 @@
   {
     "id": "B4-agents-no-financial-module",
     "block": "B4",
-    "command": ["rg", "--files", "src/deepresearch_agent/agents", "-g", "financial_*.py"],
+    "command": [".venv/bin/python", "scripts/check_round_invariant.py", "files", "--glob", "financial_*.py", "src/deepresearch_agent/agents"],
     "target": "0 files",
     "expected_returncode": 1
   },
@@ -153,7 +154,7 @@
   {
     "id": "B5-no-inline-disclosure-corpus",
     "block": "B5",
-    "command": ["rg", "-c", "_ANNUAL_REPORT|PDF_PAGE=", "src/deepresearch_agent/tools/disclosure_source.py"],
+    "command": [".venv/bin/python", "scripts/check_round_invariant.py", "count", "--pattern", "_ANNUAL_REPORT|PDF_PAGE=", "src/deepresearch_agent/tools/disclosure_source.py"],
     "target": "0",
     "expected_returncode": 1
   },
@@ -173,32 +174,34 @@
     "id": "B5-red-green-archive",
     "block": "B5",
     "command": ["test", "-s", "docs/decisions/043/b5-red-green.md"],
+    "kind": "artifact_presence",
     "target": "first red gate output and per-failure attribution are versioned"
   },
   {
     "id": "B5-pdfplumber-adr",
     "block": "B5",
     "command": ["test", "-s", "docs/decisions/043/adr-pdfplumber.md"],
+    "kind": "artifact_presence",
     "target": "source, version, license, attribution, and rollback are recorded"
   },
   {
     "id": "B7-no-avg-faithfulness",
     "block": "B7",
-    "command": ["rg", "-c", "avg_faithful[n]ess", "src", "data"],
+    "command": [".venv/bin/python", "scripts/check_round_invariant.py", "count", "--pattern", "avg_faithful[n]ess", "src", "data"],
     "target": "0",
     "expected_returncode": 1
   },
   {
     "id": "B7-no-answer-relevance-runtime-name",
     "block": "B7",
-    "command": ["rg", "-c", "answer_relevan[c]e", "src"],
+    "command": [".venv/bin/python", "scripts/check_round_invariant.py", "count", "--pattern", "answer_relevan[c]e", "src"],
     "target": "0",
     "expected_returncode": 1
   },
   {
     "id": "B7-comparison-observed-display-only",
     "block": "B7",
-    "command": ["rg", "-c", "comparison_observed", "docs"],
+    "command": [".venv/bin/python", "scripts/check_round_invariant.py", "count", "--pattern", "comparison_observed", "docs"],
     "target": ">= 1"
   },
   {
@@ -211,25 +214,27 @@
     "id": "B7-flag-debt-decision",
     "block": "B7",
     "command": ["test", "-s", "docs/decisions/043/adr-flag-debt.md"],
+    "kind": "artifact_presence",
     "target": "all default-false content-affecting flags have verify-or-delete disposition"
   },
   {
     "id": "B7-decision-records",
     "block": "B7",
     "command": ["test", "-f", "docs/decisions/040/report.md"],
+    "kind": "artifact_presence",
     "target": "040-043 decision records exist"
   },
   {
     "id": "B7-readme-no-stale-domain-path",
     "block": "B7",
-    "command": ["rg", "-c", "尚无 .domains/finance", "README.md"],
+    "command": [".venv/bin/python", "scripts/check_round_invariant.py", "count", "--pattern", "尚无 .domains/finance", "README.md"],
     "target": "0",
     "expected_returncode": 1
   },
   {
     "id": "B7-evaluation-contract-table",
     "block": "B7",
-    "command": ["rg", "-n", "^\\| 指标 \\| 算子 \\| 输入 \\| 值域 \\| 是否 gated \\|$", "docs/evaluation.md"],
+    "command": [".venv/bin/python", "scripts/check_round_invariant.py", "count", "--pattern", "^\\| 指标 \\| 算子 \\| 输入 \\| 值域 \\| 是否 gated \\|$", "docs/evaluation.md"],
     "target": "metric table declares operator, input, range, and gate"
   }
   ,
@@ -273,6 +278,7 @@
     "id": "B6-adr",
     "block": "B6",
     "command": ["test", "-f", "docs/decisions/043/adr-llm-tool-selection.md"],
+    "kind": "artifact_presence",
     "target": "file exists with default and promotion conditions"
   }
 ]

@@ -26,19 +26,24 @@ MODULES = (
 
 
 def main() -> None:
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--scope", choices=("all", "engine", "extracted"), default="all")
+    scope = parser.parse_args().scope
     violations: list[str] = []
-    engine_lines = len(ENGINE.read_text(encoding="utf-8").splitlines())
-    print(f"{ENGINE.relative_to(ROOT)}={engine_lines}")
-    if engine_lines > ENGINE_MAX_LINES:
-        violations.append(
-            f"{ENGINE.relative_to(ROOT)} has {engine_lines} lines (max {ENGINE_MAX_LINES})"
-        )
-    for path in MODULES:
-        lines = len(path.read_text(encoding="utf-8").splitlines())
-        relative = path.relative_to(ROOT)
-        print(f"{relative}={lines}")
-        if lines > MAX_LINES:
-            violations.append(f"{relative} has {lines} lines (max {MAX_LINES})")
+    if scope in {"all", "engine"}:
+        engine_lines = len(ENGINE.read_text(encoding="utf-8").splitlines())
+        print(f"{ENGINE.relative_to(ROOT)}={engine_lines}")
+        if engine_lines > ENGINE_MAX_LINES:
+            violations.append(f"{ENGINE.relative_to(ROOT)} has {engine_lines} lines (max {ENGINE_MAX_LINES})")
+    if scope in {"all", "extracted"}:
+        for path in MODULES:
+            lines = len(path.read_text(encoding="utf-8").splitlines())
+            relative = path.relative_to(ROOT)
+            print(f"{relative}={lines}")
+            if lines > MAX_LINES:
+                violations.append(f"{relative} has {lines} lines (max {MAX_LINES})")
     if violations:
         raise SystemExit("\n".join(violations))
 

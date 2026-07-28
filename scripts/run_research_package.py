@@ -8,6 +8,7 @@ from datetime import date
 from pathlib import Path
 
 from deepresearch_agent.audit_bundle import export_audit_bundle
+from deepresearch_agent.config_validation import ConfigurationError, validate_required_configuration
 from deepresearch_agent.provenance import build_run_manifest
 from deepresearch_agent.research_snapshot import (
     build_research_snapshot,
@@ -43,6 +44,7 @@ def main() -> None:
     args = parser.parse_args()
 
     _load_env(Path(args.env_path))
+    _configure_mode(args.mode, as_of=args.as_of)
     if args.mode == "live":
         missing = _live_preflight(allow_paid_api=args.allow_paid_api)
         if missing:
@@ -61,7 +63,6 @@ def main() -> None:
     if output.exists():
         raise SystemExit(f"output already exists: {output}")
     as_of = date.fromisoformat(args.as_of)
-    _configure_mode(args.mode, as_of=args.as_of)
     settings = replace(
         load_settings(),
         storage_path=output / "runtime" / "research.db",
@@ -131,10 +132,11 @@ def main() -> None:
 
 
 def _live_preflight(*, allow_paid_api: bool) -> list[str]:
-    missing = []
-    for key in ("DEEPSEEK_API_KEY", "TAVILY_API_KEY"):
-        if not os.getenv(key, "").strip():
-            missing.append(key)
+    try:
+        validate_required_configuration(load_settings(), environ=os.environ)
+        missing: list[str] = []
+    except ConfigurationError as exc:
+        missing = list(exc.missing)
     if not allow_paid_api:
         missing.append("--allow-paid-api (explicit paid-provider confirmation)")
     return missing

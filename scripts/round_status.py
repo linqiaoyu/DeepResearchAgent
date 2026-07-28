@@ -25,6 +25,8 @@ def _criteria() -> list[dict[str, object]]:
             raise ValueError("expected_returncode must be an int")
         if "expected_stdout" in item and not isinstance(item["expected_stdout"], str):
             raise ValueError("expected_stdout must be a string")
+        if "kind" in item and item["kind"] != "artifact_presence":
+            raise ValueError("criterion kind must be artifact_presence when present")
     return payload
 
 
@@ -42,6 +44,7 @@ def _declared_blocks() -> list[str]:
 def main() -> None:
     declared_blocks = _declared_blocks()
     results: dict[str, list[bool]] = {block: [] for block in declared_blocks}
+    behavior_seen: dict[str, bool] = {block: False for block in declared_blocks}
     for criterion in _criteria():
         command = criterion["command"]
         assert isinstance(command, list)
@@ -56,8 +59,9 @@ def main() -> None:
             passed = passed and completed.stdout.strip() == expected_stdout
         if criterion["id"] == "B0-assets-tracked":
             passed = passed and len(completed.stdout.splitlines()) == 2
+        kind = criterion.get("kind", "behavior")
         print(
-            f"{criterion['id']}: current={output or '<empty>'} target={criterion['target']} "
+            f"{criterion['id']}[{kind}]: current={output or '<empty>'} target={criterion['target']} "
             f"{'PASS' if passed else 'FAIL'}"
         )
         block = criterion["block"]
@@ -65,6 +69,11 @@ def main() -> None:
         if block not in results:
             raise ValueError(f"criterion declares unknown block: {block}")
         results.setdefault(block, []).append(passed)
+        if kind == "behavior":
+            behavior_seen[block] = True
+    missing_behavior = [block for block, seen in behavior_seen.items() if not seen]
+    if missing_behavior:
+        raise ValueError("blocks lack behavior criteria: " + ", ".join(missing_behavior))
     closed = sorted(block for block, checks in results.items() if checks and all(checks))
     open_blocks = sorted(block for block, checks in results.items() if not checks or not all(checks))
     print(f"closed_blocks={','.join(closed)} open_blocks={','.join(open_blocks)}")

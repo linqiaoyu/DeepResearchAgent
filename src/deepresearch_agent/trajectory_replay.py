@@ -44,6 +44,7 @@ from deepresearch_agent.trajectory import (
     normalized_llm_key,
     validate_strict_replay_trajectory,
 )
+from deepresearch_agent.security import redact
 from deepresearch_agent.workflow import DeepResearchEngine
 from langgraph.graph import START
 
@@ -868,7 +869,10 @@ def replay_trajectory(
             cache_miss=f"unsupported replay artifact: {name}",
         )
     matches = {
-        name: actual[name] == content
+        # Persisted trajectories redact artifacts.  Compare the replayed
+        # artifact through the same policy so a UUID segment that resembles a
+        # phone number cannot turn a strict replay into a false mismatch.
+        name: redact(actual[name]) == content
         for name, content in trajectory.artifacts.items()
     }
     mismatch = next(
