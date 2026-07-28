@@ -5,6 +5,7 @@ from typing import Protocol
 from datetime import date
 
 from deepresearch_agent.schemas import Source, StructuredDataRecord, SymbolInfo
+from deepresearch_agent.tools.reliable_execution import RunToolContext
 
 
 class SearchProvider(Protocol):
@@ -15,6 +16,8 @@ class SearchProvider(Protocol):
         query: str,
         top_k: int = 3,
         source_type: str | None = None,
+        *,
+        context: RunToolContext | None = None,
     ) -> list[Source]:
         """Return ranked sources for a query."""
 
@@ -22,7 +25,9 @@ class SearchProvider(Protocol):
 class FetchProvider(Protocol):
     """Optional fetch boundary for providers that can hydrate a source by URL."""
 
-    def fetch(self, url: str) -> Source | None:
+    def fetch(
+        self, url: str, *, context: RunToolContext | None = None
+    ) -> Source | None:
         """Return a source for a URL when supported."""
 
 

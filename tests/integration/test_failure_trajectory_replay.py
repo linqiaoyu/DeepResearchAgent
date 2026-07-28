@@ -103,11 +103,19 @@ class ReplayableWebProvider:
         _query: str,
         top_k: int = 3,
         source_type: str | None = None,
+        *,
+        context: RunToolContext | None = None,
     ) -> list[Source]:
         del top_k, source_type
+        if context is not None:
+            self.context = context
         return [self.source]
 
-    def fetch(self, url: str) -> Source | None:
+    def fetch(
+        self, url: str, *, context: RunToolContext | None = None
+    ) -> Source | None:
+        if context is not None:
+            self.context = context
         return self.source if url == self.source.url else None
 
 
@@ -117,8 +125,12 @@ class BudgetSearchProvider(ReplayableWebProvider):
         _query: str,
         top_k: int = 3,
         source_type: str | None = None,
+        *,
+        context: RunToolContext | None = None,
     ) -> list[Source]:
         del top_k, source_type
+        if context is not None:
+            self.context = context
         assert self.context is not None
         self.context.consume_external_request(
             "search",
@@ -139,7 +151,10 @@ class FatalDisclosureSource:
         end_date: date,
         *,
         preferred_terms: tuple[str, ...] = (),
+        context: RunToolContext | None = None,
     ) -> list[Source]:
+        if context is not None:
+            self.context = context
         del preferred_terms
         error = {
             "kind": ToolErrorKind.PERMANENT,

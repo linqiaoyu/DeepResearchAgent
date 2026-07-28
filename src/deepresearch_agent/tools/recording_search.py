@@ -11,6 +11,7 @@ from pathlib import Path
 from deepresearch_agent.schemas import Source
 from deepresearch_agent.settings import project_root
 from deepresearch_agent.tools.provider import SearchProvider
+from deepresearch_agent.tools.reliable_execution import RunToolContext
 
 RECORDING_FILENAME_PATTERN = re.compile(r"[0-9a-f]{40}\.json")
 
@@ -67,7 +68,10 @@ class RecordingSearchProvider:
         self.recording_dir.mkdir(parents=True, exist_ok=True)
         self._frozen_sources: list[Source] | None = None
 
-    def search(self, query: str, top_k: int = 3, source_type: str | None = None) -> list[Source]:
+    def search(
+        self, query: str, top_k: int = 3, source_type: str | None = None,
+        *, context: RunToolContext | None = None,
+    ) -> list[Source]:
         key = normalize_query_key(query, top_k=top_k, source_type=source_type)
         path = self._recording_path(key)
         if self.mode == "replay":
@@ -77,7 +81,9 @@ class RecordingSearchProvider:
             return [Source.model_validate(item) for item in payload.get("sources", [])]
 
         assert self.live_provider is not None
-        sources = self.live_provider.search(query, top_k=top_k, source_type=source_type)
+        sources = self.live_provider.search(
+            query, top_k=top_k, source_type=source_type, context=context
+        )
         error_type = getattr(self.live_provider, "last_error_type", None)
         metadata = RecordingMetadata(
             key=key,

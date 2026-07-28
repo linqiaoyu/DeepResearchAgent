@@ -83,12 +83,17 @@ class ContractSearchProvider:
         query: str,
         top_k: int = 3,
         source_type: str | None = None,
+        *,
+        context: RunToolContext | None = None,
     ) -> list[Source]:
+        run_context = context or self.context
         with correlation_context(tool_call=SEARCH_TOOL_SPEC.name):
             result = self.executor.execute(
                 SEARCH_TOOL_SPEC,
-                lambda: self.provider.search(query, top_k=top_k, source_type=source_type),
-                self.context,
+                lambda: self.provider.search(
+                    query, top_k=top_k, source_type=source_type, context=run_context
+                ),
+                run_context,
                 degrade=True,
                 degraded_value=[],
                 impact="search results unavailable; downstream evidence coverage may decrease",
@@ -122,18 +127,21 @@ class ContractSearchProvider:
                         attempts=result.attempts,
                     )
                 )
-            self._raise_if_budget_refused(result)
+            self._raise_if_budget_refused(result, run_context)
         return list(result.value or [])
 
-    def fetch(self, url: str) -> Source | None:
+    def fetch(
+        self, url: str, *, context: RunToolContext | None = None
+    ) -> Source | None:
         fetch = getattr(self.provider, "fetch", None)
         if not callable(fetch):
             return None
+        run_context = context or self.context
         with correlation_context(tool_call=FETCH_TOOL_SPEC.name):
             result = self.executor.execute(
                 FETCH_TOOL_SPEC,
-                lambda: fetch(url),
-                self.context,
+                lambda: fetch(url, context=run_context),
+                run_context,
                 degrade=True,
                 degraded_value=None,
                 impact="source body unavailable; evidence cannot claim primary-text closure",
@@ -164,11 +172,13 @@ class ContractSearchProvider:
                         attempts=result.attempts,
                     )
                 )
-            self._raise_if_budget_refused(result)
+            self._raise_if_budget_refused(result, run_context)
         return result.value
 
-    def _raise_if_budget_refused(self, result: Any) -> None:
-        external_budget = self.context.external_request_budget
+    def _raise_if_budget_refused(
+        self, result: Any, context: RunToolContext
+    ) -> None:
+        external_budget = context.external_request_budget
         if (
             result.error
             and result.error.kind == ToolErrorKind.BUDGET_EXCEEDED

@@ -16,7 +16,7 @@ class FakeSearchProvider:
     def __init__(self) -> None:
         self.calls: list[tuple[str, int, str | None]] = []
 
-    def search(self, query: str, top_k: int = 3, source_type: str | None = None) -> list[Source]:
+    def search(self, query: str, top_k: int = 3, source_type: str | None = None, **_kwargs: object) -> list[Source]:
         self.calls.append((query, top_k, source_type))
         return [
             Source(

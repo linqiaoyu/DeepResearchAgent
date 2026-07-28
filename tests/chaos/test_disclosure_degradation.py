@@ -157,12 +157,13 @@ class WebFallbackProvider:
         _query: str,
         top_k: int = 3,
         source_type: str | None = None,
+        **_kwargs: object,
     ) -> list[Source]:
         del top_k, source_type
         self.search_calls += 1
         return [self.source]
 
-    def fetch(self, url: str) -> Source | None:
+    def fetch(self, url: str, **_kwargs: object) -> Source | None:
         self.fetch_calls += 1
         return self.source if url == self.source.url else None
 

@@ -10,6 +10,7 @@ from deepresearch_agent.schemas import Source
 from deepresearch_agent.tools.fixture_search import FixtureSearchTool
 from deepresearch_agent.tools.provider import SearchProvider
 from deepresearch_agent.tools.recording_search import RecordingSearchProvider
+from deepresearch_agent.tools.reliable_execution import RunToolContext
 from deepresearch_agent.tools.tavily_search import TavilySearchProvider
 
 FIXTURE_PROVIDER_NAMES = {"", "fixture", "local", "deterministic"}
@@ -30,7 +31,11 @@ class ConfiguredSearchProvider:
     provider_name: str
     api_key: str
 
-    def search(self, query: str, top_k: int = 3, source_type: str | None = None) -> list[Source]:
+    def search(
+        self, query: str, top_k: int = 3, source_type: str | None = None,
+        *, context: RunToolContext | None = None,
+    ) -> list[Source]:
+        del context
         raise NotImplementedError(
             f"{self.provider_name} search is configured but the live adapter is not implemented yet. "
             "Unset DEEPRESEARCH_SEARCH_PROVIDER to use the deterministic fixture provider."

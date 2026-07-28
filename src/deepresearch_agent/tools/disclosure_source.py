@@ -103,8 +103,9 @@ class FixtureDisclosureSource:
         end_date: date,
         *,
         preferred_terms: tuple[str, ...] = (),
+        context: RunToolContext | None = None,
     ) -> list[Source]:
-        del start_date, end_date, preferred_terms
+        del start_date, end_date, preferred_terms, context
         return [
             Source.model_validate(
                 {
@@ -194,13 +195,13 @@ class CninfoDisclosureSource:
 
     def search(
         self, security_code: str, keyword: str, start_date: date, end_date: date,
-        *, preferred_terms: tuple[str, ...] = (),
+        *, preferred_terms: tuple[str, ...] = (), context: RunToolContext | None = None,
     ) -> list[Source]:
         # Capture the run context before starting a worker.  ``set_run_context``
         # may install the next run while an uncooperative provider call is still
         # unwinding; the detached worker must never charge or mutate that new
         # context.
-        run_context = self.context
+        run_context = context or self.context
         inputs = {
             "security_code": security_code, "keyword": keyword,
             "start_date": start_date.isoformat(), "end_date": end_date.isoformat(),

@@ -6,6 +6,7 @@ from pathlib import Path
 
 from deepresearch_agent.schemas import Source
 from deepresearch_agent.settings import project_root
+from deepresearch_agent.tools.reliable_execution import RunToolContext
 
 
 TOKEN_RE = re.compile(r"[a-zA-Z0-9]+|[\u4e00-\u9fff]{2,}")
@@ -33,7 +34,11 @@ class FixtureSearchTool:
         raw = json.loads(self.source_path.read_text(encoding="utf-8"))
         return [Source.model_validate(item) for item in raw]
 
-    def search(self, query: str, top_k: int = 3, source_type: str | None = None) -> list[Source]:
+    def search(
+        self, query: str, top_k: int = 3, source_type: str | None = None,
+        *, context: RunToolContext | None = None,
+    ) -> list[Source]:
+        del context
         query_tokens = _tokens(query)
         scored: list[tuple[float, Source]] = []
         for source in self._sources:
@@ -47,7 +52,10 @@ class FixtureSearchTool:
         scored.sort(key=lambda item: item[0], reverse=True)
         return [source for _, source in scored[:top_k]]
 
-    def fetch(self, url: str) -> Source | None:
+    def fetch(
+        self, url: str, *, context: RunToolContext | None = None
+    ) -> Source | None:
+        del context
         for source in self._sources:
             if source.url == url:
                 return source

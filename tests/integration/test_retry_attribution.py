@@ -16,7 +16,7 @@ class RetrySearchProvider:
     def __init__(self) -> None:
         self.calls: list[tuple[str, str | None]] = []
 
-    def search(self, query: str, top_k: int = 3, source_type: str | None = None) -> list[Source]:
+    def search(self, query: str, top_k: int = 3, source_type: str | None = None, **_kwargs: Any) -> list[Source]:
         self.calls.append((query, source_type))
         key = query.replace(" ", "-")
         return [

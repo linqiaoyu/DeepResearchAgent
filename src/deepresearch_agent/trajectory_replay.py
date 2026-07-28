@@ -295,7 +295,11 @@ class ReplaySearchProvider:
         query: str,
         top_k: int = 3,
         source_type: str | None = None,
+        *,
+        context: RunToolContext | None = None,
     ) -> list[Source]:
+        if context is not None:
+            self._context = context
         key = (query, top_k, source_type)
         queue = self._responses.get(key)
         if not queue:
@@ -311,7 +315,11 @@ class ReplaySearchProvider:
             for item in (call.result or [])
         ]
 
-    def fetch(self, url: str) -> Source | None:
+    def fetch(
+        self, url: str, *, context: RunToolContext | None = None
+    ) -> Source | None:
+        if context is not None:
+            self._context = context
         queue = self._fetches.get(url)
         if not queue:
             raise RuntimeError(
@@ -495,7 +503,10 @@ class ReplayDisclosureSource:
         end_date: date,
         *,
         preferred_terms: tuple[str, ...] = (),
+        context: RunToolContext | None = None,
     ) -> list[Source]:
+        if context is not None:
+            self._context = context
         del preferred_terms
         expected = {
             "security_code": security_code,

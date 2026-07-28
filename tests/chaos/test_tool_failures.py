@@ -29,14 +29,19 @@ class FaultProvider:
         self.calls = 0
         self._lock = threading.Lock()
 
-    def search(self, query: str, top_k: int = 3, source_type: str | None = None):
+    def search(
+        self, query: str, top_k: int = 3, source_type: str | None = None,
+        *, context: RunToolContext | None = None,
+    ):
+        del context
         with self._lock:
             self.calls += 1
             call = self.calls
         self.behavior(call, query)
         return self.fixture.search(query, top_k=top_k, source_type=source_type)
 
-    def fetch(self, url: str):
+    def fetch(self, url: str, *, context: RunToolContext | None = None):
+        del context
         return self.fixture.fetch(url)
 
 

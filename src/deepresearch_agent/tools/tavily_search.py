@@ -183,13 +183,19 @@ class TavilySearchProvider:
     def set_run_context(self, context: RunToolContext) -> None:
         self._run_context = context
 
-    def _consume_egress(self, request_kind: str) -> None:
-        if self._run_context is not None:
-            self._run_context.consume_external_request(
+    def _consume_egress(
+        self, request_kind: str, context: RunToolContext | None = None
+    ) -> None:
+        run_context = context or self._run_context
+        if run_context is not None:
+            run_context.consume_external_request(
                 request_kind, tool="tavily_search"
             )
 
-    def search(self, query: str, top_k: int = 3, source_type: str | None = None) -> list[Source]:
+    def search(
+        self, query: str, top_k: int = 3, source_type: str | None = None,
+        *, context: RunToolContext | None = None,
+    ) -> list[Source]:
         if top_k <= 0:
             return []
         self.last_error_type = None
@@ -226,7 +232,7 @@ class TavilySearchProvider:
         started = time.perf_counter()
         for attempt in range(self.max_retries + 1):
             try:
-                self._consume_egress("search")
+                self._consume_egress("search", context)
                 response = self.client.post(
                     self.endpoint,
                     headers={"Authorization": f"Bearer {self.api_key}"},
@@ -272,13 +278,15 @@ class TavilySearchProvider:
         self.last_error_type = type(last_error).__name__ if last_error else "unknown"
         return []
 
-    def fetch(self, url: str) -> Source | None:
+    def fetch(
+        self, url: str, *, context: RunToolContext | None = None
+    ) -> Source | None:
         """Hydrate a search result with the publisher's response body."""
 
         last_error: Exception | None = None
         for attempt in range(self.max_retries + 1):
             try:
-                self._consume_egress("fetch")
+                self._consume_egress("fetch", context)
                 response = self.client.get(
                     url,
                     timeout=self.timeout_seconds,
