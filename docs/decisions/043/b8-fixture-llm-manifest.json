@@ -1,0 +1,45 @@
+{
+  "actual_provider_fidelity": {
+    "disclosure": "fixture",
+    "llm": "unused",
+    "search": "fixture",
+    "structured_data": "real"
+  },
+  "actual_realness": "mixed",
+  "flags": {
+    "BRANCH_BUDGET_ENABLED": true,
+    "CONFIG_FAIL_FAST_ENABLED": true,
+    "CONTEXT_PACKER_ENABLED": false,
+    "CRITIC_ENABLED": true,
+    "DYNAMIC_CAPABILITY_ENABLED": true,
+    "EXTRACTOR_ENABLED": true,
+    "INJECTION_GUARD_ENABLED": false,
+    "PROCEDURAL_MEMORY_ENABLED": false,
+    "RUN_MANIFEST_ENABLED": true,
+    "STRUCTURED_LOGGING_ENABLED": true,
+    "STRUCTURED_OUTPUT_ENABLED": true,
+    "TOOL_CONTRACT_ENABLED": true
+  },
+  "model_strings": {
+    "citation_support": "openai/qwen3.7-plus",
+    "extractor": "openai/deepseek-v4-flash",
+    "judge": "openai/qwen3.7-plus",
+    "planner": "openai/deepseek-v4-flash",
+    "reporter": "openai/deepseek-v4-flash"
+  },
+  "provider_usage": {
+    "disclosure": 1,
+    "llm": 0,
+    "search": 1,
+    "structured_data": 1
+  },
+  "structured_data_stats": {
+    "financial_metrics": {
+      "executed_requests": 1,
+      "execution_failures": 0,
+      "records": 1,
+      "requests": 1,
+      "symbol_resolution_failures": 0
+    }
+  }
+}
