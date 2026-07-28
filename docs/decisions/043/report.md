@@ -65,3 +65,16 @@ orchestration 的 replan 逻辑不再直接加载 finance pack。它只声明三
 历史序列化兼容字段。`domain-boundary-residual.md` 逐项记载保留理由和移除条件，并由单测
 将该表与 allowlist 逐行关联。`agents/` 不再含 `financial_*.py`。完整门禁通过 585 项测试，
 golden 输出没有变化。
+
+## B6 LLM 工具选择（CLOSED）
+
+`complete_with_tools()` 以 provider-native `tools=` 调用复用既有 LLM 账本、预算、token、
+成本与延迟记录。`LLM_TOOL_SELECTION_ENABLED` 默认为 `false` 且为 `content_affecting`；
+关闭时 golden 输出逐字不变。开启时只向模型提供已登记且适用的 capability schema，未登记
+名称被拒绝并记录 degradation event。
+
+每个模型 tool-call 现在对应一个 `AgentDecision` 和一个带 `selection_only` 标记的轨迹项。
+该标记保留选择序列的 strict-replay 防篡改约束，同时避免把模型建议伪造为已发生的外部
+egress。工具预算仍由既有 `RunToolContext` 守卫执行：超限请求被拒绝，并在 tool trace 中
+留下 `budget_exceeded` failure。默认值理由与将来转正条件见
+`adr-llm-tool-selection.md`。
