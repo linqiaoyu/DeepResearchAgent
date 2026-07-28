@@ -73,7 +73,7 @@
   {
     "id": "B1-strict-replay",
     "block": "B1",
-    "command": ["env", "PYTHONPATH=src", ".venv/bin/python", "scripts/replay_trajectory.py", "tests/fixtures/trajectories/synthetic/fake_provider_synthetic_trajectory.json"],
+    "command": ["env", "PYTHONPATH=src", ".venv/bin/python", "-m", "unittest", "tests.integration.test_strict_replay_cli"],
     "target": "exit 0 (same as pre-change)"
   },
   {
