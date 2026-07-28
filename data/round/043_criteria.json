@@ -33,7 +33,7 @@
   {
     "id": "B1-engine-instance-state-absent",
     "block": "B1",
-    "command": ["rg", "-c", "self\\.branch_budget|self\\.run_tool_context", "src/deepresearch_agent/workflow/engine.py"],
+    "command": ["rg", "-c", "self\\.branch_budget|self\\.run_tool_context|self\\.run_scope", "src/deepresearch_agent/workflow/engine.py"],
     "target": "0",
     "expected_returncode": 1
   },
