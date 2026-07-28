@@ -64,7 +64,7 @@ class ReaderFidelityTests(unittest.TestCase):
                 self.assertIn("6,336,527,014.75元", guarded)
                 self.assertIn("未通过 Evidence 保真守卫", guarded)
 
-    def test_mechanical_renderer_fails_closed_if_it_mutates_a_value(
+    def test_grounded_fact_fidelity_failure_degrades_without_raising(
         self,
     ) -> None:
         state = self._state()
@@ -72,15 +72,24 @@ class ReaderFidelityTests(unittest.TestCase):
             grounded_fact_renderer=_MutatingRenderer(),
         )
 
-        with self.assertRaisesRegex(
-            ValueError,
-            "mechanically rendered fact failed",
-        ):
-            reporter._enforce_reader_fidelity(
-                self._mutated_report("6,336,527,14.75"),
-                state,
-                self._ref_map(),
-            )
+        guarded = reporter._enforce_reader_fidelity(
+            self._mutated_report("6,336,527,14.75"),
+            state,
+            self._ref_map(),
+        )
+
+        self.assertNotIn("2025年归母净利润7,711,054,811.98元", guarded)
+        self.assertIn("归母净利润：未取得满足", guarded)
+        self.assertIn(
+            {
+                "tool": "grounded_fact_renderer",
+                "impact": "mechanically rendered fact was omitted",
+                "attempts": 1,
+                "label": "归母净利润",
+                "reason": "grounded_fact_fidelity_failure",
+            },
+            state.metadata["degradation_events"],
+        )
 
     def test_typed_period_wins_over_shared_two_column_extract(self) -> None:
         state = self._state()

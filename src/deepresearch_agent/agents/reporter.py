@@ -153,6 +153,8 @@ class ReporterAgent:
         )
         grounded_lines = ["## 关键发现", ""]
         grounded_provenance: list[dict[str, object]] = []
+        fidelity_degradations: list[dict[str, str]] = []
+        grounded_gaps = list(batch.gaps)
         evidence_by_id = {item.id: item for item in state.evidence_store}
         for index, claim in enumerate(grounded):
             valid_ids = [
@@ -184,10 +186,14 @@ class ReporterAgent:
                 state,
                 labels={claim.label},
             ):
-                raise ValueError(
-                    "mechanically rendered fact failed its Evidence fidelity "
-                    f"contract: {claim.label}"
+                grounded_gaps.append(claim.label)
+                fidelity_degradations.append(
+                    {
+                        "label": claim.label,
+                        "reason": "grounded_fact_fidelity_failure",
+                    }
                 )
+                continue
             grounded_lines.append(f"- {rendered}")
             grounded_provenance.append(
                 {
@@ -201,7 +207,7 @@ class ReporterAgent:
                     "label": claim.label,
                 }
             )
-        for label in batch.gaps:
+        for label in dict.fromkeys(grounded_gaps):
             grounded_lines.append(
                 f"- {label}：未取得满足 typed coverage 与 Evidence "
                 "保真合同的事实；本轮不展示生成式数值结论。"
@@ -222,10 +228,20 @@ class ReporterAgent:
         ] + grounded_provenance
         self.last_stats["reader_fidelity_guard"] = {
             "grounded_key_findings": len(grounded),
-            "grounded_gaps": list(batch.gaps),
+            "grounded_gaps": list(dict.fromkeys(grounded_gaps)),
             "downgraded_numeric_lines": downgraded,
             "mode": "mechanical_typed_evidence",
         }
+        if fidelity_degradations:
+            state.metadata.setdefault("degradation_events", []).extend(
+                {
+                    "tool": "grounded_fact_renderer",
+                    "impact": "mechanically rendered fact was omitted",
+                    "attempts": 1,
+                    **degradation,
+                }
+                for degradation in fidelity_degradations
+            )
         return "\n".join(lines)
 
     def _downgrade_unsupported_numeric_lines(
