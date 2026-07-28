@@ -10,6 +10,7 @@ from deepresearch_agent.orchestration.contracts import (
     enforce_node_contract,
     validate_contract_graph,
 )
+from deepresearch_agent.orchestration.graph_runtime import GraphRuntime
 from deepresearch_agent.orchestration.budget import (
     BranchAllocation,
     BranchBudget,
@@ -49,6 +50,7 @@ __all__ = [
     "NodeContract",
     "RunScope",
     "SearchQuota",
+    "GraphRuntime",
     "BranchAllocation",
     "BranchBudget",
     "BranchBalance",

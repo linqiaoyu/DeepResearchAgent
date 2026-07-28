@@ -37,6 +37,7 @@ from deepresearch_agent.orchestration import (
     BoundedLoop,
     BranchBudget,
     DecisionGate,
+    GraphRuntime,
     RunScope,
     SearchQuota,
     LoopIterationResult,
@@ -45,7 +46,6 @@ from deepresearch_agent.orchestration import (
     ResearchSufficiency,
     SufficiencyThresholds,
     build_decision_context,
-    enforce_node_contract,
     evaluate_research_sufficiency,
     refine_research_plan,
     validate_contract_graph,
@@ -106,7 +106,6 @@ from deepresearch_agent.tools.contract_adapter import ContractSearchProvider
 from deepresearch_agent.trajectory import (
     LLMCallTrace,
     MemoryWriteTrace,
-    NodeTransitionTrace,
     SignalReadTrace,
     TrajectoryRecorder,
     TrajectoryTermination,
@@ -163,48 +162,6 @@ class ResearchGraphState(TypedDict, total=False):
     research_branch_coverage: Annotated[dict[str, dict[str, Any]], _merge_dicts]
     retry_sources: Annotated[dict[str, list[dict[str, Any]]], _merge_dicts]
     retry_records: Annotated[dict[str, dict[str, Any]], _merge_dicts]
-
-
-def _trace_graph_summary(value: Any) -> dict[str, Any]:
-    if not isinstance(value, dict):
-        return {"type": type(value).__name__}
-    raw_state = value.get("research_state", {})
-    if hasattr(raw_state, "model_dump"):
-        raw_state = raw_state.model_dump(mode="json")
-    if not isinstance(raw_state, dict):
-        raw_state = {}
-    summary: dict[str, Any] = {
-        "phase": raw_state.get("current_phase"),
-        "status": raw_state.get("status"),
-        "source_count": len(raw_state.get("sources", [])),
-        "evidence_count": len(raw_state.get("evidence_store", [])),
-        "retry_count": len(raw_state.get("retry_queue", [])),
-    }
-    evidence_domains = sorted(
-        {
-            urlsplit(str(item.get("source_url", ""))).netloc.lower()
-            for item in raw_state.get("evidence_store", [])
-            if isinstance(item, dict) and item.get("source_url")
-        }
-    )
-    if evidence_domains:
-        summary["evidence_source_domains"] = evidence_domains
-    critic_report = raw_state.get("critic_report")
-    if isinstance(critic_report, dict):
-        issue_types = sorted(
-            str(item.get("issue_type"))
-            for item in critic_report.get("issues", [])
-            if isinstance(item, dict) and item.get("issue_type")
-        )
-        if issue_types:
-            summary["critic_issue_types"] = issue_types
-    sub_question = value.get("fanout_sub_question")
-    if isinstance(sub_question, dict):
-        summary["sub_question_id"] = sub_question.get("id")
-    retry_task = value.get("fanout_retry_task")
-    if isinstance(retry_task, dict):
-        summary["retry_task_id"] = retry_task.get("id")
-    return summary
 
 
 class DeepResearchEngine:
@@ -964,60 +921,61 @@ class DeepResearchEngine:
             self.capability_registry,
         )
         validate_contract_graph(self.node_contracts, workflow_contract_graph())
+        graph_runtime = GraphRuntime(self.node_contracts, self.logger)
         graph = StateGraph(ResearchGraphState, context_schema=RunScope)
-        graph.add_node("entry", self._graph_node("entry", self._entry_node))
-        graph.add_node("planner", self._graph_node("planner", self._planner_node))
+        graph.add_node("entry", graph_runtime.wrap_node("entry", self._entry_node))
+        graph.add_node("planner", graph_runtime.wrap_node("planner", self._planner_node))
         graph.add_node(
             "research_prepare",
-            self._graph_node("research_prepare", self._research_prepare_node),
+            graph_runtime.wrap_node("research_prepare", self._research_prepare_node),
         )
         graph.add_node(
             "research_one",
-            self._graph_node("research_one", self._research_one_node),
+            graph_runtime.wrap_node("research_one", self._research_one_node),
         )
         graph.add_node(
             "research_join",
-            self._graph_node("research_join", self._research_join_node),
+            graph_runtime.wrap_node("research_join", self._research_join_node),
         )
         graph.add_node(
             "extractor",
-            self._graph_node("extractor", self._extractor_node),
+            graph_runtime.wrap_node("extractor", self._extractor_node),
         )
-        graph.add_node("critic", self._graph_node("critic", self._critic_node))
+        graph.add_node("critic", graph_runtime.wrap_node("critic", self._critic_node))
         graph.add_node(
             "reflector",
-            self._graph_node("reflector", self._reflector_node),
+            graph_runtime.wrap_node("reflector", self._reflector_node),
         )
         graph.add_node(
             "research_loop_decide",
-            self._graph_node(
+            graph_runtime.wrap_node(
                 "research_loop_decide",
                 self._research_loop_decide_node,
             ),
         )
         graph.add_node(
             "research_refine",
-            self._graph_node("research_refine", self._research_refine_node),
+            graph_runtime.wrap_node("research_refine", self._research_refine_node),
         )
         graph.add_node(
             "retry_prepare",
-            self._graph_node("retry_prepare", self._retry_prepare_node),
+            graph_runtime.wrap_node("retry_prepare", self._retry_prepare_node),
         )
         graph.add_node(
             "retry_one",
-            self._graph_node("retry_one", self._retry_one_node),
+            graph_runtime.wrap_node("retry_one", self._retry_one_node),
         )
         graph.add_node(
             "retry_join",
-            self._graph_node("retry_join", self._retry_join_node),
+            graph_runtime.wrap_node("retry_join", self._retry_join_node),
         )
         graph.add_node(
             "reporter",
-            self._graph_node("reporter", self._reporter_node),
+            graph_runtime.wrap_node("reporter", self._reporter_node),
         )
         graph.add_node(
             "evaluator",
-            self._graph_node("evaluator", self._evaluator_node),
+            graph_runtime.wrap_node("evaluator", self._evaluator_node),
         )
 
         graph.add_edge(START, "entry")
@@ -1043,88 +1001,6 @@ class DeepResearchEngine:
         graph.add_conditional_edges("reporter", self._route_after_reporting)
         graph.add_edge("evaluator", END)
         return graph.compile(checkpointer=self.checkpointer)
-
-    def _graph_node(self, name: str, node):
-        scoped_nodes = {
-            "research_prepare",
-            "research_one",
-            "research_join",
-            "research_loop_decide",
-            "research_refine",
-            "retry_one",
-            "reporter",
-        }
-
-        def runtime_node(graph_state: ResearchGraphState, runtime: Any):
-            if name in scoped_nodes:
-                return node(graph_state, run_scope=runtime.context)
-            return node(graph_state)
-
-        contracted = enforce_node_contract(self.node_contracts[name], runtime_node)
-        return self._traced_node(name, contracted)
-
-    def _traced_node(self, name: str, node):
-        def traced(graph_state: ResearchGraphState, runtime: Any):
-            if not isinstance(runtime.context, RunScope):
-                raise AssertionError(
-                    "LangGraph runtime context is not a RunScope"
-                )
-            started = time.perf_counter()
-            self.logger.event(
-                "node_started",
-                node=name,
-                input_summary=_trace_graph_summary(graph_state),
-            )
-            try:
-                result = node(graph_state, runtime)
-            except Exception as exc:
-                self.logger.event(
-                    "node_failed",
-                    node=name,
-                    input_summary=_trace_graph_summary(graph_state),
-                    elapsed_seconds=round(time.perf_counter() - started, 6),
-                    error_type=type(exc).__name__,
-                    error=str(exc),
-                    traceback=traceback.format_exc(),
-                )
-                recorder = active_trajectory_recorder()
-                if recorder:
-                    recorder.record_node_transition(
-                        NodeTransitionTrace(
-                            node=name,
-                            input_summary=_trace_graph_summary(
-                                graph_state
-                            ),
-                            output_summary={
-                                "status": "failed",
-                                "error_type": type(exc).__name__,
-                            },
-                            status="failed",
-                            error_type=type(exc).__name__,
-                            error_message=(
-                                str(exc) or type(exc).__name__
-                            ),
-                        )
-                    )
-                raise
-            self.logger.event(
-                "node_finished",
-                node=name,
-                output_summary=_trace_graph_summary(result),
-                elapsed_seconds=round(time.perf_counter() - started, 6),
-            )
-            recorder = active_trajectory_recorder()
-            if recorder:
-                recorder.record_node_transition(
-                    NodeTransitionTrace(
-                        node=name,
-                        input_summary=_trace_graph_summary(graph_state),
-                        output_summary=_trace_graph_summary(result),
-                    )
-                )
-            return result
-
-        return traced
 
     def _entry_node(self, graph_state: ResearchGraphState) -> ResearchGraphState:
         if not self.settings.skill_packs_enabled:
