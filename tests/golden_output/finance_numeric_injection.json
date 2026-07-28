@@ -902,6 +902,13 @@
     "context_events": [],
     "degradation_events": [],
     "manifest": {
+      "actual_provider_fidelity": {
+        "disclosure": "unused",
+        "llm": "unused",
+        "search": "fixture",
+        "structured_data": "unused"
+      },
+      "actual_realness": "mixed",
       "config_hash": "<normalized-config-hash>",
       "context_events": [],
       "cost_cny_total": null,
@@ -1281,6 +1288,12 @@
         "llm": "deterministic",
         "search": "ContractSearchProvider",
         "structured_data": "TrajectoryStructuredDataProvider"
+      },
+      "provider_usage": {
+        "disclosure": 0,
+        "llm": 0,
+        "search": 9,
+        "structured_data": 0
       },
       "realness": "fixture",
       "retrieval_corpus_as_of": "2026-07-09",
