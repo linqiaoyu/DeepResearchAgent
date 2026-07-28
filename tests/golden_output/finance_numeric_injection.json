@@ -1299,6 +1299,29 @@
       "retrieval_corpus_as_of": "2026-07-09",
       "run_id": "<normalized-id>",
       "started_at": "<normalized-timestamp>",
+      "structured_data_stats": {
+        "current_adoption": {
+          "executed_requests": 0,
+          "execution_failures": 0,
+          "records": 0,
+          "requests": 0,
+          "symbol_resolution_failures": 0
+        },
+        "market_pain": {
+          "executed_requests": 0,
+          "execution_failures": 0,
+          "records": 0,
+          "requests": 0,
+          "symbol_resolution_failures": 0
+        },
+        "players": {
+          "executed_requests": 0,
+          "execution_failures": 0,
+          "records": 0,
+          "requests": 0,
+          "symbol_resolution_failures": 0
+        }
+      },
       "token_total": 0,
       "tool_error_summary": {}
     },
