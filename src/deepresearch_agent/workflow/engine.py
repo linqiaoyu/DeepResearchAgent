@@ -1475,7 +1475,21 @@ class DeepResearchEngine:
         )
 
     def _graph_node(self, name: str, node):
-        contracted = enforce_node_contract(self.node_contracts[name], node)
+        scoped_nodes = {
+            "research_prepare",
+            "research_one",
+            "research_join",
+            "research_loop_decide",
+            "research_refine",
+            "retry_one",
+        }
+
+        def runtime_node(graph_state: ResearchGraphState, runtime: Any):
+            if name in scoped_nodes:
+                return node(graph_state, run_scope=runtime.context)
+            return node(graph_state)
+
+        contracted = enforce_node_contract(self.node_contracts[name], runtime_node)
         return self._traced_node(name, contracted)
 
     def _traced_node(self, name: str, node):
@@ -1592,7 +1606,9 @@ class DeepResearchEngine:
     def _route_after_planning(self, graph_state: ResearchGraphState) -> str:
         return END if self._state_from_graph_values(graph_state).status == "paused" else "research_prepare"
 
-    def _research_prepare_node(self, graph_state: ResearchGraphState) -> ResearchGraphState:
+    def _research_prepare_node(
+        self, graph_state: ResearchGraphState, *, run_scope: RunScope
+    ) -> ResearchGraphState:
         state = self._state_from_graph_values(graph_state)
         if not state.plan:
             raise ValueError("Researching requires a plan.")
@@ -1628,22 +1644,22 @@ class DeepResearchEngine:
                         },
                     }
                 )
-        if self._branch_budget_enabled() and self.branch_budget is None:
+        if self._branch_budget_enabled() and run_scope.branch_budget is None:
             total_budget = (
                 self.settings.research_loop_budget_ceiling
                 if self.settings.research_loop_active
                 else self.settings.branch_total_budget
             )
-            self.branch_budget = BranchBudget(
+            run_scope.branch_budget = BranchBudget(
                 total_budget=total_budget,
                 per_branch_cap=self.settings.branch_single_cap,
             )
-            allocations = self.branch_budget.allocate(branch_ids, state)
+            allocations = run_scope.branch_budget.allocate(branch_ids, state)
             state.metadata["branch_budget"] = {
                 "unit": "search_calls",
                 "total_budget": total_budget,
                 "per_branch_cap": self.settings.branch_single_cap,
-                "allocations": self.branch_budget.snapshot(),
+                "allocations": run_scope.branch_budget.snapshot(),
                 "phase": "before_send",
             }
             state.metadata["branch_budget"]["allocated_calls"] = allocations
@@ -1668,7 +1684,9 @@ class DeepResearchEngine:
         ]
         return sends or "research_join"
 
-    def _research_one_node(self, graph_state: ResearchGraphState) -> ResearchGraphState:
+    def _research_one_node(
+        self, graph_state: ResearchGraphState, *, run_scope: RunScope
+    ) -> ResearchGraphState:
         state = self._state_from_graph_values(graph_state)
         sub_question = SubQuestion.model_validate(graph_state["fanout_sub_question"])
         selected_capabilities = set(FIXED_CAPABILITY_SET)
@@ -1821,7 +1839,9 @@ class DeepResearchEngine:
             }
         return output
 
-    def _research_join_node(self, graph_state: ResearchGraphState) -> ResearchGraphState:
+    def _research_join_node(
+        self, graph_state: ResearchGraphState, *, run_scope: RunScope
+    ) -> ResearchGraphState:
         state = self._state_from_graph_values(graph_state)
         if not state.plan:
             raise ValueError("Researching requires a plan.")
@@ -1883,10 +1903,10 @@ class DeepResearchEngine:
                 }
                 for failure in structured_failures
             )
-        if self._branch_budget_enabled() and self.branch_budget:
+        if self._branch_budget_enabled() and run_scope.branch_budget:
             for sub_question in state.plan.sub_questions:
                 used = int(budget_usage.get(sub_question.id, 0))
-                self.branch_budget.consume(sub_question.id, used, state)
+                run_scope.branch_budget.consume(sub_question.id, used, state)
             metrics = {
                 sub_question.id: float(
                     len(source_batches.get(sub_question.id, []))
@@ -1895,23 +1915,23 @@ class DeepResearchEngine:
                 for sub_question in state.plan.sub_questions
             }
             if not self.settings.research_loop_active:
-                self.branch_budget.reallocate(
+                run_scope.branch_budget.reallocate(
                     metrics,
                     state,
                 )
             state.metadata["branch_budget"].update(
                 {
-                    "allocations": self.branch_budget.snapshot(),
+                    "allocations": run_scope.branch_budget.snapshot(),
                     "allocated_calls": {
                         branch_id: int(item["remaining"])
                         for branch_id, item in (
-                            self.branch_budget.snapshot().items()
+                            run_scope.branch_budget.snapshot().items()
                         )
                     },
                     "metrics": metrics,
                     "branch_coverage": branch_coverage,
                     "phase": "after_join",
-                    "total_used": self.branch_budget.total_used,
+                    "total_used": run_scope.branch_budget.total_used,
                 }
             )
         state.pending_tasks = []
@@ -2261,6 +2281,8 @@ class DeepResearchEngine:
     def _research_loop_decide_node(
         self,
         graph_state: ResearchGraphState,
+        *,
+        run_scope: RunScope,
     ) -> ResearchGraphState:
         state = self._state_from_graph_values(graph_state)
         sufficiency = evaluate_research_sufficiency(
@@ -2269,7 +2291,7 @@ class DeepResearchEngine:
             thresholds=self.sufficiency_thresholds,
         )
         state.metadata["research_loop_score"] = sufficiency.score
-        if self.branch_budget:
+        if run_scope.branch_budget:
             branch_metrics = {
                 item.sub_question_id: round(
                     1.0 - len(item.gaps) / 6,
@@ -2289,15 +2311,15 @@ class DeepResearchEngine:
                         )
                         + 1
                     ),
-                    budget_total=self.branch_budget.total_budget,
-                    budget_used=self.branch_budget.total_used,
-                    budget_snapshot=self.branch_budget.snapshot(),
+                    budget_total=run_scope.branch_budget.total_budget,
+                    budget_used=run_scope.branch_budget.total_used,
+                    budget_snapshot=run_scope.branch_budget.snapshot(),
                     sufficiency=sufficiency,
                 )
                 if self.settings.decision_weaving_enabled
                 else None
             )
-            self.branch_budget.reallocate(
+            run_scope.branch_budget.reallocate(
                 branch_metrics,
                 state,
                 decision_context=context,
@@ -2309,16 +2331,16 @@ class DeepResearchEngine:
             )
             state.metadata["branch_budget"].update(
                 {
-                    "allocations": self.branch_budget.snapshot(),
+                    "allocations": run_scope.branch_budget.snapshot(),
                     "allocated_calls": {
                         branch_id: int(item["remaining"])
                         for branch_id, item in (
-                            self.branch_budget.snapshot().items()
+                            run_scope.branch_budget.snapshot().items()
                         )
                     },
                     "metrics": branch_metrics,
                     "phase": "after_sufficiency",
-                    "total_used": self.branch_budget.total_used,
+                    "total_used": run_scope.branch_budget.total_used,
                 }
             )
         raw_tracker = state.metadata.get("research_loop_tracker")
@@ -2340,18 +2362,18 @@ class DeepResearchEngine:
                 state,
                 iteration=tracker.iteration + 1,
                 budget_total=(
-                    self.branch_budget.total_budget
-                    if self.branch_budget
+                    run_scope.branch_budget.total_budget
+                    if run_scope.branch_budget
                     else self.settings.research_loop_budget_ceiling
                 ),
                 budget_used=(
-                    self.branch_budget.total_used
-                    if self.branch_budget
+                    run_scope.branch_budget.total_used
+                    if run_scope.branch_budget
                     else tracker.budget_used
                 ),
                 budget_snapshot=(
-                    self.branch_budget.snapshot()
-                    if self.branch_budget
+                    run_scope.branch_budget.snapshot()
+                    if run_scope.branch_budget
                     else None
                 ),
                 sufficiency=sufficiency,
@@ -2421,6 +2443,8 @@ class DeepResearchEngine:
     def _research_refine_node(
         self,
         graph_state: ResearchGraphState,
+        *,
+        run_scope: RunScope,
     ) -> ResearchGraphState:
         state = self._state_from_graph_values(graph_state)
         raw_sufficiency = state.metadata.get("research_sufficiency")
@@ -2440,18 +2464,18 @@ class DeepResearchEngine:
                     state,
                     iteration=tracker.iteration + 1,
                     budget_total=(
-                        self.branch_budget.total_budget
-                        if self.branch_budget
+                        run_scope.branch_budget.total_budget
+                        if run_scope.branch_budget
                         else 0
                     ),
                     budget_used=(
-                        self.branch_budget.total_used
-                        if self.branch_budget
+                        run_scope.branch_budget.total_used
+                        if run_scope.branch_budget
                         else 0
                     ),
                     budget_snapshot=(
-                        self.branch_budget.snapshot()
-                        if self.branch_budget
+                        run_scope.branch_budget.snapshot()
+                        if run_scope.branch_budget
                         else None
                     ),
                     sufficiency=sufficiency,
@@ -2514,7 +2538,9 @@ class DeepResearchEngine:
         ]
         return sends or "retry_join"
 
-    def _retry_one_node(self, graph_state: ResearchGraphState) -> ResearchGraphState:
+    def _retry_one_node(
+        self, graph_state: ResearchGraphState, *, run_scope: RunScope
+    ) -> ResearchGraphState:
         state = self._state_from_graph_values(graph_state)
         task = RetryTask.model_validate(graph_state["fanout_retry_task"])
         if (

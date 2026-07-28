@@ -108,9 +108,10 @@ def _install_node_recorders() -> None:
             *,
             _method: Callable[..., Any] = parent_method,
             _name: str = method_name,
+            **kwargs: Any,
         ) -> Any:
             before = _graph_summary(graph_state)
-            result = _method(self, graph_state)
+            result = _method(self, graph_state, **kwargs)
             self.snapshot_node_events.append(
                 {
                     "node": _name.removeprefix("_").removesuffix("_node"),

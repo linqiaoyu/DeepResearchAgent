@@ -176,7 +176,7 @@ def enforce_node_contract(
         graph_state: Mapping[str, Any], runtime: Any = None
     ) -> Mapping[str, Any]:
         _validate_consumes(contract, graph_state)
-        result = node(graph_state)
+        result = node(graph_state, runtime) if runtime is not None else node(graph_state)
         if not isinstance(result, Mapping):
             raise ContractViolationError(
                 node=contract.name,

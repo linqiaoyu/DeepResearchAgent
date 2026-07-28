@@ -178,7 +178,8 @@ class ExternalRequestBudgetTests(unittest.TestCase):
                             "fanout_sub_question": sub_question.model_dump(
                                 mode="json"
                             ),
-                        }
+                        },
+                        run_scope=engine.run_scope,
                     )
             finally:
                 engine._checkpoint_conn.close()

@@ -138,7 +138,8 @@ def _execute_retry_fanout(engine: DeepResearchEngine, state: ResearchState) -> R
             {
                 "research_state": graph_state["research_state"],
                 "fanout_retry_task": task.model_dump(mode="json"),
-            }
+            },
+            run_scope=engine.run_scope,
         )
         retry_sources.update(update.get("retry_sources", {}))
         retry_records.update(update.get("retry_records", {}))

@@ -202,7 +202,8 @@ class AgentCoreArchitectureTests(unittest.TestCase):
                         "fanout_sub_question": state.plan.sub_questions[0].model_dump(
                             mode="json"
                         ),
-                    }
+                    },
+                    run_scope=engine.run_scope,
                 )
             finally:
                 engine._checkpoint_conn.close()

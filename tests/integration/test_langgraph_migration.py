@@ -26,7 +26,9 @@ class LangGraphMigrationTests(unittest.TestCase):
             state = ResearchState(topic=plan.topic, depth_level=2, plan=plan)
             graph_state = {"research_state": state.model_dump(mode="json")}
 
-            graph_state.update(engine._research_prepare_node(graph_state))
+            graph_state.update(
+                engine._research_prepare_node(graph_state, run_scope=engine.run_scope)
+            )
             sends = engine._send_research_tasks(graph_state)
 
         self.assertIsInstance(sends, list)
