@@ -13,7 +13,9 @@ from deepresearch_agent.tools.capability_selector import (
     DEFAULT_CAPABILITY_RULES,
     FIXED_CAPABILITY_SET,
     CapabilitySelection,
+    CapabilitySelector,
     DeterministicCapabilitySelector,
+    LLMCapabilitySelector,
     classify_subquestion,
 )
 from deepresearch_agent.tools.contract_adapter import ContractSearchProvider
@@ -62,6 +64,7 @@ __all__ = [
     "CapabilityMetadata",
     "CapabilityRegistry",
     "CapabilitySelection",
+    "CapabilitySelector",
     "ConfiguredSearchProvider",
     "ContractSearchProvider",
     "CircuitBreaker",
@@ -69,6 +72,7 @@ __all__ = [
     "CircuitState",
     "DegradationEvent",
     "DeterministicCapabilitySelector",
+    "LLMCapabilitySelector",
     "DEFAULT_CAPABILITY_RULES",
     "ERROR_RETRY_POLICIES",
     "FetchProvider",

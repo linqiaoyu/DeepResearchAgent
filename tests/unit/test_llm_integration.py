@@ -61,6 +61,21 @@ class MockCompletion:
 
 
 class LLMIntegrationTests(unittest.TestCase):
+    def test_complete_with_tools_records_native_tool_call_in_ledger(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            env_path = Path(tmp) / ".env"
+            env_path.write_text("DEEPSEEK_API_KEY=test-key\n", encoding="utf-8")
+            def completion(**kwargs: object) -> dict:
+                self.assertIn("tools", kwargs)
+                return {"choices": [{"message": {"content": "", "tool_calls": [{"function": {"name": "web_search", "arguments": "{}"}}]}}], "usage": {"prompt_tokens": 10, "completion_tokens": 2, "total_tokens": 12}}
+            ledger = Path(tmp) / "ledger.jsonl"
+            result = LLMClient(ledger_path=ledger, global_ledger_path=Path(tmp) / "global.jsonl", budget_cny=3, completion_func=completion, env_path=env_path).complete_with_tools(role="extractor", run_id="tool-run", messages=[{"role": "user", "content": "select"}], tools=[{"type": "function", "function": {"name": "web_search", "parameters": {}}}])
+            self.assertEqual(result.tool_calls[0]["function"]["name"], "web_search")
+            self.assertGreater(result.total_tokens, 0)
+            self.assertGreaterEqual(result.cost_cny, 0)
+            self.assertGreaterEqual(result.latency_seconds, 0)
+            self.assertEqual(len(ledger.read_text(encoding="utf-8").splitlines()), 1)
+
     def test_deterministic_planner_routes_explicit_a_share_metric_question(self) -> None:
         plan = PlannerAgent().plan("贵州茅台（600519）2025 年营业收入和毛利率是多少", depth_level=1)
 

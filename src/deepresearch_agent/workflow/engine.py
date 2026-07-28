@@ -61,6 +61,7 @@ from deepresearch_agent.storage import SQLiteStore
 from deepresearch_agent.tools import (
     CapabilityRegistry,
     DeterministicCapabilitySelector,
+    LLMCapabilitySelector,
     SearchProvider,
     StructuredDataProvider,
     TrajectoryStructuredDataProvider,
@@ -177,6 +178,12 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
             if self.settings.execution_mode == "llm"
             else None
         )
+        if self.settings.llm_tool_selection_enabled:
+            if self.llm_client is None:
+                raise ValueError("LLM_TOOL_SELECTION_ENABLED requires DEEPRESEARCH_MODE=llm")
+            self.capability_selector = LLMCapabilitySelector(
+                self.capability_registry, self.llm_client
+            )
         self.planner = PlannerAgent(
             llm_client=self.llm_client,
             settings=self.settings,

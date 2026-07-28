@@ -72,6 +72,7 @@ class LLMCallResult:
     latency_seconds: float
     cache_hit: bool | None
     repair_attempts: int = 0
+    tool_calls: tuple[dict[str, Any], ...] = ()
 
 
 class LLMClient:
@@ -113,6 +114,7 @@ class LLMClient:
         run_id: str,
         schema: type[SchemaT] | None = None,
         expected_cost_cny: float | None = None,
+        tools: list[dict[str, Any]] | None = None,
     ) -> LLMCallResult:
         with self._cost_lock:
             if run_id not in self._run_costs_cny:
@@ -156,6 +158,7 @@ class LLMClient:
                 timeout_seconds=role_config.timeout_seconds or self.config.timeout_seconds,
                 max_completion_tokens=role_config.max_completion_tokens,
                 messages=prompt_messages,
+                tools=tools,
             )
         content = raw_result.content
         parsed: BaseModel | None = None
@@ -201,6 +204,7 @@ class LLMClient:
                     timeout_seconds=role_config.timeout_seconds or self.config.timeout_seconds,
                     max_completion_tokens=role_config.max_completion_tokens,
                     messages=repair_messages,
+                    tools=tools,
                     is_repair=True,
                 )
                 content = raw_result.content
@@ -221,6 +225,7 @@ class LLMClient:
             latency_seconds=raw_result.latency_seconds,
             cache_hit=raw_result.cache_hit,
             repair_attempts=repair_attempts,
+            tool_calls=raw_result.tool_calls,
         )
         self._record_ledger(
             run_id=run_id,
@@ -246,6 +251,24 @@ class LLMClient:
                 latency_seconds=result.latency_seconds,
             )
         return result
+
+    def complete_with_tools(
+        self,
+        *,
+        role: str,
+        messages: list[dict[str, str]],
+        run_id: str,
+        tools: list[dict[str, Any]],
+        expected_cost_cny: float | None = None,
+    ) -> LLMCallResult:
+        """Request provider-native tool calls while retaining normal accounting."""
+        return self.complete(
+            role=role,
+            messages=messages,
+            run_id=run_id,
+            expected_cost_cny=expected_cost_cny,
+            tools=tools,
+        )
 
     def run_total_cny(self, run_id: str) -> float:
         with self._cost_lock:
@@ -327,6 +350,7 @@ class LLMClient:
         timeout_seconds: int,
         max_completion_tokens: int,
         messages: list[dict[str, str]],
+        tools: list[dict[str, Any]] | None = None,
         is_repair: bool = False,
     ) -> LLMCallResult:
         last_error: Exception | None = None
@@ -337,7 +361,7 @@ class LLMClient:
             for attempt in range(self.config.max_retries + 1):
                 started = time.perf_counter()
                 try:
-                    response = self._completion(
+                    kwargs = dict(
                         model=candidate_model,
                         messages=messages,
                         temperature=self.config.temperature,
@@ -346,6 +370,9 @@ class LLMClient:
                         api_key=api_key,
                         api_base=api_base,
                     )
+                    if tools is not None:
+                        kwargs["tools"] = tools
+                    response = self._completion(**kwargs)
                     latency = time.perf_counter() - started
                     content = self._message_content(response)
                     usage = self._usage(response)
@@ -370,6 +397,7 @@ class LLMClient:
                         latency_seconds=latency,
                         cache_hit=self._cache_hit(response),
                         repair_attempts=1 if is_repair else 0,
+                        tool_calls=self._message_tool_calls(response),
                     )
                     recorder = active_trajectory_recorder()
                     if recorder:
@@ -454,6 +482,19 @@ class LLMClient:
         message = choice["message"] if isinstance(choice, dict) else choice.message
         content = message["content"] if isinstance(message, dict) else message.content
         return content or ""
+
+    def _message_tool_calls(self, response: Any) -> tuple[dict[str, Any], ...]:
+        choice = response["choices"][0] if isinstance(response, dict) else response.choices[0]
+        message = choice["message"] if isinstance(choice, dict) else choice.message
+        calls = message.get("tool_calls", []) if isinstance(message, dict) else getattr(message, "tool_calls", [])
+        return tuple(
+            item if isinstance(item, dict) else {
+                "id": getattr(item, "id", None),
+                "type": getattr(item, "type", None),
+                "function": getattr(item, "function", None),
+            }
+            for item in (calls or [])
+        )
 
     def _usage(self, response: Any) -> dict[str, int]:
         usage = response.get("usage", {}) if isinstance(response, dict) else getattr(response, "usage", {})

@@ -100,6 +100,7 @@ FLAG_CLASSIFICATIONS: dict[str, FlagClassification] = {
     "DECISION_WEAVING_ENABLED": "content_affecting",
     "NUMERIC_CHECK_ENABLED": "content_affecting",
     "DYNAMIC_CAPABILITY_ENABLED": "content_affecting",
+    "LLM_TOOL_SELECTION_ENABLED": "content_affecting",
     "REFLECTION_ENABLED": "content_affecting",
     "CRITIC_ENABLED": "content_affecting",
     "EXTRACTOR_ENABLED": "content_affecting",
@@ -304,6 +305,8 @@ def settings_flag_snapshot(
         flags["DYNAMIC_CAPABILITY_ENABLED"] = (
             settings.dynamic_capability_enabled
         )
+    if settings.llm_tool_selection_enabled or include_disabled_experimental:
+        flags["LLM_TOOL_SELECTION_ENABLED"] = settings.llm_tool_selection_enabled
     if settings.reflection_enabled or include_disabled_experimental:
         flags["REFLECTION_ENABLED"] = settings.reflection_enabled
     if settings.skill_packs_enabled or include_disabled_experimental:

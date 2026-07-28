@@ -16,6 +16,7 @@ from deepresearch_agent.tools import (
     FixtureStructuredDataProvider,
     build_capability_registry,
 )
+from deepresearch_agent.tools.capability_selector import LLMCapabilitySelector
 from deepresearch_agent.workflow import DeepResearchEngine
 
 
@@ -27,6 +28,21 @@ def _registry():
 
 
 class DynamicCapabilitySelectionTest(unittest.TestCase):
+    def test_llm_selector_rejects_unknown_capability_and_records_degradation(self) -> None:
+        class StubClient:
+            def complete_with_tools(self, **_kwargs):
+                from types import SimpleNamespace
+                return SimpleNamespace(tool_calls=({"function": {"name": "unknown_tool"}},))
+
+        state = ResearchState(topic="能力选择")
+        selection = LLMCapabilitySelector(_registry(), StubClient()).select(
+            state, SubQuestion(id="n", question="分析战略", search_queries=["战略"])
+        )
+        self.assertEqual(selection.selected_capabilities, ())
+        self.assertIn("unknown_tool", selection.rejected_capabilities)
+        self.assertEqual(state.metadata["degradation_events"][0]["reason"], "unknown_capability")
+        self.assertEqual(len(state.agent_decisions), 1)
+
     def test_financial_and_narrative_types_select_from_registry(self) -> None:
         state = ResearchState(topic="能力选择")
         selector = DeterministicCapabilitySelector(_registry())

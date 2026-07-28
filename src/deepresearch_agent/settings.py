@@ -76,6 +76,7 @@ class Settings:
     numeric_check_relative_tolerance: float = 0.01
     numeric_check_absolute_tolerance: float = 0.01
     dynamic_capability_enabled: bool = True
+    llm_tool_selection_enabled: bool = False
     dynamic_capability_rules_json: str = DEFAULT_CAPABILITY_RULES_JSON
     reflection_enabled: bool = False
     # Round 033 real repeated-run ablation found no adopted strategy and no
@@ -277,6 +278,7 @@ def load_settings() -> Settings:
         dynamic_capability_enabled=_env_flag(
             "DYNAMIC_CAPABILITY_ENABLED", default=True
         ),
+        llm_tool_selection_enabled=_env_flag("LLM_TOOL_SELECTION_ENABLED"),
         dynamic_capability_rules_json=os.getenv(
             "DEEPRESEARCH_DYNAMIC_CAPABILITY_RULES_JSON", DEFAULT_CAPABILITY_RULES_JSON
         ),

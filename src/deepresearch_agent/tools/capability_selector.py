@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Mapping, Sequence
+from typing import Any, Protocol
 
 from deepresearch_agent.capability_rules import DEFAULT_CAPABILITY_RULES
 from deepresearch_agent.decisions import record_agent_decision
@@ -15,6 +16,10 @@ from deepresearch_agent.schemas import (
 from deepresearch_agent.tools.capability_registry import (
     CapabilityRegistry,
 )
+
+
+class CapabilitySelector(Protocol):
+    def select(self, state: ResearchState, sub_question: SubQuestion) -> "CapabilitySelection": ...
 
 FIXED_CAPABILITY_SET = (
     "disclosure_source",
@@ -161,6 +166,82 @@ class DeterministicCapabilitySelector:
             ),
         )
         return selection
+
+
+class LLMCapabilitySelector:
+    """Provider-native, fail-closed capability selection.
+
+    This selector only selects registered names.  Execution remains in the
+    existing research path, so trajectory tool traces retain their established
+    meaning: an executed provider call, never a model suggestion.
+    """
+
+    def __init__(self, registry: CapabilityRegistry, llm_client: Any) -> None:
+        self.registry = registry
+        self.llm_client = llm_client
+
+    def select(self, state: ResearchState, sub_question: SubQuestion) -> CapabilitySelection:
+        question_type = classify_subquestion(sub_question)
+        candidates = self.registry.query(subquestion_type=question_type)
+        candidate_names = tuple(item.name for item in candidates)
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": item.tool_spec.name,
+                    "description": f"{item.name}; cost={item.cost_level}",
+                    "parameters": item.tool_spec.input_schema,
+                },
+            }
+            for item in candidates
+        ]
+        result = self.llm_client.complete_with_tools(
+            role="extractor",
+            run_id=state.research_id,
+            messages=[
+                {"role": "system", "content": "Select only applicable registered tools."},
+                {"role": "user", "content": sub_question.question},
+            ],
+            tools=tools,
+        )
+        requested = tuple(_tool_name(call) for call in result.tool_calls)
+        unknown = tuple(name for name in requested if name not in candidate_names)
+        selected = tuple(name for name in requested if name in candidate_names)
+        if unknown:
+            state.metadata.setdefault("degradation_events", []).append(
+                {
+                    "tool": "capability_selector",
+                    "reason": "unknown_capability",
+                    "impact": "unregistered model-selected capability was rejected",
+                    "attempts": 1,
+                    "capabilities": list(unknown),
+                }
+            )
+        criterion = "provider-native tool calls restricted to registered applicable capabilities"
+        selection = CapabilitySelection(
+            sub_question_id=sub_question.id,
+            sub_question_type=question_type,
+            candidate_capabilities=candidate_names,
+            selected_capabilities=selected,
+            rejected_capabilities=tuple(name for name in candidate_names if name not in selected) + unknown,
+            criterion=criterion,
+            fallback=False,
+        )
+        record_agent_decision(state, AgentDecision(
+            decision_type="capability_selection", made_by="LLMCapabilitySelector",
+            inputs={"sub_question_id": sub_question.id, "candidate_capabilities": list(candidate_names)},
+            criterion=criterion,
+            outcome=f"selected={list(selected)} rejected={list(unknown)}",
+            alternatives_considered=list(candidate_names),
+        ))
+        return selection
+
+
+def _tool_name(call: dict[str, Any]) -> str:
+    function = call.get("function", {})
+    if not isinstance(function, dict) or not isinstance(function.get("name"), str):
+        return "<malformed_tool_call>"
+    return function["name"]
 
 
 def classify_subquestion(sub_question: SubQuestion) -> str:
