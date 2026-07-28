@@ -124,5 +124,30 @@
     "block": "B2",
     "command": [".venv/bin/python", "scripts/gate.py"],
     "target": "exit 0; tests >= B1 result"
+  },
+  {
+    "id": "B4-literal-ratchet-reduced",
+    "block": "B4",
+    "command": [".venv/bin/python", "scripts/check_domain_boundary.py"],
+    "target": "literal_files <= 3; allowlist ratcheted to measured values"
+  },
+  {
+    "id": "B4-residuals-documented",
+    "block": "B4",
+    "command": [".venv/bin/python", "-m", "unittest", "tests.unit.test_domain_boundary.DomainBoundaryTests.test_residual_documentation_matches_allowlist"],
+    "target": "every retained literal file is documented with removal condition"
+  },
+  {
+    "id": "B4-agents-no-financial-module",
+    "block": "B4",
+    "command": ["rg", "--files", "src/deepresearch_agent/agents", "-g", "financial_*.py"],
+    "target": "0 files",
+    "expected_returncode": 1
+  },
+  {
+    "id": "B4-golden-output-unchanged",
+    "block": "B4",
+    "command": ["git", "diff", "--exit-code", "tests/golden_output"],
+    "target": "exit 0"
   }
 ]

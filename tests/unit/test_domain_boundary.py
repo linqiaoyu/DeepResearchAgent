@@ -27,6 +27,25 @@ class DomainBoundaryTests(unittest.TestCase):
     def test_import_site_count_is_measured_from_source(self) -> None:
         self.assertEqual(_concrete_domain_import_sites(), 0)
 
+    def test_residual_documentation_matches_allowlist(self) -> None:
+        allowlist = json.loads(
+            (ROOT / "data/domain_boundary/allowlist.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        residuals = (
+            ROOT / "docs/decisions/043/domain-boundary-residual.md"
+        ).read_text(encoding="utf-8")
+        self.assertTrue(allowlist)
+        for path in allowlist:
+            row = next(
+                line for line in residuals.splitlines() if f"`{path}`" in line
+            )
+            columns = [column.strip() for column in row.split("|")]
+            self.assertGreaterEqual(len(columns), 6)
+            self.assertTrue(columns[-2])
+        self.assertEqual(residuals.count("| 移除条件 |"), 1)
+
     def test_criteria_commands_are_explicit_argument_vectors(self) -> None:
         criteria = json.loads((ROOT / "data/round/043_criteria.json").read_text(encoding="utf-8"))
         self.assertGreaterEqual(len(criteria), 4)

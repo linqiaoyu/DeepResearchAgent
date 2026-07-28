@@ -58,3 +58,10 @@ orchestration 的 replan 逻辑不再直接加载 finance pack。它只声明三
 方向保持原行为，且 orchestration 对 workflow/domains 的反向直接依赖为 0。五个既有单测
 只同步新增的显式 policy 参数，未删除断言或减少用例。新增 demo artifact parity 测试在两次
 独立 fixture run 间逐字比较报告；完整门禁通过 584 项测试，golden 输出未变。
+
+## B4 领域实现迁移（CLOSED）
+
+核心侧金融字面量已降至 3 个文件、9 个命中；残留仅为报告格式化、不可变 golden 审计和
+历史序列化兼容字段。`domain-boundary-residual.md` 逐项记载保留理由和移除条件，并由单测
+将该表与 allowlist 逐行关联。`agents/` 不再含 `financial_*.py`。完整门禁通过 585 项测试，
+golden 输出没有变化。
