@@ -4,9 +4,31 @@ import json
 from collections import deque
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
+from threading import Lock
 from typing import Any
 
 from deepresearch_agent.security.content import redact
+from deepresearch_agent.tools.reliable_execution import RunToolContext
+
+
+@dataclass
+class SearchQuota:
+    limit: int
+    used: int = 0
+    _lock: Lock = field(default_factory=Lock, repr=False)
+
+    def consume(self) -> bool:
+        with self._lock:
+            if self.used >= self.limit:
+                return False
+            self.used += 1
+            return True
+
+
+@dataclass
+class RunScope:
+    tool_context: RunToolContext
+    search_quota: SearchQuota
 
 ContractPredicate = Callable[[Mapping[str, Any], Mapping[str, Any]], bool]
 

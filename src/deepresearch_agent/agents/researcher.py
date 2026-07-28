@@ -3,7 +3,6 @@ from __future__ import annotations
 import hashlib
 import re
 import time
-from threading import Lock
 from datetime import date
 from decimal import Decimal
 
@@ -19,6 +18,7 @@ from deepresearch_agent.schemas import (
 )
 from deepresearch_agent.domains.protocols import DomainPack
 from deepresearch_agent.domains.registry import load_domain_pack
+from deepresearch_agent.orchestration.contracts import RunScope, SearchQuota
 from deepresearch_agent.tools import (
     FetchProvider,
     FixtureSearchTool,
@@ -27,6 +27,7 @@ from deepresearch_agent.tools import (
     StructuredDataProvider,
     ToolErrorKind,
     ToolExecutionError,
+    RunToolContext,
 )
 from deepresearch_agent.tools.source_ranking import (
     rerank_sources,
@@ -52,21 +53,18 @@ class ResearcherAgent:
         self.disclosure_source = disclosure_source
         self.as_of = as_of or date.today()
         self.domain_pack = domain_pack or load_domain_pack("finance")
-        self.searches_used = 0
-        self._search_budget_lock = Lock()
-
-    def reset_search_budget(self) -> None:
-        self.searches_used = 0
 
     def research(
         self,
         sub_question: SubQuestion,
         top_k_per_query: int = 1,
+        run_scope: RunScope | None = None,
     ) -> tuple[list[Source], list[SearchRecord]]:
         sources, records, _, _, _ = self.research_with_budget(
             sub_question,
             top_k_per_query=top_k_per_query,
             max_search_calls=None,
+            run_scope=run_scope,
         )
         return sources, records
 
@@ -81,7 +79,11 @@ class ResearcherAgent:
         enable_web_fetch: bool = False,
         source_decision_enabled: bool = False,
         enable_disclosure: bool = False,
+        run_scope: RunScope | None = None,
     ) -> tuple[list[Source], list[SearchRecord], int, bool, list[AgentDecision]]:
+        run_scope = run_scope or RunScope(
+            RunToolContext.for_run(), SearchQuota(self.max_searches_per_run)
+        )
         seen: dict[str, Source] = {}
         records: list[SearchRecord] = []
         original_candidates: list[Source] = []
@@ -100,7 +102,7 @@ class ResearcherAgent:
             ):
                 branch_exhausted = True
                 return False
-            if not self._consume_search_budget_if_needed():
+            if not self._consume_search_budget_if_needed(run_scope):
                 return False
             branch_calls += 1
             return True
@@ -141,6 +143,7 @@ class ResearcherAgent:
                     preferred_terms=self.domain_pack.primary_source_terms(
                         financial_intent=financial_intent
                     ),
+                    context=run_scope.tool_context,
                 )
                 records.append(
                     SearchRecord(
@@ -173,7 +176,7 @@ class ResearcherAgent:
                 break
             if not consume_call():
                 break
-            source = self.fetch_tool.fetch(url)
+            source = self.fetch_tool.fetch(url, context=run_scope.tool_context)
             records.append(
                 SearchRecord(
                     query=f"[priority_url] {url}",
@@ -215,11 +218,13 @@ class ResearcherAgent:
                     query,
                     top_k=requested_top_k,
                     source_type=source_type,
+                    context=run_scope.tool_context,
                 )
                 if not results and source_type and consume_call():
                     results = self.search_tool.search(
                         query,
                         top_k=requested_top_k,
+                        context=run_scope.tool_context,
                     )
             except ToolExecutionError as exc:
                 if exc.kind != ToolErrorKind.BUDGET_EXCEEDED:
@@ -262,7 +267,7 @@ class ResearcherAgent:
                     )
                     break
                 try:
-                    fetched = self.fetch_tool.fetch(source.url)
+                    fetched = self.fetch_tool.fetch(source.url, context=run_scope.tool_context)
                 except ToolExecutionError as exc:
                     if exc.kind != ToolErrorKind.BUDGET_EXCEEDED:
                         raise
@@ -311,13 +316,14 @@ class ResearcherAgent:
         )
         return list(seen.values()), records, branch_calls, branch_exhausted, decisions
 
-    def retry(self, query: str, source_type: str | None = None, top_k: int = 2) -> tuple[list[Source], SearchRecord]:
-        if not self._consume_search_budget_if_needed():
+    def retry(self, query: str, source_type: str | None = None, top_k: int = 2, *, run_scope: RunScope | None = None) -> tuple[list[Source], SearchRecord]:
+        run_scope = run_scope or RunScope(RunToolContext.for_run(), SearchQuota(self.max_searches_per_run))
+        if not self._consume_search_budget_if_needed(run_scope):
             return [], SearchRecord(query=f"[search_limit_exceeded] {query}", source_ids=[])
         started = time.perf_counter()
-        results = self.search_tool.search(query, top_k=top_k, source_type=source_type)
-        if not results and source_type and self._consume_search_budget_if_needed():
-            results = self.search_tool.search(query, top_k=top_k)
+        results = self.search_tool.search(query, top_k=top_k, source_type=source_type, context=run_scope.tool_context)
+        if not results and source_type and self._consume_search_budget_if_needed(run_scope):
+            results = self.search_tool.search(query, top_k=top_k, context=run_scope.tool_context)
         latency_ms = int((time.perf_counter() - started) * 1000)
         return results, SearchRecord(query=query, source_ids=[source.id for source in results], latency_ms=latency_ms)
 
@@ -436,16 +442,10 @@ class ResearcherAgent:
         symbol = self.structured_data_provider.symbol_resolve(company_name)
         return symbol.symbol if symbol else None
 
-    def _consume_search_budget_if_needed(self) -> bool:
+    def _consume_search_budget_if_needed(self, run_scope: RunScope) -> bool:
         if not getattr(self.search_tool, "search_counts_toward_budget", False):
             return True
-        if self.max_searches_per_run <= 0:
-            return False
-        with self._search_budget_lock:
-            if self.searches_used >= self.max_searches_per_run:
-                return False
-            self.searches_used += 1
-            return True
+        return run_scope.search_quota.consume()
 
     def _evidence_from_record(
         self,

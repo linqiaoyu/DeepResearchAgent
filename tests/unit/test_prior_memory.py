@@ -144,7 +144,7 @@ class TrackingProvider:
             content="营收",
         )
 
-    def fetch(self, url: str):
+    def fetch(self, url: str, **_kwargs: object):
         self.fetches.append(url)
         return self.source if url == self.source.url else None
 
@@ -153,6 +153,7 @@ class TrackingProvider:
         query: str,
         top_k: int = 3,
         source_type: str | None = None,
+        **_kwargs: object,
     ):
         self.searches.append(query)
         return []

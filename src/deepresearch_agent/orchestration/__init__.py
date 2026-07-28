@@ -5,6 +5,8 @@ from deepresearch_agent.orchestration.contracts import (
     ContractViolationError,
     DecisionGate,
     NodeContract,
+    RunScope,
+    SearchQuota,
     enforce_node_contract,
     validate_contract_graph,
 )
@@ -45,6 +47,8 @@ __all__ = [
     "ContractViolationError",
     "DecisionGate",
     "NodeContract",
+    "RunScope",
+    "SearchQuota",
     "BranchAllocation",
     "BranchBudget",
     "BranchBalance",

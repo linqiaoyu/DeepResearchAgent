@@ -5,12 +5,13 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 
 from deepresearch_agent.agents.researcher import ResearcherAgent
+from deepresearch_agent.orchestration import RunScope, SearchQuota
 from deepresearch_agent.schemas import (
     Source,
     StructuredDataRequest,
     SubQuestion,
 )
-from deepresearch_agent.tools import ToolErrorKind, ToolExecutionError
+from deepresearch_agent.tools import RunToolContext, ToolErrorKind, ToolExecutionError
 
 
 class CountingSearchProvider:
@@ -20,7 +21,7 @@ class CountingSearchProvider:
         self.queries: list[str] = []
         self.fetched_urls: list[str] = []
 
-    def search(self, query: str, top_k: int = 3, source_type: str | None = None) -> list[Source]:
+    def search(self, query: str, top_k: int = 3, source_type: str | None = None, **_kwargs: object) -> list[Source]:
         self.queries.append(query)
         return [
             Source(
@@ -33,7 +34,7 @@ class CountingSearchProvider:
             )
         ]
 
-    def fetch(self, url: str) -> Source:
+    def fetch(self, url: str, **_kwargs: object) -> Source:
         self.fetched_urls.append(url)
         return Source(
             id=f"fetched-{len(self.fetched_urls)}",
@@ -51,9 +52,10 @@ class ResearcherSearchBudgetTests(unittest.TestCase):
             search_tool=CountingSearchProvider(), max_searches_per_run=20
         )
         with ThreadPoolExecutor(max_workers=16) as pool:
-            allowed = list(pool.map(lambda _: researcher._consume_search_budget_if_needed(), range(80)))
+            scope = RunScope(RunToolContext.for_run(), SearchQuota(20))
+            allowed = list(pool.map(lambda _: researcher._consume_search_budget_if_needed(scope), range(80)))
         self.assertEqual(sum(allowed), 20)
-        self.assertEqual(researcher.searches_used, 20)
+        self.assertEqual(scope.search_quota.used, 20)
     def test_financial_disclosure_short_circuits_redundant_web_fetch(
         self,
     ) -> None:
@@ -216,14 +218,16 @@ class ResearcherSearchBudgetTests(unittest.TestCase):
         self.assertEqual(records[-1].query, "[search_limit_exceeded] q3")
         self.assertEqual(records[-1].source_ids, [])
 
-    def test_reset_search_budget_starts_new_run(self) -> None:
+    def test_new_run_scope_starts_with_fresh_budget(self) -> None:
         provider = CountingSearchProvider()
         researcher = ResearcherAgent(search_tool=provider, max_searches_per_run=1)
 
-        researcher.retry("q1")
-        first_sources, first_record = researcher.retry("q2")
-        researcher.reset_search_budget()
-        second_sources, second_record = researcher.retry("q3")
+        first_scope = RunScope(RunToolContext.for_run(), SearchQuota(1))
+        researcher.retry("q1", run_scope=first_scope)
+        first_sources, first_record = researcher.retry("q2", run_scope=first_scope)
+        second_sources, second_record = researcher.retry(
+            "q3", run_scope=RunScope(RunToolContext.for_run(), SearchQuota(1))
+        )
 
         self.assertEqual(first_sources, [])
         self.assertEqual(first_record.query, "[search_limit_exceeded] q2")

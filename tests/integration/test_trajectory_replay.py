@@ -44,11 +44,12 @@ class OfflineEmptySearch:
         query: str,
         top_k: int = 3,
         source_type: str | None = None,
+        **_kwargs: object,
     ) -> list[Source]:
         del query, top_k, source_type
         return []
 
-    def fetch(self, url: str) -> Source | None:
+    def fetch(self, url: str, **_kwargs: object) -> Source | None:
         del url
         return None
 
@@ -115,6 +116,7 @@ class OfflineRecordingDisclosure:
         end_date: date,
         *,
         preferred_terms: tuple[str, ...] = (),
+        **_kwargs: object,
     ) -> list[Source]:
         del preferred_terms
         inputs = {

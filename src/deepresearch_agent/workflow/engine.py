@@ -44,6 +44,8 @@ from deepresearch_agent.orchestration import (
     ContractInvariant,
     DecisionGate,
     NodeContract,
+    RunScope,
+    SearchQuota,
     LoopIterationResult,
     LoopSpec,
     LoopTracker,
@@ -335,6 +337,10 @@ class DeepResearchEngine:
         self.reflector = Reflector()
         self.branch_budget: BranchBudget | None = None
         self.run_tool_context: RunToolContext | None = None
+        self.run_scope = RunScope(
+            RunToolContext.for_run(),
+            SearchQuota(self.researcher.max_searches_per_run),
+        )
         self.working_memory = ContextWorkingMemory()
         self.reporter_context_builder = ReporterContextBuilder(
             self.working_memory
@@ -433,7 +439,6 @@ class DeepResearchEngine:
     ) -> ResearchState:
         started = time.perf_counter()
         manifest_started_at = utc_now()
-        self.researcher.reset_search_budget()
         self.branch_budget = None
         self.run_tool_context = RunToolContext.for_run(
             max_external_search_requests=(
@@ -450,6 +455,10 @@ class DeepResearchEngine:
             ),
         )
         self._bind_run_tool_context(self.run_tool_context)
+        self.run_scope = RunScope(
+            self.run_tool_context,
+            SearchQuota(self.researcher.max_searches_per_run),
+        )
         if resume:
             if not research_id:
                 raise ValueError("research_id is required when resume=True")
@@ -1723,6 +1732,7 @@ class DeepResearchEngine:
                 source_decisions,
             ) = self.researcher.research_with_budget(
                 sub_question,
+                run_scope=self.run_scope,
                 max_search_calls=allocation,
                 priority_urls=priority_urls,
                 enable_web_search=(
@@ -1747,6 +1757,7 @@ class DeepResearchEngine:
                 source_decisions,
             ) = self.researcher.research_with_budget(
                 sub_question,
+                run_scope=self.run_scope,
                 max_search_calls=None,
                 priority_urls=priority_urls,
                 enable_web_search=(
@@ -1760,7 +1771,7 @@ class DeepResearchEngine:
             )
         else:
             if "web_search" in selected_capabilities:
-                sources, records = self.researcher.research(sub_question)
+                sources, records = self.researcher.research(sub_question, run_scope=self.run_scope)
                 search_calls = len(records)
                 branch_exhausted = False
                 source_decisions = []
@@ -2532,7 +2543,7 @@ class DeepResearchEngine:
                         ).model_dump(mode="json")
                     },
                 }
-        sources, record = self.researcher.retry(task.query, task.source_type)
+        sources, record = self.researcher.retry(task.query, task.source_type, run_scope=self.run_scope)
         return {
             "retry_sources": {task.id: [source.model_dump(mode="json") for source in sources]},
             "retry_records": {task.id: record.model_dump(mode="json")},

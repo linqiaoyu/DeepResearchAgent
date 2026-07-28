@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from deepresearch_agent.agents.researcher import ResearcherAgent
+from deepresearch_agent.orchestration import RunScope, SearchQuota
 from deepresearch_agent.schemas import (
     ResearchState,
     Source,
@@ -198,12 +199,13 @@ class ExternalRequestBudgetTests(unittest.TestCase):
                 context=context,
             )
             researcher = ResearcherAgent(search_tool=provider, max_searches_per_run=3)
+            scope = RunScope(context, SearchQuota(3))
             recorder = TrajectoryRecorder(run_id="budget", request={})
             with trajectory_recording(recorder):
-                sources, _record = researcher.retry("first")
+                sources, _record = researcher.retry("first", run_scope=scope)
                 self.assertEqual(len(sources), 1)
                 with self.assertRaises(ToolExecutionError) as raised:
-                    researcher.retry("critic retry")
+                    researcher.retry("critic retry", run_scope=scope)
 
         self.assertEqual(raised.exception.kind, ToolErrorKind.BUDGET_EXCEEDED)
         self.assertEqual(client.posts, 1)
@@ -252,8 +254,9 @@ class ExternalRequestBudgetTests(unittest.TestCase):
 
         provider = FixtureLike()
         researcher = ResearcherAgent(search_tool=provider, max_searches_per_run=1)
-        researcher.retry("one")
-        sources, record = researcher.retry("two")
+        scope = RunScope(RunToolContext.for_run(), SearchQuota(1))
+        researcher.retry("one", run_scope=scope)
+        sources, record = researcher.retry("two", run_scope=scope)
         self.assertEqual(provider.calls, 1)
         self.assertEqual(sources, [])
         self.assertTrue(record.query.startswith("[search_limit_exceeded]"))

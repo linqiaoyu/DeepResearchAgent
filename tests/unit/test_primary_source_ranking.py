@@ -39,10 +39,11 @@ class CandidateProvider:
         query: str,
         top_k: int = 3,
         source_type: str | None = None,
+        **_kwargs: object,
     ) -> list[Source]:
         return self.candidates[:top_k]
 
-    def fetch(self, url: str) -> Source:
+    def fetch(self, url: str, **_kwargs: object) -> Source:
         self.fetch_order.append(url)
         return source(
             url,
