@@ -180,5 +180,56 @@
     "block": "B5",
     "command": ["test", "-s", "docs/decisions/043/adr-pdfplumber.md"],
     "target": "source, version, license, attribution, and rollback are recorded"
+  },
+  {
+    "id": "B7-no-avg-faithfulness",
+    "block": "B7",
+    "command": ["rg", "-c", "avg_faithful[n]ess", "src", "data"],
+    "target": "0",
+    "expected_returncode": 1
+  },
+  {
+    "id": "B7-no-answer-relevance-runtime-name",
+    "block": "B7",
+    "command": ["rg", "-c", "answer_relevan[c]e", "src"],
+    "target": "0",
+    "expected_returncode": 1
+  },
+  {
+    "id": "B7-comparison-observed-display-only",
+    "block": "B7",
+    "command": ["rg", "-c", "comparison_observed", "docs"],
+    "target": ">= 1"
+  },
+  {
+    "id": "B7-characterization-cases",
+    "block": "B7",
+    "command": [".venv/bin/python", "-m", "unittest", "tests.unit.test_snapshot_run"],
+    "target": "exit 0; four snapshots include a multi-content-flag case"
+  },
+  {
+    "id": "B7-flag-debt-decision",
+    "block": "B7",
+    "command": ["test", "-s", "docs/decisions/043/adr-flag-debt.md"],
+    "target": "all default-false content-affecting flags have verify-or-delete disposition"
+  },
+  {
+    "id": "B7-decision-records",
+    "block": "B7",
+    "command": ["test", "-f", "docs/decisions/040/report.md"],
+    "target": "040-043 decision records exist"
+  },
+  {
+    "id": "B7-readme-no-stale-domain-path",
+    "block": "B7",
+    "command": ["rg", "-c", "尚无 .domains/finance", "README.md"],
+    "target": "0",
+    "expected_returncode": 1
+  },
+  {
+    "id": "B7-evaluation-contract-table",
+    "block": "B7",
+    "command": ["rg", "-n", "^\\| 指标 \\| 算子 \\| 输入 \\| 值域 \\| 是否 gated \\|$", "docs/evaluation.md"],
+    "target": "metric table declares operator, input, range, and gate"
   }
 ]
