@@ -149,5 +149,36 @@
     "block": "B4",
     "command": ["git", "diff", "--exit-code", "tests/golden_output"],
     "target": "exit 0"
+  },
+  {
+    "id": "B5-no-inline-disclosure-corpus",
+    "block": "B5",
+    "command": ["rg", "-c", "_ANNUAL_REPORT|PDF_PAGE=", "src/deepresearch_agent/tools/disclosure_source.py"],
+    "target": "0",
+    "expected_returncode": 1
+  },
+  {
+    "id": "B5-fixture-deterministic",
+    "block": "B5",
+    "command": [".venv/bin/python", "scripts/build_disclosure_fixture.py", "--check"],
+    "target": "derived corpus sha256 matches tracked fixture"
+  },
+  {
+    "id": "B5-provenance-and-bbox",
+    "block": "B5",
+    "command": ["env", "PYTHONPATH=src", ".venv/bin/python", "-m", "unittest", "tests.unit.test_disclosure_source"],
+    "target": "PDF sha256/page provenance and numeric evidence bbox coverage hold"
+  },
+  {
+    "id": "B5-red-green-archive",
+    "block": "B5",
+    "command": ["test", "-s", "docs/decisions/043/b5-red-green.md"],
+    "target": "first red gate output and per-failure attribution are versioned"
+  },
+  {
+    "id": "B5-pdfplumber-adr",
+    "block": "B5",
+    "command": ["test", "-s", "docs/decisions/043/adr-pdfplumber.md"],
+    "target": "source, version, license, attribution, and rollback are recorded"
   }
 ]
