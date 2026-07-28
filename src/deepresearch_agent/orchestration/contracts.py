@@ -8,6 +8,7 @@ from threading import Lock
 from typing import Any
 
 from deepresearch_agent.security.content import redact
+from deepresearch_agent.orchestration.budget import BranchBudget
 from deepresearch_agent.tools.reliable_execution import RunToolContext
 
 
@@ -29,6 +30,7 @@ class SearchQuota:
 class RunScope:
     tool_context: RunToolContext
     search_quota: SearchQuota
+    branch_budget: BranchBudget | None = None
 
 ContractPredicate = Callable[[Mapping[str, Any], Mapping[str, Any]], bool]
 
@@ -166,11 +168,13 @@ def validate_contract_graph(
 
 def enforce_node_contract(
     contract: NodeContract,
-    node: Callable[[Mapping[str, Any]], Mapping[str, Any]],
-) -> Callable[[Mapping[str, Any]], Mapping[str, Any]]:
+    node: Callable[..., Mapping[str, Any]],
+) -> Callable[..., Mapping[str, Any]]:
     """Wrap a LangGraph node without changing its scheduling semantics."""
 
-    def contracted(graph_state: Mapping[str, Any]) -> Mapping[str, Any]:
+    def contracted(
+        graph_state: Mapping[str, Any], runtime: Any = None
+    ) -> Mapping[str, Any]:
         _validate_consumes(contract, graph_state)
         result = node(graph_state)
         if not isinstance(result, Mapping):

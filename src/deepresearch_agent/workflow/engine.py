@@ -642,6 +642,7 @@ class DeepResearchEngine:
                     result = self.graph.invoke(
                         graph_input,
                         config=config,
+                        context=self.run_scope,
                         interrupt_before=interrupt_before,
                         interrupt_after=interrupt_after,
                     )
@@ -968,7 +969,7 @@ class DeepResearchEngine:
     def _build_graph(self):
         self.node_contracts = self._node_contracts()
         validate_contract_graph(self.node_contracts, self._contract_graph())
-        graph = StateGraph(ResearchGraphState)
+        graph = StateGraph(ResearchGraphState, context_schema=RunScope)
         graph.add_node("entry", self._graph_node("entry", self._entry_node))
         graph.add_node("planner", self._graph_node("planner", self._planner_node))
         graph.add_node(
@@ -1478,7 +1479,11 @@ class DeepResearchEngine:
         return self._traced_node(name, contracted)
 
     def _traced_node(self, name: str, node):
-        def traced(graph_state: ResearchGraphState):
+        def traced(graph_state: ResearchGraphState, runtime: Any):
+            if runtime.context is not self.run_scope:
+                raise AssertionError(
+                    "LangGraph runtime context is not the active RunScope"
+                )
             started = time.perf_counter()
             self.logger.event(
                 "node_started",
@@ -1486,7 +1491,7 @@ class DeepResearchEngine:
                 input_summary=_trace_graph_summary(graph_state),
             )
             try:
-                result = node(graph_state)
+                result = node(graph_state, runtime)
             except Exception as exc:
                 self.logger.event(
                     "node_failed",
