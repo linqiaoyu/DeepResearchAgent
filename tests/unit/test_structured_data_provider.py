@@ -123,10 +123,30 @@ class StructuredDataProviderTests(unittest.TestCase):
             },
         )
         self.assertNotIn(
-            172_054_171_890.91,
+            174_144_069_958.25,
             {record.value for record in records},
         )
         self.assertEqual(main_business_margin, [])
+
+    def test_akshare_known_symbol_skips_resolution_and_non_finite_values(self) -> None:
+        class Frame:
+            def to_dict(self, _orient: str) -> list[dict[str, object]]:
+                return [{"指标": "营业收入", "20241231": 10.0, "20231231": float("nan")}]
+
+        class AKShareStub:
+            def stock_financial_abstract(self, *, symbol: str) -> Frame:
+                self.symbol = symbol
+                return Frame()
+
+            def stock_info_a_code_name(self) -> Frame:
+                raise AssertionError("known symbol must not trigger resolution")
+
+        provider = AKShareStructuredDataProvider(akshare_module=AKShareStub())
+        records = provider.financial_indicators("300750", metrics=["营业收入"])
+
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0].entity, "300750")
+        self.assertEqual(records[0].period, "20241231")
 
     def test_fixture_symbol_resolve_and_financial_indicator_normalization(self) -> None:
         provider = FixtureStructuredDataProvider()

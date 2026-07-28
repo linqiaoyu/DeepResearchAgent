@@ -21,6 +21,8 @@ AMOUNT_UNITS: Mapping[str, Decimal] = {
     "亿元": Decimal("100000000"),
 }
 STRUCTURED_METRIC_ALIASES = {
+    # AKShare 1.18.64 exposes the annual-revenue row as 营业总收入.
+    "营业总收入": "营业收入",
     "营收": "营业收入",
     "归母净利润": "归母净利润",
     "净利润": "净利润",

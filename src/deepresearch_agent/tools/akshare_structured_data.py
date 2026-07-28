@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+import re
 import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
@@ -32,6 +34,7 @@ class AKShareStructuredDataProvider:
         self.timeout_seconds = timeout_seconds
         self.max_retries = max_retries
         self._sleep = sleep_func
+
     def close(self) -> None:
         """Compatibility hook; each bounded attempt owns its own worker."""
 
@@ -65,7 +68,10 @@ class AKShareStructuredDataProvider:
             lambda: self.akshare.stock_financial_abstract(symbol=symbol),
             "financial_indicators",
         )
-        symbol_info = self.symbol_resolve(symbol)
+        # Callers that already hold a six-digit exchange symbol must not pay
+        # for a second, full-market symbol-table request merely to decorate
+        # the record's entity name.
+        symbol_info = None if re.fullmatch(r"\d{6}", symbol) else self.symbol_resolve(symbol)
         entity = symbol_info.entity if symbol_info else symbol
         metric_filter = {
             self._normalize_metric(metric)
@@ -80,8 +86,15 @@ class AKShareStructuredDataProvider:
         }
         records: list[StructuredDataRecord] = []
         seen_records: set[tuple[str, str, float, str]] = set()
-        for row in frame.to_dict("records"):
-            metric_name = self._normalize_metric(str(row.get("指标", "")).strip())
+        raw_rows = frame.to_dict("records")
+        raw_metrics = {str(row.get("指标", "")).strip() for row in raw_rows}
+        for row in raw_rows:
+            raw_metric_name = str(row.get("指标", "")).strip()
+            metric_name = self._normalize_metric(raw_metric_name)
+            # Prefer the canonical provider row when a registered alias and
+            # its canonical spelling are both present in the same frame.
+            if raw_metric_name != metric_name and metric_name in raw_metrics:
+                continue
             if metric_name not in metric_filter:
                 continue
             unit = "%" if "率" in metric_name else "元"
@@ -188,6 +201,7 @@ class AKShareStructuredDataProvider:
 
     def _float_or_none(self, value: Any) -> float | None:
         try:
-            return float(value)
+            numeric = float(value)
         except (TypeError, ValueError):
             return None
+        return numeric if math.isfinite(numeric) else None
