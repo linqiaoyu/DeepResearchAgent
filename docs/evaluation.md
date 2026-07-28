@@ -17,6 +17,22 @@ content-affecting until measured.
 
 ## Metrics
 
+The current runtime metric contract is summarized below. Historical Golden-set
+comparison tables retain their original columns because they record released
+results rather than define a live scoring contract.
+
+| 指标 | 算子 | 输入 | 值域 | 是否 gated |
+| --- | --- | --- | --- | --- |
+| `task_success_rate` | final-report/evidence/numeric-audit conjunction | `ResearchState`、机械数值审计 | `{0, 1}` | 是 |
+| `citation_accuracy` | deterministic support audit or semantic judge | report claims、footnotes、Evidence | `[0, 1]` 或 `null` | 是 |
+| `citation_resolution_rate` | resolved citations / citation markers | report footnotes、Evidence | `[0, 1]` | 是 |
+| `bbox_resolution_rate` | valid layout anchors / paged numeric Evidence | `Source.bbox_index`、numeric Evidence | `[0, 1]` 或 `null` | 否（display-only） |
+| `critic_catch_rate` | deterministic visible-issue proxy | Critic issues | `[0, 1]` | 是 |
+| `answer_relevance` | lexical overlap or enabled semantic judge | topic、final report | `[0, 1]` 或 `null` | 否 |
+| `faithfulness` | cited-claim density or enabled semantic judge | claims、citations、Evidence | `[0, 1]` 或 `null` | 是 |
+| `cost_cny` / `cost_usd` | LLM ledger aggregation / display conversion | LLM ledger | `>= 0` 或 `null` | 否 |
+| `latency_seconds` / `token_used` | run aggregation | run telemetry / LLM ledger | `>= 0` 或 `null` | 否 |
+
 - `task_success_rate`: narrow MVP gate requiring a final report, at least one
   evidence record, and zero detected financial numeric-citation mismatch lines.
   In every execution mode, any detected mismatch forces this metric to `0`.
