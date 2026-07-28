@@ -31,9 +31,13 @@ fixture 现从两份受跟踪 PDF 再生：贵州茅台年报第 6 页，以及�
 与 `source_locator`。B5 尚未结案的唯一流程项是将首次真语料门禁变红及逐条红→绿归因
 完整归档到轮次报告；该归因现已记录于轮次审计材料，B5 已满足其离线验收门。
 
-本轮未获真实 provider 的新增成本授权，因此不执行付费端到端运行。协作目录中较早的
-B8 preregistration 曾写入一次授权；后续 B1/B1c 任务卡明确“本轮无成本授权”，该后续且
-更窄的指令已取代旧记录。B8 维持 `NOT AUTHORIZED`，未发生任何真实调用。
+随后仓库所有者于 2026-07-28 对 B8 给予了覆盖性成本授权。三次受 10 CNY/次、30 CNY
+全轮熔断约束的真实尝试，加一条 qwen3.7-plus 连通性探针，共记录 0.10164388 CNY。探针
+及 LLM/judge 均成功；attempt-1 还实际使用 Tavily/CNINFO，但 AKShare 的 symbol resolve
+有界失败并产生 degradation；attempt-2 的 reporter Evidence 保真合同拒绝输出；attempt-3
+完成但实际 evidence 仍只有 CNINFO，未使用 AKShare。因此三层真实判据未满足，B8 为
+`INCOMPLETE`，不是“管道已跑通”。脱敏原始记录保留在协作运行产物；DASHSCOPE key 建议
+轮换，未在受管文档记录任何凭据字符。
 
 ## B1 运行作用域迁移（CLOSED）
 
