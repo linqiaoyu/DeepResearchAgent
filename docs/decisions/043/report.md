@@ -33,14 +33,14 @@ fixture 现从两份受跟踪 PDF 再生：贵州茅台年报第 6 页，以及�
 
 本轮未获真实 provider 的新增成本授权，因此不执行付费端到端运行。
 
-## B1 运行作用域迁移（INCOMPLETE）
+## B1 运行作用域迁移（CLOSED）
 
 provider 调用现在接收显式 per-call `RunToolContext`；Researcher 搜索配额、工具预算和
 `BranchBudget` 归入 LangGraph `Runtime.context` 中的 `RunScope`。workflow engine 不再持有
 这些 run 实例字段或运行锁，并发 8 个 fixture run 的预算快照、完成状态与报告均与串行
 基线一致。把预算临时改回实例字段时该守卫失败。
 
-`api/main.py` 复用 lifespan engine；`api/demo.py` 的锁保持 demo 队列串行语义。B1 仍未关闭：
-既有 strict-replay 判据指向的 fake synthetic 轨迹没有调用缓存，必然 cache miss。新录制
-trajectory 已经 CLI strict replay 成功，但运行产物不应伪装成受管 fixture；在提供可受管的
-有效既有 trajectory 前，B1 保持 INCOMPLETE。
+`api/main.py` 复用 lifespan engine；`api/demo.py` 的锁保持 demo 队列串行语义。既有
+strict-replay 路径指向没有调用缓存的 fake fixture，因而不能证明 CLI。现在的回归守卫先
+录制 deterministic trajectory，再由实际 CLI strict replay，且断言 `reproduced` 和逐字报告
+匹配；这修复了验证资产，不放宽 strict replay 合同。B1 的全部机器判据现为 PASS。
