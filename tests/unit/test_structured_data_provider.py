@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import tempfile
+import time
 from decimal import Decimal
 import unittest
 from datetime import date
@@ -24,6 +25,26 @@ from deepresearch_agent.tools import (
 
 
 class StructuredDataProviderTests(unittest.TestCase):
+    def test_akshare_retry_is_not_queued_behind_a_timed_out_call(self) -> None:
+        calls = 0
+
+        def first_call_hangs_then_returns() -> str:
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                time.sleep(0.1)
+            return "available"
+
+        provider = AKShareStructuredDataProvider(
+            akshare_module=object(),
+            timeout_seconds=0.01,
+            max_retries=1,
+            sleep_func=lambda _: None,
+        )
+
+        self.assertEqual(provider._call(first_call_hangs_then_returns, "probe"), "available")
+        self.assertEqual(calls, 2)
+
     def test_financial_request_rejects_unparseable_period_before_execution(self) -> None:
         with self.assertRaisesRegex(ValidationError, "unparsable_periods=.*TTM"):
             StructuredDataRequest(

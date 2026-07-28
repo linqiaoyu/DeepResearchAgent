@@ -32,10 +32,8 @@ class AKShareStructuredDataProvider:
         self.timeout_seconds = timeout_seconds
         self.max_retries = max_retries
         self._sleep = sleep_func
-        self._executor = ThreadPoolExecutor(max_workers=1)
-
     def close(self) -> None:
-        self._executor.shutdown(wait=False, cancel_futures=True)
+        """Compatibility hook; each bounded attempt owns its own worker."""
 
     def symbol_resolve(self, company_name: str) -> SymbolInfo | None:
         query = company_name.strip()
@@ -161,15 +159,23 @@ class AKShareStructuredDataProvider:
         last_error: Exception | None = None
         for attempt in range(self.max_retries + 1):
             future = None
+            executor = ThreadPoolExecutor(max_workers=1)
             try:
-                future = self._executor.submit(func)
+                # A timed-out call may keep its worker alive.  Reusing a single
+                # worker would queue every retry behind that hung call, making
+                # the advertised retries ineffective.
+                future = executor.submit(func)
                 return future.result(timeout=self.timeout_seconds)
-            except FutureTimeoutError as exc:
+            except FutureTimeoutError:
                 if future:
                     future.cancel()
-                last_error = exc
+                last_error = TimeoutError(
+                    f"timeout after {self.timeout_seconds:.3f}s"
+                )
             except Exception as exc:
                 last_error = exc
+            finally:
+                executor.shutdown(wait=False, cancel_futures=True)
             if attempt < self.max_retries:
                 self._sleep(2**attempt)
         raise AKShareStructuredDataError(f"AKShare {capability} failed: {last_error}") from last_error

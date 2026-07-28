@@ -14,3 +14,10 @@ The required three-layer evidence is therefore absent. This decision records B8
 as INCOMPLETE; it does not infer numerical correctness from a completed pipeline.
 The DASHSCOPE credential should be rotated because it was exposed in conversation;
 no credential characters are retained here.
+
+The first attempt also exposed a local retry defect: after a timeout, the
+AKShare adapter queued retries behind the same occupied single-worker executor.
+The adapter now gives each bounded attempt an independent worker and reports the
+timeout duration. A unit test proves a timed-out first call does not prevent the
+second attempt from succeeding. This is a new experiment boundary; the authorized
+three live attempts were already exhausted, so no fourth live call was made.
