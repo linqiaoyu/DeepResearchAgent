@@ -180,9 +180,6 @@ class TavilySearchProvider:
         self._run_context = context
         self.ledger_path.parent.mkdir(parents=True, exist_ok=True)
 
-    def set_run_context(self, context: RunToolContext) -> None:
-        self._run_context = context
-
     def _consume_egress(
         self, request_kind: str, context: RunToolContext | None = None
     ) -> None:

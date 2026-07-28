@@ -179,7 +179,10 @@ class ExternalRequestBudgetTests(unittest.TestCase):
                                 mode="json"
                             ),
                         },
-                        run_scope=engine.run_scope,
+                        run_scope=RunScope(
+                            tool_context=RunToolContext.for_run(),
+                            search_quota=SearchQuota(engine.settings.max_searches_per_run),
+                        ),
                     )
             finally:
                 engine._checkpoint_conn.close()

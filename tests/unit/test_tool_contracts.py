@@ -276,6 +276,21 @@ class ToolContractTests(unittest.TestCase):
 
     def test_engine_replaces_tool_context_for_each_run(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
+            search_tool = FixtureSearchTool()
+            observed_contexts: list[RunToolContext | None] = []
+            original_search = search_tool.search
+
+            def record_context(
+                query: str,
+                top_k: int = 3,
+                source_type: str | None = None,
+                *,
+                context: RunToolContext | None = None,
+            ) -> list[object]:
+                observed_contexts.append(context)
+                return original_search(query, top_k, source_type, context=context)
+
+            search_tool.search = record_context  # type: ignore[method-assign]
             engine = DeepResearchEngine(
                 settings=Settings(
                     storage_path=Path(tmp) / "research.db",
@@ -283,15 +298,21 @@ class ToolContractTests(unittest.TestCase):
                     max_critic_iter=1,
                     structured_logging_enabled=False,
                 ),
-                search_tool=FixtureSearchTool(),
+                search_tool=search_tool,
             )
             engine.run(topic="first", depth_level=1)
-            first = engine.run_tool_context
+            first_contexts = list(observed_contexts)
+            self.assertTrue(first_contexts)
+            first = first_contexts[0]
             assert first is not None
+            self.assertTrue(all(context is first for context in first_contexts))
             first.retry_budget.consumed = 1
             engine.run(topic="second", depth_level=1)
-            second = engine.run_tool_context
+            second_contexts = observed_contexts[len(first_contexts) :]
+            self.assertTrue(second_contexts)
+            second = second_contexts[0]
             assert second is not None
+            self.assertTrue(all(context is second for context in second_contexts))
             self.assertIsNot(first, second)
             self.assertEqual(second.retry_budget.consumed, 0)
             engine._checkpoint_conn.close()

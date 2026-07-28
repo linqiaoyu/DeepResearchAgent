@@ -11,8 +11,10 @@ from deepresearch_agent.schemas import (
     NumericFields,
     ResearchState,
 )
+from deepresearch_agent.orchestration import RunScope, SearchQuota
 from deepresearch_agent.settings import Settings
 from deepresearch_agent.storage import SQLiteStore
+from deepresearch_agent.tools import RunToolContext
 from deepresearch_agent.workflow import DeepResearchEngine
 from langgraph.types import Send
 
@@ -26,9 +28,11 @@ class LangGraphMigrationTests(unittest.TestCase):
             state = ResearchState(topic=plan.topic, depth_level=2, plan=plan)
             graph_state = {"research_state": state.model_dump(mode="json")}
 
-            graph_state.update(
-                engine._research_prepare_node(graph_state, run_scope=engine.run_scope)
+            run_scope = RunScope(
+                tool_context=RunToolContext.for_run(),
+                search_quota=SearchQuota(engine.researcher.max_searches_per_run),
             )
+            graph_state.update(engine._research_prepare_node(graph_state, run_scope=run_scope))
             sends = engine._send_research_tasks(graph_state)
 
         self.assertIsInstance(sends, list)

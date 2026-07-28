@@ -11,6 +11,7 @@ from types import SimpleNamespace
 
 from deepresearch_agent.agents import ReporterAgent
 from deepresearch_agent.memory import ContextWorkingMemory
+from deepresearch_agent.orchestration import RunScope, SearchQuota
 from deepresearch_agent.reporting import ReporterContextBuilder
 from deepresearch_agent.schemas import (
     Evidence,
@@ -21,7 +22,7 @@ from deepresearch_agent.schemas import (
     SubQuestion,
 )
 from deepresearch_agent.settings import Settings
-from deepresearch_agent.tools import FixtureSearchTool
+from deepresearch_agent.tools import FixtureSearchTool, RunToolContext
 from deepresearch_agent.workflow import DeepResearchEngine
 
 
@@ -203,7 +204,10 @@ class AgentCoreArchitectureTests(unittest.TestCase):
                             mode="json"
                         ),
                     },
-                    run_scope=engine.run_scope,
+                    run_scope=RunScope(
+                        tool_context=RunToolContext.for_run(),
+                        search_quota=SearchQuota(engine.researcher.max_searches_per_run),
+                    ),
                 )
             finally:
                 engine._checkpoint_conn.close()

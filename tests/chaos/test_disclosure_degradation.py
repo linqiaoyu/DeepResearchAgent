@@ -292,12 +292,12 @@ class DisclosureDegradationTests(unittest.TestCase):
         # fail fast: no second provider call and no budget charged to the new
         # run.  The old worker retains only its captured first-run context.
         second_context = RunToolContext.for_run(max_retries=20)
-        source.set_run_context(second_context)
         second_result = source.search(
             "600519",
             "年度报告",
             date(2025, 1, 1),
             date(2026, 7, 26),
+            context=second_context,
         )
         self.assertEqual(second_result, [])
         self.assertEqual(source.last_result.attempts, 0)
@@ -343,6 +343,7 @@ class DisclosureDegradationTests(unittest.TestCase):
                 "年度报告",
                 date(2025, 1, 1),
                 date(2026, 7, 26),
+                context=second_context,
             ),
             [],
         )

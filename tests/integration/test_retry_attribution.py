@@ -6,9 +6,11 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+from deepresearch_agent.orchestration import RunScope, SearchQuota
 from deepresearch_agent.schemas import ResearchState, RetryTask, Source
 from deepresearch_agent.settings import Settings
 from deepresearch_agent.storage import SQLiteStore
+from deepresearch_agent.tools import RunToolContext
 from deepresearch_agent.workflow import DeepResearchEngine
 
 
@@ -129,6 +131,10 @@ class RetryAttributionTests(unittest.TestCase):
 
 
 def _execute_retry_fanout(engine: DeepResearchEngine, state: ResearchState) -> ResearchState:
+    run_scope = RunScope(
+        tool_context=RunToolContext.for_run(),
+        search_quota=SearchQuota(engine.researcher.max_searches_per_run),
+    )
     graph_state: dict[str, Any] = {"research_state": state.model_dump(mode="json")}
     graph_state.update(engine._retry_prepare_node(graph_state))
     retry_sources: dict[str, list[dict[str, Any]]] = {}
@@ -139,7 +145,7 @@ def _execute_retry_fanout(engine: DeepResearchEngine, state: ResearchState) -> R
                 "research_state": graph_state["research_state"],
                 "fanout_retry_task": task.model_dump(mode="json"),
             },
-            run_scope=engine.run_scope,
+            run_scope=run_scope,
         )
         retry_sources.update(update.get("retry_sources", {}))
         retry_records.update(update.get("retry_records", {}))

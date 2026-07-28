@@ -287,9 +287,6 @@ class ReplaySearchProvider:
             )
             self._responses[key].append(call)
 
-    def set_run_context(self, context: RunToolContext) -> None:
-        self._context = context
-
     def search(
         self,
         query: str,
@@ -491,9 +488,6 @@ class ReplayDisclosureSource:
                 key=lambda item: item.sequence or 0,
             )
         )
-
-    def set_run_context(self, context: RunToolContext) -> None:
-        self._context = context
 
     def search(
         self,

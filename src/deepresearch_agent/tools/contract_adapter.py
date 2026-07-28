@@ -72,12 +72,6 @@ class ContractSearchProvider:
         self.context = context or RunToolContext(retry_budget=RetryBudget(max_retries=6))
         self.logger = logger or JsonLogger()
 
-    def set_run_context(self, context: RunToolContext) -> None:
-        self.context = context
-        set_context = getattr(self.provider, "set_run_context", None)
-        if callable(set_context):
-            set_context(context)
-
     def search(
         self,
         query: str,

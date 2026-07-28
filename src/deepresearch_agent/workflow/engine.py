@@ -335,12 +335,6 @@ class DeepResearchEngine:
             semantic_judge_enabled=self.settings.semantic_judge_enabled,
         )
         self.reflector = Reflector()
-        self.branch_budget: BranchBudget | None = None
-        self.run_tool_context: RunToolContext | None = None
-        self.run_scope = RunScope(
-            RunToolContext.for_run(),
-            SearchQuota(self.researcher.max_searches_per_run),
-        )
         self.working_memory = ContextWorkingMemory()
         self.reporter_context_builder = ReporterContextBuilder(
             self.working_memory
@@ -439,8 +433,8 @@ class DeepResearchEngine:
     ) -> ResearchState:
         started = time.perf_counter()
         manifest_started_at = utc_now()
-        self.branch_budget = None
-        self.run_tool_context = RunToolContext.for_run(
+        run_scope = RunScope(
+            tool_context=RunToolContext.for_run(
             max_external_search_requests=(
                 self.settings.max_external_search_requests_per_run
             ),
@@ -453,11 +447,8 @@ class DeepResearchEngine:
             max_authority_fetch_requests=(
                 self.settings.max_authority_fetch_requests_per_run
             ),
-        )
-        self._bind_run_tool_context(self.run_tool_context)
-        self.run_scope = RunScope(
-            self.run_tool_context,
-            SearchQuota(self.researcher.max_searches_per_run),
+            ),
+            search_quota=SearchQuota(self.researcher.max_searches_per_run),
         )
         if resume:
             if not research_id:
@@ -642,7 +633,7 @@ class DeepResearchEngine:
                     result = self.graph.invoke(
                         graph_input,
                         config=config,
-                        context=self.run_scope,
+                        context=run_scope,
                         interrupt_before=interrupt_before,
                         interrupt_after=interrupt_after,
                     )
@@ -677,13 +668,14 @@ class DeepResearchEngine:
                     if self.llm_client
                     else 0.0
                 )
-                self._capture_external_request_budget(state, run_scope=self.run_scope)
+                self._capture_external_request_budget(state, run_scope=run_scope)
                 self.graph.update_state(
                     config,
                     self._state_output(state),
                 )
                 self._persist_run_sidecars(
                     state=state,
+                    run_scope=run_scope,
                     research_id=research_id,
                     recorder=recorder,
                     manifest_started_at=manifest_started_at,
@@ -700,6 +692,7 @@ class DeepResearchEngine:
                 if exc.kind != ToolErrorKind.BUDGET_EXCEEDED:
                     self._persist_failed_run(
                         state=state,
+                        run_scope=run_scope,
                         research_id=research_id,
                         config=config,
                         recorder=recorder,
@@ -716,7 +709,7 @@ class DeepResearchEngine:
                     "error_message": str(exc) or type(exc).__name__,
                 }
                 snapshot = self._capture_external_request_budget(
-                    state, run_scope=self.run_scope
+                    state, run_scope=run_scope
                 )
                 record_agent_decision(
                     state,
@@ -762,6 +755,7 @@ class DeepResearchEngine:
                 )
                 self._persist_run_sidecars(
                     state=state,
+                    run_scope=run_scope,
                     research_id=research_id,
                     recorder=recorder,
                     manifest_started_at=manifest_started_at,
@@ -777,6 +771,7 @@ class DeepResearchEngine:
             except Exception as exc:
                 self._persist_failed_run(
                     state=state,
+                    run_scope=run_scope,
                     research_id=research_id,
                     config=config,
                     recorder=recorder,
@@ -784,13 +779,14 @@ class DeepResearchEngine:
                     error=exc,
                 )
                 raise
-            self._capture_external_request_budget(state, run_scope=self.run_scope)
+            self._capture_external_request_budget(state, run_scope=run_scope)
             self.graph.update_state(
                 config,
                 self._state_output(state),
             )
             self._persist_run_sidecars(
                 state=state,
+                run_scope=run_scope,
                 research_id=research_id,
                 recorder=recorder,
                 manifest_started_at=manifest_started_at,
@@ -820,12 +816,13 @@ class DeepResearchEngine:
         self,
         *,
         state: ResearchState,
+        run_scope: RunScope,
         research_id: str,
         recorder: TrajectoryRecorder | None,
         manifest_started_at: datetime,
         termination: TrajectoryTermination,
     ) -> None:
-        self._capture_external_request_budget(state, run_scope=self.run_scope)
+        self._capture_external_request_budget(state, run_scope=run_scope)
         self._capture_llm_run_cost(state)
         manifest_path = None
         if self.settings.run_manifest_enabled:
@@ -906,6 +903,7 @@ class DeepResearchEngine:
         self,
         *,
         state: ResearchState,
+        run_scope: RunScope,
         research_id: str,
         config: dict[str, Any],
         recorder: TrajectoryRecorder | None,
@@ -923,7 +921,7 @@ class DeepResearchEngine:
             "error_type": type(error).__name__,
             "error_message": str(error) or type(error).__name__,
         }
-        self._capture_external_request_budget(state, run_scope=self.run_scope)
+        self._capture_external_request_budget(state, run_scope=run_scope)
         try:
             self.graph.update_state(
                 config,
@@ -943,6 +941,7 @@ class DeepResearchEngine:
         try:
             self._persist_run_sidecars(
                 state=state,
+                run_scope=run_scope,
                 research_id=research_id,
                 recorder=recorder,
                 manifest_started_at=manifest_started_at,
@@ -1496,9 +1495,9 @@ class DeepResearchEngine:
 
     def _traced_node(self, name: str, node):
         def traced(graph_state: ResearchGraphState, runtime: Any):
-            if runtime.context is not self.run_scope:
+            if not isinstance(runtime.context, RunScope):
                 raise AssertionError(
-                    "LangGraph runtime context is not the active RunScope"
+                    "LangGraph runtime context is not a RunScope"
                 )
             started = time.perf_counter()
             self.logger.event(
@@ -2935,18 +2934,6 @@ class DeepResearchEngine:
             self.settings.branch_budget_enabled
             or self.settings.research_loop_active
         )
-
-    def _bind_run_tool_context(self, context: RunToolContext) -> None:
-        """Bind one context to every registered implementation for this run."""
-        bound: set[int] = set()
-        for metadata in self.capability_registry.query():
-            implementation = self.capability_registry.resolve(metadata.name)
-            if id(implementation) in bound:
-                continue
-            bound.add(id(implementation))
-            setter = getattr(implementation, "set_run_context", None)
-            if callable(setter):
-                setter(context)
 
     def _on_research_loop_exhausted(
         self,

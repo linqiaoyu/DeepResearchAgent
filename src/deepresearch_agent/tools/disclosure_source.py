@@ -92,9 +92,6 @@ class FixtureDisclosureSource:
             raise ValueError(f"invalid disclosure fixture corpus: {path}")
         self._documents = [item for item in documents if isinstance(item, dict)]
 
-    def set_run_context(self, context: RunToolContext) -> None:
-        del context
-
     def search(
         self,
         security_code: str,
@@ -156,9 +153,6 @@ class CninfoDisclosureSource:
         self._timeout_scope: ToolExecutionScope | None = None
         self._timeout_scope_lock = threading.Lock()
 
-    def set_run_context(self, context: RunToolContext) -> None:
-        self.context = context
-
     def close(self) -> None:
         close = getattr(self.client, "close", None)
         if callable(close):
@@ -197,10 +191,8 @@ class CninfoDisclosureSource:
         self, security_code: str, keyword: str, start_date: date, end_date: date,
         *, preferred_terms: tuple[str, ...] = (), context: RunToolContext | None = None,
     ) -> list[Source]:
-        # Capture the run context before starting a worker.  ``set_run_context``
-        # may install the next run while an uncooperative provider call is still
-        # unwinding; the detached worker must never charge or mutate that new
-        # context.
+        # Capture the per-call context before starting a worker. The detached
+        # worker must never charge or mutate another run's budget.
         run_context = context or self.context
         inputs = {
             "security_code": security_code, "keyword": keyword,
