@@ -13,7 +13,8 @@ from typing import Any
 import httpx
 
 from deepresearch_agent.schemas import Source
-from deepresearch_agent.domains.registry import load_domain_pack
+from deepresearch_agent.domains.protocols import DisclosureTitleDomain
+from deepresearch_agent.domains.requirements import resolve_domain_capability
 from deepresearch_agent.tools.contracts import (
     DegradationEvent,
     ToolError,
@@ -75,6 +76,12 @@ def cninfo_exchange_for_security_code(security_code: str) -> tuple[str, str]:
     )
 
 
+def _announcement_title(item: Mapping[str, Any]) -> str:
+    return re.sub(
+        r"<[^>]+>", "", html.unescape(str(item.get("announcementTitle", "")))
+    )
+
+
 class DisclosureSourceError(ToolExecutionError):
     """Fail-closed error for the undocumented CNINFO endpoint."""
 
@@ -84,13 +91,21 @@ class FixtureDisclosureSource:
 
     fidelity = "fixture"
 
-    def __init__(self, corpus_path: Path | None = None) -> None:
+    def __init__(
+        self,
+        corpus_path: Path | None = None,
+        *,
+        domain_pack: DisclosureTitleDomain | None = None,
+    ) -> None:
         path = corpus_path or Path(__file__).resolve().parents[3] / "data/mock_data/disclosure_corpus.json"
         payload = json.loads(path.read_text(encoding="utf-8"))
         documents = payload.get("documents") if isinstance(payload, dict) else None
         if not isinstance(documents, list):
             raise ValueError(f"invalid disclosure fixture corpus: {path}")
         self._documents = [item for item in documents if isinstance(item, dict)]
+        self._domain_pack = resolve_domain_capability(
+            domain_pack, consumer="CninfoDisclosureSource"
+        )
 
     def search(
         self,
@@ -99,6 +114,7 @@ class FixtureDisclosureSource:
         start_date: date,
         end_date: date,
         *,
+        report_year: int | None = None,
         preferred_terms: tuple[str, ...] = (),
         context: RunToolContext | None = None,
     ) -> list[Source]:
@@ -114,6 +130,12 @@ class FixtureDisclosureSource:
             for document in self._documents
             if document.get("security_code") == security_code
             and document.get("keyword") == keyword
+            and (
+                report_year is None
+            or self._domain_pack.report_year_from_title(
+                    str(document.get("title", ""))
+                ) == report_year
+            )
         ]
 
 
@@ -137,6 +159,7 @@ class CninfoDisclosureSource:
         char_limit: int = 40_000,
         executor: ReliableToolExecutor | None = None,
         tool_spec: ToolSpec = DISCLOSURE_TOOL_SPEC,
+        domain_pack: DisclosureTitleDomain | None = None,
     ) -> None:
         self._owns_client = client is None
         self.client = client or httpx.Client(headers={
@@ -152,6 +175,9 @@ class CninfoDisclosureSource:
         self.last_result: ToolResult | None = None
         self._timeout_scope: ToolExecutionScope | None = None
         self._timeout_scope_lock = threading.Lock()
+        self._domain_pack = resolve_domain_capability(
+            domain_pack, consumer="FixtureDisclosureSource"
+        )
 
     def close(self) -> None:
         close = getattr(self.client, "close", None)
@@ -189,7 +215,7 @@ class CninfoDisclosureSource:
 
     def search(
         self, security_code: str, keyword: str, start_date: date, end_date: date,
-        *, preferred_terms: tuple[str, ...] = (), context: RunToolContext | None = None,
+        *, report_year: int | None = None, preferred_terms: tuple[str, ...] = (), context: RunToolContext | None = None,
     ) -> list[Source]:
         # Capture the per-call context before starting a worker. The detached
         # worker must never charge or mutate another run's budget.
@@ -198,6 +224,8 @@ class CninfoDisclosureSource:
             "security_code": security_code, "keyword": keyword,
             "start_date": start_date.isoformat(), "end_date": end_date.isoformat(),
         }
+        if report_year is not None:
+            inputs["report_year"] = str(report_year)
         rejected_before = (
             len(run_context.external_request_budget.rejected_events)
             if run_context.external_request_budget is not None
@@ -371,7 +399,12 @@ class CninfoDisclosureSource:
                 )
             self._consume_egress("search", context=context, scope=scope)
             response = self.client.post(CNINFO_QUERY_ENDPOINT, data={
-                "pageNum": "1", "pageSize": str(self.max_results), "tabName": "fulltext",
+                "pageNum": "1",
+                # Request a wide candidate page when the caller requires an
+                # exact report year.  ``max_results`` bounds returned PDFs,
+                # not the provider's unordered result list used to select it.
+                "pageSize": "30" if "report_year" in inputs else str(self.max_results),
+                "tabName": "fulltext",
                 "column": column, "stock": f"{inputs['security_code']},{org_id}",
                 "searchkey": inputs["keyword"], "plate": plate, "category": "",
                 "seDate": f"{inputs['start_date']}~{inputs['end_date']}", "isHLtitle": "true",
@@ -405,22 +438,14 @@ class CninfoDisclosureSource:
             raise DisclosureSourceError(
                 ToolErrorKind.PERMANENT, "cninfo_contract_changed: announcements list missing"
             )
-        candidates = list(announcements or [])[: self.max_results]
-        disclosure_policy = load_domain_pack("finance")
+        candidates = list(announcements or [])
+        disclosure_policy = self._domain_pack
         if disclosure_policy.is_full_annual_report_query(inputs["keyword"]):
             full_chinese_reports = [
                 item
                 for item in candidates
                 if isinstance(item, Mapping)
-                and disclosure_policy.is_full_annual_report_title(
-                    re.sub(
-                        r"<[^>]+>",
-                        "",
-                        html.unescape(
-                            str(item.get("announcementTitle", ""))
-                        ),
-                    ),
-                )
+                and disclosure_policy.is_full_annual_report_title(_announcement_title(item))
             ]
             # CNINFO also returns the English report, summary, half-year report,
             # and half-year summary for this query.  A financial metric branch
@@ -428,6 +453,19 @@ class CninfoDisclosureSource:
             # documents in one LLM context.  Keep the original bounded fallback
             # when the endpoint does not expose an exact full-report title.
             if full_chinese_reports:
+                requested_year = inputs.get("report_year")
+                if requested_year is not None:
+                    full_chinese_reports = [
+                        item
+                        for item in full_chinese_reports
+                        if disclosure_policy.report_year_from_title(_announcement_title(item))
+                        == int(requested_year)
+                    ]
+                    # A report revision is not interchangeable with the
+                    # original filing.  Do not select by provider order when
+                    # title data leaves more than one full report candidate.
+                    if len(full_chinese_reports) != 1:
+                        return []
                 candidates = full_chinese_reports[:1]
         # A single research branch needs one authoritative document.  Keeping
         # this bound for every keyword preserves the documented 120s attempt

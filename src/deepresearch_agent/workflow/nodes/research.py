@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict
-from typing import Any
+from dataclasses import asdict, dataclass
+from typing import Any, Callable
 
 from deepresearch_agent.decisions import record_agent_decision
 from deepresearch_agent.orchestration import BranchBudget, LoopTracker, RunScope
@@ -13,6 +13,57 @@ from langgraph.graph import END
 from langgraph.types import Send
 
 ResearchGraphState = dict[str, Any]
+
+
+@dataclass(frozen=True)
+class ResearchOneDependencies:
+    """Everything the fan-out node is allowed to read from the engine."""
+
+    settings: Any
+    capability_selector: Any
+    researcher: Any
+    state_loader: Callable[[ResearchGraphState], Any]
+    branch_budget_enabled: Callable[[], bool]
+
+    def __post_init__(self) -> None:
+        missing = [
+            name
+            for name, value in (
+                ("settings", self.settings),
+                ("capability_selector", self.capability_selector),
+                ("researcher", self.researcher),
+                ("state_loader", self.state_loader),
+                ("branch_budget_enabled", self.branch_budget_enabled),
+            )
+            if value is None
+        ]
+        if missing:
+            raise ValueError(
+                "ResearchOneNode missing explicit dependencies=" + ", ".join(missing)
+            )
+
+    def _state_from_graph_values(self, values: ResearchGraphState) -> Any:
+        return self.state_loader(values)
+
+    def _branch_budget_enabled(self) -> bool:
+        return self.branch_budget_enabled()
+
+
+class ResearchOneNode:
+    """Explicit-dependency runtime implementation for the research fan-out."""
+
+    def __init__(self, dependencies: ResearchOneDependencies) -> None:
+        self.dependencies = dependencies
+
+    def run(
+        self, graph_state: ResearchGraphState, *, run_scope: RunScope
+    ) -> ResearchGraphState:
+        # Reuse the stable behavior implementation through a façade exposing
+        # only the dependencies declared above.  It cannot reach an engine or
+        # another workflow mixin through ``self``.
+        return ResearchNodes._research_one_node(
+            self.dependencies, graph_state, run_scope=run_scope
+        )
 
 
 class ResearchNodes:

@@ -35,9 +35,17 @@ fixture 现从两份受跟踪 PDF 再生：贵州茅台年报第 6 页，以及�
 全轮熔断约束的真实尝试，加一条 qwen3.7-plus 连通性探针，共记录 0.10164388 CNY。探针
 及 LLM/judge 均成功；attempt-1 还实际使用 Tavily/CNINFO，但 AKShare 的 symbol resolve
 有界失败并产生 degradation；attempt-2 的 reporter Evidence 保真合同拒绝输出；attempt-3
-完成但实际 evidence 仍只有 CNINFO，未使用 AKShare。因此三层真实判据未满足，B8 为
-`INCOMPLETE`，不是“管道已跑通”。脱敏原始记录保留在协作运行产物；DASHSCOPE key 建议
-轮换，未在受管文档记录任何凭据字符。
+完成但实际 evidence 仍只有 CNINFO，未使用 AKShare。因此**当时**三层真实判据未满足，
+B8 的 attempt 1–3 状态为 `INCOMPLETE`，不是“管道已跑通”。这段历史状态已被后续
+attempt-7 的四层执行结果取代；其当前最终状态见下方 B8 最终状态。脱敏原始记录保留在
+协作运行产物；DASHSCOPE key 建议轮换，未在受管文档记录任何凭据字符。
+
+## B8 最终状态（执行判据 CLOSED；产品假设未建立）
+
+`b8-real-run.md` 记录的 attempt-7 已实际使用 LLM、独立搜索、CNINFO 披露和 AKShare
+结构化数据四层真实 provider，故 B8 的**执行判据为 CLOSED**。这只证明一次四层真实
+执行可达，不证明报告数值正确，也不证明相对 031 的 B5 产品改善假设；后者仍为
+**未建立**。attempt 1–6 的失败、降级和成本记录均保留为历史证据。
 
 ## B1 运行作用域迁移（CLOSED）
 

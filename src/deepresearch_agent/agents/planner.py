@@ -5,8 +5,8 @@ import re
 
 from pydantic import ValidationError
 
-from deepresearch_agent.domains.protocols import DomainPack
-from deepresearch_agent.domains.registry import load_domain_pack
+from deepresearch_agent.domains.protocols import PlanningDomain
+from deepresearch_agent.domains.requirements import resolve_domain_capability
 from deepresearch_agent.llm import LLMClient, LLMClientError, StructuredOutputError
 from deepresearch_agent.schemas import ResearchPlan, StructuredDataRequest, SubQuestion
 from deepresearch_agent.settings import Settings, project_root
@@ -17,11 +17,13 @@ class PlannerAgent:
         self,
         llm_client: LLMClient | None = None,
         settings: Settings | None = None,
-        domain_pack: DomainPack | None = None,
+        domain_pack: PlanningDomain | None = None,
     ) -> None:
         self.llm_client = llm_client
         self.settings = settings
-        self.domain_pack = domain_pack or load_domain_pack("finance")
+        self.domain_pack = resolve_domain_capability(
+            domain_pack, consumer="PlannerAgent"
+        )
         self.last_stats: dict[str, int | bool | str] = {}
         self._last_invalid_structured_request_count = 0
 

@@ -34,6 +34,17 @@ FIXTURE_METRIC_ALIASES = {
     "营收": "营业收入",
 }
 DEFAULT_STRUCTURED_METRICS = tuple(STRUCTURED_METRIC_ALIASES.values())
+STRUCTURED_METRIC_UNITS = {
+    "营业收入": "元",
+    "归母净利润": "元",
+    "净利润": "元",
+    "扣非净利润": "元",
+    "毛利率": "%",
+    "主营业务毛利率": "%",
+    "每股收益": "元/股",
+    "市盈率": "倍",
+    "存货周转率": "次",
+}
 MAINLAND_EQUITY_EXCHANGE = "A股"
 _YEAR_RE = re.compile(r"(?<!\d)(20\d{2})(?!\d)")
 

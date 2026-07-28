@@ -14,8 +14,8 @@ from deepresearch_agent.metric_coverage import (
     metric_requirements,
 )
 from deepresearch_agent.reporting import GroundedFactRenderer
-from deepresearch_agent.domains.protocols import NumericCitationPolicy
-from deepresearch_agent.domains.registry import load_domain_pack
+from deepresearch_agent.domains.protocols import NumericCitationPolicy, ReportingDomain
+from deepresearch_agent.domains.requirements import resolve_domain_capability
 from deepresearch_agent.schemas import (
     Evidence,
     ReportClaim,
@@ -56,15 +56,18 @@ class ReporterAgent:
         llm_client: LLMClient | None = None,
         grounded_fact_renderer: GroundedFactRenderer | None = None,
         numeric_citation_policy: NumericCitationPolicy | None = None,
+        domain_pack: ReportingDomain | None = None,
     ) -> None:
         self.llm_client = llm_client
         self.grounded_fact_renderer = grounded_fact_renderer
+        self.domain_pack = resolve_domain_capability(
+            domain_pack, consumer="ReporterAgent"
+        )
         self.numeric_citation_policy = (
             numeric_citation_policy
-            or load_domain_pack("finance").numeric_citation_policy()
+            or self.domain_pack.numeric_citation_policy()
         )
         self.last_stats: dict[str, object] = {}
-
     def report(
         self,
         state: ResearchState,
@@ -298,7 +301,7 @@ class ReporterAgent:
         return downgraded
 
     def structured_output(self, state: ResearchState) -> StructuredResearchOutput:
-        return build_structured_output(state)
+        return build_structured_output(state, self.domain_pack)
 
     def _deterministic_report(self, state: ResearchState) -> str:
         evidence = state.evidence_store
@@ -327,7 +330,7 @@ class ReporterAgent:
         key_fact_keys = {
             key
             for item in evidence[:6]
-            for key in metric_fact_keys(evidence).get(item.id, set())
+            for key in metric_fact_keys(evidence, self.domain_pack).get(item.id, set())
         }
         by_subq: dict[str, list[Evidence]] = defaultdict(list)
         for item in evidence:
@@ -343,7 +346,7 @@ class ReporterAgent:
                 continue
             rendered = 0
             for item in items:
-                fact_keys = metric_fact_keys(evidence).get(item.id, set())
+                fact_keys = metric_fact_keys(evidence, self.domain_pack).get(item.id, set())
                 if item.id in key_evidence_ids:
                     continue
                 if item.id not in key_evidence_ids and not (fact_keys & key_fact_keys):
@@ -597,20 +600,20 @@ class ReporterAgent:
         missing_reference_backfills = 0
         claim_provenance: list[dict[str, object]] = []
         repaired_claim_keys = repaired_claim_keys or set()
-        evidence_fact_keys = metric_fact_keys(evidence)
+        evidence_fact_keys = metric_fact_keys(evidence, self.domain_pack)
         evidence_by_id = {
             item.id: item
             for item in evidence
         }
         required_metrics = {
             item.metric
-            for item in metric_requirements(state)
+            for item in metric_requirements(state, self.domain_pack)
         }
         seen_fact_keys: set[tuple[str, str, str, str]] = set()
         key_fact_keys: set[tuple[str, str, str, str]] = set()
         key_evidence_ids: set[str] = set()
         supplemental: list[tuple[str, int, ReportClaim]] = []
-        financial_contract = bool(metric_requirements(state))
+        financial_contract = bool(metric_requirements(state, self.domain_pack))
         summary = self._reader_text(draft.summary.strip())
         if (
             financial_contract
@@ -1034,7 +1037,7 @@ class ReporterAgent:
         state: ResearchState,
         ref_map: dict[str, int],
     ) -> str:
-        coverage = evaluate_metric_coverage(state)
+        coverage = evaluate_metric_coverage(state, self.domain_pack)
         if not coverage:
             return report
         state.metadata["requested_metric_coverage"] = [

@@ -80,6 +80,55 @@ class Client:
 
 
 class DisclosureSourceTests(unittest.TestCase):
+    def test_annual_report_selection_is_exact_year_and_order_independent(self) -> None:
+        announcements = [
+            {
+                "secCode": "600519",
+                "announcementTitle": "贵州茅台2025年年度报告",
+                "announcementTime": 1776297600000,
+                "adjunctUrl": "finalpage/2026-04-16/2025.PDF",
+            },
+            {
+                "secCode": "600519",
+                "announcementTitle": "贵州茅台2024年年度报告",
+                "announcementTime": 1744761600000,
+                "adjunctUrl": "finalpage/2025-04-16/2024.PDF",
+            },
+            {
+                "secCode": "600519",
+                "announcementTitle": "贵州茅台2024年年度报告（修订版）",
+                "announcementTime": 1744848000000,
+                "adjunctUrl": "finalpage/2025-04-17/2024-revised.PDF",
+            },
+            {
+                "secCode": "600519",
+                "announcementTitle": "贵州茅台关于项目投资的公告",
+                "announcementTime": 1744848000000,
+                "adjunctUrl": "finalpage/2025-04-17/project.PDF",
+            },
+        ]
+
+        class OrderedClient(Client):
+            def __init__(self, ordered: list[dict[str, object]]) -> None:
+                super().__init__(security_code="600519")
+                self.ordered = ordered
+
+            def post(self, url: str, **kwargs: Any) -> Response:
+                self.calls.append(("POST", url, kwargs))
+                return Response({"announcements": self.ordered})
+
+        # Repeat deliberately different provider orders; selection must never
+        # depend on the first result returned by CNINFO.
+        for offset in range(100):
+            ordered = announcements[offset % 4 :] + announcements[: offset % 4]
+            client = OrderedClient(ordered)
+            sources = CninfoDisclosureSource(client=client, max_results=1).search(
+                "600519", "年度报告", date(2024, 1, 1), date(2026, 7, 26), report_year=2024
+            )
+            self.assertEqual([source.title for source in sources], ["贵州茅台2024年年度报告"])
+            post_data = next(kwargs["data"] for method, _, kwargs in client.calls if method == "POST")
+            self.assertEqual(post_data["pageSize"], "30")
+
     def test_disclosure_aggregate_timeout_covers_serial_http_envelope(
         self,
     ) -> None:

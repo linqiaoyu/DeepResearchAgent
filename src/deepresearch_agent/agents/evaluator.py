@@ -4,15 +4,15 @@ import re
 import time
 from collections import Counter
 
-from deepresearch_agent.domains.protocols import NumericCitationPolicy
-from deepresearch_agent.domains.registry import load_domain_pack
+from deepresearch_agent.domains.protocols import MetricCoverageDomain, NumericCitationPolicy
+from deepresearch_agent.domains.requirements import resolve_domain_capability
 from deepresearch_agent.semantic_judge import (
     SemanticJudge,
     SemanticJudgeFailure,
     SemanticJudgeScore,
 )
 from deepresearch_agent.llm.client import BudgetExceededError, CostOverrunError
-from deepresearch_agent.metric_coverage import metric_requirements
+from deepresearch_agent.metric_coverage import evaluate_metric_coverage, metric_requirements
 from deepresearch_agent.schemas import EvaluationResult, Evidence, ResearchState
 from deepresearch_agent.trajectory import TrajectoryCacheMissError
 
@@ -28,6 +28,7 @@ class Evaluator:
         semantic_judge: SemanticJudge | None = None,
         semantic_judge_enabled: bool | None = None,
         numeric_citation_policy: NumericCitationPolicy | None = None,
+        domain_pack: MetricCoverageDomain | None = None,
     ) -> None:
         self.semantic_judge = semantic_judge
         self.semantic_judge_enabled = (
@@ -35,9 +36,12 @@ class Evaluator:
             if semantic_judge_enabled is None
             else semantic_judge_enabled
         )
+        self.domain_pack = resolve_domain_capability(
+            domain_pack, consumer="Evaluator"
+        )
         self.numeric_citation_policy = (
             numeric_citation_policy
-            or load_domain_pack("finance").numeric_citation_policy()
+            or self.domain_pack.numeric_citation_policy()  # type: ignore[attr-defined]
         )
 
     def evaluate(self, state: ResearchState, started_at: float | None = None) -> EvaluationResult:
@@ -45,8 +49,17 @@ class Evaluator:
         evidence_count = len(state.evidence_store)
         required_metrics = {
             item.metric
-            for item in metric_requirements(state)
+            for item in metric_requirements(state, self.domain_pack)
         }
+        metric_coverage = evaluate_metric_coverage(state, self.domain_pack)
+        incomplete_required_outputs = [
+            item
+            for item in metric_coverage
+            if item.status not in {"cited", "searched_unavailable"}
+            and not (
+                item.status == "partially_cited" and item.comparison_observed
+            )
+        ]
         claim_lines = [line for line in report.splitlines() if line.startswith("- ")]
         execution_mode = state.metadata.get("execution_mode")
         (
@@ -179,6 +192,10 @@ class Evaluator:
             bad_case_categories["citation_error"] += citation_errors
         if numeric_citation_mismatches:
             bad_case_categories["numeric_citation_mismatch"] += numeric_citation_mismatches
+        if incomplete_required_outputs:
+            bad_case_categories["required_output_incomplete"] += len(
+                incomplete_required_outputs
+            )
         llm_stats = state.metadata.get("llm_stats", {})
         extractor_stats = llm_stats.get("extractor", []) if isinstance(llm_stats, dict) else []
         invalid_extract_text = sum(int(item.get("invalid_extract_text", 0)) for item in extractor_stats)
@@ -212,7 +229,12 @@ class Evaluator:
             research_id=state.research_id,
             task_success_rate=(
                 1.0
-                if state.final_report and evidence_count and not numeric_citation_mismatches
+                if (
+                    state.final_report
+                    and evidence_count
+                    and not numeric_citation_mismatches
+                    and not incomplete_required_outputs
+                )
                 else 0.0
             ),
             citation_accuracy=round(citation_accuracy, 3) if citation_accuracy is not None else None,

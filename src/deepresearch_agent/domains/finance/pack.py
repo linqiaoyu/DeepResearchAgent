@@ -15,6 +15,7 @@ from deepresearch_agent.domains.finance.vocabulary import (
     FIXTURE_METRIC_ALIASES,
     MAINLAND_EQUITY_EXCHANGE,
     STRUCTURED_METRIC_ALIASES,
+    STRUCTURED_METRIC_UNITS,
     canonical_metric,
     parse_period,
 )
@@ -41,6 +42,9 @@ class FinanceDomainPack:
     def default_structured_metrics(self) -> tuple[str, ...]:
         return DEFAULT_STRUCTURED_METRICS
 
+    def structured_metric_unit(self, metric_name: str) -> str | None:
+        return STRUCTURED_METRIC_UNITS.get(metric_name)
+
     def equity_exchange_label(self) -> str:
         return MAINLAND_EQUITY_EXCHANGE
 
@@ -65,7 +69,7 @@ class FinanceDomainPack:
             FinanceGroundedFactRenderer,
         )
 
-        return FinanceGroundedFactRenderer()
+        return FinanceGroundedFactRenderer(self)
 
     def table_extractors(self):
         from deepresearch_agent.domains.finance.table_extraction import (
@@ -140,6 +144,18 @@ class FinanceDomainPack:
         )
 
         return is_full_annual_report_title(title)
+
+    def report_year_from_title(self, title: str) -> int | None:
+        from deepresearch_agent.domains.finance.disclosure_policy import (
+            report_year_from_title,
+        )
+
+        return report_year_from_title(title)
+
+    def is_amount_unit(self, value: str) -> bool:
+        from deepresearch_agent.domains.finance.disclosure_policy import is_amount_unit
+
+        return is_amount_unit(value)
 
     def golden_type_distribution(self) -> Mapping[str, int]:
         return {"财报解读": 8, "对比研究": 8, "行业研究": 7, "事件时间线": 7}

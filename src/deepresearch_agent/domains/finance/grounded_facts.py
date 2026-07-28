@@ -6,6 +6,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from deepresearch_agent.domains.finance.numeric_citations import (
     has_financial_numeric_mismatch,
 )
+from deepresearch_agent.domains.protocols import ReportingDomain
 from deepresearch_agent.metric_coverage import evaluate_metric_coverage
 from deepresearch_agent.reporting.grounded_facts import (
     GroundedFactBatch,
@@ -29,12 +30,19 @@ _FINANCIAL_ATOM_RE = re.compile(
 class FinanceGroundedFactRenderer:
     """Render requested financial facts from typed Evidence and exact values."""
 
+    def __init__(self, domain_pack: ReportingDomain | None = None) -> None:
+        if domain_pack is None:
+            from deepresearch_agent.domains.finance.pack import FinanceDomainPack
+
+            domain_pack = FinanceDomainPack()
+        self.domain_pack = domain_pack
+
     def render(self, state: ResearchState) -> GroundedFactBatch:
         evidence_by_id = {item.id: item for item in state.evidence_store}
-        fact_keys_by_id = metric_fact_keys(state.evidence_store)
+        fact_keys_by_id = metric_fact_keys(state.evidence_store, self.domain_pack)
         rendered: list[GroundedReaderClaim] = []
         gaps: list[str] = []
-        coverage_items = evaluate_metric_coverage(state)
+        coverage_items = evaluate_metric_coverage(state, self.domain_pack)
         for coverage in coverage_items:
             if coverage.status != "cited":
                 gaps.append(coverage.metric)

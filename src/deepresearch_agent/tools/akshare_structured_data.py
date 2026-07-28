@@ -1,19 +1,29 @@
 from __future__ import annotations
 
 import math
+import multiprocessing
+import queue
 import re
 import time
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from datetime import date
 from typing import Any
 
-from deepresearch_agent.domains.registry import load_domain_pack
+from deepresearch_agent.domains.protocols import StructuredDataDomain
+from deepresearch_agent.domains.requirements import resolve_domain_capability
 from deepresearch_agent.schemas import StructuredDataRecord, SymbolInfo
 
 
 class AKShareStructuredDataError(RuntimeError):
     """Raised when AKShare cannot return a normalized structured payload."""
+
+
+def _call_in_child(func: Callable[[], Any], result_queue: Any) -> None:
+    """Run an untrusted provider call outside the harness process."""
+    try:
+        result_queue.put((True, func()))
+    except BaseException as exc:
+        result_queue.put((False, (type(exc).__name__, str(exc))))
 
 
 class AKShareStructuredDataProvider:
@@ -26,6 +36,8 @@ class AKShareStructuredDataProvider:
         timeout_seconds: float = 15.0,
         max_retries: int = 2,
         sleep_func: Callable[[float], None] = time.sleep,
+        isolate_processes: bool = True,
+        domain_pack: StructuredDataDomain | None = None,
     ) -> None:
         if akshare_module is None:
             import akshare as akshare_module
@@ -34,9 +46,13 @@ class AKShareStructuredDataProvider:
         self.timeout_seconds = timeout_seconds
         self.max_retries = max_retries
         self._sleep = sleep_func
+        self._isolate_processes = isolate_processes
+        self._domain_pack = resolve_domain_capability(
+            domain_pack, consumer="AKShareStructuredDataProvider"
+        )
 
     def close(self) -> None:
-        """Compatibility hook; each bounded attempt owns its own worker."""
+        """Compatibility hook; each bounded attempt owns its own process."""
 
     def symbol_resolve(self, company_name: str) -> SymbolInfo | None:
         query = company_name.strip()
@@ -44,19 +60,27 @@ class AKShareStructuredDataProvider:
             return None
         frame = self._call(lambda: self.akshare.stock_info_a_code_name(), "symbol_resolve")
         records = frame.to_dict("records")
-        for row in records:
-            code = str(row.get("code", "")).strip()
-            name = str(row.get("name", "")).strip()
-            if query in {code, name} or query in name:
-                return SymbolInfo(
-                    entity=name,
-                    symbol=code,
-                    exchange=load_domain_pack("finance").equity_exchange_label(),
-                    name=name,
-                    data_source="AKShare: stock_info_a_code_name",
-                    as_of=date.today(),
-                )
-        return None
+        normalized = [
+            (str(row.get("code", "")).strip(), str(row.get("name", "")).strip())
+            for row in records
+        ]
+        # A stock code is globally unique in this provider.  A name is not, so
+        # accepting a partial name (or the first duplicate) would silently
+        # attach another issuer's financial data to the request.
+        exact_codes = [(code, name) for code, name in normalized if code == query]
+        exact_names = [(code, name) for code, name in normalized if name == query]
+        matches = exact_codes or exact_names
+        if len(matches) != 1:
+            return None
+        code, name = matches[0]
+        return SymbolInfo(
+            entity=name,
+            symbol=code,
+            exchange=self._domain_pack.equity_exchange_label(),
+            name=name,
+            data_source="AKShare: stock_info_a_code_name",
+            as_of=date.today(),
+        )
 
     def financial_indicators(
         self,
@@ -77,7 +101,7 @@ class AKShareStructuredDataProvider:
             self._normalize_metric(metric)
             for metric in (
                 metrics
-                or load_domain_pack("finance").default_structured_metrics()
+                or self._domain_pack.default_structured_metrics()
             )
         }
         period_filter = {
@@ -97,7 +121,7 @@ class AKShareStructuredDataProvider:
                 continue
             if metric_name not in metric_filter:
                 continue
-            unit = "%" if "率" in metric_name else "元"
+            unit = self._domain_pack.structured_metric_unit(metric_name) or "unknown"
             for column, value in row.items():
                 if not str(column).isdigit():
                     continue
@@ -169,32 +193,52 @@ class AKShareStructuredDataProvider:
         return records
 
     def _call(self, func: Callable[[], Any], capability: str) -> Any:
+        if not self._isolate_processes:
+            return func()
         last_error: Exception | None = None
         for attempt in range(self.max_retries + 1):
-            future = None
-            executor = ThreadPoolExecutor(max_workers=1)
+            context = multiprocessing.get_context("fork")
+            result_queue = context.Queue(maxsize=1)
+            process = context.Process(target=_call_in_child, args=(func, result_queue))
             try:
-                # A timed-out call may keep its worker alive.  Reusing a single
-                # worker would queue every retry behind that hung call, making
-                # the advertised retries ineffective.
-                future = executor.submit(func)
-                return future.result(timeout=self.timeout_seconds)
-            except FutureTimeoutError:
-                if future:
-                    future.cancel()
-                last_error = TimeoutError(
-                    f"timeout after {self.timeout_seconds:.3f}s"
-                )
-            except Exception as exc:
-                last_error = exc
+                process.start()
+                process.join(timeout=self.timeout_seconds)
+                if process.is_alive():
+                    # Thread cancellation cannot stop a blocking provider
+                    # call.  Each attempt therefore owns a process that can be
+                    # terminated before the retry budget is consumed.
+                    process.terminate()
+                    process.join(timeout=1)
+                    if process.is_alive():
+                        process.kill()
+                        process.join(timeout=1)
+                    last_error = TimeoutError(f"timeout after {self.timeout_seconds:.3f}s")
+                else:
+                    try:
+                        ok, payload = result_queue.get(timeout=0.1)
+                    except queue.Empty:
+                        last_error = AKShareStructuredDataError(
+                            f"worker exited with code {process.exitcode} without a result"
+                        )
+                    else:
+                        if ok:
+                            return payload
+                        error_type, error_message = payload
+                        last_error = AKShareStructuredDataError(
+                            f"{error_type}: {error_message}"
+                        )
             finally:
-                executor.shutdown(wait=False, cancel_futures=True)
+                if process.is_alive():
+                    process.terminate()
+                    process.join(timeout=1)
+                result_queue.close()
+                result_queue.join_thread()
             if attempt < self.max_retries:
                 self._sleep(2**attempt)
         raise AKShareStructuredDataError(f"AKShare {capability} failed: {last_error}") from last_error
 
     def _normalize_metric(self, metric_name: str) -> str:
-        return load_domain_pack("finance").structured_metric_aliases().get(
+        return self._domain_pack.structured_metric_aliases().get(
             metric_name,
             metric_name,
         )

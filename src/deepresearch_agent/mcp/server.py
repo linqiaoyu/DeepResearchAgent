@@ -115,6 +115,7 @@ class MCPResearchService:
             settings=settings,
             manifest=manifest,
             as_of=as_of,
+            domain_pack=engine.domain_pack,
         )
         self._runs[state.research_id] = _RunRecord(
             state=state,

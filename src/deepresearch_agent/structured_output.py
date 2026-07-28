@@ -20,7 +20,8 @@ from deepresearch_agent.schemas import (
     StructuredResearchOutput,
     TimelineEvent,
 )
-from deepresearch_agent.domains.registry import load_domain_pack
+from deepresearch_agent.domains.protocols import ReportingDomain
+from deepresearch_agent.domains.requirements import resolve_domain_capability
 
 _FIXED_WORKBOOK_TIME = datetime(2026, 7, 9, tzinfo=timezone.utc)
 _FIXED_ZIP_TIME = (2026, 7, 9, 0, 0, 0)
@@ -47,8 +48,13 @@ _ENGLISH_METRICS = (
 )
 
 
-def build_structured_output(state: ResearchState) -> StructuredResearchOutput:
-    aliases = _metric_aliases()
+def build_structured_output(
+    state: ResearchState, domain_pack: ReportingDomain | None = None
+) -> StructuredResearchOutput:
+    domain_pack = resolve_domain_capability(
+        domain_pack, consumer="build_structured_output"
+    )
+    aliases = _metric_aliases(domain_pack)
     data_as_of = max(
         (item.source_pub_date for item in state.evidence_store if item.source_pub_date),
         default=None,
@@ -56,7 +62,7 @@ def build_structured_output(state: ResearchState) -> StructuredResearchOutput:
     metric_rows = [
         row
         for item in state.evidence_store
-        for row in _metric_rows_for_evidence(item, aliases)
+        for row in _metric_rows_for_evidence(item, aliases, domain_pack)
     ]
     metric_rows.sort(
         key=lambda row: (
@@ -133,10 +139,14 @@ def build_structured_output(state: ResearchState) -> StructuredResearchOutput:
 
 def metric_fact_keys(
     evidence: list[Evidence],
+    domain_pack: ReportingDomain | None = None,
 ) -> dict[str, set[tuple[str, str, str, str]]]:
     """Return reader-deduplication keys without changing structured values."""
 
-    aliases = _metric_aliases()
+    domain_pack = resolve_domain_capability(
+        domain_pack, consumer="metric_fact_keys"
+    )
+    aliases = _metric_aliases(domain_pack)
     return {
         item.id: {
             (
@@ -149,7 +159,7 @@ def metric_fact_keys(
                 ),
                 row.scope,
             )
-            for row in _metric_rows_for_evidence(item, aliases)
+            for row in _metric_rows_for_evidence(item, aliases, domain_pack)
         }
         for item in evidence
     }
@@ -331,8 +341,8 @@ def _xlsx_bytes(output: StructuredResearchOutput) -> bytes:
     return normalized.getvalue()
 
 
-def _metric_aliases() -> dict[str, str]:
-    path = load_domain_pack("finance").metric_table_path()
+def _metric_aliases(domain_pack: ReportingDomain) -> dict[str, str]:
+    path = domain_pack.metric_table_path()
     payload = json.loads(path.read_text(encoding="utf-8"))
     return {str(key): str(value) for key, value in payload["metric_aliases"].items()}
 
@@ -340,6 +350,7 @@ def _metric_aliases() -> dict[str, str]:
 def _metric_rows_for_evidence(
     item: Evidence,
     aliases: dict[str, str],
+    domain_pack: ReportingDomain,
 ) -> list[MetricRow]:
     fields = item.numeric_fields
     if fields is not None and fields.value is not None:
@@ -361,7 +372,7 @@ def _metric_rows_for_evidence(
     if item.claim_type != "data":
         return []
     rows: list[MetricRow] = []
-    for match in load_domain_pack("finance").metric_claim_pattern().finditer(item.claim):
+    for match in domain_pack.metric_claim_pattern().finditer(item.claim):
         metric = match.group("metric")
         rows.append(
             MetricRow(

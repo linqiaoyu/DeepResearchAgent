@@ -10,7 +10,7 @@ from uuid import NAMESPACE_URL, uuid5
 from deepresearch_agent.domains.finance.numeric_citations import (
     is_main_business_margin_dimension,
 )
-from deepresearch_agent.domains.registry import load_domain_pack
+from deepresearch_agent.domains.finance.vocabulary import canonical_metric
 from deepresearch_agent.schemas import (
     BoundingBox,
     Evidence,
@@ -852,7 +852,7 @@ def _canonical_metric(value: str | None) -> str:
         "",
         value or "",
     )
-    return load_domain_pack("finance").canonical_metric(normalized)
+    return canonical_metric(normalized)
 
 
 def _evidence_slot(

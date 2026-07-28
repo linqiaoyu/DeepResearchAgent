@@ -1,0 +1,9 @@
+[
+  {"plan_ref": "M1"}, {"plan_ref": "B1"}, {"plan_ref": "M2"},
+  {"plan_ref": "M3"}, {"plan_ref": "B4"}, {"plan_ref": "D1"},
+  {"plan_ref": "M4"}, {"plan_ref": "M5"}, {"plan_ref": "M6"},
+  {"plan_ref": "A3"}, {"plan_ref": "A5"}, {"plan_ref": "B2"},
+  {"plan_ref": "B6"}, {"plan_ref": "A7"}, {"plan_ref": "D5"},
+  {"plan_ref": "A9"}, {"plan_ref": "C4"}, {"plan_ref": "C1"},
+  {"plan_ref": "A1"}, {"plan_ref": "C2"}, {"plan_ref": "C3"}
+]

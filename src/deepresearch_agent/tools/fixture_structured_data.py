@@ -4,7 +4,8 @@ import json
 from datetime import date
 from pathlib import Path
 
-from deepresearch_agent.domains.registry import load_domain_pack
+from deepresearch_agent.domains.protocols import StructuredDataDomain
+from deepresearch_agent.domains.requirements import resolve_domain_capability
 from deepresearch_agent.schemas import StructuredDataRecord, SymbolInfo
 from deepresearch_agent.settings import project_root
 
@@ -13,7 +14,12 @@ class FixtureStructuredDataProvider:
     fidelity = "fixture"
     """Deterministic structured finance data provider backed by recorded fixtures."""
 
-    def __init__(self, fixture_path: Path | None = None) -> None:
+    def __init__(
+        self,
+        fixture_path: Path | None = None,
+        *,
+        domain_pack: StructuredDataDomain | None = None,
+    ) -> None:
         self.fixture_path = fixture_path or project_root() / "data" / "mock_data" / "structured_finance.json"
         self._payload = json.loads(self.fixture_path.read_text(encoding="utf-8"))
         self._symbols = [SymbolInfo.model_validate(item) for item in self._payload.get("symbols", [])]
@@ -30,6 +36,9 @@ class FixtureStructuredDataProvider:
             StructuredDataRecord.model_validate(item)
             for item in self._payload.get("price_history", [])
         ]
+        self._domain_pack = resolve_domain_capability(
+            domain_pack, consumer="FixtureStructuredDataProvider"
+        )
 
     def symbol_resolve(self, company_name: str) -> SymbolInfo | None:
         query = company_name.strip().lower()
@@ -70,7 +79,7 @@ class FixtureStructuredDataProvider:
 
     def _normalize_metric(self, value: str) -> str:
         normalized = value.strip()
-        return load_domain_pack("finance").fixture_metric_aliases().get(
+        return self._domain_pack.fixture_metric_aliases().get(
             normalized,
             normalized,
         )

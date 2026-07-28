@@ -2,7 +2,7 @@
 
 ## 决定
 
-将 `pdfplumber==0.11.10` 作为运行依赖，用于从已跟踪的主披露 PDF 提取单词坐标，生成
+将 `pdfplumber==0.11.10` 作为开发依赖，用于从已跟踪的主披露 PDF 提取单词坐标，生成
 离线 fixture 的 bbox 索引，并将数值型 PDF Evidence 的定位持久化为
 `page,x0,top,x1,bottom`。既有 `pypdf` 继续负责稳定的纯文本 fixture 内容，不替换其余
 provider 的文本解码路径。
@@ -14,7 +14,7 @@ provider 的文本解码路径。
 MuPDF。
 
 - 来源：<https://pypi.org/project/pdfplumber/>
-- 版本：`0.11.10`，精确锁定于 `pyproject.toml`
+- 版本：`0.11.10`，精确锁定于 `pyproject.toml` 的 `dev` extra；默认离线运行不导入它
 - 许可证：MIT；仓库 LICENSE 保留原作者 Jeremy Singer-Vine 的署名与许可文本
 - 间接依赖：由受锁定的 pip 安装解析；完整环境由项目 `.venv` 的 editable install 验证
 

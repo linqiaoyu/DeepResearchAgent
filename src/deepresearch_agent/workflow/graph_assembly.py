@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from deepresearch_agent.orchestration import GraphRuntime, RunScope, validate_contract_graph
-from deepresearch_agent.skills import finance_metric_skill_applicable, load_skills_if_enabled
+from deepresearch_agent.skills import load_skills_if_enabled
 from deepresearch_agent.workflow.contracts import build_workflow_contracts, workflow_contract_graph
 from deepresearch_agent.workflow.state import ResearchGraphState
 from langgraph.graph import END, START, StateGraph
@@ -114,7 +114,7 @@ class GraphAssembly:
             state.topic,
             registry=self.capability_registry,
             state=state,
-            is_applicable=finance_metric_skill_applicable,
+            is_applicable=self.domain_pack.metric_skill_applicable,
         )
         state.metadata["skill_packs"] = {
             "selection_complete": True,

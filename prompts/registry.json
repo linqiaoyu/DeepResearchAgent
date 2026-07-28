@@ -1,5 +1,9 @@
 {
   "prompts": {
+    "capability_selector.md": {
+      "version": "1.0.0",
+      "sha256": "623971a66d9390da9ea49dbb43de6d176ebbc16ea91cc3264f4fdbb3cfaaf30d"
+    },
     "critic.md": {
       "version": "1.0.0",
       "sha256": "fd7b56de2e65c335f966f85be911d1e9e31eb5375708291f8ae61d535ab8e882"

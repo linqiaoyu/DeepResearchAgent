@@ -45,7 +45,11 @@ from deepresearch_agent.schemas import (
     utc_now,
 )
 from deepresearch_agent.settings import Settings, load_settings, project_root
-from deepresearch_agent.workflow.nodes.research import ResearchNodes
+from deepresearch_agent.workflow.nodes.research import (
+    ResearchNodes,
+    ResearchOneDependencies,
+    ResearchOneNode,
+)
 from deepresearch_agent.workflow.nodes.retry import RetryNodes
 from deepresearch_agent.workflow.nodes.research_loop import ResearchLoopNodes
 from deepresearch_agent.workflow.nodes.delivery import DeliveryNodes
@@ -134,7 +138,9 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
                 logger=self.logger,
             )
         configured_structured_provider = (
-            structured_data_provider or build_structured_data_provider()
+            structured_data_provider or build_structured_data_provider(
+                domain_pack=self.domain_pack
+            )
         )
         configured_structured_provider = (
             TrajectoryStructuredDataProvider(
@@ -142,11 +148,12 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
             )
         )
         configured_disclosure_source = disclosure_source or (
-            FixtureDisclosureSource()
+            FixtureDisclosureSource(domain_pack=self.domain_pack)
             if self.settings.execution_mode == "deterministic"
             else CninfoDisclosureSource(
                 pdf_max_pages=self.settings.pdf_max_pages,
                 char_limit=self.settings.tavily_raw_content_char_limit,
+                domain_pack=self.domain_pack,
             )
         )
         self.capability_registry: CapabilityRegistry = (
@@ -202,6 +209,15 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
             as_of=self.settings.as_of,
             domain_pack=self.domain_pack,
         )
+        self.research_one_node = ResearchOneNode(
+            ResearchOneDependencies(
+                settings=self.settings,
+                capability_selector=self.capability_selector,
+                researcher=self.researcher,
+                state_loader=self._state_from_graph_values,
+                branch_budget_enabled=self._branch_budget_enabled,
+            )
+        )
         self.extractor = ExtractorAgent(
             llm_client=self.llm_client,
             injection_guard_enabled=self.settings.injection_guard_enabled,
@@ -225,6 +241,7 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
                 grounded_fact_renderer or self.domain_pack.grounded_fact_renderer()
             ),
             numeric_citation_policy=self.domain_pack.numeric_citation_policy(),
+            domain_pack=self.domain_pack,
         )
         semantic_judge = (
             RuntimeSemanticJudge(self.llm_client)
@@ -235,6 +252,7 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
             semantic_judge=semantic_judge,
             numeric_citation_policy=self.domain_pack.numeric_citation_policy(),
             semantic_judge_enabled=self.settings.semantic_judge_enabled,
+            domain_pack=self.domain_pack,
         )
         self.reflector = Reflector()
         self.working_memory = ContextWorkingMemory()

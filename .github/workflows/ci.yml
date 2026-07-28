@@ -34,26 +34,5 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]"
 
-      - name: Run Ruff
-        run: python -m ruff check src tests scripts
-
-      - name: Check documented Settings defaults
-        run: python scripts/sync_agents_settings.py --check
-
-      - name: Check shared agent guidance
-        run: python scripts/check_agent_guidance.py
-
-      - name: Check prompt drift registry
-        run: python scripts/check_prompt_drift.py
-
-      - name: Run unittest suite
-        run: python -m unittest discover -s tests
-
-      - name: Run deterministic demo smoke
-        run: python scripts/run_demo.py --output artifacts/ci_demo/report.md
-
-      - name: Run deterministic eval smoke
-        run: python scripts/run_eval.py --limit 5 --compare-baseline --baseline-path data/eval_baseline_v2.json --output artifacts/ci_eval/latest_metrics.json
-
-      - name: Ensure tracked files are unchanged
-        run: git diff --exit-code
+      - name: Run deterministic CI gate
+        run: python scripts/gate.py

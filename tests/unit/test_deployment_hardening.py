@@ -25,8 +25,7 @@ class DeploymentHardeningTests(unittest.TestCase):
         workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         self.assertIn("DEEPRESEARCH_MODE: deterministic", workflow)
         self.assertIn("DEEPRESEARCH_SEARCH_PROVIDER: fixture", workflow)
-        self.assertIn("ruff check src tests scripts", workflow)
-        self.assertIn("check_prompt_drift.py", workflow)
+        self.assertIn("python scripts/gate.py", workflow)
         self.assertNotIn("secrets.", workflow)
 
 

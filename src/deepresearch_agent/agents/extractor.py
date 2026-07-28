@@ -4,8 +4,8 @@ import json
 import re
 from uuid import uuid5, NAMESPACE_URL
 
-from deepresearch_agent.domains.protocols import DomainPack
-from deepresearch_agent.domains.registry import load_domain_pack
+from deepresearch_agent.domains.protocols import TableExtractionDomain
+from deepresearch_agent.domains.requirements import resolve_domain_capability
 from deepresearch_agent.llm import LLMClient, LLMClientError, StructuredOutputError
 from deepresearch_agent.schemas import Evidence, ExtractedClaim, ExtractedClaims, Source, SubQuestion
 from deepresearch_agent.security import detect_injection, wrap_untrusted
@@ -22,11 +22,13 @@ class ExtractorAgent:
         llm_client: LLMClient | None = None,
         *,
         injection_guard_enabled: bool = False,
-        domain_pack: DomainPack | None = None,
+        domain_pack: TableExtractionDomain | None = None,
     ) -> None:
         self.llm_client = llm_client
         self.injection_guard_enabled = injection_guard_enabled
-        self.table_extractors = (domain_pack or load_domain_pack("finance")).table_extractors()
+        self.table_extractors = resolve_domain_capability(
+            domain_pack, consumer="ExtractorAgent"
+        ).table_extractors()
         self.last_stats: dict[str, int | bool | str] = {}
 
     def extract(self, research_id: str, sub_question: SubQuestion, sources: list[Source]) -> list[Evidence]:

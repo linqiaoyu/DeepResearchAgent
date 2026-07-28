@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import Field
 
@@ -16,7 +16,6 @@ from deepresearch_agent.schemas import (
     ResearchState,
     StrictModel,
 )
-from deepresearch_agent.domains.registry import load_domain_pack
 
 if TYPE_CHECKING:
     from deepresearch_agent.orchestration.decision_context import (
@@ -219,9 +218,12 @@ def snapshot_claim_key(
     )
 
 
-def evidence_explains_change(evidence: Evidence) -> bool:
+def evidence_explains_change(evidence: Evidence, domain_pack: Any) -> bool:
     text = f"{evidence.claim} {evidence.extract_text}".lower()
-    return any(term in text for term in ("because", "due to", "increase", "decrease", "changed")) or load_domain_pack("finance").evidence_explains_change(text)
+    return any(
+        term in text
+        for term in ("because", "due to", "increase", "decrease", "changed")
+    ) or domain_pack.evidence_explains_change(text)
 
 
 def _best_claim(

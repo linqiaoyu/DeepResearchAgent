@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import hashlib
 import re
+import inspect
 import time
 from datetime import date
 from decimal import Decimal
+from typing import Any
 
 from deepresearch_agent.schemas import (
     AgentDecision,
@@ -16,8 +18,8 @@ from deepresearch_agent.schemas import (
     StructuredDataRequest,
     SubQuestion,
 )
-from deepresearch_agent.domains.protocols import DomainPack
-from deepresearch_agent.domains.registry import load_domain_pack
+from deepresearch_agent.domains.protocols import DisclosureQueryDomain
+from deepresearch_agent.domains.requirements import resolve_domain_capability
 from deepresearch_agent.orchestration.contracts import RunScope, SearchQuota
 from deepresearch_agent.tools import (
     FetchProvider,
@@ -35,6 +37,16 @@ from deepresearch_agent.tools.source_ranking import (
 )
 
 
+def _accepts_keyword(callable_: Any, keyword: str) -> bool:
+    """Allow legacy test/replay disclosure adapters during protocol migration."""
+    parameters = inspect.signature(callable_).parameters.values()
+    return any(
+        parameter.name == keyword
+        or parameter.kind is inspect.Parameter.VAR_KEYWORD
+        for parameter in parameters
+    )
+
+
 class ResearcherAgent:
     def __init__(
         self,
@@ -44,7 +56,7 @@ class ResearcherAgent:
         fetch_tool: FetchProvider | None = None,
         disclosure_source: object | None = None,
         as_of: date | None = None,
-        domain_pack: DomainPack | None = None,
+        domain_pack: DisclosureQueryDomain | None = None,
     ) -> None:
         self.search_tool = search_tool or FixtureSearchTool()
         self.fetch_tool = fetch_tool or self.search_tool
@@ -52,7 +64,9 @@ class ResearcherAgent:
         self.max_searches_per_run = max_searches_per_run
         self.disclosure_source = disclosure_source
         self.as_of = as_of or date.today()
-        self.domain_pack = domain_pack or load_domain_pack("finance")
+        self.domain_pack = resolve_domain_capability(
+            domain_pack, consumer="ResearcherAgent"
+        )
 
     def research(
         self,
@@ -133,17 +147,36 @@ class ResearcherAgent:
                 request.capability == "financial_indicators"
                 for request in sub_question.structured_data_requests
             )
+            report_years = {
+                int(period[:4])
+                for request in sub_question.structured_data_requests
+                if request.capability == "financial_indicators"
+                for period in request.periods
+                if re.fullmatch(r"20\d{2}(?:1231)?", period)
+            }
+            # A disclosure title must match one requested financial year.  A
+            # mixed-period branch has no single authoritative annual report,
+            # so leave selection to the explicit structured-data requests.
+            report_year = (
+                next(iter(report_years)) if len(report_years) == 1 else None
+            )
             keyword = self.domain_pack.primary_source_keyword(
                 financial_intent=financial_intent
             )
             if code and consume_call():
                 disclosure_started = time.perf_counter()
-                disclosed = self.disclosure_source.search(
-                    code, keyword, date(2000, 1, 1), self.as_of,
-                    preferred_terms=self.domain_pack.primary_source_terms(
+                disclosure_kwargs: dict[str, Any] = {
+                    "preferred_terms": self.domain_pack.primary_source_terms(
                         financial_intent=financial_intent
                     ),
-                    context=run_scope.tool_context,
+                    "context": run_scope.tool_context,
+                }
+                if report_year is not None and _accepts_keyword(
+                    self.disclosure_source.search, "report_year"
+                ):
+                    disclosure_kwargs["report_year"] = report_year
+                disclosed = self.disclosure_source.search(
+                    code, keyword, date(2000, 1, 1), self.as_of, **disclosure_kwargs
                 )
                 records.append(
                     SearchRecord(

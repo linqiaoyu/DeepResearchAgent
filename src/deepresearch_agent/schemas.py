@@ -135,6 +135,21 @@ class NumericFields(StrictModel):
     value: Decimal | None = None
     unit: str | None = None
 
+    @model_validator(mode="after")
+    def normalize_unit_misfiled_as_dimension(self) -> NumericFields:
+        """Keep amount units out of the scope field used for comparisons.
+
+        Older extraction payloads sometimes placed a table's magnitude header
+        in both fields.  It describes magnitude, not period/entity scope, and
+        therefore must not create a synthetic scope conflict downstream.
+        """
+        dimension = self.dimension.strip()
+        if re.fullmatch(r"[一二三四五六七八九十百千万亿]*元", dimension):
+            if self.unit is None:
+                self.unit = dimension
+            self.dimension = "未标注"
+        return self
+
 
 class Evidence(StrictModel):
     id: str = Field(default_factory=lambda: str(uuid4()))

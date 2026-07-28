@@ -501,6 +501,7 @@ class ReplayDisclosureSource:
         start_date: date,
         end_date: date,
         *,
+        report_year: int | None = None,
         preferred_terms: tuple[str, ...] = (),
         context: RunToolContext | None = None,
     ) -> list[Source]:
@@ -519,7 +520,12 @@ class ReplayDisclosureSource:
                 f"{expected!r}"
             )
         call = self._calls.popleft()
-        if call.inputs != expected:
+        expected_with_year = dict(expected)
+        if call.inputs.get("report_year") is not None:
+            expected_with_year["report_year"] = str(report_year)
+        # Historical trajectories predate the typed report-year input.  They
+        # remain replayable, while newly recorded trajectories verify it.
+        if call.inputs != expected and call.inputs != expected_with_year:
             raise RuntimeError(
                 "trajectory cache_miss: disclosure_source "
                 f"expected={expected}, actual={call.inputs}"

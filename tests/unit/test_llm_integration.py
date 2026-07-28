@@ -3,10 +3,12 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+import threading
 import unittest
 from datetime import date
 from pathlib import Path
 from types import SimpleNamespace
+from unittest import mock
 
 from deepresearch_agent.agents import ExtractorAgent, PlannerAgent, ReporterAgent
 from deepresearch_agent.agents.researcher import ResearcherAgent
@@ -112,6 +114,142 @@ class LLMIntegrationTests(unittest.TestCase):
 
             self.assertFalse(ledger_path.exists())
             self.assertEqual(completion.calls, 0)
+
+    def test_concurrent_budget_reservation_allows_only_one_provider_call(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            env_path = Path(tmp) / ".env"
+            env_path.write_text("DEEPSEEK_API_KEY=test-key\n", encoding="utf-8")
+            provider_entered = threading.Event()
+            release_provider = threading.Event()
+            provider_calls = 0
+            provider_lock = threading.Lock()
+
+            def completion(**_: object) -> dict:
+                nonlocal provider_calls
+                with provider_lock:
+                    provider_calls += 1
+                provider_entered.set()
+                release_provider.wait(timeout=2)
+                return {
+                    "choices": [{"message": {"content": "ok"}}],
+                    "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+                }
+
+            client = LLMClient(
+                ledger_path=Path(tmp) / "ledger.jsonl",
+                global_ledger_path=Path(tmp) / "global.jsonl",
+                budget_cny=1.0,
+                completion_func=completion,
+                env_path=env_path,
+            )
+            outcomes: list[Exception | None] = []
+
+            def request() -> None:
+                try:
+                    client.complete(
+                        role="extractor",
+                        run_id="shared-run",
+                        messages=[{"role": "user", "content": "hello"}],
+                        expected_cost_cny=0.7,
+                    )
+                    outcomes.append(None)
+                except Exception as exc:  # Captured to assert the losing request is stopped.
+                    outcomes.append(exc)
+
+            first = threading.Thread(target=request)
+            second = threading.Thread(target=request)
+            first.start()
+            self.assertTrue(provider_entered.wait(timeout=1))
+            second.start()
+            second.join(timeout=1)
+            release_provider.set()
+            first.join(timeout=1)
+
+            self.assertEqual(provider_calls, 1)
+            self.assertEqual(len(outcomes), 2)
+            self.assertEqual(sum(item is None for item in outcomes), 1)
+            self.assertTrue(any(isinstance(item, BudgetExceededError) for item in outcomes))
+
+    def test_failed_provider_releases_budget_reservation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            env_path = Path(tmp) / ".env"
+            env_path.write_text("DEEPSEEK_API_KEY=test-key\n", encoding="utf-8")
+
+            def completion(**_: object) -> dict:
+                raise RuntimeError("provider unavailable")
+
+            client = LLMClient(
+                ledger_path=Path(tmp) / "ledger.jsonl",
+                global_ledger_path=Path(tmp) / "global.jsonl",
+                budget_cny=1.0,
+                completion_func=completion,
+                sleep_func=lambda _: None,
+                env_path=env_path,
+            )
+
+            with self.assertRaisesRegex(Exception, "LLM call failed"):
+                client.complete(
+                    role="extractor",
+                    run_id="failed-run",
+                    messages=[{"role": "user", "content": "hello"}],
+                    expected_cost_cny=0.7,
+                )
+
+            self.assertNotIn("failed-run", client._pending_costs_cny)
+
+    def test_start_run_uses_valid_ledger_index_without_rescanning_large_ledger(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            ledger_path = root / "global.jsonl"
+            row = json.dumps({"run_id": "historical-run", "cost_cny": 0.01}) + "\n"
+            ledger_path.write_text(row * 100_000, encoding="utf-8")
+            env_path = root / ".env"
+            env_path.write_text("DEEPSEEK_API_KEY=test-key\n", encoding="utf-8")
+            initial = LLMClient(
+                ledger_path=root / "run.jsonl",
+                global_ledger_path=ledger_path,
+                budget_cny=2_000.0,
+                completion_func=MockCompletion(["ok"]),
+                env_path=env_path,
+            )
+            initial.start_run("historical-run")
+            self.assertAlmostEqual(initial.run_total_cny("historical-run"), 1_000.0)
+
+            indexed = LLMClient(
+                ledger_path=root / "other-run.jsonl",
+                global_ledger_path=ledger_path,
+                budget_cny=2_000.0,
+                completion_func=MockCompletion(["ok"]),
+                env_path=env_path,
+            )
+            with mock.patch.object(indexed, "_rebuild_ledger_cost_index") as rebuild:
+                indexed.start_run("historical-run")
+
+            rebuild.assert_not_called()
+            self.assertAlmostEqual(indexed.run_total_cny("historical-run"), 1_000.0)
+
+    def test_corrupt_ledger_index_is_rebuilt_from_valid_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            ledger_path = root / "global.jsonl"
+            ledger_path.write_text(
+                '{"run_id":"kept","cost_cny":1.25}\nnot-json\n', encoding="utf-8"
+            )
+            (root / "global.jsonl.index.json").write_text("not-json", encoding="utf-8")
+            env_path = root / ".env"
+            env_path.write_text("DEEPSEEK_API_KEY=test-key\n", encoding="utf-8")
+            client = LLMClient(
+                ledger_path=root / "run.jsonl",
+                global_ledger_path=ledger_path,
+                budget_cny=3.0,
+                completion_func=MockCompletion(["ok"]),
+                env_path=env_path,
+            )
+
+            client.start_run("kept")
+
+            self.assertAlmostEqual(client.run_total_cny("kept"), 1.25)
+            self.assertTrue((root / "global.jsonl.index.json").exists())
 
     def test_v4flash_price_calibration_splits_cache_tokens(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

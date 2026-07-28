@@ -93,6 +93,45 @@ class EvaluatorTests(unittest.TestCase):
         self.assertEqual(result.citation_accuracy, 1.0)
         self.assertEqual(result.task_success_rate, 1.0)
 
+    def test_missing_typed_metric_cannot_be_counted_as_task_success(self) -> None:
+        state = self._state_with_supported_report()
+        state.plan = ResearchPlan(
+            topic=state.topic,
+            sub_questions=[
+                SubQuestion(
+                    id="finance",
+                    question="2024 营业收入是多少？",
+                    search_queries=[],
+                    structured_data_requests=[
+                        StructuredDataRequest(
+                            capability="financial_indicators",
+                            symbol="600519",
+                            periods=["2024"],
+                            metrics=["营业收入"],
+                        )
+                    ],
+                )
+            ],
+        )
+
+        result = Evaluator().evaluate(state)
+
+        self.assertEqual(result.task_success_rate, 0.0)
+        self.assertEqual(result.bad_case_categories["required_output_incomplete"], 1)
+
+    def test_amount_unit_is_not_normalized_as_scope(self) -> None:
+        fields = NumericFields(
+            entity="某公司",
+            metric_name="营业收入",
+            period="20241231",
+            dimension="千元",
+            value=362012554,
+            unit="千元",
+        )
+
+        self.assertEqual(fields.dimension, "未标注")
+        self.assertEqual(fields.unit, "千元")
+
     def test_citation_accuracy_drops_when_existing_citation_does_not_support_claim(self) -> None:
         state = ResearchState(topic="wealth AI")
         state.evidence_store = [

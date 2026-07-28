@@ -16,8 +16,8 @@ from deepresearch_agent.memory import (
 from deepresearch_agent.counterargument_policy import (
     counterargument_required,
 )
-from deepresearch_agent.domains.protocols import DomainPack
-from deepresearch_agent.domains.registry import load_domain_pack
+from deepresearch_agent.domains.protocols import NumericCheckingDomain
+from deepresearch_agent.domains.requirements import resolve_domain_capability
 from deepresearch_agent.research_snapshot import ResearchSnapshot
 from deepresearch_agent.schemas import CriticReport, Evidence, Issue, ResearchState, RetryTask
 
@@ -43,14 +43,16 @@ class CriticAgent:
         injection_guard_enabled: bool = False,
         numeric_check_enabled: bool = False,
         numeric_check_absolute_tolerance: float = 0.01,
-        domain_pack: DomainPack | None = None,
+        domain_pack: NumericCheckingDomain | None = None,
     ) -> None:
         self.today = today or date.today()
         self.max_source_age_days = max_source_age_days
         self.numeric_relative_tolerance = numeric_relative_tolerance
         self.injection_guard_enabled = injection_guard_enabled
         self.numeric_check_enabled = numeric_check_enabled
-        self.domain_pack = domain_pack or load_domain_pack("finance")
+        self.domain_pack = resolve_domain_capability(
+            domain_pack, consumer="CriticAgent"
+        )
         self.metric_table = self._load_metric_table(
             metric_table_path or self.domain_pack.metric_table_path()
         )
@@ -118,7 +120,7 @@ class CriticAgent:
                 continue
             if not self._meaningfully_different(current_value, claim.value):
                 continue
-            if evidence_explains_change(evidence):
+            if evidence_explains_change(evidence, self.domain_pack):
                 continue
             task = RetryTask(
                 reason="Current fact contradicts prior period without explanation",

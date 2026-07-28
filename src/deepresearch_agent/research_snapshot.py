@@ -16,7 +16,8 @@ from deepresearch_agent.provenance import (
     compare_manifests,
     settings_flag_snapshot,
 )
-from deepresearch_agent.domains.registry import load_domain_pack
+from deepresearch_agent.domains.protocols import DomainPack, ReportingDomain
+from deepresearch_agent.domains.requirements import resolve_domain_capability
 from deepresearch_agent.schemas import (
     ResearchState,
     StrictModel,
@@ -137,9 +138,15 @@ def build_research_snapshot(
     settings: Settings,
     manifest: RunManifest,
     as_of: date,
+    domain_pack: ReportingDomain | None = None,
     question_id: str | None = None,
 ) -> ResearchSnapshot:
-    structured = state.structured_output or build_structured_output(state)
+    domain_pack = resolve_domain_capability(
+        domain_pack, consumer="build_research_snapshot"
+    )
+    structured = state.structured_output or build_structured_output(
+        state, domain_pack
+    )
     evidence_by_id = {item.id: item for item in state.evidence_store}
     claims: list[SnapshotClaim] = []
     metric_evidence_ids: set[str] = set()
@@ -402,8 +409,13 @@ def build_demo_followup(
     baseline: ResearchSnapshot,
     *,
     as_of: date,
+    domain_pack: DomainPack | None = None,
 ) -> ResearchSnapshot:
     """Construct a labelled fixture-only follow-up for workflow demonstration."""
+
+    domain_pack = resolve_domain_capability(
+        domain_pack, consumer="build_demo_followup"
+    )
 
     claims = [claim.model_copy(deep=True) for claim in baseline.claims]
     numeric = [claim for claim in claims if claim.value is not None]
@@ -418,7 +430,7 @@ def build_demo_followup(
         )
         if productivity_claims
         else (
-            load_domain_pack("finance").demo_numeric_claim(numeric)
+            domain_pack.demo_numeric_claim(numeric)
             or (numeric[0] if numeric else None)
         )
     )
@@ -426,7 +438,7 @@ def build_demo_followup(
         numeric_change.value = round(float(numeric_change.value) * 1.12, 4)
         numeric_change.text = f"{numeric_change.text}（演示变体：数值更新）"
         numeric_change.claim_id = _claim_id(numeric_change.key, numeric_change.text)
-    domain_scope_claim = load_domain_pack("finance").demo_scope_claim(
+    domain_scope_claim = domain_pack.demo_scope_claim(
         numeric,
         numeric_change,
     )
@@ -797,7 +809,7 @@ def _summary_change_text(item: SnapshotChange) -> str:
             f"{item.new_value:g}{item.new_unit or ''}。"
         )
     if item.change_type == "scope_change":
-        return load_domain_pack("finance").scope_change_summary(label)
+        return f"{label}的口径发生变化。"
     if item.change_type == "confidence_change":
         text = (item.new_text or item.old_text or "该论点").rstrip("。！？!?")
         return (

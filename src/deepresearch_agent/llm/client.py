@@ -97,7 +97,12 @@ class LLMClient:
         self._sleep = sleep_func
         self._env_path = env_path or project_root() / ".env"
         self._run_costs_cny: dict[str, float] = {}
+        self._pending_costs_cny: dict[str, float] = {}
         self._cost_lock = threading.Lock()
+        self._ledger_index_path = self.global_ledger_path.with_suffix(
+            f"{self.global_ledger_path.suffix}.index.json"
+        )
+        self._ledger_cost_index, self._ledger_index_valid = self._load_ledger_cost_index()
         self.logger = logger or JsonLogger()
         self.ledger_path.parent.mkdir(parents=True, exist_ok=True)
         self.global_ledger_path.parent.mkdir(parents=True, exist_ok=True)
@@ -105,6 +110,7 @@ class LLMClient:
     def start_run(self, run_id: str) -> None:
         with self._cost_lock:
             self._run_costs_cny[run_id] = self._ledger_cost_for_run(run_id)
+            self._pending_costs_cny.pop(run_id, None)
 
     def complete(
         self,
@@ -142,24 +148,25 @@ class LLMClient:
         reservation_cny = expected_cost_cny or self._estimate_max_cost_cny(
             prompt_messages, role_config.model, role_config.max_completion_tokens
         )
-        with self._cost_lock:
-            projected = self._run_costs_cny[run_id] + reservation_cny
-            if projected > self.budget_cny:
-                raise BudgetExceededError(run_id, self.budget_cny, projected)
+        self._reserve_budget(run_id, reservation_cny)
 
         first_error: str | None = None
-        with correlation_context(llm_call=role):
-            raw_result = self._completion_with_retries(
-                role=role,
-                model=role_config.model,
-                fallback_model=role_config.fallback_model,
-                api_base=role_config.api_base,
-                api_key=api_key,
-                timeout_seconds=role_config.timeout_seconds or self.config.timeout_seconds,
-                max_completion_tokens=role_config.max_completion_tokens,
-                messages=prompt_messages,
-                tools=tools,
-            )
+        try:
+            with correlation_context(llm_call=role):
+                raw_result = self._completion_with_retries(
+                    role=role,
+                    model=role_config.model,
+                    fallback_model=role_config.fallback_model,
+                    api_base=role_config.api_base,
+                    api_key=api_key,
+                    timeout_seconds=role_config.timeout_seconds or self.config.timeout_seconds,
+                    max_completion_tokens=role_config.max_completion_tokens,
+                    messages=prompt_messages,
+                    tools=tools,
+                )
+        except BaseException:
+            self._release_reservation(run_id, reservation_cny)
+            raise
         content = raw_result.content
         parsed: BaseModel | None = None
         repair_attempts = 0
@@ -168,13 +175,16 @@ class LLMClient:
                 parsed = self._parse_schema(content, schema)
             except StructuredOutputError as exc:
                 first_error = str(exc)
-                self._record_ledger(
-                    run_id=run_id,
-                    role=role,
-                    result=raw_result,
-                    structured=True,
-                    parse_error=first_error,
-                )
+                try:
+                    self._record_ledger(
+                        run_id=run_id,
+                        role=role,
+                        result=raw_result,
+                        structured=True,
+                        parse_error=first_error,
+                    )
+                finally:
+                    self._release_reservation(run_id, reservation_cny)
                 self._add_run_cost(run_id, raw_result.cost_cny)
                 self._enforce_cost_overrun(
                     run_id,
@@ -195,20 +205,32 @@ class LLMClient:
                         ),
                     },
                 ]
-                raw_result = self._completion_with_retries(
-                    role=role,
-                    model=role_config.model,
-                    fallback_model=role_config.fallback_model,
-                    api_base=role_config.api_base,
-                    api_key=api_key,
-                    timeout_seconds=role_config.timeout_seconds or self.config.timeout_seconds,
-                    max_completion_tokens=role_config.max_completion_tokens,
-                    messages=repair_messages,
-                    tools=tools,
-                    is_repair=True,
+                reservation_cny = expected_cost_cny or self._estimate_max_cost_cny(
+                    repair_messages, role_config.model, role_config.max_completion_tokens
                 )
+                self._reserve_budget(run_id, reservation_cny)
+                try:
+                    raw_result = self._completion_with_retries(
+                        role=role,
+                        model=role_config.model,
+                        fallback_model=role_config.fallback_model,
+                        api_base=role_config.api_base,
+                        api_key=api_key,
+                        timeout_seconds=role_config.timeout_seconds or self.config.timeout_seconds,
+                        max_completion_tokens=role_config.max_completion_tokens,
+                        messages=repair_messages,
+                        tools=tools,
+                        is_repair=True,
+                    )
+                except BaseException:
+                    self._release_reservation(run_id, reservation_cny)
+                    raise
                 content = raw_result.content
-                parsed = self._parse_schema(content, schema)
+                try:
+                    parsed = self._parse_schema(content, schema)
+                except BaseException:
+                    self._release_reservation(run_id, reservation_cny)
+                    raise
 
         result = LLMCallResult(
             content=content,
@@ -227,13 +249,16 @@ class LLMClient:
             repair_attempts=repair_attempts,
             tool_calls=raw_result.tool_calls,
         )
-        self._record_ledger(
-            run_id=run_id,
-            role=role,
-            result=result,
-            structured=bool(schema),
-            parse_error=first_error,
-        )
+        try:
+            self._record_ledger(
+                run_id=run_id,
+                role=role,
+                result=result,
+                structured=bool(schema),
+                parse_error=first_error,
+            )
+        finally:
+            self._release_reservation(run_id, reservation_cny)
         self._add_run_cost(run_id, result.cost_cny)
         self._enforce_cost_overrun(
             run_id,
@@ -279,6 +304,27 @@ class LLMClient:
     def _add_run_cost(self, run_id: str, cost_cny: float) -> None:
         with self._cost_lock:
             self._run_costs_cny[run_id] = self._run_costs_cny.get(run_id, 0.0) + cost_cny
+
+    def _reserve_budget(self, run_id: str, reservation_cny: float) -> None:
+        with self._cost_lock:
+            projected = (
+                self._run_costs_cny[run_id]
+                + self._pending_costs_cny.get(run_id, 0.0)
+                + reservation_cny
+            )
+            if projected > self.budget_cny:
+                raise BudgetExceededError(run_id, self.budget_cny, projected)
+            self._pending_costs_cny[run_id] = (
+                self._pending_costs_cny.get(run_id, 0.0) + reservation_cny
+            )
+
+    def _release_reservation(self, run_id: str, reservation_cny: float) -> None:
+        with self._cost_lock:
+            remaining = self._pending_costs_cny.get(run_id, 0.0) - reservation_cny
+            if remaining > 1e-12:
+                self._pending_costs_cny[run_id] = remaining
+            else:
+                self._pending_costs_cny.pop(run_id, None)
 
     def ledger_total_cny(self) -> float:
         total = 0.0
@@ -658,8 +704,68 @@ class LLMClient:
             path.parent.mkdir(parents=True, exist_ok=True)
             with path.open("a", encoding="utf-8") as file:
                 file.write(encoded)
+        self._update_ledger_cost_index(run_id, float(row["cost_cny"]))
 
     def _ledger_cost_for_run(self, run_id: str) -> float:
+        if not self._ledger_index_valid:
+            self._ledger_cost_index = self._rebuild_ledger_cost_index()
+            self._ledger_index_valid = True
+            self._save_ledger_cost_index()
+        return self._ledger_cost_index.get(run_id, 0.0)
+
+    def _load_ledger_cost_index(self) -> tuple[dict[str, float], bool]:
+        if not self._ledger_index_path.exists():
+            return {}, not self.global_ledger_path.exists()
+        try:
+            payload = json.loads(self._ledger_index_path.read_text(encoding="utf-8"))
+            ledger_stat = self.global_ledger_path.stat()
+            if (
+                payload.get("ledger_size") != ledger_stat.st_size
+                or payload.get("ledger_mtime_ns") != ledger_stat.st_mtime_ns
+            ):
+                return {}, False
+            return {
+                str(run_id): float(cost)
+                for run_id, cost in dict(payload.get("costs", {})).items()
+            }, True
+        except (OSError, ValueError, TypeError, json.JSONDecodeError):
+            return {}, False
+
+    def _rebuild_ledger_cost_index(self) -> dict[str, float]:
+        costs: dict[str, float] = {}
+        if not self.global_ledger_path.exists():
+            return costs
+        with self.global_ledger_path.open(encoding="utf-8") as file:
+            for line in file:
+                try:
+                    row = json.loads(line)
+                    run_id = str(row["run_id"])
+                    costs[run_id] = costs.get(run_id, 0.0) + float(row.get("cost_cny", 0.0))
+                except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+                    continue
+        return costs
+
+    def _update_ledger_cost_index(self, run_id: str, cost_cny: float) -> None:
+        with self._cost_lock:
+            if not self._ledger_index_valid:
+                self._ledger_cost_index = self._rebuild_ledger_cost_index()
+                self._ledger_index_valid = True
+            else:
+                self._ledger_cost_index[run_id] = self._ledger_cost_index.get(run_id, 0.0) + cost_cny
+            self._save_ledger_cost_index()
+
+    def _save_ledger_cost_index(self) -> None:
+        ledger_stat = self.global_ledger_path.stat()
+        payload = {
+            "ledger_size": ledger_stat.st_size,
+            "ledger_mtime_ns": ledger_stat.st_mtime_ns,
+            "costs": self._ledger_cost_index,
+        }
+        temporary_path = self._ledger_index_path.with_suffix(".tmp")
+        temporary_path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+        temporary_path.replace(self._ledger_index_path)
+
+    def _ledger_cost_for_run_legacy(self, run_id: str) -> float:
         return sum(
             float(row.get("cost_cny", 0.0))
             for row in self._iter_ledger_rows(self.global_ledger_path)

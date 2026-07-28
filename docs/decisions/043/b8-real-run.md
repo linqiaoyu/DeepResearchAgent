@@ -1,4 +1,4 @@
-# B8 real-provider run — INCOMPLETE
+# B8 real-provider run — history plus final execution status
 
 On 2026-07-28 the repository owner authorized up to three bounded live attempts.
 All three credentials were present; a minimal `openai/qwen3.7-plus` judge call
@@ -10,8 +10,9 @@ within its existing bounded retry policy and recorded a degradation event. Attem
 completed with real LLM/judge/CNINFO, but its trajectory did not actually invoke
 AKShare despite the request asking for the comparison.
 
-The required three-layer evidence is therefore absent. This decision records B8
-as INCOMPLETE; it does not infer numerical correctness from a completed pipeline.
+The required three-layer evidence was therefore absent. This records the
+historical attempt 1–3 status as INCOMPLETE; it does not infer numerical
+correctness from a completed pipeline.
 The DASHSCOPE credential should be rotated because it was exposed in conversation;
 no credential characters are retained here.
 

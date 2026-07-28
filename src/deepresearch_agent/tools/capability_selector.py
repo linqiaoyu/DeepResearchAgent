@@ -13,6 +13,7 @@ from deepresearch_agent.schemas import (
     StrictModel,
     SubQuestion,
 )
+from deepresearch_agent.settings import project_root
 from deepresearch_agent.tools.capability_registry import (
     CapabilityRegistry,
 )
@@ -200,7 +201,12 @@ class LLMCapabilitySelector:
             role="capability_selector",
             run_id=state.research_id,
             messages=[
-                {"role": "system", "content": "Select only applicable registered tools."},
+                {
+                    "role": "system",
+                    "content": (
+                        project_root() / "prompts" / "capability_selector.md"
+                    ).read_text(encoding="utf-8").strip(),
+                },
                 {"role": "user", "content": sub_question.question},
             ],
             tools=tools,

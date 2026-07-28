@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import tempfile
 import time
+import multiprocessing
 from decimal import Decimal
 import unittest
 from datetime import date
 from pathlib import Path
 from pydantic import ValidationError
+from unittest import mock
 
 from deepresearch_agent.agents import ResearcherAgent
 from deepresearch_agent.schemas import (
@@ -23,17 +25,19 @@ from deepresearch_agent.tools import (
     FixtureStructuredDataProvider,
     build_structured_data_provider,
 )
+from deepresearch_agent.tools.structured_data_factory import OptionalProviderDependencyError
 from deepresearch_agent.workflow import DeepResearchEngine
 
 
 class StructuredDataProviderTests(unittest.TestCase):
     def test_akshare_retry_is_not_queued_behind_a_timed_out_call(self) -> None:
-        calls = 0
+        calls = multiprocessing.Value("i", 0)
 
         def first_call_hangs_then_returns() -> str:
-            nonlocal calls
-            calls += 1
-            if calls == 1:
+            with calls.get_lock():
+                calls.value += 1
+                call_number = calls.value
+            if call_number == 1:
                 time.sleep(0.1)
             return "available"
 
@@ -45,7 +49,31 @@ class StructuredDataProviderTests(unittest.TestCase):
         )
 
         self.assertEqual(provider._call(first_call_hangs_then_returns, "probe"), "available")
-        self.assertEqual(calls, 2)
+        self.assertEqual(calls.value, 2)
+
+    def test_akshare_timeout_terminates_every_blocked_worker(self) -> None:
+        provider = AKShareStructuredDataProvider(
+            akshare_module=object(),
+            timeout_seconds=0.01,
+            max_retries=0,
+        )
+        baseline = {process.pid for process in multiprocessing.active_children()}
+
+        def block_forever() -> None:
+            while True:
+                time.sleep(1)
+
+        started = time.monotonic()
+        for _ in range(20):
+            with self.assertRaisesRegex(Exception, "timeout after"):
+                provider._call(block_forever, "probe")
+        elapsed = time.monotonic() - started
+
+        self.assertLess(elapsed, 10.2)
+        self.assertEqual(
+            baseline,
+            {process.pid for process in multiprocessing.active_children()},
+        )
 
     def test_financial_request_rejects_unparseable_period_before_execution(self) -> None:
         with self.assertRaisesRegex(ValidationError, "unparsable_periods=.*TTM"):
@@ -98,6 +126,7 @@ class StructuredDataProviderTests(unittest.TestCase):
         provider = AKShareStructuredDataProvider(
             akshare_module=AKShareStub(),
             max_retries=0,
+            isolate_processes=False,
         )
 
         records = provider.financial_indicators(
@@ -143,12 +172,73 @@ class StructuredDataProviderTests(unittest.TestCase):
             def stock_info_a_code_name(self) -> Frame:
                 raise AssertionError("known symbol must not trigger resolution")
 
-        provider = AKShareStructuredDataProvider(akshare_module=AKShareStub())
+        provider = AKShareStructuredDataProvider(
+            akshare_module=AKShareStub(), isolate_processes=False
+        )
         records = provider.financial_indicators("300750", metrics=["营业收入"])
 
         self.assertEqual(len(records), 1)
         self.assertEqual(records[0].entity, "300750")
         self.assertEqual(records[0].period, "20241231")
+
+    def test_akshare_metric_units_are_metadata_driven_and_unknown_is_explicit(self) -> None:
+        class Frame:
+            def to_dict(self, _orient: str) -> list[dict[str, object]]:
+                return [
+                    {"指标": "营业收入", "20241231": 100.0},
+                    {"指标": "毛利率", "20241231": 50.0},
+                    {"指标": "每股收益", "20241231": 2.5},
+                    {"指标": "市盈率", "20241231": 12.0},
+                    {"指标": "存货周转率", "20241231": 3.0},
+                    {"指标": "未知指标", "20241231": 1.0},
+                ]
+
+        class AKShareStub:
+            def stock_financial_abstract(self, *, symbol: str) -> Frame:
+                return Frame()
+
+        provider = AKShareStructuredDataProvider(
+            akshare_module=AKShareStub(), isolate_processes=False
+        )
+        records = provider.financial_indicators(
+            "300750",
+            metrics=["营业收入", "毛利率", "每股收益", "市盈率", "存货周转率", "未知指标"],
+        )
+
+        self.assertEqual(
+            {record.metric_name: record.unit for record in records},
+            {
+                "营业收入": "元",
+                "毛利率": "%",
+                "每股收益": "元/股",
+                "市盈率": "倍",
+                "存货周转率": "次",
+                "未知指标": "unknown",
+            },
+        )
+
+    def test_akshare_symbol_resolution_requires_one_exact_identity(self) -> None:
+        class Frame:
+            def to_dict(self, _orient: str) -> list[dict[str, object]]:
+                return [
+                    {"code": "000001", "name": "平安银行"},
+                    {"code": "601318", "name": "中国平安"},
+                    {"code": "000002", "name": "平安"},
+                    {"code": "000003", "name": "平安"},
+                ]
+
+        class AKShareStub:
+            def stock_info_a_code_name(self) -> Frame:
+                return Frame()
+
+        provider = AKShareStructuredDataProvider(
+            akshare_module=AKShareStub(), max_retries=0, isolate_processes=False
+        )
+
+        self.assertEqual(provider.symbol_resolve("601318").name, "中国平安")
+        self.assertEqual(provider.symbol_resolve("平安银行").symbol, "000001")
+        self.assertIsNone(provider.symbol_resolve("平安"))
+        self.assertIsNone(provider.symbol_resolve("平安银"))
 
     def test_fixture_symbol_resolve_and_financial_indicator_normalization(self) -> None:
         provider = FixtureStructuredDataProvider()
@@ -181,6 +271,19 @@ class StructuredDataProviderTests(unittest.TestCase):
         provider = build_structured_data_provider({})
 
         self.assertIsInstance(provider, FixtureStructuredDataProvider)
+
+    def test_live_factory_explains_missing_optional_dependency(self) -> None:
+        with mock.patch(
+            "deepresearch_agent.tools.structured_data_factory.AKShareStructuredDataProvider",
+            side_effect=ModuleNotFoundError(name="akshare"),
+        ):
+            with self.assertRaisesRegex(
+                OptionalProviderDependencyError,
+                r'\.\[finance\].*STRUCTURED_DATA_PROVIDER=fixture',
+            ):
+                build_structured_data_provider(
+                    {"DEEPRESEARCH_STRUCTURED_DATA_PROVIDER": "akshare"}
+                )
 
     def test_sqlite_store_persists_structured_evidence_metadata(self) -> None:
         provider = FixtureStructuredDataProvider()

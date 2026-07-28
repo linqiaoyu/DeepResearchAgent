@@ -130,7 +130,7 @@ class SettingsDocumentationTests(unittest.TestCase):
         workflow = (PROJECT_ROOT / ".github" / "workflows" / "ci.yml").read_text(
             encoding="utf-8"
         )
-        self.assertIn("python scripts/sync_agents_settings.py --check", workflow)
+        self.assertIn("python scripts/gate.py", workflow)
 
     def test_direct_settings_default_documents_dynamic_capability_as_enabled(self) -> None:
         self.assertTrue(Settings(storage_path=Path("test.db")).dynamic_capability_enabled)

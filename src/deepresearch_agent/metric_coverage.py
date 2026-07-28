@@ -5,8 +5,8 @@ from typing import Literal
 
 from pydantic import Field
 
-from deepresearch_agent.domains.protocols import DomainPack
-from deepresearch_agent.domains.registry import load_domain_pack
+from deepresearch_agent.domains.protocols import MetricCoverageDomain
+from deepresearch_agent.domains.requirements import resolve_domain_capability
 from deepresearch_agent.schemas import (
     Evidence,
     ResearchState,
@@ -34,12 +34,12 @@ class MetricCoverageItem(StrictModel):
 
 def metric_requirements(
     state: ResearchState,
-    domain_pack: DomainPack | None = None,
+    domain_pack: MetricCoverageDomain | None = None,
 ) -> list[MetricRequirement]:
     """Build deterministic metric slots from the typed plan contract."""
     if not state.plan:
         return []
-    pack = domain_pack or load_domain_pack("finance")
+    pack = resolve_domain_capability(domain_pack, consumer="metric_requirements")
     merged: dict[tuple[str, str], set[str]] = defaultdict(set)
     for sub_question in state.plan.sub_questions:
         for request in sub_question.structured_data_requests:
@@ -82,14 +82,16 @@ def metric_requirements(
 
 def evaluate_metric_coverage(
     state: ResearchState,
-    domain_pack: DomainPack | None = None,
+    domain_pack: MetricCoverageDomain | None = None,
 ) -> list[MetricCoverageItem]:
     """Resolve every requested metric to cited evidence or an explicit gap."""
     evidence_by_subquestion: dict[str, list[Evidence]] = defaultdict(list)
     for evidence in state.evidence_store:
         evidence_by_subquestion[evidence.sub_question_id].append(evidence)
 
-    pack = domain_pack or load_domain_pack("finance")
+    pack = resolve_domain_capability(
+        domain_pack, consumer="evaluate_metric_coverage"
+    )
     coverage: list[MetricCoverageItem] = []
     for requirement in metric_requirements(state, pack):
         matches = [
@@ -160,15 +162,17 @@ def evaluate_metric_coverage(
     return coverage
 
 
-def canonical_metric(value: str | None, domain_pack: DomainPack | None = None) -> str:
-    return (domain_pack or load_domain_pack("finance")).canonical_metric(value)
+def canonical_metric(value: str | None, domain_pack: MetricCoverageDomain | None = None) -> str:
+    return resolve_domain_capability(
+        domain_pack, consumer="canonical_metric"
+    ).canonical_metric(value)
 
 
-def _period_key(value: str | None, domain_pack: DomainPack) -> str | None:
+def _period_key(value: str | None, domain_pack: MetricCoverageDomain) -> str | None:
     return domain_pack.parse_period(value)
 
 
-def _evidence_periods(evidence: Evidence, domain_pack: DomainPack) -> set[str]:
+def _evidence_periods(evidence: Evidence, domain_pack: MetricCoverageDomain) -> set[str]:
     # Prose can mention arbitrary comparison years; only typed values prove
     # that a requested period is covered.
     periods: set[str] = set()

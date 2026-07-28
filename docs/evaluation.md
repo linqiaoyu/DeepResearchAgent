@@ -23,7 +23,7 @@ results rather than define a live scoring contract.
 
 | 指标 | 算子 | 输入 | 值域 | 是否 gated |
 | --- | --- | --- | --- | --- |
-| `task_success_rate` | final-report/evidence/numeric-audit conjunction | `ResearchState`、机械数值审计 | `{0, 1}` | 是 |
+| `task_success_rate` | final-report/evidence/required-output/numeric-audit conjunction | `ResearchState`、计划指标覆盖、机械数值审计 | `{0, 1}` | 单任务状态；非 baseline diff gate |
 | `citation_accuracy` | deterministic support audit or semantic judge | report claims、footnotes、Evidence | `[0, 1]` 或 `null` | 是 |
 | `citation_resolution_rate` | resolved citations / citation markers | report footnotes、Evidence | `[0, 1]` | 是 |
 | `bbox_resolution_rate` | valid layout anchors / paged numeric Evidence | `Source.bbox_index`、numeric Evidence | `[0, 1]` 或 `null` | 否（display-only） |
@@ -35,9 +35,12 @@ results rather than define a live scoring contract.
 | `cost_cny` / `cost_usd` | LLM ledger aggregation / display conversion | LLM ledger | `>= 0` 或 `null` | 否 |
 | `latency_seconds` / `token_used` | run aggregation | run telemetry / LLM ledger | `>= 0` 或 `null` | 否 |
 
-- `task_success_rate`: narrow MVP gate requiring a final report, at least one
-  evidence record, and zero detected financial numeric-citation mismatch lines.
-  In every execution mode, any detected mismatch forces this metric to `0`.
+- `task_success_rate`: requires a final report, at least one evidence record,
+  zero detected financial numeric-citation mismatches, and a terminal outcome
+  for every typed financial metric request. A metric must be cited, explicitly
+  searched-unavailable, or have an observed comparison that covers its missing
+  period; a missing required metric forces this value to `0`. In every
+  execution mode, any detected mismatch also forces this metric to `0`.
   In LLM mode a value of `1` does not imply that unresolved citations,
   non-financial semantic support, Critic issues, or requested-metric completeness
   all passed.
@@ -503,10 +506,11 @@ The command writes `artifacts/evaluation/latest_metrics.json`.
 ## Metric Diff
 
 `data/eval_baseline.json` preserves the original deterministic MVP baseline for a 5-case
-local sweep. Compare a new run against it with:
+local sweep. The current CI baseline is `data/eval_baseline_v2.json`; compare a new run
+against that current contract with:
 
 ```bash
-PYTHONPATH=src .venv/bin/python scripts/run_eval.py --limit 5 --compare-baseline
+PYTHONPATH=src .venv/bin/python scripts/run_eval.py --limit 5 --compare-baseline --baseline-path data/eval_baseline_v2.json
 ```
 
 Use a custom baseline path when validating an experiment:
@@ -515,8 +519,11 @@ Use a custom baseline path when validating an experiment:
 PYTHONPATH=src .venv/bin/python scripts/run_eval.py --limit 5 --compare-baseline --baseline-path artifacts/evaluation/latest_metrics.json
 ```
 
-The comparison gates quality regressions for `avg_citation_accuracy`,
-`avg_citation_resolution_rate`, `avg_faithfulness`, `avg_critic_catch_rate`, and total bad-case count.
+The current comparison gates quality regressions for `avg_citation_accuracy`,
+`avg_citation_resolution_rate`, `avg_citation_density`, `avg_critic_catch_rate`, and
+total bad-case count. `avg_task_success_rate` is emitted for task-level diagnosis but
+is not in `QUALITY_METRICS`; `avg_faithfulness` is a historical name, not a current
+runtime metric (the optional runtime field is `avg_semantic_faithfulness`).
 `avg_cost_usd`, `avg_latency_seconds`, and `avg_token_used` are reported as
 operational diffs; latency changes are informational so local machine variance
 does not fail the smoke check. Deterministic fixture runs deliberately report
