@@ -33,6 +33,9 @@ class RunManifest(StrictModel):
     cost_cny_total: float | None = Field(default=None, ge=0)
     provider_identity: dict[str, str] = Field(default_factory=dict)
     realness: Literal["real", "mixed", "fixture", "replay", "unknown"] = "unknown"
+    provider_usage: dict[str, int] = Field(default_factory=dict)
+    actual_provider_fidelity: dict[str, str] = Field(default_factory=dict)
+    actual_realness: Literal["real", "mixed", "fixture", "replay", "unknown"] = "unknown"
     degradation_events: list[dict[str, Any]] = Field(default_factory=list)
     context_events: list[dict[str, Any]] = Field(default_factory=list)
     tool_error_summary: dict[str, int] = Field(default_factory=dict)
@@ -219,6 +222,9 @@ def build_run_manifest(
         cost_cny_total=_cost_cny_total(state),
         provider_identity=dict(metadata.get("provider_identity", {})),
         realness=_realness(metadata.get("provider_fidelity", {})),
+        provider_usage=_provider_usage(state),
+        actual_provider_fidelity=_actual_provider_fidelity(state),
+        actual_realness=_actual_realness(state),
         degradation_events=degradation_events,
         context_events=context_events,
         tool_error_summary={str(key): int(value) for key, value in tool_errors.items()},
@@ -260,6 +266,51 @@ def _realness(
     if len(unique) == 1:
         return unique.pop()
     return "mixed"
+
+
+def _provider_usage(state: ResearchState) -> dict[str, int]:
+    """Count provider calls evidenced by the completed run, not configuration."""
+    search = 0
+    disclosure = 0
+    for record in state.search_records:
+        query = record.query
+        if query.startswith("[disclosure]"):
+            disclosure += 1
+        elif not query.startswith("[branch_budget_exceeded]") and not query.startswith(
+            "[search_limit_exceeded]"
+        ) and not query.startswith("[external_search_budget_exceeded]"):
+            search += 1
+    structured = sum(
+        int(stats.get("executed_requests", 0))
+        for stats in state.metadata.get("structured_data_stats", {}).values()
+        if isinstance(stats, dict)
+    ) if isinstance(state.metadata.get("structured_data_stats"), dict) else 0
+    llm_usage = state.metadata.get("llm_usage")
+    llm = 1 if isinstance(llm_usage, dict) and llm_usage.get("by_role") else 0
+    return {
+        "search": search,
+        "structured_data": structured,
+        "disclosure": disclosure,
+        "llm": llm,
+    }
+
+
+def _actual_provider_fidelity(state: ResearchState) -> dict[str, str]:
+    configured = state.metadata.get("provider_fidelity", {})
+    usage = _provider_usage(state)
+    return {
+        provider: str(configured.get(provider, "unknown")) if count else "unused"
+        for provider, count in usage.items()
+    }
+
+
+def _actual_realness(
+    state: ResearchState,
+) -> Literal["real", "mixed", "fixture", "replay", "unknown"]:
+    actual = _actual_provider_fidelity(state)
+    if not actual or any(value == "unused" for value in actual.values()):
+        return "mixed" if any(value != "unused" for value in actual.values()) else "unknown"
+    return _realness(actual)
 
 
 def settings_flag_snapshot(

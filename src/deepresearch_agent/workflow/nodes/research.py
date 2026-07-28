@@ -147,6 +147,7 @@ class ResearchNodes:
                 "requests": len(
                     sub_question.structured_data_requests
                 ),
+                "executed_requests": 0,
                 "records": 0,
                 "symbol_resolution_failures": 0,
                 "execution_failures": 0,

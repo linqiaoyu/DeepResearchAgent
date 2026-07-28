@@ -19,7 +19,7 @@ from deepresearch_agent.provenance import (
 )
 from deepresearch_agent.provenance.manifest import _realness
 from deepresearch_agent.llm_config import DEFAULT_LLM_CONFIG, RoleModelConfig
-from deepresearch_agent.schemas import ResearchState
+from deepresearch_agent.schemas import ResearchState, SearchRecord
 from deepresearch_agent.settings import Settings
 from deepresearch_agent.tools.fixture_search import FixtureSearchTool
 from deepresearch_agent.workflow import DeepResearchEngine
@@ -158,6 +158,35 @@ class RunManifestTests(unittest.TestCase):
             started_at=datetime(2026, 7, 24, tzinfo=timezone.utc),
         )
         self.assertEqual(built.realness, "mixed")
+
+    def test_manifest_distinguishes_configured_from_actual_provider_use(self) -> None:
+        settings = Settings(storage_path=Path("test.db"), execution_mode="llm")
+        state = ResearchState(
+            topic="test",
+            search_records=[SearchRecord(query="query", source_ids=[])],
+            metadata={
+                "provider_fidelity": {
+                    "search": "real",
+                    "structured_data": "real",
+                    "disclosure": "real",
+                    "llm": "real",
+                },
+                "structured_data_stats": {"q": {"executed_requests": 1}},
+                "llm_usage": {"by_role": {"planner": {"calls": 1}}},
+            },
+        )
+        built = build_run_manifest(
+            state,
+            settings,
+            started_at=datetime(2026, 7, 24, tzinfo=timezone.utc),
+            llm_config=DEFAULT_LLM_CONFIG,
+        )
+
+        self.assertEqual(built.provider_usage, {
+            "search": 1, "structured_data": 1, "disclosure": 0, "llm": 1,
+        })
+        self.assertEqual(built.actual_provider_fidelity["disclosure"], "unused")
+        self.assertEqual(built.actual_realness, "mixed")
 
     def test_llm_manifest_uses_the_runtime_client_configuration(self) -> None:
         settings = Settings(

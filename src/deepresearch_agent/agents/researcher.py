@@ -333,6 +333,7 @@ class ResearcherAgent:
         evidence: list[Evidence] = []
         stats = {
             "requests": len(sub_question.structured_data_requests),
+            "executed_requests": 0,
             "records": 0,
             "symbol_resolution_failures": 0,
             "execution_failures": 0,
@@ -366,6 +367,7 @@ class ResearcherAgent:
         symbol_resolutions: list[dict[str, object]] = []
         for request in sub_question.structured_data_requests:
             try:
+                stats["executed_requests"] += 1
                 records: list[StructuredDataRecord] = []
                 if request.capability == "symbol_resolve":
                     symbol = self.structured_data_provider.symbol_resolve(request.company_name or "")

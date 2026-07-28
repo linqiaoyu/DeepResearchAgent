@@ -21,3 +21,9 @@ The adapter now gives each bounded attempt an independent worker and reports the
 timeout duration. A unit test proves a timed-out first call does not prevent the
 second attempt from succeeding. This is a new experiment boundary; the authorized
 three live attempts were already exhausted, so no fourth live call was made.
+
+Run manifests now record separate configured fidelity and actual provider usage.
+An unused configured provider is recorded as `unused`, and the corresponding
+`actual_realness` is `mixed`; this prevents a configured AKShare adapter from
+being mistaken for an executed AKShare call. The deterministic characterization
+snapshots changed only by these new operational manifest fields.
