@@ -677,7 +677,7 @@ class DeepResearchEngine:
                     if self.llm_client
                     else 0.0
                 )
-                self._capture_external_request_budget(state)
+                self._capture_external_request_budget(state, run_scope=self.run_scope)
                 self.graph.update_state(
                     config,
                     self._state_output(state),
@@ -716,7 +716,7 @@ class DeepResearchEngine:
                     "error_message": str(exc) or type(exc).__name__,
                 }
                 snapshot = self._capture_external_request_budget(
-                    state
+                    state, run_scope=self.run_scope
                 )
                 record_agent_decision(
                     state,
@@ -784,7 +784,7 @@ class DeepResearchEngine:
                     error=exc,
                 )
                 raise
-            self._capture_external_request_budget(state)
+            self._capture_external_request_budget(state, run_scope=self.run_scope)
             self.graph.update_state(
                 config,
                 self._state_output(state),
@@ -805,11 +805,12 @@ class DeepResearchEngine:
     def _capture_external_request_budget(
         self,
         state: ResearchState,
+        *,
+        run_scope: RunScope,
     ) -> dict[str, Any]:
         snapshot = (
-            self.run_tool_context.external_request_budget.snapshot()
-            if self.run_tool_context
-            and self.run_tool_context.external_request_budget
+            run_scope.tool_context.external_request_budget.snapshot()
+            if run_scope.tool_context.external_request_budget
             else {}
         )
         state.metadata["external_request_budget"] = snapshot
@@ -824,7 +825,7 @@ class DeepResearchEngine:
         manifest_started_at: datetime,
         termination: TrajectoryTermination,
     ) -> None:
-        self._capture_external_request_budget(state)
+        self._capture_external_request_budget(state, run_scope=self.run_scope)
         self._capture_llm_run_cost(state)
         manifest_path = None
         if self.settings.run_manifest_enabled:
@@ -922,7 +923,7 @@ class DeepResearchEngine:
             "error_type": type(error).__name__,
             "error_message": str(error) or type(error).__name__,
         }
-        self._capture_external_request_budget(state)
+        self._capture_external_request_budget(state, run_scope=self.run_scope)
         try:
             self.graph.update_state(
                 config,
@@ -1482,6 +1483,7 @@ class DeepResearchEngine:
             "research_loop_decide",
             "research_refine",
             "retry_one",
+            "reporter",
         }
 
         def runtime_node(graph_state: ResearchGraphState, runtime: Any):
@@ -2617,7 +2619,9 @@ class DeepResearchEngine:
         state.updated_at = utc_now()
         return self._state_output(state)
 
-    def _reporter_node(self, graph_state: ResearchGraphState) -> ResearchGraphState:
+    def _reporter_node(
+        self, graph_state: ResearchGraphState, *, run_scope: RunScope
+    ) -> ResearchGraphState:
         state = self._state_from_graph_values(graph_state)
         if (
             self.settings.decision_weaving_enabled
@@ -2625,7 +2629,7 @@ class DeepResearchEngine:
             or self.settings.dynamic_capability_enabled
         ):
             state.metadata["stable_reader_evidence_refs"] = True
-        self._sync_tool_degradation(state)
+        self._sync_tool_degradation(state, run_scope=run_scope)
         state.evidence_store = self._sorted_evidence(state.evidence_store)
         report_context = self.reporter_context_builder.build(
             state,
@@ -2973,17 +2977,17 @@ class DeepResearchEngine:
             key=lambda item: (item.sub_question_id, item.source_url, item.claim),
         )
 
-    def _sync_tool_degradation(self, state: ResearchState) -> None:
+    def _sync_tool_degradation(
+        self, state: ResearchState, *, run_scope: RunScope
+    ) -> None:
         # The run context is the source of truth for every registered tool.
         # Reading through web_search hid disclosure degradation behind an
         # unrelated adapter and failed when tool contracts were disabled.
         provider_events = (
             [
                 event.model_dump(mode="json")
-                for event in self.run_tool_context.degradation_events
+                for event in run_scope.tool_context.degradation_events
             ]
-            if self.run_tool_context is not None
-            else []
         )
         if not provider_events:
             return
