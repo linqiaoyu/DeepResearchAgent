@@ -32,6 +32,7 @@ def build_engine_capability_registry(
     search_tool: SearchProvider | None,
     structured_data_provider: StructuredDataProvider | None,
     disclosure_source: Any | None,
+    rag_search: Any | None,
 ) -> CapabilityRegistry:
     configured_search_tool = search_tool or build_search_provider(as_of=settings.as_of)
     if settings.tool_contract_enabled:
@@ -52,5 +53,5 @@ def build_engine_capability_registry(
         search_provider=configured_search_tool,
         structured_data_provider=configured_structured_provider,
         disclosure_source=configured_disclosure_source,
-        rag_search=EmptyRagSearchTool() if settings.rag_enabled else None,
+        rag_search=(rag_search or EmptyRagSearchTool()) if settings.rag_enabled else None,
     )

@@ -109,6 +109,7 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
         store: StorageProtocol | None = None,
         search_tool: SearchProvider | None = None,
         structured_data_provider: StructuredDataProvider | None = None,
+        rag_search: Any | None = None,
         episodic_memory: EpisodicMemory | None = None,
         procedural_memory: ProceduralMemory | None = None,
         disclosure_source: Any | None = None,
@@ -128,6 +129,7 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
             search_tool=search_tool,
             structured_data_provider=structured_data_provider,
             disclosure_source=disclosure_source,
+            rag_search=rag_search,
         )
         self.skill_loader = SkillPackLoader(
             project_root() / "skills"
