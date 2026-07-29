@@ -332,8 +332,7 @@
   },
   {
     "plan_ref": "B6-3",
-    "status": "DEFERRED",
-    "reason": "No saved characterization comparison proves that RAG_ENABLED=false preserves CapabilitySelection output after the 047 retrieval integration."
+    "status": "PASS"
   },
   {
     "plan_ref": "B6-4",
