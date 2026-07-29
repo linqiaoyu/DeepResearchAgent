@@ -14,6 +14,7 @@ from deepresearch_agent.schemas import (
     NumericFields,
     SearchRecord,
     Source,
+    RetrievalReference,
     StructuredDataRecord,
     StructuredDataRequest,
     SubQuestion,
@@ -382,8 +383,13 @@ class ResearcherAgent:
         source_url = candidate.get("source_url")
         text = candidate.get("text")
         version_id = candidate.get("document_version_id")
-        if not all(isinstance(value, str) and value for value in (chunk_id, source_url, text, version_id)):
+        index_version = candidate.get("index_version")
+        char_start = candidate.get("char_start")
+        char_end = candidate.get("char_end")
+        if not all(isinstance(value, str) and value for value in (chunk_id, source_url, text, version_id, index_version)):
             raise ValueError("rag candidate lacks authoritative source identity")
+        if not isinstance(char_start, int) or not isinstance(char_end, int) or char_start < 0 or char_end <= char_start:
+            raise ValueError("rag candidate lacks a valid authoritative character range")
         return Source(
             id=f"rag:{chunk_id}",
             title=f"retrieval chunk {version_id}",
@@ -391,6 +397,13 @@ class ResearcherAgent:
             source_type="rag_chunk",
             content=text,
             source_tier="unknown",
+            retrieval_ref=RetrievalReference(
+                chunk_id=chunk_id,
+                document_version_id=version_id,
+                index_version=index_version,
+                char_start=char_start,
+                char_end=char_end,
+            ),
         )
 
     def retry(self, query: str, source_type: str | None = None, top_k: int = 2, *, run_scope: RunScope | None = None) -> tuple[list[Source], SearchRecord]:

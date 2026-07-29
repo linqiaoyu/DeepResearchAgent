@@ -128,6 +128,7 @@ class ExtractorAgent:
                         content_truncated=source.content_truncated,
                         injection_risk_score=finding.risk_score if finding else 0.0,
                         injection_patterns=finding.patterns if finding else [],
+                        retrieval_ref=source.retrieval_ref,
                     )
                 )
         return evidence
@@ -221,6 +222,7 @@ class ExtractorAgent:
                     numeric_fields_incomplete=numeric_fields_incomplete,
                     injection_risk_score=finding.risk_score if finding else 0.0,
                     injection_patterns=finding.patterns if finding else [],
+                    retrieval_ref=source.retrieval_ref,
                 )
             )
         self.last_stats = {

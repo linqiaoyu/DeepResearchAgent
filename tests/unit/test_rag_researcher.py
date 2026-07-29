@@ -4,7 +4,8 @@ import unittest
 from datetime import date
 
 from deepresearch_agent.agents.researcher import ResearcherAgent
-from deepresearch_agent.schemas import SubQuestion
+from deepresearch_agent.agents.extractor import ExtractorAgent
+from deepresearch_agent.schemas import RetrievalReference, Source, SubQuestion
 
 
 class _RagSearch:
@@ -16,6 +17,9 @@ class _RagSearch:
                     "document_version_id": "version-1",
                     "source_url": "https://example.test/annual-report.pdf",
                     "text": "权威原文片段",
+                    "index_version": "finance-v1",
+                    "char_start": 10,
+                    "char_end": 20,
                 }
             ],
             "trace": {"query": query, "as_of": as_of},
@@ -36,6 +40,7 @@ class RagResearcherTests(unittest.TestCase):
         self.assertFalse(exhausted)
         self.assertEqual(sources[0].url, "https://example.test/annual-report.pdf#chunk=chunk-1")
         self.assertEqual(sources[0].content, "权威原文片段")
+        self.assertEqual(sources[0].retrieval_ref.chunk_id, "chunk-1")
         self.assertEqual(records[0].query, "[rag_search] 检索问题")
 
     def test_invalid_rag_candidate_is_rejected_instead_of_becoming_a_source(self) -> None:
@@ -51,6 +56,26 @@ class RagResearcherTests(unittest.TestCase):
                 enable_rag_search=True,
                 max_search_calls=0,
             )
+
+    def test_extractor_persists_retrieval_reference_from_source_metadata(self) -> None:
+        source = Source(
+            id="rag:chunk-1",
+            title="retrieval chunk",
+            url="https://example.test/report#chunk=chunk-1",
+            source_type="rag_chunk",
+            content="这是足够长的权威原文片段，用于验证检索引用可以进入既有证据存储并保持完整可追溯性。",
+            retrieval_ref=RetrievalReference(
+                chunk_id="chunk-1",
+                document_version_id="version-1",
+                index_version="finance-v1",
+                char_start=10,
+                char_end=30,
+            ),
+        )
+        evidence = ExtractorAgent().extract(
+            "run", SubQuestion(id="q", question="问题", search_queries=[]), [source]
+        )
+        self.assertEqual(evidence[0].retrieval_ref, source.retrieval_ref)
 
 
 if __name__ == "__main__":
