@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
@@ -254,6 +255,8 @@ class SQLiteStore:
     ) -> DocumentIngestResult:
         if not chunks:
             raise ValueError("document version must contain at least one located chunk")
+        if re.fullmatch(r"[0-9a-f]{64}", file_sha256) is None:
+            raise ValueError("document file SHA-256 must be a lowercase 64-character digest")
         if any(chunk.char_start < 0 or chunk.char_end <= chunk.char_start for chunk in chunks):
             raise ValueError("chunk character ranges must be non-empty and non-negative")
         if any(chunk.page_number is not None and chunk.page_number < 1 for chunk in chunks):

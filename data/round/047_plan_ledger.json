@@ -111,8 +111,7 @@
   },
   {
     "plan_ref": "B2-9",
-    "status": "DEFERRED",
-    "reason": "The three required M2 mutation outputs for file hash, page, and char-range corruption have not been saved."
+    "status": "PASS"
   },
   {
     "plan_ref": "B2-10",
