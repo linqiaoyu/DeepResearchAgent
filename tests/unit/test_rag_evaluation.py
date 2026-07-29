@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
 
 from deepresearch_agent.rag.evaluation import (
     ChunkSpan,
@@ -12,6 +13,15 @@ from deepresearch_agent.rag.evaluation import (
 
 
 class RagEvaluationTests(unittest.TestCase):
+    def test_evaluation_document_records_the_retrieval_metric_contract(self) -> None:
+        root = Path(__file__).resolve().parents[2]
+        document = (root / "docs" / "evaluation.md").read_text(encoding="utf-8")
+
+        self.assertIn("### Retrieval metric contract (047)", document)
+        self.assertIn("Recall@20", document)
+        self.assertIn("nDCG@10", document)
+        self.assertIn("fail below `+0.10`", document)
+
     def test_span_overlap_marks_both_boundary_chunks_relevant(self) -> None:
         labels = [SpanLabel("doc", 9, 11, 2)]
         chunks = [ChunkSpan("left", "doc", 0, 10), ChunkSpan("right", "doc", 10, 20)]

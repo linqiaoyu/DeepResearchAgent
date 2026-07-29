@@ -161,8 +161,7 @@
   },
   {
     "plan_ref": "B3-8",
-    "status": "DEFERRED",
-    "reason": "docs/evaluation.md has no retrieval metric contract or explicit contract-change record."
+    "status": "PASS"
   },
   {
     "plan_ref": "B3-9",

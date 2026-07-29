@@ -35,6 +35,26 @@ results rather than define a live scoring contract.
 | `cost_cny` / `cost_usd` | LLM ledger aggregation / display conversion | LLM ledger | `>= 0` 或 `null` | 否 |
 | `latency_seconds` / `token_used` | run aggregation | run telemetry / LLM ledger | `>= 0` 或 `null` | 否 |
 
+### Retrieval metric contract (047)
+
+This is a new contract for the future immutable `retrieval_v1` dataset. It
+does not reinterpret any Golden Set v1 result and does not report an outcome
+until real source documents and human span labels have been frozen.
+
+| Metric | Operator | Input | Range | Gated |
+| --- | --- | --- | --- | --- |
+| `Recall@20` | relevant chunks returned in the first 20 / all resolved relevant chunks | ranked `chunk_id`s and source-span labels resolved against one `index_version` | `[0, 1]` | Yes, test split: fail below `0.85` |
+| `nDCG@10` | DCG with gain `2^relevance - 1` and discount `log2(rank + 1)`, normalized by ideal DCG | ranked `chunk_id`s and relevance `{1, 2}` after source-span resolution | `[0, 1]` | Yes, test split: fail below `0.75` |
+| `nDCG@10` lift | `nDCG@10(hybrid+rerank) - nDCG@10(BM25-only)` | the same frozen test split, corpus version, `as_of`, and index version for both systems | `[-1, 1]` | Yes, test split: fail below `+0.10` |
+
+Labels are source spans, not `chunk_id`s: a chunk is relevant when its
+`(document_version_id, char_start, char_end)` overlaps a labelled span. Ties
+are resolved deterministically by `chunk_id`. Threshold selection may read
+only the frozen dev split (24 questions); the test split (36 questions) is
+run once as the pre-registered gate. The current repository has no
+`retrieval_v1` corpus or labels, so this section defines the contract only and
+intentionally contains no metric values.
+
 - `task_success_rate`: requires a final report, at least one evidence record,
   zero detected financial numeric-citation mismatches, and a terminal outcome
   for every typed financial metric request. A metric must be cited, explicitly
