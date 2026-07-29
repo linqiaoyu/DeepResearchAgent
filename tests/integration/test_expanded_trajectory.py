@@ -122,7 +122,7 @@ class ExpandedTrajectoryTest(unittest.TestCase):
         recorder.finalize(manifest_ref=None, artifacts={"report.md": "synthetic"})
         valid = recorder.trajectory
         validate_strict_replay_trajectory(valid)
-        self.assertEqual(valid.schema_version, 4)
+        self.assertEqual(valid.schema_version, 5)
         self.assertEqual(valid.termination.status, "completed")
         missing_termination = valid.model_copy(
             update={"termination": None}
@@ -140,6 +140,12 @@ class ExpandedTrajectoryTest(unittest.TestCase):
         changed_prompt.llm_calls[0].prompt[0]["content"] += "!"
         with self.assertRaisesRegex(ValueError, "normalized_key mismatch"):
             validate_strict_replay_trajectory(changed_prompt)
+        legacy_v4 = valid.model_copy(update={"schema_version": 4})
+        validate_strict_replay_trajectory(legacy_v4)
+        legacy_rag = legacy_v4.model_copy(deep=True)
+        legacy_rag.request["strategy_config"] = {"rag_enabled": True}
+        with self.assertRaisesRegex(ValueError, "v4 trajectory cannot replay with RAG enabled"):
+            validate_strict_replay_trajectory(legacy_rag)
         bad_order = valid.model_copy(deep=True)
         bad_order.llm_calls[0].sequence = 2
         with self.assertRaisesRegex(ValueError, "sequence mismatch"):
@@ -286,7 +292,7 @@ class ExpandedTrajectoryTest(unittest.TestCase):
             )
         )
 
-        self.assertEqual(recorder.trajectory.schema_version, 4)
+        self.assertEqual(recorder.trajectory.schema_version, 5)
         self.assertEqual(
             recorder.trajectory.signal_reads[0].signal_type,
             "repeated_critic_issue",

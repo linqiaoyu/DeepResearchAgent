@@ -529,6 +529,7 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
                             "skill_packs_enabled": (
                                 self.settings.skill_packs_enabled
                             ),
+                            "rag_enabled": self.settings.rag_enabled,
                         },
                     },
                 )

@@ -25,6 +25,7 @@ from deepresearch_agent.tools.reliable_execution import (
     ToolExecutionError,
     classify_tool_error,
 )
+from deepresearch_agent.trajectory import RetrievalCallTrace, active_trajectory_recorder
 
 
 RAG_EMBEDDING_TOOL_SPEC = ToolSpec(
@@ -169,6 +170,15 @@ class DashScopeEmbeddingProvider:
                     "tool_error_summary": [event.model_dump(mode="json") for event in self.tool_context.degradation_events],
                 },
             )
+            _record_retrieval_call(
+                call_kind="embedding",
+                model=DASHSCOPE_EMBEDDING_MODEL,
+                inputs=batch,
+                dimensions=self.dimensions,
+                token_count=tokens,
+                cost_cny=self.pricing.cost_cny(tokens),
+                latency_seconds=time.perf_counter() - started,
+            )
             vectors.extend(returned)
         return vectors
 
@@ -251,6 +261,15 @@ class DashScopeRerankerProvider:
                 "tool_error_summary": [event.model_dump(mode="json") for event in self.tool_context.degradation_events],
             },
         )
+        _record_retrieval_call(
+            call_kind="rerank",
+            model=DASHSCOPE_RERANK_MODEL,
+            inputs=[query, *(candidate.text for candidate in candidates)],
+            dimensions=None,
+            token_count=tokens,
+            cost_cny=self.pricing.cost_cny(tokens),
+            latency_seconds=latency,
+        )
         ranked.sort(key=lambda candidate: (-(candidate.rerank_score or 0.0), candidate.chunk_id))
         return RerankResult(ranked[:top_n], len(candidates), tokens, round(latency * 1000))
 
@@ -262,6 +281,35 @@ def _post_json(endpoint: str, headers: dict[str, str], payload: dict[str, object
     if not isinstance(value, dict):
         raise ValueError("provider response is not an object")
     return value
+
+
+def _record_retrieval_call(
+    *,
+    call_kind: str,
+    model: str,
+    inputs: list[str],
+    dimensions: int | None,
+    token_count: int,
+    cost_cny: float,
+    latency_seconds: float,
+) -> None:
+    recorder = active_trajectory_recorder()
+    if recorder is None:
+        return
+    recorder.record_retrieval_call(
+        RetrievalCallTrace(
+            call_kind=call_kind,  # type: ignore[arg-type]
+            model=model,
+            input_hash=hashlib.sha256(
+                json.dumps(inputs, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            ).hexdigest(),
+            dimensions=dimensions,
+            token_count=token_count,
+            cost_cny=cost_cny,
+            latency_seconds=latency_seconds,
+            cache_hit=False,
+        )
+    )
 
 
 class EmptyRagSearchTool:

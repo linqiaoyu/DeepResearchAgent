@@ -22,6 +22,7 @@ from deepresearch_agent.rag.retrieval import (
 import deepresearch_agent.rag.retrieval as retrieval_module
 from deepresearch_agent.tools.contracts import ToolErrorKind
 from deepresearch_agent.tools.reliable_execution import ReliableToolExecutor, RunToolContext, ToolExecutionError
+from deepresearch_agent.trajectory import TrajectoryRecorder, trajectory_recording
 from scripts.probe_embedding import DEFAULT_EMBEDDING_ENDPOINT
 from scripts.probe_rerank import DEFAULT_RERANK_ENDPOINT
 
@@ -189,6 +190,43 @@ class RagRetrievalTests(unittest.TestCase):
             reloaded = CachedEmbeddingProvider(delegate=delegate, path=path)
             self.assertEqual(reloaded.embed(["另一个", "同一文本"]), [[3.0], [4.0]])
             self.assertEqual(len(delegate.calls), 1)
+
+    def test_real_provider_calls_are_written_to_v5_trajectory(self) -> None:
+        class Response:
+            def __init__(self, payload: dict[str, object]) -> None:
+                self.payload = payload
+
+            def raise_for_status(self) -> None:
+                return None
+
+            def json(self) -> dict[str, object]:
+                return self.payload
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            client = LLMClient(ledger_path=root / "ledger.jsonl", global_ledger_path=root / "global.jsonl", budget_cny=1.0, completion_func=lambda **_: {})
+            provider = DashScopeEmbeddingProvider(endpoint="https://provider.test/embeddings", api_key="test-key", ledger=client, run_id="rag-run", pricing=ProviderPricing(100.0, "operator-confirmed"), dimensions=2, max_batch_size=1)
+            reranker = DashScopeRerankerProvider(endpoint="https://provider.test/reranks", api_key="test-key", ledger=client, run_id="rag-run", pricing=ProviderPricing(100.0, "operator-confirmed"))
+            recorder = TrajectoryRecorder(run_id="rag-run", request={})
+            responses = [
+                Response({"data": [{"embedding": [0.1, 0.2]}], "usage": {"prompt_tokens": 3}}),
+                Response({"results": [{"index": 0, "relevance_score": 0.9}], "usage": {"total_tokens": 4}}),
+            ]
+            with trajectory_recording(recorder), patch("deepresearch_agent.rag.retrieval.httpx.post", side_effect=responses):
+                self.assertEqual(provider.embed(["中文"]), [[0.1, 0.2]])
+                reranker.rerank("问题", [RetrievalCandidate("a", "答案")], 1)
+
+        call = recorder.trajectory.embedding_calls[0]
+        self.assertEqual(recorder.trajectory.schema_version, 5)
+        self.assertEqual(call.model, "text-embedding-v4")
+        self.assertEqual(call.dimensions, 2)
+        self.assertEqual(call.token_count, 3)
+        self.assertFalse(call.cache_hit)
+        self.assertEqual(len(call.input_hash), 64)
+        rerank = recorder.trajectory.rerank_calls[0]
+        self.assertEqual(rerank.model, "qwen3-rerank")
+        self.assertIsNone(rerank.dimensions)
+        self.assertEqual(rerank.token_count, 4)
 
     def test_rrf_is_deterministic_on_ties(self) -> None:
         candidates = rrf_fuse(

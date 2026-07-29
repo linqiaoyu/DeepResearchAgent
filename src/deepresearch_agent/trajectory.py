@@ -97,6 +97,21 @@ class MemoryWriteTrace(StrictModel):
     value_summary: dict[str, Any]
 
 
+class RetrievalCallTrace(StrictModel):
+    """Provider-boundary record for an embedding or rerank request."""
+
+    call_kind: Literal["embedding", "rerank"]
+    model: str
+    input_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    dimensions: int | None = Field(default=None, ge=1)
+    token_count: int = Field(ge=0)
+    cost_cny: float = Field(ge=0)
+    latency_seconds: float = Field(ge=0)
+    cache_hit: bool
+    sequence: int | None = Field(default=None, ge=1)
+    recorded_at: datetime | None = None
+
+
 class TrajectoryTermination(StrictModel):
     """Typed terminal outcome persisted for every v4 trajectory."""
 
@@ -123,7 +138,7 @@ class TrajectoryTermination(StrictModel):
 
 
 class AgentTrajectory(StrictModel):
-    schema_version: int = 4
+    schema_version: int = 5
     run_id: str
     recorded_at: datetime = Field(default_factory=utc_now)
     request: dict[str, Any]
@@ -133,6 +148,8 @@ class AgentTrajectory(StrictModel):
     agent_decisions: list[AgentDecision] = Field(default_factory=list)
     signal_reads: list[SignalReadTrace] = Field(default_factory=list)
     memory_writes: list[MemoryWriteTrace] = Field(default_factory=list)
+    embedding_calls: list[RetrievalCallTrace] = Field(default_factory=list)
+    rerank_calls: list[RetrievalCallTrace] = Field(default_factory=list)
     run_manifest_ref: str | None = None
     artifacts: dict[str, str] = Field(default_factory=dict)
     termination: TrajectoryTermination | None = None
@@ -166,7 +183,9 @@ class TrajectoryRecorder:
             for item in (
                 *self.trajectory.llm_calls,
                 *self.trajectory.tool_calls,
-                *self.trajectory.node_transitions,
+            *self.trajectory.node_transitions,
+            *self.trajectory.embedding_calls,
+            *self.trajectory.rerank_calls,
             )
             if item.sequence is not None
         ]
@@ -202,6 +221,17 @@ class TrajectoryRecorder:
 
     def record_memory_write(self, write: MemoryWriteTrace) -> None:
         self.trajectory.memory_writes.append(write)
+
+    def record_retrieval_call(self, call: RetrievalCallTrace) -> None:
+        payload = call.model_dump()
+        payload.update(self._next_trace_fields())
+        recorded = RetrievalCallTrace.model_validate(payload)
+        target = (
+            self.trajectory.embedding_calls
+            if recorded.call_kind == "embedding"
+            else self.trajectory.rerank_calls
+        )
+        target.append(recorded)
 
     def finalize(
         self,
@@ -321,9 +351,9 @@ def _rekey_redacted_llm_calls(payload: Any) -> None:
 
 def validate_strict_replay_trajectory(trajectory: AgentTrajectory) -> None:
     """Reject incomplete or internally inconsistent strict-replay input."""
-    if trajectory.schema_version not in {3, 4}:
+    if trajectory.schema_version not in {3, 4, 5}:
         raise ValueError(
-            "trajectory schema_version mismatch: expected 3 or 4, "
+            "trajectory schema_version mismatch: expected 3, 4 or 5, "
             f"actual {trajectory.schema_version}"
         )
     if trajectory.schema_version == 3:
@@ -335,7 +365,7 @@ def validate_strict_replay_trajectory(trajectory: AgentTrajectory) -> None:
     else:
         if trajectory.termination is None:
             raise ValueError(
-                "trajectory termination missing for schema_version 4"
+                "trajectory termination missing for schema_version 4 or 5"
             )
         termination_status = trajectory.termination.status
     required_request_fields = ["topic", "mode", "depth_level"]
@@ -356,6 +386,8 @@ def validate_strict_replay_trajectory(trajectory: AgentTrajectory) -> None:
         *trajectory.llm_calls,
         *trajectory.tool_calls,
         *trajectory.node_transitions,
+        *trajectory.embedding_calls,
+        *trajectory.rerank_calls,
     ]
     missing_fields: list[str] = []
     sequences: list[int] = []
@@ -381,6 +413,12 @@ def validate_strict_replay_trajectory(trajectory: AgentTrajectory) -> None:
                 "trajectory LLM normalized_key mismatch: expected exact prompt key "
                 f"for role {call.role}"
             )
+    if trajectory.schema_version == 4 and bool(
+        trajectory.request.get("strategy_config", {}).get("rag_enabled", False)
+        if isinstance(trajectory.request.get("strategy_config"), dict)
+        else False
+    ):
+        raise ValueError("v4 trajectory cannot replay with RAG enabled; record schema v5 retrieval calls")
 
 
 def load_trajectory(path: Path) -> AgentTrajectory:

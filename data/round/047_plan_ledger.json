@@ -343,8 +343,7 @@
   },
   {
     "plan_ref": "B6-6",
-    "status": "DEFERRED",
-    "reason": "No v5 trajectory artifact has recorded embedding_calls and rerank_calls and then demonstrated v4 replay compatibility with RAG disabled and rejection with RAG enabled."
+    "status": "PASS"
   },
   {
     "plan_ref": "B6-7",
