@@ -1,5 +1,7 @@
 # DeepResearchAgent
 
+## 让每一个研究结论，都经得起回看。
+
 面向投研分析师的可审计深度研究 Agent：把一个研究问题变成带逐条证据、可比较快照和审计包的报告。
 
 [![CI](https://github.com/linqiaoyu/DeepResearchAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/linqiaoyu/DeepResearchAgent/actions/workflows/ci.yml)
