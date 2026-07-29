@@ -71,3 +71,14 @@ An explicit real RAG E2E package was added after the quality experiment. Its
 first attempt completed the real planner call but the local execution carrier
 ended before any RAG request, report, or RAG ledger row was written. It is not
 reported as a three-provider E2E result.
+
+The first direct real retrieval probe exposed a product defect: the workflow
+did not pass its configured `index_version` to `rag_search`, so Qdrant correctly
+rejected the unversioned request. Commit `4e14754` binds the configured index
+version at service composition. The repaired one-query probe completed
+embedding and rerank with 50 lexical candidates, 50 dense candidates, 50 RRF
+candidates, and 8 delivered candidates; `dropped_unresolvable=0`. All eight
+delivered entries had a canonical URL, document version, and character range.
+Its actual provider cost was ¥0.0458275 (one embedding and one rerank call).
+This is retrieval-chain evidence only, not a replacement for the failed frozen
+quality test or the incomplete three-provider E2E experiment.
