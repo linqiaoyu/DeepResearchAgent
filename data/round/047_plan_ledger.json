@@ -115,8 +115,7 @@
   },
   {
     "plan_ref": "B2-10",
-    "status": "DEFERRED",
-    "reason": "No ingest-run git-status output has been saved to prove runtime artifacts stay in ignored paths."
+    "status": "PASS"
   },
   {
     "plan_ref": "B2-11",
