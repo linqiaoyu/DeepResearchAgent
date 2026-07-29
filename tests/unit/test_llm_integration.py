@@ -63,6 +63,31 @@ class MockCompletion:
 
 
 class LLMIntegrationTests(unittest.TestCase):
+    def test_external_call_uses_the_existing_budget_and_ledger(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            client = LLMClient(
+                ledger_path=Path(tmp) / "ledger.jsonl",
+                global_ledger_path=Path(tmp) / "global.jsonl",
+                budget_cny=1.0,
+                completion_func=MockCompletion(["unused"]),
+            )
+            client.reserve_external_call(run_id="rag-run", estimated_cost_cny=0.2)
+            client.settle_external_call(
+                run_id="rag-run",
+                role="rag_embedding",
+                call_kind="embedding",
+                model="provider-model",
+                input_tokens=100,
+                cost_cny=0.1,
+                price_source="operator-confirmed",
+                latency_seconds=0.01,
+                estimated_cost_cny=0.2,
+                metadata={"dimensions": 1024},
+            )
+            row = json.loads((Path(tmp) / "ledger.jsonl").read_text(encoding="utf-8"))
+        self.assertEqual(row["call_kind"], "embedding")
+        self.assertEqual(row["dimensions"], 1024)
+        self.assertEqual(client.run_total_cny("rag-run"), 0.1)
     def test_complete_with_tools_records_native_tool_call_in_ledger(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             env_path = Path(tmp) / ".env"

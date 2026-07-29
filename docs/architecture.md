@@ -254,8 +254,8 @@ skill-loading policy remains default-off.
 - Skill loading is metadata-first and default-off. The finance normalization skill is distinct from the explicit finance DomainPack and does not create a second domain runtime.
 - Episodic and semantic memory are in-process deterministic stores. They are not durable multi-process memory, vector retrieval, or an automatic forgetting system.
 - Procedural memory is also an in-process deterministic `cross_run` index; it records strategy effects but does not learn, rank, or adopt a strategy.
-- `rag_search` is not implemented.
-- Graph checkpoints are persisted by LangGraph's official `SqliteSaver`; evidence rows and evaluations are persisted with `SQLiteStore` for the local MVP. `docs/postgres_schema.sql` documents a production storage path, but there is no Postgres adapter yet.
+- `rag_search` is conditionally registered only when `RAG_ENABLED=true`. Its current default is an explicit empty-index implementation: it returns no fabricated candidates until a configured retrieval backend is available.
+- Graph checkpoints use LangGraph's official SQLite saver by default, with a Postgres saver selected when the Postgres storage backend is configured. Evidence rows and evaluations use the `StorageProtocol`: SQLite is the default local adapter and Postgres applies versioned migrations. The Postgres integration tests are intentionally skipped unless `DEEPRESEARCH_PG_DSN` is set.
 - The primary FastAPI and fallback stdlib research endpoints execute runs synchronously. Demo Golden reruns use a process-local worker and JSON polling store; this is not a durable distributed queue.
 - Checkpoint recovery is available through `research_id` and can be demonstrated with `scripts/run_checkpoint_demo.py`.
 - LiteLLM is used only through `deepresearch_agent.llm.LLMClient` in `llm` mode. No other module should call LiteLLM directly.

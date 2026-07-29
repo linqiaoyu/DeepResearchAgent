@@ -22,6 +22,7 @@ class RunManifest(StrictModel):
     ended_at: datetime
     model_strings: dict[str, str]
     prompt_hashes: dict[str, str]
+    retrieval_index_version: str | None = None
     retrieval_corpus_as_of: date | None = None
     evaluation_as_of: date | None = None
     config_hash: str
@@ -57,6 +58,7 @@ class ManifestComparison(StrictModel):
 COMPARABILITY_FIELDS = (
     "model_strings",
     "prompt_hashes",
+    "retrieval_index_version",
     "retrieval_corpus_as_of",
     "evaluation_as_of",
     "dependency_versions",
@@ -110,6 +112,9 @@ FLAG_CLASSIFICATIONS: dict[str, FlagClassification] = {
     "EXTRACTOR_ENABLED": "content_affecting",
     "PROCEDURAL_MEMORY_ENABLED": "content_affecting",
     "SKILL_PACKS_ENABLED": "content_affecting",
+    "RAG_ENABLED": "content_affecting",
+    "RERANK_ENABLED": "content_affecting",
+    "RERANK_FAIL_OPEN": "content_affecting",
     # The judge changes existing evaluation fields, even though it is barred
     # from changing report content or mechanical numeric correctness.
     "SEMANTIC_JUDGE_ENABLED": "content_affecting",
@@ -211,6 +216,7 @@ def build_run_manifest(
             root / "prompts",
             include_semantic_judge=settings.semantic_judge_enabled,
         ),
+        retrieval_index_version=_optional_string(metadata.get("retrieval_index_version")),
         retrieval_corpus_as_of=_optional_date(metadata.get("retrieval_corpus_as_of"))
         or settings.as_of,
         evaluation_as_of=_optional_date(metadata.get("evaluation_as_of")) or settings.as_of,
@@ -388,6 +394,11 @@ def write_run_manifest(manifest: RunManifest, runs_root: Path) -> Path:
     payload = manifest.model_dump(mode="json")
     if not manifest.decision_summary:
         payload.pop("decision_summary", None)
+    # Preserve the historical manifest shape until a retrieval index actually
+    # participates in a run. The model field remains available for comparison
+    # once it has a concrete version, without changing fixture-only artifacts.
+    if manifest.retrieval_index_version is None:
+        payload.pop("retrieval_index_version", None)
     encoded = json.dumps(payload, ensure_ascii=False, indent=2)
     output.write_text(redact(encoded) + "\n", encoding="utf-8")
     return output
@@ -476,6 +487,10 @@ def _optional_date(value: Any) -> date | None:
     if isinstance(value, str) and value:
         return date.fromisoformat(value)
     return None
+
+
+def _optional_string(value: Any) -> str | None:
+    return value.strip() if isinstance(value, str) and value.strip() else None
 
 
 def _json_value(value: Any) -> Any:

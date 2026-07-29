@@ -61,7 +61,8 @@ from deepresearch_agent.workflow.state import ResearchGraphState
 from deepresearch_agent.skills import (
     SkillPackLoader,
 )
-from deepresearch_agent.storage import SQLiteStore
+from deepresearch_agent.storage import StorageProtocol, build_store
+from deepresearch_agent.rag.retrieval import EmptyRagSearchTool
 from deepresearch_agent.tools import (
     CapabilityRegistry,
     DeterministicCapabilitySelector,
@@ -114,7 +115,7 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
     def __init__(
         self,
         settings: Settings | None = None,
-        store: SQLiteStore | None = None,
+        store: StorageProtocol | None = None,
         search_tool: SearchProvider | None = None,
         structured_data_provider: StructuredDataProvider | None = None,
         episodic_memory: EpisodicMemory | None = None,
@@ -128,7 +129,7 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
         if self.settings.config_fail_fast_enabled:
             validate_required_configuration(self.settings)
         self.logger = JsonLogger(enabled=self.settings.structured_logging_enabled)
-        self.store = store or SQLiteStore(self.settings.storage_path)
+        self.store = store or build_store(self.settings)
         configured_search_tool = search_tool or build_search_provider(
             as_of=self.settings.as_of
         )
@@ -161,6 +162,7 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
                 search_provider=configured_search_tool,
                 structured_data_provider=configured_structured_provider,
                 disclosure_source=configured_disclosure_source,
+                rag_search=EmptyRagSearchTool() if self.settings.rag_enabled else None,
             )
         )
         self.skill_loader = SkillPackLoader(
@@ -292,15 +294,37 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
                 budget_consumed=0
             ),
         )
-        self._checkpoint_conn = sqlite3.connect(
-            self.settings.storage_path,
-            check_same_thread=False,
-            timeout=30,
-        )
-        self._checkpoint_conn.execute("PRAGMA journal_mode=WAL")
-        self._checkpoint_conn.execute("PRAGMA busy_timeout=30000")
-        self.checkpointer = SqliteSaver(self._checkpoint_conn)
+        self._checkpoint_conn: Any
+        if self.settings.storage_backend == "postgres":
+            self._checkpoint_conn, self.checkpointer = self._postgres_checkpointer()
+        else:
+            self._checkpoint_conn = sqlite3.connect(
+                self.settings.storage_path,
+                check_same_thread=False,
+                timeout=30,
+            )
+            self._checkpoint_conn.execute("PRAGMA journal_mode=WAL")
+            self._checkpoint_conn.execute("PRAGMA busy_timeout=30000")
+            self.checkpointer = SqliteSaver(self._checkpoint_conn)
         self.graph = self._build_graph()
+
+    def _postgres_checkpointer(self) -> tuple[Any, Any]:
+        """Create the optional LangGraph checkpointer only for the PG profile."""
+
+        if not self.settings.postgres_dsn:
+            raise ValueError("DEEPRESEARCH_POSTGRES_DSN is required for Postgres checkpointing")
+        from langgraph.checkpoint.postgres import PostgresSaver
+        from psycopg import connect
+        from psycopg.rows import dict_row
+
+        connection = connect(
+            self.settings.postgres_dsn,
+            autocommit=True,
+            row_factory=dict_row,
+        )
+        checkpointer = PostgresSaver(connection)
+        checkpointer.setup()
+        return connection, checkpointer
 
     def close(self) -> None:
         """Release process resources owned by this engine deterministically."""

@@ -1,0 +1,453 @@
+[
+  {
+    "plan_ref": "B0-1",
+    "status": "DEFERRED",
+    "reason": "Missing the plan-required 20 original documents and saved PDF extraction probe output."
+  },
+  {
+    "plan_ref": "B0-2",
+    "status": "DEFERRED",
+    "reason": "DashScope embedding endpoint, approved price, and real-corpus probe run are not recorded."
+  },
+  {
+    "plan_ref": "B0-2b",
+    "status": "DEFERRED",
+    "reason": "DashScope rerank endpoint, approved price, and real-corpus probe run are not recorded."
+  },
+  {
+    "plan_ref": "B0-3",
+    "status": "DEFERRED",
+    "reason": "The required real-provider budget/cost probe has not been run under approved pricing."
+  },
+  {
+    "plan_ref": "B0-4",
+    "status": "DEFERRED",
+    "reason": "No real-Qdrant capacity probe has indexed the required corpus and recorded its result."
+  },
+  {
+    "plan_ref": "B0-5",
+    "status": "DEFERRED",
+    "reason": "The required 047 preflight record is incomplete: corpus, endpoints, pricing, and mutation evidence are absent."
+  },
+  {
+    "plan_ref": "B0-6",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B1-1",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B1-2",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B1-3",
+    "status": "DEFERRED",
+    "reason": "Neither PostgreSQL DSN alias is configured, so the real backend contract remains skipped."
+  },
+  {
+    "plan_ref": "B1-4",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B1-5",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B1-6",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B1-7",
+    "status": "DEFERRED",
+    "reason": "No live PostgreSQL deletion/rollback mutation output has been preserved."
+  },
+  {
+    "plan_ref": "B1-8",
+    "status": "DEFERRED",
+    "reason": "PostgreSQL checkpoint persistence has no configured DSN or integration-run evidence."
+  },
+  {
+    "plan_ref": "B1-9",
+    "status": "DEFERRED",
+    "reason": "The required live mutation evidence for storage consistency has not been produced."
+  },
+  {
+    "plan_ref": "B1-10",
+    "status": "DEFERRED",
+    "reason": "Final full-gate output after all staged changes has not yet been recorded in the round report."
+  },
+  {
+    "plan_ref": "B2-1",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B2-2",
+    "status": "DEFERRED",
+    "reason": "The required immutable public original corpus and corpus manifest do not exist locally."
+  },
+  {
+    "plan_ref": "B2-3",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B2-4",
+    "status": "DEFERRED",
+    "reason": "No extraction run over the required 60 real reports has produced chunk-count evidence."
+  },
+  {
+    "plan_ref": "B2-5",
+    "status": "DEFERRED",
+    "reason": "No second real-corpus ingest run exists to prove added=0 and removed=0."
+  },
+  {
+    "plan_ref": "B2-6",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B2-7",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B2-8",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B2-9",
+    "status": "DEFERRED",
+    "reason": "No original report has been changed and re-ingested to preserve supersession mutation output."
+  },
+  {
+    "plan_ref": "B2-10",
+    "status": "DEFERRED",
+    "reason": "No real-corpus chunk boundary audit has been saved for the required sample."
+  },
+  {
+    "plan_ref": "B2-11",
+    "status": "DEFERRED",
+    "reason": "No corpus ingestion log demonstrates the required malformed-document skip behavior."
+  },
+  {
+    "plan_ref": "B3-1",
+    "status": "DEFERRED",
+    "reason": "The frozen 60-question retrieval dataset with provenance has not been created."
+  },
+  {
+    "plan_ref": "B3-2",
+    "status": "DEFERRED",
+    "reason": "No human-produced span labels exist; AI candidates cannot be represented as human labels."
+  },
+  {
+    "plan_ref": "B3-3",
+    "status": "DEFERRED",
+    "reason": "The required dev/test split cannot be frozen before real questions and labels exist."
+  },
+  {
+    "plan_ref": "B3-4",
+    "status": "DEFERRED",
+    "reason": "No independent double-label adjudication record exists for the required quality sample."
+  },
+  {
+    "plan_ref": "B3-5",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B3-6",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B3-7",
+    "status": "DEFERRED",
+    "reason": "No baseline BM25 run over the frozen human-labelled set has produced metrics."
+  },
+  {
+    "plan_ref": "B3-8",
+    "status": "DEFERRED",
+    "reason": "No hybrid retrieval evaluation has run against a frozen real-labelled test split."
+  },
+  {
+    "plan_ref": "B3-9",
+    "status": "DEFERRED",
+    "reason": "No rerank ablation evaluation has measured retrieval gain on the frozen test split."
+  },
+  {
+    "plan_ref": "B3-10",
+    "status": "DEFERRED",
+    "reason": "The paid-call decision rule cannot be applied without the frozen labels and measured metrics."
+  },
+  {
+    "plan_ref": "B4-1",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B4-2",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B4-2b",
+    "status": "DEFERRED",
+    "reason": "No real embedding call has produced the plan-required response, latency, and ledger evidence."
+  },
+  {
+    "plan_ref": "B4-2c",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B4-2d",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B4-2e",
+    "status": "DEFERRED",
+    "reason": "No real rerank call has produced the plan-required response, latency, and ledger evidence."
+  },
+  {
+    "plan_ref": "B4-3",
+    "status": "DEFERRED",
+    "reason": "The adapter is implemented, but no approved real endpoint has verified the provider request contract."
+  },
+  {
+    "plan_ref": "B4-4",
+    "status": "DEFERRED",
+    "reason": "No real embedding batch has verified provider limits, retry behavior, and recorded cost."
+  },
+  {
+    "plan_ref": "B4-5",
+    "status": "DEFERRED",
+    "reason": "No real rerank batch has verified provider limits, retry behavior, and recorded cost."
+  },
+  {
+    "plan_ref": "B4-6",
+    "status": "DEFERRED",
+    "reason": "No live provider failure has demonstrated the configured degradation path end to end."
+  },
+  {
+    "plan_ref": "B4-7",
+    "status": "DEFERRED",
+    "reason": "No real-Qdrant index build has exercised sparse, dense, and payload indexing together."
+  },
+  {
+    "plan_ref": "B4-8",
+    "status": "DEFERRED",
+    "reason": "No indexed real corpus exists to validate point-to-chunk reconciliation."
+  },
+  {
+    "plan_ref": "B4-9",
+    "status": "DEFERRED",
+    "reason": "No real index rebuild has preserved before/after point counts and version evidence."
+  },
+  {
+    "plan_ref": "B4-9b",
+    "status": "DEFERRED",
+    "reason": "The empty collection was created, but its first real index build has not verified index-version rejection."
+  },
+  {
+    "plan_ref": "B4-10",
+    "status": "DEFERRED",
+    "reason": "No real-Qdrant search integration has returned and checked filtered retrieval results."
+  },
+  {
+    "plan_ref": "B4-11",
+    "status": "DEFERRED",
+    "reason": "No capacity experiment over the required indexed corpus has measured latency, recall, or resource use."
+  },
+  {
+    "plan_ref": "B5-1",
+    "status": "DEFERRED",
+    "reason": "The full retrieval backend is not yet wired into the production workflow tool path."
+  },
+  {
+    "plan_ref": "B5-2",
+    "status": "DEFERRED",
+    "reason": "No frozen human-labelled data exists to validate citation-to-source retrieval fidelity."
+  },
+  {
+    "plan_ref": "B5-3",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B5-4",
+    "status": "DEFERRED",
+    "reason": "No real backend run has exercised the configured retrieval timeout and fallback contract."
+  },
+  {
+    "plan_ref": "B5-4a",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B5-4b",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B5-4c",
+    "status": "DEFERRED",
+    "reason": "No full workflow run has verified evidence persistence with live retrieval references."
+  },
+  {
+    "plan_ref": "B5-4d",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B5-4e",
+    "status": "DEFERRED",
+    "reason": "No real retrieval result has demonstrated the required source/payload access-control boundary."
+  },
+  {
+    "plan_ref": "B5-5",
+    "status": "DEFERRED",
+    "reason": "No documented live-collection migration or rollback exercise exists for this schema change."
+  },
+  {
+    "plan_ref": "B5-6",
+    "status": "DEFERRED",
+    "reason": "No real-corpus query has verified effective-date filtering across indexed versions."
+  },
+  {
+    "plan_ref": "B5-7",
+    "status": "DEFERRED",
+    "reason": "No indexed corpus exists to prove retrieval returns the intended document-version identity."
+  },
+  {
+    "plan_ref": "B5-8",
+    "status": "DEFERRED",
+    "reason": "No end-to-end RAG-on/off workflow comparison has demonstrated report invariance."
+  },
+  {
+    "plan_ref": "B5-9",
+    "status": "DEFERRED",
+    "reason": "No full workflow integration test has bound real retrieval results to evidence and citations."
+  },
+  {
+    "plan_ref": "B5-10",
+    "status": "DEFERRED",
+    "reason": "No real retrieval-assisted trajectory has been recorded for strict replay validation."
+  },
+  {
+    "plan_ref": "B5-11",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B5-12",
+    "status": "DEFERRED",
+    "reason": "No strict replay has verified a retrieval trajectory with persisted index-version metadata."
+  },
+  {
+    "plan_ref": "B5-13",
+    "status": "DEFERRED",
+    "reason": "No failure-injection run has exercised RAG fallback while preserving the workflow contract."
+  },
+  {
+    "plan_ref": "B5-14",
+    "status": "DEFERRED",
+    "reason": "No complete three-provider run exists to establish the requested end-to-end operating envelope."
+  },
+  {
+    "plan_ref": "B5-16",
+    "status": "DEFERRED",
+    "reason": "No real trajectory has been replayed twice to prove deterministic retrieval-backed output."
+  },
+  {
+    "plan_ref": "B6-1",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B6-1b",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B6-2",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B6-3",
+    "status": "DEFERRED",
+    "reason": "The full retrieval-backed workflow has no baseline-versus-enabled report comparison."
+  },
+  {
+    "plan_ref": "B6-4",
+    "status": "DEFERRED",
+    "reason": "No 047 final run artifact records costs, timing, results, and required mutations together."
+  },
+  {
+    "plan_ref": "B6-5",
+    "status": "DEFERRED",
+    "reason": "No deployed retrieval service exists to test the plan-required operational alert path."
+  },
+  {
+    "plan_ref": "B6-6",
+    "status": "DEFERRED",
+    "reason": "No operational load run has validated the scaling trigger thresholds."
+  },
+  {
+    "plan_ref": "B6-7",
+    "status": "DEFERRED",
+    "reason": "No disaster-recovery exercise has restored the live relational and vector indexes."
+  },
+  {
+    "plan_ref": "B6-7b",
+    "status": "DEFERRED",
+    "reason": "No support runbook drill has verified the required incident response path."
+  },
+  {
+    "plan_ref": "B6-8",
+    "status": "DEFERRED",
+    "reason": "No retrieval integration load test has established the required latency and failure budget."
+  },
+  {
+    "plan_ref": "B6-9",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B6-10",
+    "status": "DEFERRED",
+    "reason": "No real retrieval-backed report has been inspected for citation correctness and completeness."
+  },
+  {
+    "plan_ref": "B6-11",
+    "status": "DEFERRED",
+    "reason": "No operational rollout record demonstrates the required RAG enablement and rollback decision."
+  },
+  {
+    "plan_ref": "B6-12",
+    "status": "DEFERRED",
+    "reason": "No real cost ledger from a retrieval-backed run exists for the planned budget assessment."
+  },
+  {
+    "plan_ref": "B6-13",
+    "status": "DEFERRED",
+    "reason": "The final B6 acceptance package lacks the required real-run and replay artifacts."
+  },
+  {
+    "plan_ref": "B7-1",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B7-2",
+    "status": "DEFERRED",
+    "reason": "No deployed environment has provided the observability evidence required by this criterion."
+  },
+  {
+    "plan_ref": "B7-3",
+    "status": "DEFERRED",
+    "reason": "No production-like evaluation run has validated the documented SLO measurements."
+  },
+  {
+    "plan_ref": "B7-4",
+    "status": "DEFERRED",
+    "reason": "No release evidence verifies the public deployment content against an enabled retrieval backend."
+  },
+  {
+    "plan_ref": "B7-5",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B7-6",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B7-7",
+    "status": "DEFERRED",
+    "reason": "No final deployment or rollback drill has been executed for the retrieval release path."
+  }
+]

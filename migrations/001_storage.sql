@@ -1,6 +1,3 @@
--- Generated from migrations/*.sql; do not edit by hand.
-
--- 001_storage.sql
 CREATE TABLE IF NOT EXISTS research_session (
     id TEXT PRIMARY KEY,
     topic TEXT NOT NULL,
@@ -87,7 +84,3 @@ CREATE TABLE IF NOT EXISTS retrieval_trace (
     trace_json JSONB NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
--- 002_evidence_retrieval_ref.sql
-ALTER TABLE evidence ADD COLUMN IF NOT EXISTS retrieval_ref_json JSONB;
-

@@ -151,6 +151,20 @@ class NumericFields(StrictModel):
         return self
 
 
+class RetrievalReference(StrictModel):
+    chunk_id: str
+    document_version_id: str
+    index_version: str
+    char_start: int = Field(ge=0)
+    char_end: int = Field(gt=0)
+
+    @model_validator(mode="after")
+    def validate_span(self) -> RetrievalReference:
+        if self.char_end <= self.char_start:
+            raise ValueError("retrieval reference char_end must exceed char_start")
+        return self
+
+
 class Evidence(StrictModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
     research_id: str
@@ -174,6 +188,7 @@ class Evidence(StrictModel):
     structured_record: StructuredDataRecord | None = None
     numeric_fields: NumericFields | None = None
     numeric_fields_incomplete: bool = False
+    retrieval_ref: RetrievalReference | None = None
     injection_risk_score: float = Field(default=0.0, ge=0, le=1)
     injection_patterns: list[str] = Field(default_factory=list)
     extracted_at: datetime = Field(default_factory=utc_now)

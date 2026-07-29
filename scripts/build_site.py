@@ -265,7 +265,7 @@ def _methodology_page(showcase: dict[str, Any], validation: dict[str, Any]) -> s
 
 
 def _reproduce_page() -> str:
-    return _layout("复现", """<section class="page-title"><h1>复现与可部署资产</h1><p>静态站不依赖后端；仓库保留 API/UI 演示资产。</p></section><section><h2>三步</h2><ol><li>复制仓库并配置服务器侧 .env。</li><li>运行 <code>docker compose up -d --build</code>。</li><li>访问 <code>/demo</code> 或 Streamlit UI。</li></ol></section>""")
+    return _layout("复现", """<section class="page-title"><h1>复现与可部署资产</h1><p>静态站不依赖后端；仓库保留 API/UI 演示资产。</p></section><section><h2>三步</h2><ol><li>复制仓库并配置服务器侧 .env。</li><li>运行 <code>docker compose up -d --build</code>。</li><li>访问 <code>/demo</code> 或 Streamlit UI。</li></ol></section><section><h2>RAG MVP 边界</h2><ul><li>摄取仅接受本地、manifest 列出的公开 PDF、HTML 或 TXT，并保留文件 hash、版本与字符范围。</li><li>默认没有已配置的向量索引，因此 <code>rag_search</code> 返回明确的空结果，不伪造来源或指标。</li><li>rerank 默认开启的单项检索收益尚未经测量；未来展示的整条流水线提升也不可归因到 rerank。</li><li>公开站点只包含冻结发布资产，不包含 API key、私有 endpoint、运行机路径或全文语料。</li></ul></section>""")
 
 
 def _business_scenario_from_fixture() -> dict[str, Any]:

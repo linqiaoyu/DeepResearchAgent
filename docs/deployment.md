@@ -1,7 +1,7 @@
 # Deployment
 
 Current public shape: static demo site. PM cancelled the always-on public
-server; `site/dist/` is built locally and manually uploaded to Cloudflare Pages.
+server; `site/dist/` is built locally and manually uploaded as Cloudflare Workers static assets.
 This document is now a self-deployment guide for the retained API/UI assets.
 
 ## Demo Layers

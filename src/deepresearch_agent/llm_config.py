@@ -3,6 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 
+# Retrieval model identifiers are kept here with the chat-role models so
+# provider implementations never embed a model name in workflow code.
+DASHSCOPE_EMBEDDING_MODEL = "text-embedding-v4"
+DASHSCOPE_RERANK_MODEL = "qwen3-rerank"
+
+
 @dataclass(frozen=True)
 class RoleModelConfig:
     model: str

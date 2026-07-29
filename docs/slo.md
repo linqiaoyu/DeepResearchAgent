@@ -45,3 +45,12 @@ reported as estimated phase measurements.
 - Warn when daily LLM spend reaches 80% of the configured guard; stop paid demo runs at 100%.
 - Block a release comparison when manifest comparability fails or prompt drift guard fails.
 - Investigate citation support below 0.85 or a comparable-run regression greater than 0.01.
+
+## Retrieval scaling triggers
+
+The following are evaluation triggers, not evidence that a managed vector
+service is currently required.  Assess a Qdrant tier upgrade only when at
+least one condition holds: active chunks exceed 100,000; seven consecutive
+days of the local fixture Stage-A retrieval measurement have p95 above 500 ms;
+or seven consecutive days each ingest more than 10,000 chunks.  Do not add
+sharding or Milvus before 1,000,000 active chunks.

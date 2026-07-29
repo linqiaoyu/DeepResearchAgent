@@ -90,12 +90,12 @@ def run_gate() -> None:
             [sys.executable, "scripts/check_domain_boundary.py"],
         ),
         (
-            "044_plan_ledger",
+            "047_plan_ledger",
             [
                 sys.executable,
                 "scripts/check_plan_ledger.py",
-                "data/round/044_plan.json",
-                "data/round/044_plan_ledger.json",
+                "data/round/047_plan.json",
+                "data/round/047_plan_ledger.json",
             ],
         ),
         (
