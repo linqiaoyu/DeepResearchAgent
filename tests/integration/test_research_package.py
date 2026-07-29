@@ -9,6 +9,8 @@ from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 from unittest.mock import patch
 
+from deepresearch_agent.config_validation import ConfigurationError
+
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "run_research_package.py"
@@ -98,6 +100,48 @@ class ResearchPackageTests(unittest.TestCase):
             self.assertIn("--allow-paid-api", result.stdout)
             self.assertIn("single-digit CNY", result.stdout)
             self.assertFalse(output.exists())
+
+    def test_rag_arguments_must_be_supplied_as_a_pair(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "must-not-exist"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    "--topic",
+                    "fixture request",
+                    "--as-of",
+                    "2026-07-09",
+                    "--output",
+                    str(output),
+                    "--rag-database",
+                    str(Path(tmp) / "corpus.db"),
+                ],
+                cwd=ROOT,
+                env=self._offline_env(),
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("must be supplied together", result.stderr)
+            self.assertFalse(output.exists())
+
+    def test_live_rag_composition_requires_all_provider_configuration(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, {}, clear=True):
+            database = Path(tmp) / "corpus.db"
+            database.touch()
+            with self.assertRaisesRegex(ConfigurationError, "DASHSCOPE_API_KEY"):
+                run_research_package._build_live_rag_search(
+                    database=database,
+                    index_version="idx-v1",
+                    ledger_path=Path(tmp) / "ledger.jsonl",
+                    global_ledger_path=Path(tmp) / "global.jsonl",
+                    budget_cny=1.0,
+                    retrieval_top_k=50,
+                    rerank_top_n=8,
+                )
 
     def _offline_env(self) -> dict[str, str]:
         env = {
