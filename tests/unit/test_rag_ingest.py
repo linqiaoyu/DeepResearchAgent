@@ -72,7 +72,11 @@ class RagIngestTests(unittest.TestCase):
 
             status = store.rag_status()
         self.assertEqual(first.superseded_chunks, 0)
+        self.assertGreater(first.added_chunks, 0)
+        self.assertEqual(first.removed_chunks, 0)
         self.assertEqual(repeated.superseded_chunks, 0)
+        self.assertEqual(repeated.added_chunks, 0)
+        self.assertEqual(repeated.removed_chunks, 0)
         self.assertGreater(changed.superseded_chunks, 0)
         self.assertEqual(status["active_chunks"], changed.chunks)
         self.assertEqual(status["superseded_chunks"], changed.superseded_chunks)

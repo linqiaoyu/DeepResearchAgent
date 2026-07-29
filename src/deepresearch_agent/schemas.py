@@ -88,6 +88,12 @@ class RetrievalReference(StrictModel):
     char_start: int = Field(ge=0)
     char_end: int = Field(gt=0)
 
+    @model_validator(mode="after")
+    def validate_span(self) -> RetrievalReference:
+        if self.char_end <= self.char_start:
+            raise ValueError("retrieval reference char_end must exceed char_start")
+        return self
+
 
 class Source(StrictModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
@@ -158,14 +164,6 @@ class NumericFields(StrictModel):
                 self.unit = dimension
             self.dimension = "未标注"
         return self
-
-
-    @model_validator(mode="after")
-    def validate_span(self) -> RetrievalReference:
-        if self.char_end <= self.char_start:
-            raise ValueError("retrieval reference char_end must exceed char_start")
-        return self
-
 
 class Evidence(StrictModel):
     id: str = Field(default_factory=lambda: str(uuid4()))

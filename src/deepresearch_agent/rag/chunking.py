@@ -8,9 +8,9 @@ from uuid import NAMESPACE_URL, uuid5
 # The version is deliberately decomposable: strategy, target, overlap,
 # tokenizer identifier, and tokenizer version.  This is recorded with every
 # chunk so a changed approximation cannot silently reuse an old index.
-CHUNKER_VERSION = "heading_page_first:512:128:chars:4"
-TARGET_CHARS = 512 * 4
-OVERLAP_CHARS = 128 * 4
+CHUNKER_VERSION = "heading_page_first:1024:256:chars:4"
+TARGET_CHARS = 1024 * 4
+OVERLAP_CHARS = 256 * 4
 
 
 @dataclass(frozen=True)

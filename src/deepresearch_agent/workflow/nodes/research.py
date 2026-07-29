@@ -153,7 +153,7 @@ class ResearchNodes:
         state = self._state_from_graph_values(graph_state)
         sub_question = SubQuestion.model_validate(graph_state["fanout_sub_question"])
         selected_capabilities = set(FIXED_CAPABILITY_SET)
-        if self.settings.rag_enabled:
+        if getattr(self.settings, "rag_enabled", False):
             selected_capabilities.add("rag_search")
         if self.settings.dynamic_capability_enabled:
             raw_selections = state.metadata.get(

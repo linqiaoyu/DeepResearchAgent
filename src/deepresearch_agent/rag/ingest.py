@@ -29,6 +29,8 @@ class IngestReport:
     chunks: int
     dropped_unresolvable: int
     superseded_chunks: int
+    added_chunks: int
+    removed_chunks: int
 
 
 def load_corpus(path: Path) -> dict[str, CorpusEntry]:
@@ -80,6 +82,7 @@ def ingest_and_persist(
     """Ingest only manifest-listed local files and atomically persist versions."""
 
     manifest = load_corpus(corpus_path)
+    before_chunk_ids = {chunk.id for chunk in store.list_ready_chunks(as_of="9999-12-31")}
     total_chunks = 0
     superseded_chunks = 0
     for relative_path, entry in sorted(manifest.items()):
@@ -113,7 +116,14 @@ def ingest_and_persist(
         )
         total_chunks += result.active_chunks
         superseded_chunks += result.superseded_chunks
-    return IngestReport(total_chunks, 0, superseded_chunks)
+    after_chunk_ids = {chunk.id for chunk in store.list_ready_chunks(as_of="9999-12-31")}
+    return IngestReport(
+        chunks=total_chunks,
+        dropped_unresolvable=0,
+        superseded_chunks=superseded_chunks,
+        added_chunks=len(after_chunk_ids - before_chunk_ids),
+        removed_chunks=len(before_chunk_ids - after_chunk_ids),
+    )
 
 
 def _extract(path: Path, *, max_pdf_pages: int | None = None) -> list[LocatedText]:

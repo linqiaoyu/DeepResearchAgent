@@ -1,0 +1,30 @@
+{
+  "version": "retrieval_v1",
+  "freeze_date": "2026-07-29",
+  "corpus_fingerprint": "43f1108577d5c3a56f9daeb1d9c942b985a73759fce7d11e374831c67c0badb5",
+  "corpus_document_count": 60,
+  "question_count": 60,
+  "split_counts": {
+    "dev": 24,
+    "test": 36
+  },
+  "question_type_counts": {
+    "numeric": 20,
+    "table": 15,
+    "cross_period": 15,
+    "narrative": 0,
+    "refusal": 10
+  },
+  "chinese_question_count": 60,
+  "annotation_method": "codex_single_annotator_two_pass",
+  "annotator_kind": "codex",
+  "drafted_by": "codex",
+  "verified_by": "codex_self_review",
+  "human_verified": false,
+  "inter_annotator_agreement": null,
+  "known_limitations": [
+    "Codex is a single annotator; the second pass is self-review rather than independent human adjudication.",
+    "The corpus uses SEC EDGAR official HTML filings, which have no intrinsic PDF page numbers; page_number is null and global extracted-text coordinates are authoritative.",
+    "Source excerpts retain HTML entity text because coordinates intentionally follow the current ingestion extractor."
+  ]
+}

@@ -90,7 +90,7 @@ class SettingsDocumentationTests(unittest.TestCase):
             env_path.write_text(
                 (PROJECT_ROOT / ".env.example")
                 .read_text(encoding="utf-8")
-                .replace('"event": ["disclosure_source", "web_fetch", "web_search"],', ""),
+                .replace('"event": ["disclosure_source", "web_fetch", "web_search", "rag_search"],', ""),
                 encoding="utf-8",
             )
 
