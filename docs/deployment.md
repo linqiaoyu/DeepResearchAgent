@@ -225,4 +225,4 @@ to the limit to disable paid layers while leaving the showcase online.
 
 ## Postgres Path
 
-The MVP uses SQLite so it can run in a bare local environment. The production schema is in `docs/postgres_schema.sql`; swap `SQLiteStore` for a Postgres adapter when `psycopg` or SQLAlchemy is available.
+The MVP uses SQLite so it can run in a bare local environment. `PostgresStore` is an optional adapter selected by `DEEPRESEARCH_POSTGRES_DSN`; it applies the versioned migrations in `migrations/` and its integration contract remains opt-in. `docs/postgres_schema.sql` is generated from those migrations rather than a second schema source.
