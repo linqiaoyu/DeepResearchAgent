@@ -38,6 +38,7 @@ class QdrantIndex:
         self.collection = collection
         self.timeout_seconds = timeout_seconds
         self.headers = {"api-key": api_key} if api_key else {}
+        self._prepared_dimensions: int | None = None
 
     def collection_status(self) -> str:
         """Return collection existence without creating or mutating it."""
@@ -57,6 +58,8 @@ class QdrantIndex:
         return str(uuid5(NAMESPACE_URL, f"{chunk_id}:{model}:{chunker_version}"))
 
     def ensure_collection(self, *, dimensions: int, index_version: str) -> None:
+        if self._prepared_dimensions == dimensions:
+            return
         response = httpx.get(self._collection_url, headers=self.headers, timeout=self.timeout_seconds)
         if response.status_code == 404:
             created = httpx.put(
@@ -66,23 +69,32 @@ class QdrantIndex:
                 json={"vectors": {"size": dimensions, "distance": "Cosine", "on_disk": True}},
             )
             created.raise_for_status()
-            return
-        response.raise_for_status()
-        config = response.json().get("result", {}).get("config", {}).get("params", {}).get("vectors", {})
-        if int(config.get("size", -1)) != dimensions:
-            raise ValueError("Qdrant collection dimensions do not match index configuration")
-        sample = httpx.post(
-            f"{self._collection_url}/points/scroll",
-            headers=self.headers,
-            timeout=self.timeout_seconds,
-            json={"limit": 1, "with_payload": ["index_version"], "with_vector": False},
-        )
-        sample.raise_for_status()
-        points = sample.json().get("result", {}).get("points", [])
-        if points:
-            existing = points[0].get("payload", {}).get("index_version")
-            if existing != index_version:
-                raise ValueError("Qdrant collection index_version does not match index configuration")
+        else:
+            response.raise_for_status()
+            config = response.json().get("result", {}).get("config", {}).get("params", {}).get("vectors", {})
+            if int(config.get("size", -1)) != dimensions:
+                raise ValueError("Qdrant collection dimensions do not match index configuration")
+            sample = httpx.post(
+                f"{self._collection_url}/points/scroll",
+                headers=self.headers,
+                timeout=self.timeout_seconds,
+                json={"limit": 1, "with_payload": ["index_version"], "with_vector": False},
+            )
+            sample.raise_for_status()
+            points = sample.json().get("result", {}).get("points", [])
+            if points:
+                existing = points[0].get("payload", {}).get("index_version")
+                if existing != index_version:
+                    raise ValueError("Qdrant collection index_version does not match index configuration")
+        for field_name, field_schema in (("effective_date", "datetime"), ("index_version", "keyword")):
+            indexed = httpx.put(
+                f"{self._collection_url}/index",
+                headers=self.headers,
+                timeout=self.timeout_seconds,
+                json={"field_name": field_name, "field_schema": field_schema},
+            )
+            indexed.raise_for_status()
+        self._prepared_dimensions = dimensions
 
     def upsert(
         self, *, chunks: list[IndexedChunk], model: str, chunker_version: str, index_version: str
@@ -125,9 +137,11 @@ class QdrantIndex:
 
         if not vector or limit < 1:
             return []
+        if index_version is None:
+            raise ValueError("Qdrant queries require an index_version")
+        self.ensure_collection(dimensions=len(vector), index_version=index_version)
         must = [{"key": "effective_date", "range": {"lte": as_of}}]
-        if index_version:
-            must.append({"key": "index_version", "match": {"value": index_version}})
+        must.append({"key": "index_version", "match": {"value": index_version}})
         response = httpx.post(
             f"{self._collection_url}/points/query",
             headers=self.headers,

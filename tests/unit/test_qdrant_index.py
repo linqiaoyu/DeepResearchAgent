@@ -49,14 +49,16 @@ class QdrantIndexTests(unittest.TestCase):
             return_value=Response(status_code=404),
         ), patch(
             "deepresearch_agent.rag.qdrant_index.httpx.put",
-            side_effect=[Response(status_code=200), Response(status_code=200)],
+            side_effect=[Response(status_code=200), Response(status_code=200), Response(status_code=200), Response(status_code=200)],
         ) as put:
             self.assertEqual(
                 index.upsert(chunks=[chunk], model="model", chunker_version="v1", index_version="idx-v1"),
                 1,
             )
 
-        payload = put.call_args_list[1].kwargs["json"]["points"][0]["payload"]
+        self.assertEqual(put.call_args_list[1].kwargs["json"], {"field_name": "effective_date", "field_schema": "datetime"})
+        self.assertEqual(put.call_args_list[2].kwargs["json"], {"field_name": "index_version", "field_schema": "keyword"})
+        payload = put.call_args_list[3].kwargs["json"]["points"][0]["payload"]
         self.assertEqual(set(payload), {"chunk_id", "document_version_id", "effective_date", "char_start", "char_end", "index_version"})
         self.assertNotIn("text", payload)
         self.assertNotIn("content", payload)
@@ -102,16 +104,26 @@ class QdrantIndexTests(unittest.TestCase):
     def test_query_sends_only_filterable_payload_and_returns_chunk_ids(self) -> None:
         index = QdrantIndex(url="https://qdrant.test", api_key="test", collection="collection")
         with patch(
-            "deepresearch_agent.rag.qdrant_index.httpx.post",
+            "deepresearch_agent.rag.qdrant_index.httpx.get",
             return_value=Response(
                 status_code=200,
-                payload={"result": {"points": [{"score": 0.8, "payload": {"chunk_id": "chunk-a"}}]}},
+                payload={"result": {"config": {"params": {"vectors": {"size": 2}}}}},
             ),
+        ), patch(
+            "deepresearch_agent.rag.qdrant_index.httpx.put",
+            return_value=Response(status_code=200),
+        ) as put, patch(
+            "deepresearch_agent.rag.qdrant_index.httpx.post",
+            side_effect=[
+                Response(status_code=200, payload={"result": {"points": []}}),
+                Response(status_code=200, payload={"result": {"points": [{"score": 0.8, "payload": {"chunk_id": "chunk-a"}}]}}),
+            ],
         ) as post:
             hits = index.query(vector=[0.1, 0.2], as_of="2026-01-01", index_version="idx-v1", limit=3)
 
         self.assertEqual([(hit.chunk_id, hit.score) for hit in hits], [("chunk-a", 0.8)])
-        payload = post.call_args.kwargs["json"]
+        self.assertEqual(put.call_count, 2)
+        payload = post.call_args_list[1].kwargs["json"]
         self.assertEqual(payload["with_payload"], ["chunk_id"])
         self.assertNotIn("text", str(payload))
         self.assertEqual(payload["filter"]["must"][0]["key"], "effective_date")
