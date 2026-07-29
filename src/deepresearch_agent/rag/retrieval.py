@@ -288,4 +288,8 @@ def _embedding(text: str) -> list[float]:
 
 
 def _estimated_tokens(text: str) -> int:
-    return max(1, math.ceil(len(text) / 4))
+    # The provider tokenizes CJK text much more densely than English prose.
+    # Counting every CJK codepoint prevents a budget reservation for a Chinese
+    # query from being less than half the provider-reported usage.
+    cjk = sum("\u3400" <= character <= "\u9fff" for character in text)
+    return max(1, cjk + math.ceil((len(text) - cjk) / 4))

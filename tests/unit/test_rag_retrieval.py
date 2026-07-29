@@ -13,6 +13,7 @@ from deepresearch_agent.rag.retrieval import (
     FixtureRerankerProvider,
     ProviderPricing,
     RetrievalCandidate,
+    _estimated_tokens,
     rrf_fuse,
     rerank_or_degrade,
 )
@@ -28,6 +29,11 @@ class FailingReranker:
 
 
 class RagRetrievalTests(unittest.TestCase):
+    def test_token_estimate_reserves_for_cjk_density(self) -> None:
+        self.assertEqual(_estimated_tokens("abcd"), 1)
+        self.assertEqual(_estimated_tokens("中文问题"), 4)
+        self.assertEqual(_estimated_tokens("中文abcd"), 3)
+
     def test_probe_defaults_use_public_dashscope_compatible_endpoints(self) -> None:
         self.assertEqual(DEFAULT_EMBEDDING_ENDPOINT, DASHSCOPE_EMBEDDING_ENDPOINT)
         self.assertEqual(DEFAULT_RERANK_ENDPOINT, DASHSCOPE_RERANK_ENDPOINT)
