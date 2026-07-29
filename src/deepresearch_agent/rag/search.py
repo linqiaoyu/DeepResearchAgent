@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Protocol
 
+from deepresearch_agent.domains.protocols import RetrievalDomain
 from deepresearch_agent.rag.retrieval import (
     RerankerProvider,
     rerank_or_degrade,
@@ -63,6 +64,7 @@ class RagSearchService:
         rerank_top_n: int,
         rerank_enabled: bool,
         rerank_fail_open: bool,
+        retrieval_domain: RetrievalDomain | None = None,
     ) -> None:
         if retrieval_top_k < 1 or rerank_top_n < 1:
             raise ValueError("retrieval_top_k and rerank_top_n must be positive")
@@ -73,6 +75,7 @@ class RagSearchService:
         self.rerank_top_n = rerank_top_n
         self.rerank_enabled = rerank_enabled
         self.rerank_fail_open = rerank_fail_open
+        self.retrieval_domain = retrieval_domain
 
     def search(
         self, *, query: str, as_of: str, filters: RetrievalFilter | None = None
@@ -82,10 +85,15 @@ class RagSearchService:
         effective_filters = filters or RetrievalFilter()
         if effective_filters.as_of is not None and effective_filters.as_of.isoformat() != as_of:
             raise ValueError("as_of must match RetrievalFilter.as_of when both are supplied")
+        domain_values = (
+            self.retrieval_domain.retrieval_filter_values(query)
+            if self.retrieval_domain is not None
+            else None
+        )
         effective_filters = RetrievalFilter(
-            doc_types=effective_filters.doc_types,
-            entity_ids=effective_filters.entity_ids,
-            period_labels=effective_filters.period_labels,
+            doc_types=effective_filters.doc_types or (domain_values.doc_types if domain_values else ()),
+            entity_ids=effective_filters.entity_ids or (domain_values.entity_ids if domain_values else ()),
+            period_labels=effective_filters.period_labels or (domain_values.period_labels if domain_values else ()),
             as_of=date.fromisoformat(as_of),
             index_version=effective_filters.index_version,
         )

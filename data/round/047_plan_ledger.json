@@ -254,8 +254,7 @@
   },
   {
     "plan_ref": "B5-1",
-    "status": "DEFERRED",
-    "reason": "The full retrieval backend is not yet wired into the production workflow tool path."
+    "status": "PASS"
   },
   {
     "plan_ref": "B5-2",

@@ -18,6 +18,10 @@ preconditions that prevented end-to-end acceptance in this round.
 - `rag_search` is conditionally registered and fails safely with an empty-index
   result until real lexical and vector backends are configured. It does not
   create Evidence directly.
+- `RetrievalFilter` remains domain-neutral. A `RetrievalDomain` returns only
+  neutral document-type, entity-id, and period-label values; the finance pack
+  owns its query interpretation, while `rag/search.py` only merges and passes
+  those values to backends.
 - Embedding and reranking have independent provider HTTP adapters but reserve
   and settle through the existing LLM ledger and run budget. Model endpoints,
   batch limits, and price sources must be explicitly configured.

@@ -4,7 +4,10 @@ from collections.abc import Mapping
 from decimal import Decimal
 from pathlib import Path
 
+import re
 from typing import TYPE_CHECKING
+
+from deepresearch_agent.domains.protocols import RetrievalFilterValues
 
 if TYPE_CHECKING:
     from deepresearch_agent.reporting import GroundedFactRenderer
@@ -231,3 +234,16 @@ class FinanceDomainPack:
         from deepresearch_agent.domains.finance.planning import FinancePlanning
 
         return FinancePlanning().valid_structured_request(request)
+
+    def retrieval_filter_values(self, query: str) -> RetrievalFilterValues:
+        """Keep finance-specific wording outside the generic RAG module."""
+
+        doc_types: list[str] = []
+        for token in sorted(self.document_type_tokens(), key=len, reverse=True):
+            if token in query and not any(token in selected for selected in doc_types):
+                doc_types.append(token)
+        period_labels = tuple(sorted(set(re.findall(r"20\d{2}(?:年|Q[1-4])", query))))
+        return RetrievalFilterValues(
+            doc_types=tuple(doc_types),
+            period_labels=period_labels,
+        )
