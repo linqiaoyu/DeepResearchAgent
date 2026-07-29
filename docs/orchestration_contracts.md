@@ -37,10 +37,10 @@ LangGraph 负责节点执行、条件边、`Send` 扇出和 checkpoint；它并�
 这一层不替换 LangGraph，不实现调度器，不定义工作流 DSL，也不做图的序列化或
 可视化。它不判断研究结论是否正确；它只强制已声明的数据和决策交接约束。
 
-## 后续消费者
+## 扩展消费者
 
-016 增加节点或 LLM 驱动决策时，必须同时声明其 `NodeContract`，决策节点必须启用
-`DecisionGate`。017 的 skill 节点同样在注册进图时提供消费、生产和不变式声明。
+后续增加节点或 LLM 驱动决策时，必须同时声明其 `NodeContract`，决策节点必须启用
+`DecisionGate`。现有 skill 选择与加载节点同样提供消费、生产和不变式声明。
 未来若节点可能裁剪或重排 Evidence，应声明 Evidence 身份/覆盖不变式，而不能只用
 节点内部单测证明安全。
 
@@ -75,8 +75,9 @@ LangGraph 负责节点执行、条件边、`Send` 扇出和 checkpoint；它并�
 初始分配与再分配分别记录 `branch_budget_allocate` 和
 `branch_budget_reallocate` 决策，输入包含每支度量、逐支额度、总量、已用量、单支
 上限和理由。分支额度耗尽只停止该分支并标注覆盖不足；总额度耗尽让全部分支收敛，
-已完成结果仍进入 join。该行为由默认关闭、归类为 `content_affecting` 的
-`BRANCH_BUDGET_ENABLED` 控制；关闭时不创建账本、决策或产物差异。研究循环启用时
+已完成结果仍进入 join。该行为由默认开启、归类为 `content_affecting` 的
+`BRANCH_BUDGET_ENABLED` 控制；关闭时不创建账本或预算决策，并进入受快照约束的
+对照路径。研究循环启用时
 会在轮次之间复用 join 后的再分配结果。
 
 ## 研究充分性循环与重规划
@@ -119,10 +120,10 @@ Critic 通过后进入 `research_loop_decide`：充分则进入 Reporter，不�
 标记必须和 `ToolSpec` 一致；重复注册与未知名称查询均 fail closed。查询结果按名称
 排序，因此相同 registry 上的相同查询结果稳定。
 
-当前 `web_search`、`web_fetch` 和结构化数据 provider 均已注册，Researcher 的搜索、
-旧来源复核与结构化数据依赖通过 registry 的固定名称解析，不再直接把构造出的
-provider 传给节点。本轮没有能力选择策略，也没有修改任何工具实现或引入插件加载。
-
-016 可在此契约上根据子问题类型实现动态能力选择；017 的 skill packs 可把 skill
-提供的能力注册到同一 registry。届时选择策略是 registry 的消费者，不应把策略塞入
-注册与查询这两个基础操作。
+当前 `web_search`、`web_fetch`、`structured_data_provider` 与
+`disclosure_source` 均已注册。Researcher 的搜索、旧来源复核、结构化数据和权威披露
+依赖都通过 registry 解析。默认开启的 `DeterministicCapabilitySelector` 按子问题类型
+选择；关闭或无法匹配时使用显式固定集合。LLM 模式还可通过默认关闭的
+`LLM_TOOL_SELECTION_ENABLED` 使用 provider-native tool calling，但候选仍只能来自
+registry，未知名称和预算越界均 fail closed。MCP 与 skill 能力也注册到同一目录，
+没有平行执行面。

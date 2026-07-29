@@ -30,7 +30,7 @@ Critic 检查引用与数字冲突，Reporter 同时保留散文与结构化对�
 1. 提出“AI Agent 在财富管理行业的落地机会研究”，默认路径生成 29 条
    Evidence 和带脚注报告；characterization 产物见
    `tests/golden_output/wealth_research.json`。
-2. 开启默认关闭的结构化出口后，wealth fixture 生成 5 行 MetricRow；
+2. 默认开启的结构化出口为 wealth fixture 生成 5 行 MetricRow；
    finance fixture 生成 16 行，并明确标记“归母净利润”单季/累计口径冲突。
 3. 审计包演示先做引用闭合，再导出 9 个文件；17 条报告 claim 引用的
    8 条 Evidence 均能在包内找到。目录见

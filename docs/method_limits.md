@@ -107,9 +107,11 @@ deterministic 引用准确率当作代理结论。
 召回、引用支持或时效；决策链提升分析师判断效率；开启后的 token、延迟和费用在真实
 provider 下可接受。
 
-因此 `DECISION_WEAVING_ENABLED`、`NUMERIC_CHECK_ENABLED` 与
-`DYNAMIC_CAPABILITY_ENABLED` 均保持 false。任何“通盘权衡提高质量”“数字幻觉减少”或
-“动态工具优于固定工具”的结论，都必须等 019 按预登记规则完成真实模式成对测量后再说。
+因此 `DECISION_WEAVING_ENABLED` 与 `NUMERIC_CHECK_ENABLED` 保持 false；
+`DYNAMIC_CAPABILITY_ENABLED` 自 027 起默认 true。Round 033 的真实双案例消融证明动态
+选择改变路由，但启用与关闭均为 6/6 正确指标、0 个幻觉数字，未建立质量增益。任何
+“通盘权衡提高质量”“数字幻觉减少”或“动态工具优于固定工具”的结论，仍需新的预登记
+真实模式成对测量。
 
 ## 017 反思与程序性记忆能证明与不能证明的内容
 
@@ -124,6 +126,7 @@ provider 下可接受。
 程序性记忆同样只证明观察记录可存取，不能证明跨真实运行积累的策略偏好更优。两项判断
 都依赖 019 的真实 LLM、预登记对照、人工评判和费用/延迟测量。
 
-因此 `REFLECTION_ENABLED=false` 且为 `content_affecting`。在 019 完成前，禁止使用
-“Agent 已具备有效反思能力”“Agent 已从历史中学会更优策略”或同义表述；准确表述只能是
-“反思与程序性记忆的机制骨架已实现，判断力待 019 验证”。
+因此 `REFLECTION_ENABLED=false` 且为 `content_affecting`。Round 033 的混合 provider
+实验仍只有占位 reasoner，且程序性策略采用数为 0。禁止使用“Agent 已具备有效反思能力”
+“Agent 已从历史中学会更优策略”或同义表述；准确表述只能是“反思与程序性记忆的机制
+骨架已实现，判断力尚未验证”。

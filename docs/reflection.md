@@ -10,8 +10,9 @@ characterization 保持逐字一致。
 `ReflectionResult` 强制分成两条轨道：
 
 - `deterministic_signals`：对已发生轨迹做机械、可复算的跨轮聚合；
-- `llm_insight`：类型化的策略推理接口。本轮只接合成/录制占位，判断质量明确标记为
-  `unverifiable_in_deterministic_mode`，真实模型接入与质量判断待 019。
+- `llm_insight`：类型化的策略推理接口。当前仍只接合成/录制占位，判断质量明确标记为
+  `unverifiable_in_deterministic_mode`。Round 033 的 Reflector arm 因此被归类为
+  mixed-provider，真实判断力仍未建立。
 
 因此不能把“管道能够提取信号”表述为“Agent 已具备有效反思能力”。
 
@@ -71,9 +72,9 @@ issue，或在无进展后换取证角度；循环仍复用原有 `BoundedLoop` 
 `ProceduralMemory`。写入形成 `procedural_memory_write` `AgentDecision`，轨迹使用 016
 预留的 `memory_writes` 槽位。读取历史不会自动选择未来策略。
 
-## 019 接入与评判标准
+## 后续接入与评判标准
 
-019 只有在完成支出预登记后，才可用真实 `LLMClient` 适配
+后续只有在完成支出预登记后，才可用真实 `LLMClient` 适配
 `ReflectionReasoningInterface`。建议超集配置在 016 配置基础上额外开启：
 
 ```text

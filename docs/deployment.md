@@ -24,16 +24,22 @@ LangSmith tracing is enabled only when `LANGSMITH_API_KEY` exists.
 
 ## Local
 
-Use Python 3.11 or 3.12 and create a repo-local virtual environment:
+Use Python 3.12 (the CI version; the package contract is `>=3.12`) and create a
+repo-local virtual environment:
 
 ```bash
 python3.12 -m venv .venv
-.venv/bin/python -m pip install -e ".[dev]"
-PYTHONPATH=src .venv/bin/python -m unittest discover -s tests
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pip install -e ".[dev]"
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/doctor.py
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/gate.py
 PYTHONPATH=src .venv/bin/python scripts/run_demo.py
-PYTHONPATH=src .venv/bin/python scripts/run_eval.py --limit 5 --compare-baseline
+PYTHONPATH=src .venv/bin/python scripts/run_eval.py --limit 5 \
+  --compare-baseline --baseline-path data/eval_baseline_v2.json
 PYTHONPATH=src .venv/bin/python scripts/run_checkpoint_demo.py
 ```
+
+`scripts/gate.py` is the only complete local CI entrypoint; individual demo,
+evaluation, or unittest commands are diagnostics, not substitutes.
 
 The deterministic MVP does not require external LLM or search API keys.
 Tavily search is optional: leave `DEEPRESEARCH_SEARCH_PROVIDER=fixture` for
@@ -193,7 +199,7 @@ After self-deployment, verify these endpoints before sharing the host:
 
 ```bash
 git log --oneline -5
-git checkout <previous-known-good-commit>
+git switch --detach <previous-known-good-commit>
 docker compose up -d --build
 docker compose ps
 curl -fsS "$BASE_URL/health"

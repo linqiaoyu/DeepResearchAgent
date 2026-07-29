@@ -85,7 +85,8 @@ fail-closed。这个决定只证明发现和注册过程可审计，不证明远
 `SKILL_LOAD_NODE_CONTRACT`，都通过 `DecisionGate`。选择记录适用判据和未选原因，
 加载记录资源路径、能力名与读取结果，因此可以证明不适用路径没有资源读取。
 
-首个 pack 只迁移金融指标归一规则表，不表示领域解耦完成。机制和剩余耦合见
+首个 skill pack 只迁移金融指标归一规则表；当前 finance DomainPack 已进一步承接领域
+策略，但尚无第二个真实领域实现。机制和剩余边界见
 [`skills.md`](skills.md)。
 
 ### 反思信号、程序性记忆与重规划
@@ -97,9 +98,10 @@ fail-closed。这个决定只证明发现和注册过程可审计，不证明远
 - `procedural_memory_write` 记录按 `question_type` 写入的策略效果观察、`cross_run`
   lifecycle 与索引键。
 
-只有确定性信号进入 `DecisionContext` 并影响既有重规划接口；LLM 推理接口本轮是零
-token 合成/录制占位，`llm_insight` 不参与行为。反思判断质量与程序记忆策略优劣均待
-019 真实模式验证，不能由 fixture 接线测试推出。
+只有确定性信号进入 `DecisionContext` 并影响既有重规划接口；LLM 推理接口仍是零
+token 合成/录制占位，`llm_insight` 不参与行为。Round 033 观察到程序性记忆读取和写入，
+但采用策略数仍为 0；反思判断质量与程序记忆策略优劣仍不能由 fixture 接线或该次
+mixed-provider 运行推出。
 
 ## 一个对象，三个审计落点
 
@@ -112,16 +114,18 @@ token 合成/录制占位，`llm_insight` 不参与行为。反思判断质量�
 
 ## 默认状态与证明边界
 
-`DECISION_WEAVING_ENABLED=false`、`NUMERIC_CHECK_ENABLED=false`、
-`DYNAMIC_CAPABILITY_ENABLED=false`；015 的 `BRANCH_BUDGET_ENABLED`、
-`RESEARCH_LOOP_ENABLED` 与 `PRIOR_MEMORY_ENABLED` 也保持默认关闭；
+`DECISION_WEAVING_ENABLED=false`、`NUMERIC_CHECK_ENABLED=false`；
+`DYNAMIC_CAPABILITY_ENABLED=true`、`BRANCH_BUDGET_ENABLED=true`；
+`RESEARCH_LOOP_ENABLED` 与 `PRIOR_MEMORY_ENABLED` 保持默认关闭；
 `REFLECTION_ENABLED=false`、`SKILL_PACKS_ENABLED=false`。三项 016、一项 017
 与一项 018 开关均为
-`content_affecting`，关闭时不会进入 manifest 配置 payload，也不改变默认两题面产物。
+`content_affecting`；当前开启项进入 manifest 并由 characterization 快照约束，关闭项
+不会进入默认实验配置 payload。
 
 零 API fixture 测试可以证明决策依赖被读取、算式检出可重复、能力选择不越过 registry、
 报告审计链闭合以及严格回放逐字一致；不能证明阈值、重规划或能力组合提高真实网页与 LLM
-研究质量。真实效果留给 019 的预登记、预算化成对验证。
+研究质量。Round 033 已为动态选择提供成对真实路由证据，但未测得质量增益；其他策略仍
+需要新的预登记、预算化成对验证。
 
 人工仍负责题目、provider 与费用授权、来源许可与材料性、预测审批、对外发布，以及所有
 投资或交易决定。Agent 无权自行联网付费、发布、交易或扩大研究范围。

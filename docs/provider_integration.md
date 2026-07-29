@@ -27,10 +27,9 @@ Current factory behavior:
 
 - `DEEPRESEARCH_SEARCH_PROVIDER=fixture`, `local`, or `deterministic` selects
   `FixtureSearchTool`.
-- `DEEPRESEARCH_SEARCH_PROVIDER=tavily` without `TAVILY_API_KEY` falls back to
-  `FixtureSearchTool`.
-- `DEEPRESEARCH_SEARCH_PROVIDER=serper` without `SERPER_API_KEY` falls back to
-  `FixtureSearchTool`.
+- `DEEPRESEARCH_SEARCH_PROVIDER=tavily` without `TAVILY_API_KEY` fails fast;
+  fixture use must be selected explicitly.
+- `DEEPRESEARCH_SEARCH_PROVIDER=serper` without `SERPER_API_KEY` also fails fast.
 - `DEEPRESEARCH_SEARCH_PROVIDER=tavily` with `TAVILY_API_KEY` selects
   `TavilySearchProvider`, which calls Tavily `POST /search` and normalizes
   results into `Source` objects.
@@ -62,17 +61,19 @@ Minimum tests:
 Acceptance commands:
 
 ```bash
-PYTHONPATH=src .venv/bin/python -m unittest discover -s tests
-PYTHONPATH=src .venv/bin/python scripts/run_eval.py --limit 5 --compare-baseline
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/gate.py
 ```
 
-No-key dry run:
+No-key fail-fast check:
 
 ```bash
 DEEPRESEARCH_SEARCH_PROVIDER=tavily TAVILY_API_KEY= \
-  PYTHONPATH=src .venv/bin/python scripts/run_demo.py \
-  --output artifacts/tavily_no_key/report.md
+  PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python \
+  -c "from deepresearch_agent.tools import build_search_provider; build_search_provider()"
 ```
+
+This command must exit non-zero and name the missing `TAVILY_API_KEY`; it must
+not silently run fixtures.
 
 Live Tavily opt-in:
 
@@ -98,7 +99,8 @@ Implementation shape:
   logic.
 - Validate all LLM outputs through existing Pydantic schemas before they enter
   workflow state.
-- Keep key values in `.env` only; never log them.
+- Read key values from the process environment or an untracked `.env`; never
+  place or print them in source, logs, trajectories, reports, or manifests.
 
 Minimum tests:
 
@@ -150,8 +152,7 @@ Minimum tests:
 Before merging any real provider adapter:
 
 - Default no-key demo still uses deterministic fixtures.
-- `PYTHONPATH=src .venv/bin/python -m unittest discover -s tests` passes.
-- `PYTHONPATH=src .venv/bin/python scripts/run_eval.py --limit 5 --compare-baseline` passes.
+- `PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/gate.py` passes.
 - New provider has mock tests and no live network calls in CI.
 - README and docs clearly label the provider as optional.
 - Public demo readiness checklist still states deterministic fixture, SQLite MVP,

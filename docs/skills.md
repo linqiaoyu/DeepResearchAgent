@@ -49,21 +49,19 @@ Git 将该变更识别为 100% rename；`cmp` 和双 SHA-256 证据位于本轮�
 迁移后的相同字节事实源，因此两题面 characterization 逐字不变；开启且适用时，
 loader 额外注册 `skill.finance.metric_normalization`，规则内容没有变化。
 
-## 这是 010 领域债务的首付
+## 与 DomainPack 的边界
 
-该迁移只抽出了一个边界清晰的规则表，不代表领域解耦完成。以下金融行为仍硬编码：
+018 的资源迁移本身只抽出了一个边界清晰的规则表；此后领域迁移已继续推进。当前
+`domains/finance` 通过显式 `DomainPack` 承接规划、披露查询和标题规则、结构化数据别名、
+指标覆盖、表格抽取、报告渲染、skill 适用性与数值检查/引用策略。核心源码对
+`domains.finance` 的直接 import 为 0，领域边界守卫把剩余金融字面量限制在 3 个文件、
+9 行，保留原因见 `docs/decisions/043/domain-boundary-residual.md`。
 
-- `agents/planner.py`：结构化金融 capability 与合规/风险查询模板；
-- `agents/researcher.py`：`financial_indicators` 等结构化请求分派；
-- `agents/critic.py`：numeric conflict、旧来源、反方和 retry 判据；
-- `structured_output.py`：中文金融 metric 的正则与金融化表格语义；
-- `tools/akshare_structured_data.py` 与
-  `tools/fixture_structured_data.py`：金融字段、默认指标和部分 alias；
-- `agents/reporter.py`：投资建议免责声明与金融报告呈现；
-- Golden audit 与金融 fixture：仍属于现有评测/数据边界。
-
-当前仓库已有 `domains/finance` 作为金融 SUT 的显式 pack；这不代表已完成通用领域抽取。
-新增领域仍须通过同样的显式接口接入，并完成资源哈希、旧路径兼容和默认 E2E 证明。
+Skill pack 与 DomainPack 仍是两个不同概念：前者是默认关闭、metadata-first 的可选运行时
+资源与能力包；后者是由 composition root 选择并注入的领域策略合同。当前只有 finance
+是真实注册领域，`NullDomainPack` 仅用于边界测试，因此不能宣称已经完成通用领域产品化。
+新增领域必须实现同一显式协议、在 registry 注册，并完成 provider/eval 资产声明、默认
+characterization 与完整 gate。
 
 ## 扩展一个 pack
 

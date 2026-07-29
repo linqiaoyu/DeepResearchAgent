@@ -10,10 +10,10 @@ Protected assets are source evidence and its provenance, prompts, model and tool
 | --- | --- | --- | --- |
 | External page text | Prompt injection and role spoofing | `security/content.py::detect_injection` marks direct, multilingual, encoded, long-context, and role-spoof patterns; `wrap_untrusted` creates an explicit data boundary before Extractor prompts | Dark; held-in synthetic recall was 100.00%, but the corpus and rules are co-designed, so this is not a generalization estimate. The primary result is a 15.00% safe-control false-positive rate; `INJECTION_GUARD_ENABLED=false` remains the default |
 | Evidence provenance | A sanitizer could alter quoted evidence | Detection only labels; `Source.content` and `Evidence.extract_text` remain verbatim | Implemented and tested |
-| Tool output | Timeout, transient failure, silent degradation | Typed contracts, run retry budget, circuit breaker, and degradation events in `tools/reliable_execution.py` | Dark; `TOOL_CONTRACT_ENABLED=false` |
+| Tool output | Timeout, transient failure, silent degradation | Typed contracts, per-call run context, retry and external-request budgets, circuit breaker, timeout quarantine, and degradation events in `tools/reliable_execution.py` | Enabled; `TOOL_CONTRACT_ENABLED=true`; offline failure matrix plus bounded real-provider degradation evidence |
 | Model output | Fabricated citations or schema violations | Existing Pydantic structured output validation, extract substring checks, Critic, and citation evaluation | Enabled on existing paths |
 | Credentials and PII | Secret or personal data in logs/manifests | `security/content.py::redact` masks key-like strings, mainland China phone/ID patterns, and email | Utility implemented; log/manifest sinks adopt it in their stages |
-| Cost | Retry storms or unbounded paid calls | Existing LLM budget plus run-level tool retry budget | LLM budget enabled; tool budget dark |
+| Cost | Retry storms or unbounded paid calls | LLM cost fuse plus run-scoped retry, search/fetch, authority, branch, and provider-call budgets | Enabled on default boundaries; paid experiments still require explicit authorization and preregistration |
 
 ## Injection policy: label, do not delete
 

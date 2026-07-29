@@ -56,22 +56,25 @@ DECISION_WEAVING_ENABLED=false
 DEEPRESEARCH_DECISION_WEAVING_BUDGET_REMAINING_RATIO=0.2
 DEEPRESEARCH_DECISION_WEAVING_VERIFY_MIN_ALLOCATION=1
 NUMERIC_CHECK_ENABLED=false
-DYNAMIC_CAPABILITY_ENABLED=false
+DYNAMIC_CAPABILITY_ENABLED=true
 ```
 
-三项功能开关均归类为 `content_affecting`。关闭时对应 flag 和参数从 manifest 的实验配置
-中省略，保留 015 默认路径逐字等价；开启后 manifest 必须记录开关、阈值、能力规则和完整
-decision summary，跨代比较由 `scripts/verify_manifest.py` fail closed。
+其中 `DECISION_WEAVING_ENABLED` 与 `NUMERIC_CHECK_ENABLED` 默认关闭；
+`DYNAMIC_CAPABILITY_ENABLED` 的当前默认值是 `true`；固定能力实验须显式将其设为
+`false`。三项功能开关均归类为 `content_affecting`。manifest 必须记录相对默认值发生的
+实验配置、能力规则和完整 decision summary，跨代比较由
+`scripts/verify_manifest.py` fail closed。
 
 ## 回放
 
 016 的扩展轨迹 schema 记录 LLM、search、fetch、structured provider、节点、决定、
 signal reads 和 memory writes。严格 fixture 回放恢复原计划和策略配置，并要求报告逐字一致；
-未录制调用会令严格回放 fail closed。策略级回放尚未实现；真实轨迹仍需单独授权，当前仅
-验证离线超集。
+未录制调用会令严格回放 fail closed。策略级回放尚未实现；Round 031 已验证一次完成态
+真实 provider 轨迹的离线严格回放，但该结果不证明策略质量。
 
 ## 方法边界
 
 fixture 能证明三条依赖确实触发、预算不越界、数值公式可复算、能力不会绕过 registry、
 轨迹可严格回放。它不能证明这些策略对真实网页排序、LLM 抽取、覆盖度、引用质量、延迟和
-成本的净效果。019 之前不得将“已接线”表述为“研究质量提升”。
+成本的净效果。Round 033 的动态选择消融只证明路由发生变化且双案例未见质量增益；
+不得将“已接线”或“已触发”表述为“研究质量提升”。

@@ -41,13 +41,14 @@ flowchart TB
 LangGraph 仍是唯一执行器。`BranchBudget` 在 `Send` 前分配并在 join 后再分配。
 `MemoryStore` 的情景/语义/程序实现保持确定性，工作记忆适配既有 context packer。
 `DecisionContext` 是预算、充分性、上期分类与 Critic issue 的深只读快照，预算器、
-循环器和重规划器读取同一事实视图。`CapabilityRegistry` 注册和查询能力；默认关闭的
-确定性 selector 在 Researcher fan-out 前按子问题类型选择当前可用能力。
+循环器和重规划器读取同一事实视图。`CapabilityRegistry` 注册和查询能力；默认开启的
+确定性 selector 在 Researcher fan-out 前按子问题类型选择当前可用能力。LLM 模式可另行
+开启 provider-native tool selection，但候选和执行仍受同一 registry、预算与工具合同约束。
 MCP client 把外部 `tools/list` 结果命名空间化后注册到同一 registry；MCP server 则把
 本地 `ToolSpec` 机械映射为 stdio tool schema。`SkillPackLoader` 只在题面适用后读取
 资源并注册 skill 能力；MCP 发现、skill 选择和加载均形成 `AgentDecision`。
 Reflector 位于充分性决定与重规划/报告之间：只把机械信号送入 `DecisionContext`，
-独立 LLM 推理接口待 019；程序记忆写入策略效果观察但不自动选策。
+独立反思 LLM 推理接口仍是占位；程序记忆写入策略效果观察但不自动选策。
 
 ## Current Execution Flow
 
@@ -220,7 +221,8 @@ next query is refined, whether numeric relations reconcile, and which registered
 capabilities a sub-question may use.
 Reflector adds two auditable decisions: mechanical signal extraction and procedural-memory
 write. Only deterministic signals enter `DecisionContext`; the placeholder `llm_insight`
-cannot affect behavior before 019.
+cannot affect behavior. Round 033 observed no adopted procedural strategy, so this seam
+still has no demonstrated reasoning benefit.
 `TRAJECTORY_RECORD_ENABLED=false` is the default. When enabled, new recordings
 use schema v4 and persist redacted LLM attempts, supported ToolSpec calls, node
 transitions, decisions, artifacts, and a typed terminal outcome. Verified strict
@@ -233,22 +235,23 @@ load/validation-compatible. Schema-v4 `budget_exceeded` and `failed`
 trajectories are persisted for audit but are currently non-replayable.
 Strategy-level replay is not implemented.
 
-The research-sufficiency back-edge, prior-period path, decision weaving, numeric
-consistency checking, and dynamic capability selection exist behind default-off
-`content_affecting` flags. Numeric checking sits inside Critic so an inconsistency
+The research-sufficiency back-edge, prior-period path, decision weaving, and numeric
+consistency checking exist behind default-off `content_affecting` flags. Dynamic
+capability selection is content-affecting and default-on; branch budgeting is also
+default-on. Numeric checking sits inside Critic so an inconsistency
 uses the existing retry path. Capability selection sits in `research_prepare`,
 before fan-out, and the Researcher only consumes that selection. The 018 MCP
 client and first skill pack now register through that same registry; their
-content-affecting policies remain default-off.
+skill-loading policy remains default-off.
 
 ## Current MVP Boundaries
 
 - Search is behind a `SearchProvider` boundary. The default implementation is a deterministic `FixtureSearchTool`; Tavily is available as an opt-in adapter, while Serper is not implemented.
 - Structured finance data is behind a `StructuredDataProvider` boundary. The default implementation is recorded fixture data; the live adapter uses AKShare only through whitelisted capabilities: `symbol_resolve`, `financial_indicators`, and `price_history`.
 - Fetch has only a local fixture implementation through `FixtureSearchTool.fetch`; there is no robust live `web_fetch` yet.
-- Search, fetch, and structured data are registered in `CapabilityRegistry`; default execution resolves the fixed 015 set. The optional 016 selector is deterministic, not learned or LLM-selected.
+- Search, fetch, structured data, and authoritative disclosure are registered in `CapabilityRegistry`; the default deterministic selector chooses an auditable subset per sub-question. The fixed set is an explicit fallback. Optional `LLM_TOOL_SELECTION_ENABLED` uses provider-native tool calling but cannot name or execute an unregistered capability.
 - The stdio MCP server exposes four fixture tools; the MCP client can discover and register external tools, but the third-party handshake containing `tools/call` remains incomplete. There is no HTTP transport, authentication, or arbitrary filesystem/command tool.
-- Skill loading is metadata-first and default-off. The first finance normalization pack is one 100%-rename equivalence extraction, not a completed domain architecture.
+- Skill loading is metadata-first and default-off. The finance normalization skill is distinct from the explicit finance DomainPack and does not create a second domain runtime.
 - Episodic and semantic memory are in-process deterministic stores. They are not durable multi-process memory, vector retrieval, or an automatic forgetting system.
 - Procedural memory is also an in-process deterministic `cross_run` index; it records strategy effects but does not learn, rank, or adopt a strategy.
 - `rag_search` is not implemented.
@@ -283,9 +286,16 @@ iterations, total loop budget and no-progress bounds.
 
 ## LLM Layer, Ledger, And Budget Fuse
 
-`LLMClient` is the single LLM boundary. It receives a role name, chat messages, and an optional Pydantic schema. It applies a 60-second timeout, two provider retries with exponential backoff, and one structured-output repair retry that feeds validation errors back to the model.
+`LLMClient` is the single LLM boundary. It receives a role name, chat messages,
+and an optional Pydantic schema. The base timeout is 60 seconds, with explicit
+per-role overrides (the judge paths use 300 seconds); calls allow two provider
+retries with exponential backoff and one structured-output repair retry that
+feeds validation errors back to the model.
 
-The role-to-model mapping is centralized in `src/deepresearch_agent/llm_config.py`. The default temperature is 0. LLM keys are read only from `.env`.
+The role-to-model mapping is centralized in `src/deepresearch_agent/llm_config.py`.
+The default temperature is 0. Provider keys are read from the process environment
+or the untracked project `.env`; key values must never enter source, logs,
+trajectories, reports, or manifests.
 
 Every LLM call appends one JSON line to `data/runtime/llm_ledger.jsonl`, including role, model, prompt/completion/total tokens, USD/CNY cost, latency, cache-hit field when present, repair attempts, and parse-error status. The directory is gitignored.
 
@@ -298,7 +308,14 @@ error fields. Run-wide external-request exhaustion additionally emits a partial
 report artifact. Unexpected exceptions persist a `failed` terminal trajectory
 and failed checkpoint before the exception is re-raised.
 
-In LLM mode, `token_used` and cost fields come from ledger aggregation. The native accounting currency is CNY under `price_source=v4flash_console_calibrated_20260612`; USD is a display field derived from CNY. `citation_accuracy` is reported as `null` because the current scorer is extractive-only, while `citation_resolution_rate` and `critic_catch_rate` remain programmatic. `answer_relevance` and `faithfulness` are reported as `null` with reason fields until a judge is added.
+In LLM mode, `token_used` and cost fields come from ledger aggregation. The
+native accounting currency is CNY; each ledger row records the model-specific
+`price_source`, and USD is only a display conversion. Mechanical
+`citation_resolution_rate`, numeric audit, and `critic_catch_rate` remain
+available. `citation_accuracy`, completeness, answer shape, semantic relevance,
+and semantic faithfulness are populated only when the default-off runtime
+semantic judge succeeds; otherwise nullable fields carry explicit reasons and
+cannot erase a mechanical numeric failure.
 
 ## Structured Finance Data And Critic Rules
 
@@ -322,23 +339,29 @@ The project does not rely on vector memory as the source of truth. Each final cl
 
 ## Domain Pack Boundary: Historical Starting Point and Current Boundary
 
-Task 010's coupling audit found financial behavior hard-coded in core Planner, Critic, Reporter, Researcher, and Golden audit code. That historical state had no `domains/finance` or `domains/competitive` package. The current repository has an explicit finance pack, but does not claim completed domain-independent extraction.
+Task 010's coupling audit found financial behavior hard-coded in core Planner,
+Critic, Reporter, Researcher, providers, structured output, and evaluation code.
+The current composition boundary resolves a `DomainPack` through
+`domains/registry.py` and injects it into those consumers. Narrow protocols cover
+planning, disclosure queries and titles, structured-data aliases, metric coverage,
+table extraction, reporting, skill selection, and numeric checking/citations.
 
-Task 018 moved only the 1299-byte finance normalization rule table into
-`skills/finance-metric-normalization/` with identical SHA-256 and default
-characterization. Planner queries, Researcher dispatch, Critic policy,
-structured-output regexes, provider aliases, report language, and evaluation
-assets remain finance-coupled; this is the first debt payment, not a domain pack.
+The finance implementation now owns the corresponding vocabulary, planning rules,
+provider aliases, report rendering policies, table extractors, and numeric rules.
+The core source tree has zero direct imports of `domains.finance`; the versioned
+domain-boundary ratchet also limits remaining finance literals to 3 files and
+9 lines. Those residuals are report formatting, immutable Golden audit assertions,
+and a legacy serialization default, not hidden domain selection. Exact reasons and
+removal conditions are recorded in
+`docs/decisions/043/domain-boundary-residual.md`.
 
-The target domain contract has five file classes:
-
-1. `tools/`: domain-specific provider adapters and capability declarations;
-2. `prompts/`: Planner/Extractor/Critic/Reporter instructions selected by domain;
-3. `templates/`: report layout, as-of label, and disclaimer text;
-4. `eval/`: references to domain evaluation assets and scoring policy, without moving frozen data;
-5. `domain.yaml`: domain id, capability registry, prompt/template versions, structured provider declaration, and eval references.
-
-Adding a domain safely requires a `DomainSpec` protocol and registry first, characterization tests for the existing finance output, finance extraction with old-path compatibility and SHA-256 proof, then the new domain resources and a fixture/mock dry-run. Competitive intelligence must declare `structured_data_provider: null` until a real structured source exists. The full audit and extraction proposal are task evidence in `_collab/010_hardening-and-readme/domain_coupling_audit.md` and are intentionally not runtime claims.
+This is a real dependency inversion, but not a claim that the harness is already
+domain-general: `finance` is the only registered product DomainPack. `NullDomainPack`
+exists for deterministic boundary tests and cannot be selected as a production
+domain. A new domain must implement the explicit protocol, register at the
+composition boundary, declare its provider and evaluation assets, and pass
+characterization plus full-gate tests without adding concrete-domain imports to
+core.
 
 ## Hardening Layers And Default State
 
@@ -355,11 +378,13 @@ The hardening modules are additive. Default-off modules do not change the determ
 | Structured business output | `structured_output.py` | `STRUCTURED_OUTPUT_ENABLED` | `true` | Adds tables/timeline/risk objects without replacing prose |
 | API section progress | `progressive_delivery.py`, `api/demo.py` | `PROGRESSIVE_DELIVERY_ENABLED` | `false` | Adds polling sidecars; final report is byte-identical |
 | Trajectory recording | `trajectory.py`, `trajectory_replay.py` | `TRAJECTORY_RECORD_ENABLED` | `false` | Writes redacted schema-v4 sidecars for completed, budget-exceeded, and failed runs; completed fixture runs and the Round 031 A4f real-LLM run have verified offline strict replay, while noncompleted trajectories are audit-only |
-| Branch budget | `orchestration/budget.py` | `BRANCH_BUDGET_ENABLED` | `false` | Bounds per-run and per-branch search calls; records allocation decisions |
+| Branch budget | `orchestration/budget.py` | `BRANCH_BUDGET_ENABLED` | `true` | Bounds per-run and per-branch search calls; records allocation decisions |
 | Research sufficiency loop | `orchestration/loops.py`, `orchestration/research_loop.py` | `RESEARCH_LOOP_ENABLED` | `false` | Refines weak queries through a bounded native LangGraph back-edge |
 | Prior research memory | `memory/prior.py` | `PRIOR_MEMORY_ENABLED` | `false` | Uses only the latest earlier snapshot to classify and verify sub-questions |
 | Reflection skeleton | `reflection.py`, `memory/procedural.py` | `REFLECTION_ENABLED` | `false` | Extracts mechanical signals, invokes a zero-API reasoning placeholder, writes procedural observations, and can inform existing replanning |
 | Skill packs | `skills/loader.py`, `skills/finance.py` | `SKILL_PACKS_ENABLED` | `false` | Selects from `SKILL.md` metadata, then loads resources and registers one capability |
+| Deterministic capability selection | `tools/capability_selector.py` | `DYNAMIC_CAPABILITY_ENABLED` | `true` | Selects a registered capability subset per sub-question and records candidates, rejections, and fallback |
+| LLM capability selection | `tools/capability_selector.py`, `llm/client.py` | `LLM_TOOL_SELECTION_ENABLED` | `false` | Uses provider-native tool calling for selection only; registry and run budgets still authorize execution |
 | MCP integration | `mcp/server.py`, `mcp/client.py` | none | local fixture only | Exposes four stdio tools and discovers external tools through the existing registry and tool contract |
 
 Prompt drift validation is enabled in CI because it is a build-time guard, not a runtime behavior change. Read-only offline evaluation tools in `scripts/compare_runs.py`, `scripts/offline_metrics.py`, and `scripts/validate_golden_schema.py` never initiate research or modify Golden assets.
