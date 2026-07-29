@@ -12,7 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import time
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -120,8 +120,9 @@ def rebuild(
     with ThreadPoolExecutor(max_workers=embedding_concurrency) as executor:
         for offset in range(0, len(batches), embedding_concurrency):
             window = batches[offset : offset + embedding_concurrency]
-            futures = [(batch, executor.submit(embed_batch, batch)) for batch in window]
-            for batch, future in futures:
+            futures = {executor.submit(embed_batch, batch): batch for batch in window}
+            for future in as_completed(futures):
+                batch = futures[future]
                 vectors = future.result()
                 if len(vectors) != len(batch):
                     raise RuntimeError("embedding provider returned an incomplete batch")
