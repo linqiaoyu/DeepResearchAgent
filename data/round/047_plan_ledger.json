@@ -2,7 +2,7 @@
   {
     "plan_ref": "B0-1",
     "status": "DEFERRED",
-    "reason": "Missing the plan-required 20 original documents and saved PDF extraction probe output."
+    "reason": "The verified 60-document raw corpus is HTML 20-F material; the separate plan-required 20-document PDF extraction probe and its saved output have not been produced."
   },
   {
     "plan_ref": "B0-2",
@@ -27,7 +27,7 @@
   {
     "plan_ref": "B0-5",
     "status": "DEFERRED",
-    "reason": "The required 047 preflight record is incomplete: corpus, endpoints, pricing, and mutation evidence are absent."
+    "reason": "The corpus and configured-provider presence are recorded, but the required 047 preflight record still lacks account-specific rate-limit and maximum-candidate verification plus the complete mutation-evidence inventory."
   },
   {
     "plan_ref": "B0-6",
@@ -203,8 +203,7 @@
   },
   {
     "plan_ref": "B4-7",
-    "status": "DEFERRED",
-    "reason": "The real dense/payload index build is complete, but the four required network/429/timeout/partial-batch fault injections and M4 raw failure evidence are absent."
+    "status": "PASS"
   },
   {
     "plan_ref": "B4-8",
