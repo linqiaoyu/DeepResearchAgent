@@ -4,10 +4,33 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.build_site import _assert_site, _markdown_to_html
+from scripts.build_site import _assert_showcase_contract, _assert_site, _markdown_to_html
 
 
 class StaticSiteBuildTests(unittest.TestCase):
+    def test_showcase_contract_requires_boundary_and_visual_system(self) -> None:
+        home = " ".join(
+            (
+                "RESEARCH, WITH RECEIPTS",
+                "无实时 LLM、搜索或付费调用",
+                "浏览精选报告",
+                "MEASURABLE, NOT MERELY CLAIMED",
+                "RELEASE DISCIPLINE",
+            )
+        )
+        stylesheet = ".hero-home{}.proof-panel{}.metric-section{}.release-section{}"
+        _assert_showcase_contract(home, stylesheet)
+
+        with self.assertRaises(SystemExit):
+            _assert_showcase_contract(
+                home.replace("无实时 LLM、搜索或付费调用", ""), stylesheet
+            )
+
+    def test_social_share_card_is_project_owned_png(self) -> None:
+        card = Path("site/social/og.png")
+        self.assertTrue(card.is_file())
+        self.assertEqual(card.read_bytes()[:8], b"\x89PNG\r\n\x1a\n")
+
     def test_references_are_deduplicated_and_citations_are_remapped(self) -> None:
         rendered = _markdown_to_html(
             """# Report

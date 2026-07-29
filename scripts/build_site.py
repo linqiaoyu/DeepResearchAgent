@@ -50,6 +50,7 @@ def main() -> None:
         shutil.rmtree(DIST)
     (DIST / "assets").mkdir(parents=True)
     (DIST / "reports").mkdir(parents=True)
+    shutil.copy2(ROOT / "site" / "social" / "og.png", DIST / "assets" / "og.png")
     _write_css(DIST / "assets" / "styles.css")
     reports = showcase["reports"]
     _write_page("index.html", _home_page(showcase, validation))
@@ -64,6 +65,10 @@ def main() -> None:
     for report in reports:
         _write_page(f"reports/{report['id']}.html", _report_page(report, validation["retrieval_as_of"]))
     _assert_site(DIST, business)
+    _assert_showcase_contract(
+        (DIST / "index.html").read_text(encoding="utf-8"),
+        (DIST / "assets" / "styles.css").read_text(encoding="utf-8"),
+    )
     manifest = {
         "generated_from": {
             "showcase": str(SHOWCASE_PATH.relative_to(ROOT)),
@@ -179,6 +184,23 @@ def _assert_site(
         raise SystemExit("business scenario must demonstrate six change categories")
 
 
+def _assert_showcase_contract(home: str, stylesheet: str) -> None:
+    required_home = (
+        "RESEARCH, WITH RECEIPTS",
+        "无实时 LLM、搜索或付费调用",
+        "浏览精选报告",
+        "MEASURABLE, NOT MERELY CLAIMED",
+        "RELEASE DISCIPLINE",
+    )
+    missing_home = [token for token in required_home if token not in home]
+    if missing_home:
+        raise SystemExit(f"showcase home misses required presentation contract: {missing_home}")
+    required_styles = (".hero-home", ".proof-panel", ".metric-section", ".release-section")
+    missing_styles = [selector for selector in required_styles if selector not in stylesheet]
+    if missing_styles:
+        raise SystemExit(f"showcase stylesheet misses visual system selectors: {missing_styles}")
+
+
 def _required_match(pattern: str, text: str) -> str:
     match = re.search(pattern, text, flags=re.MULTILINE)
     if not match:
@@ -200,28 +222,33 @@ def _layout(title: str, content: str) -> str:
     prefix = "../" if title.startswith("报告 ") else ""
     return f"""<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b172a"><meta name="description" content="DeepResearchAgent 的可复核研究成果、评测证据与复现路径。">
+<meta property="og:image" content="https://deepresearch-agent.jacksonyu1109.workers.dev/assets/og.png"><meta property="og:image:alt" content="DeepResearchAgent：让每一个研究结论，都经得起回看。">
 <title>{html.escape(title)} · DeepResearchAgent</title><link rel="stylesheet" href="{prefix}assets/styles.css"></head>
-<body><header class="site-header"><a class="brand" href="{prefix}index.html">DeepResearchAgent</a><nav>
-<a href="{prefix}reports/index.html">报告</a><a href="{prefix}scenarios.html">业务场景</a><a href="{prefix}methodology.html">方法论</a><a href="{prefix}reproduce.html">复现</a>
-<a href="https://github.com/linqiaoyu/DeepResearchAgent">GitHub</a></nav></header><main>{content}</main></body></html>"""
+<body><a class="skip-link" href="#content">跳至内容</a><header class="site-header"><a class="brand" href="{prefix}index.html"><span class="brand-mark">DR</span><span>DeepResearch<br><em>Agent</em></span></a><nav aria-label="主导航">
+<a href="{prefix}reports/index.html">成果报告</a><a href="{prefix}scenarios.html">工作流演示</a><a href="{prefix}methodology.html">评测方法</a><a href="{prefix}reproduce.html">复现路径</a>
+<a class="nav-github" href="https://github.com/linqiaoyu/DeepResearchAgent">GitHub ↗</a></nav></header><main id="content">{content}</main><footer><span>DeepResearchAgent</span><span>静态展示 · 冻结语料 · 可审计产物</span></footer></body></html>"""
 
 
 def _home_page(showcase: dict[str, Any], validation: dict[str, Any]) -> str:
     summary = showcase["summary"]
     cards = [
-        ("G3 composite", _fmt4(summary["avg_weighted_score"])),
-        ("Fact accuracy", _fmt4(summary["avg_fact_accuracy"])),
-        ("Citation support (3s)", _fmt4(summary["avg_citation_support_rate"])),
-        ("Resolution", _fmt4(summary["avg_citation_resolution_rate"])),
-        ("False premise", f"{summary['false_premise']['passed']}/2"),
+        ("G3 综合评分", _fmt4(summary["avg_weighted_score"]), "冻结语料上的多维中位数"),
+        ("事实准确性", _fmt4(summary["avg_fact_accuracy"]), "按锁定量规评分"),
+        ("引用支持率", _fmt4(summary["avg_citation_support_rate"]), "逐 claim、三次采样多数决"),
+        ("引用可解析率", _fmt4(summary["avg_citation_resolution_rate"]), "脚注可追溯至原始来源"),
     ]
     return _layout(
         "首页",
-        f"""<section class="hero"><p class="eyebrow">Golden v1.1 release</p><h1>证据驱动的金融投研深度研究 Agent</h1>
-<p>G3 保存态以冻结检索语料回放评测；检索语料截至 {validation['retrieval_as_of']}。</p></section>
-<section class="cards">{''.join(_card(label, value) for label, value in cards)}</section>
-<section><h2>执行图</h2><div class="flow"><span>Planner</span><span>Researcher Send fan-out</span><span>Extractor</span><span>Critic 条件回流</span><span>Reporter</span><span>Judge</span></div></section>
-<section><h2>发布控制</h2><p>四键审计：{validation['audit_counts']['PASS']} PASS、{validation['audit_counts']['DEFECT']} DEFECT、{validation['audit_counts']['UNCERTAIN']} 条 PM 注记 UNCERTAIN。citation_support 为每题 {validation['citation_samples']} 次、逐 claim 多数决。</p><p><a class="button" href="reports/index.html">查看 G3 报告</a></p></section>""",
+        f"""<section class="hero hero-home"><div class="hero-copy"><p class="eyebrow">RESEARCH, WITH RECEIPTS</p><h1>让每一个研究结论，都经得起回看。</h1>
+<p class="hero-lede">DeepResearchAgent 将研究、引文、数值审计与评测发布连接成一条可复核的交付链路。这里展示的是冻结资产构建的静态成果，而非模拟的在线服务。</p>
+<div class="hero-actions"><a class="button button-primary" href="reports/index.html">浏览精选报告 <span>→</span></a><a class="button button-quiet" href="methodology.html">查看评测证据</a></div>
+<p class="boundary-note"><span></span> 检索语料截至 {validation['retrieval_as_of']} · 无实时 LLM、搜索或付费调用</p></div>
+<aside class="proof-panel" aria-label="发布核验摘要"><div class="proof-top"><span>RELEASE CHECK</span><b>VERIFIED</b></div><div class="score-orbit"><strong>{_fmt4(summary['avg_weighted_score'])}</strong><span>G3 composite</span></div><div class="proof-lines"><p><i></i><span>证据引用已解析</span><b>{_fmt4(summary['avg_citation_resolution_rate'])}</b></p><p><i></i><span>错误前提已识别</span><b>{summary['false_premise']['passed']}/2</b></p><p><i></i><span>数值审计缺陷</span><b>{validation['audit_counts']['DEFECT']}</b></p></div><div class="proof-caption">Golden v1.1 · 发布态</div></aside></section>
+<section class="metric-section"><div class="section-kicker"><p class="eyebrow">MEASURABLE, NOT MERELY CLAIMED</p><h2>把可靠性变成可检查的交付物。</h2></div><div class="cards metric-cards">{''.join(_card(label, value, detail) for label, value, detail in cards)}</div></section>
+<section class="story-grid"><div class="story-intro"><p class="eyebrow">FROM QUESTION TO EVIDENCE</p><h2>不是一段“看起来像答案”的文字。</h2><p>每份展示报告将研究结论与来源脚注并列呈现；发布前经过引用支持抽样、数值与口径检查，以及冻结评测回归。</p><a class="text-link" href="scenarios.html">查看端到端工作流 <span>→</span></a></div><div class="chain"><article><span>01</span><h3>计划与取证</h3><p>拆解问题，按来源和期间组织可追溯证据。</p></article><article><span>02</span><h3>审校与回流</h3><p>将数字、口径、引用与不确定性置于同一审计链。</p></article><article><span>03</span><h3>发布与复现</h3><p>以固定版本资产生成报告、指标与发布清单。</p></article></div></section>
+<section class="release-section"><div><p class="eyebrow">RELEASE DISCIPLINE</p><h2>展示的每个数字，都有自己的位置。</h2></div><div class="release-grid"><article><b>{validation['audit_counts']['PASS']}</b><h3>审计通过</h3><p>实体、指标、期间、口径和数值摘录的联合核验。</p></article><article><b>{validation['citation_samples']}×</b><h3>引用支持采样</h3><p>逐 claim 多次判断，避免单次模型判断被当作结论。</p></article><article><b>0</b><h3>实时依赖</h3><p>公开页只读取受版本控制的发布资产，成本与密钥均不暴露。</p></article></div></section>
+<section class="report-cta"><div><p class="eyebrow">CURATED OUTPUTS</p><h2>阅读可回溯的研究成果。</h2><p>精选报告保留指标、引用与来源列表；业务场景展示结构化交付和隔期差分。</p></div><div class="cta-links"><a class="button button-primary" href="reports/index.html">G3 报告库 <span>→</span></a><a class="button button-quiet" href="business-report.html">Fixture 报告示例</a></div></section>""",
     )
 
 
@@ -270,6 +297,13 @@ def _business_scenario_from_fixture() -> dict[str, Any]:
     structured = build_structured_output(state)
     state.structured_output = structured
     manifest_payload = dict(payload["side_effects"]["manifest"])
+    # Characterization snapshots intentionally normalize wall-clock timestamps.
+    # Restore a fixed value in memory only, so the immutable fixture remains
+    # byte-stable while the typed manifest can be reconstructed for the demo.
+    manifest_payload["decision_summary"] = [
+        {**decision, "timestamp": fixed_time}
+        for decision in manifest_payload.get("decision_summary", [])
+    ]
     manifest_payload.update(
         {
             "run_id": "fixture-business-scenario",
@@ -377,8 +411,11 @@ def _business_report_page(business: dict[str, Any]) -> str:
 
 
 def _reports_index(reports: list[dict[str, Any]]) -> str:
-    items = "".join(f'<article class="report-card"><h2><a href="{report["id"]}.html">{report["id"]}: {html.escape(report["topic"])}</a></h2><p>{html.escape(report["type"])} · {html.escape(report["difficulty"])}</p><p>Weighted score: {_fmt4(report["metrics"]["weighted_score"])}</p></article>' for report in reports)
-    return _layout("报告 索引", f"<section class='page-title'><h1>精选 G3 报告</h1></section>{items}")
+    items = "".join(
+        f'<article class="report-card"><div class="report-meta"><span>{html.escape(report["id"])}</span><span>{html.escape(report["difficulty"])}</span></div><h2><a href="{report["id"]}.html">{html.escape(report["topic"])}</a></h2><p>{html.escape(report["type"])}</p><div class="report-score"><span>G3 综合评分</span><strong>{_fmt4(report["metrics"]["weighted_score"])}</strong></div><a class="text-link" href="{report["id"]}.html">阅读报告 <span>→</span></a></article>'
+        for report in reports
+    )
+    return _layout("报告 索引", f"<section class='page-title page-title-rich'><p class='eyebrow'>CURATED, EVALUATED, TRACEABLE</p><h1>精选研究报告</h1><p>来自 Golden v1.1 发布资产。每份报告均显示评测分数，并保留脚注到来源的可解析映射。</p></section><section class='report-grid'>{items}</section>")
 
 
 def _report_page(report: dict[str, Any], retrieval_as_of: str) -> str:
@@ -477,8 +514,9 @@ def _inline(text: str) -> str:
     return re.sub(r"((?:https?|akshare)://[^\s)]+)", lambda match: f'<a href="{match.group(1)}">{match.group(1)}</a>', escaped)
 
 
-def _card(label: str, value: Any) -> str:
-    return f"<div class='card'><span>{html.escape(str(label))}</span><strong>{html.escape(str(value))}</strong></div>"
+def _card(label: str, value: Any, detail: str = "") -> str:
+    detail_html = f"<p>{html.escape(detail)}</p>" if detail else ""
+    return f"<div class='card'><span>{html.escape(str(label))}</span><strong>{html.escape(str(value))}</strong>{detail_html}</div>"
 
 
 def _fmt4(value: float) -> str:
@@ -486,7 +524,13 @@ def _fmt4(value: float) -> str:
 
 
 def _write_css(path: Path) -> None:
-    path.write_text(""":root { color-scheme: light; --ink:#17202a; --muted:#5d6d7e; --line:#d7dee8; --bg:#f7f9fb; --accent:#14532d; --panel:#ffffff; } * { box-sizing:border-box; } body { margin:0; font-family:Inter,ui-sans-serif,system-ui,sans-serif; color:var(--ink); background:var(--bg); line-height:1.65; } a { color:#0f5f8f; } .site-header { display:flex; justify-content:space-between; gap:24px; padding:14px 28px; border-bottom:1px solid var(--line); background:#fff; } .brand { font-weight:800; color:var(--ink); text-decoration:none; } nav { display:flex; gap:16px; flex-wrap:wrap; } nav a { color:var(--muted); text-decoration:none; font-weight:650; } main { max-width:1120px; margin:0 auto; padding:36px 24px 80px; } .hero { padding:42px 0 26px; } .hero h1,.page-title h1 { max-width:920px; font-size:clamp(2rem,5vw,4.5rem); line-height:1.05; margin:0 0 18px; } .hero p,.page-title p { color:var(--muted); } .eyebrow { letter-spacing:.08em; font-weight:800; color:var(--accent); font-size:.78rem; } .notice { border-left:4px solid var(--accent); background:#eef7f0; padding:12px 16px; color:var(--ink)!important; } .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin:22px 0 34px; } .card,.report-card { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:18px; } .card span { color:var(--muted); display:block; font-size:.88rem; } .card strong { display:block; font-size:1.4rem; margin-top:4px; } .flow { display:grid; grid-template-columns:repeat(auto-fit,minmax(145px,1fr)); gap:10px; } .flow span { border:1px solid var(--line); border-radius:999px; padding:10px 12px; text-align:center; background:var(--panel); font-weight:700; } .workflow-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:14px; } .workflow-grid article { margin:0; padding:20px; border:1px solid var(--line); background:var(--panel); border-radius:8px; } .workflow-grid article>span { color:var(--accent); font-weight:900; } .workflow-grid h3 { margin:6px 0; } .table-wrap { overflow-x:auto; } .change-list { list-style:none; padding:0; display:grid; gap:10px; } .change-list li { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:14px; } .change-list li>span { float:right; color:var(--accent); font-weight:800; } .change-list p { margin:6px 0 0; } .paste-summary { font-size:1.1rem; font-weight:650; background:#17202a; color:#fff; padding:20px; border-radius:8px; } .deliverables { display:flex; flex-wrap:wrap; gap:10px; } .deliverables span { border:1px solid var(--line); background:var(--panel); border-radius:999px; padding:8px 12px; } section,article { margin:0 0 38px; } table { border-collapse:collapse; width:100%; background:var(--panel); } th,td { border:1px solid var(--line); padding:10px 12px; text-align:left; vertical-align:top; } th { background:#edf3f8; } .button { display:inline-block; padding:10px 14px; background:var(--accent); color:#fff; border-radius:6px; text-decoration:none; font-weight:750; } .report-body { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:20px; overflow-wrap:anywhere; } .citation { font-weight:800; text-decoration:none; } .references { padding-left:20px; } code { background:#edf3f8; padding:2px 5px; border-radius:4px; } @media (max-width:720px) { .site-header { align-items:flex-start; flex-direction:column; } main { padding:24px 16px 60px; } }\n""", encoding="utf-8")
+    path.write_text(
+        """
+:root{--navy:#0b172a;--ink:#10203a;--muted:#60708a;--mist:#eef3f8;--line:#d9e2ed;--paper:#fbfcfe;--panel:#fff;--teal:#008d8b;--teal-soft:#dff4f1;--gold:#f1b84b;--shadow:0 18px 50px rgba(17,37,66,.09)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--paper);color:var(--ink);font-family:Inter,"Noto Sans SC","PingFang SC",ui-sans-serif,system-ui,sans-serif;line-height:1.65}a{color:inherit}.skip-link{position:absolute;left:12px;top:-50px;background:#fff;color:var(--navy);padding:8px 12px;z-index:4}.skip-link:focus{top:12px}.site-header,footer{max-width:1280px;margin:auto;padding:20px 38px}.site-header{display:flex;align-items:center;justify-content:space-between;gap:30px;border-bottom:1px solid var(--line)}.brand{display:flex;gap:10px;align-items:center;color:var(--navy);font-size:.82rem;font-weight:800;letter-spacing:.04em;line-height:1.05;text-decoration:none}.brand em{color:var(--teal);font-style:normal}.brand-mark{display:grid;place-items:center;width:34px;height:34px;background:var(--navy);color:#fff;font-size:.65rem;letter-spacing:0;border-radius:9px}nav{display:flex;gap:23px;align-items:center;flex-wrap:wrap}nav a{color:var(--muted);font-size:.87rem;font-weight:700;text-decoration:none}nav a:hover,.text-link:hover{color:var(--teal)}.nav-github{border:1px solid var(--line);padding:7px 11px;border-radius:999px;color:var(--navy)!important}main{max-width:1200px;margin:auto;padding:0 38px 94px}footer{border-top:1px solid var(--line);color:var(--muted);font-size:.78rem;display:flex;justify-content:space-between;gap:16px}.hero-home{display:grid;grid-template-columns:minmax(0,1.18fr) minmax(310px,.72fr);gap:70px;align-items:center;padding:90px 0 78px}.eyebrow{margin:0 0 13px;color:var(--teal);font-size:.71rem;font-weight:850;letter-spacing:.15em}.hero h1,.page-title h1{margin:0;color:var(--navy);letter-spacing:-.055em;line-height:1.02}.hero h1{max-width:700px;font-size:clamp(3rem,6.5vw,5.65rem)}.hero-lede{max-width:630px;margin:27px 0 0;color:var(--muted);font-size:1.08rem}.hero-actions,.cta-links{display:flex;gap:12px;flex-wrap:wrap;margin-top:31px}.button{display:inline-flex;align-items:center;gap:11px;padding:12px 17px;border:1px solid transparent;border-radius:10px;font-size:.9rem;font-weight:800;text-decoration:none;transition:.2s ease}.button:hover,.report-card:hover{transform:translateY(-3px);box-shadow:var(--shadow)}.button-primary{background:var(--navy);color:#fff}.button-quiet{border-color:var(--line);background:#fff;color:var(--navy)}.boundary-note{display:flex;align-items:center;gap:8px;margin:25px 0 0;color:var(--muted);font-size:.77rem}.boundary-note span,.proof-lines i{display:block;width:7px;height:7px;border-radius:50%;background:var(--teal)}.proof-panel{position:relative;overflow:hidden;background:var(--navy);color:#fff;border-radius:22px;padding:24px;box-shadow:var(--shadow)}.proof-panel:before{position:absolute;content:"";width:250px;height:250px;right:-100px;top:-112px;border:1px solid #496583;border-radius:50%;box-shadow:0 0 0 30px rgba(255,255,255,.03)}.proof-top,.proof-lines p{position:relative;display:flex;justify-content:space-between;align-items:center;gap:10px}.proof-top{font-size:.67rem;font-weight:800;letter-spacing:.12em;color:#aebed3}.proof-top b,.release-grid b{color:var(--gold)}.score-orbit{position:relative;margin:34px 0 26px;width:160px;height:160px;display:flex;flex-direction:column;justify-content:center;text-align:center;border:12px solid var(--teal);border-top-color:#496583;border-right-color:#496583;border-radius:50%}.score-orbit strong{font-size:1.9rem;letter-spacing:-.06em}.score-orbit span{font-size:.72rem;color:#aebed3}.proof-lines{border-top:1px solid rgba(255,255,255,.14)}.proof-lines p{margin:0;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.14);font-size:.77rem}.proof-lines span{margin-right:auto;color:#d4deeb}.proof-caption{position:relative;margin-top:17px;color:#9eafc5;font-size:.68rem;letter-spacing:.08em}.metric-section{padding:70px 0 77px;border-top:1px solid var(--line)}.section-kicker{margin-bottom:28px}.section-kicker h2,.story-grid h2,.release-section h2,.report-cta h2{max-width:650px;margin:0;line-height:1.12;letter-spacing:-.04em;font-size:clamp(1.9rem,4vw,3.15rem);color:var(--navy)}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:13px}.card{min-height:180px;padding:21px;background:var(--panel);border:1px solid var(--line);border-radius:15px;box-shadow:0 5px 20px rgba(17,37,66,.035)}.card span,.card p{color:var(--muted);font-size:.78rem;font-weight:750}.card strong{display:block;margin:20px 0 3px;color:var(--navy);font-size:2rem;letter-spacing:-.06em}.card p{margin:0;font-size:.74rem;line-height:1.5;font-weight:400}.story-grid{display:grid;grid-template-columns:.79fr 1.21fr;gap:75px;padding:74px 0}.story-intro>p:not(.eyebrow),.report-cta p:not(.eyebrow){max-width:540px;color:var(--muted)}.text-link{display:inline-flex;gap:8px;align-items:center;margin-top:12px;color:var(--navy);font-size:.88rem;font-weight:850;text-decoration:none}.chain{display:grid;gap:12px}.chain article{display:grid;grid-template-columns:45px 1fr;column-gap:15px;margin:0;padding:20px 0;border-top:1px solid var(--line)}.chain article:last-child{border-bottom:1px solid var(--line)}.chain span{grid-row:span 2;color:var(--teal);font-size:.74rem;font-weight:850}.chain h3{margin:0;color:var(--navy);font-size:1.08rem}.chain p{grid-column:2;margin:4px 0 0;color:var(--muted);font-size:.87rem}.release-section{display:grid;grid-template-columns:.7fr 1.3fr;gap:65px;margin:0 -38px;padding:76px 38px;background:var(--navy);color:#fff}.release-section h2{color:#fff}.release-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}.release-grid article{margin:0;padding-right:16px;border-right:1px solid rgba(255,255,255,.17)}.release-grid article:last-child{border:0}.release-grid b{display:block;font-size:2.6rem;letter-spacing:-.07em}.release-grid h3{margin:2px 0 5px;font-size:.93rem}.release-grid p{margin:0;color:#b6c6da;font-size:.78rem;line-height:1.55}.report-cta{display:flex;justify-content:space-between;align-items:end;gap:30px;padding:83px 0 15px}.page-title{padding:76px 0 46px}.page-title-rich{max-width:780px}.page-title h1{font-size:clamp(2.8rem,6vw,4.9rem)}.page-title p{max-width:700px;color:var(--muted);font-size:1.02rem}.notice{border-left:3px solid var(--teal);background:var(--teal-soft);padding:13px 16px;color:var(--ink)!important;font-size:.87rem}.report-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.report-card{display:flex;min-height:285px;flex-direction:column;margin:0;padding:22px;border:1px solid var(--line);border-radius:15px;background:var(--panel);transition:.2s ease}.report-meta{display:flex;justify-content:space-between;color:var(--teal);font-size:.7rem;font-weight:850;letter-spacing:.08em}.report-card h2{margin:32px 0 7px;line-height:1.25;font-size:1.18rem}.report-card h2 a{text-decoration:none}.report-card>p{margin:0;color:var(--muted);font-size:.8rem}.report-score{display:flex;justify-content:space-between;align-items:end;margin-top:auto;padding-top:22px;border-top:1px solid var(--line)}.report-score span{color:var(--muted);font-size:.73rem}.report-score strong{color:var(--navy);font-size:1.35rem;letter-spacing:-.05em}.report-card .text-link{margin-top:12px;font-size:.8rem}.workflow-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}.workflow-grid article,.change-list li{margin:0;padding:20px;border:1px solid var(--line);background:var(--panel);border-radius:12px}.workflow-grid article>span,.change-list li>span{color:var(--teal);font-weight:900}.workflow-grid h3{margin:6px 0}.table-wrap{overflow-x:auto}.change-list{list-style:none;padding:0;display:grid;gap:10px}.change-list li>span{float:right}.change-list p{margin:6px 0 0}.paste-summary{font-size:1.1rem;font-weight:650;background:var(--navy);color:#fff;padding:20px;border-radius:12px}.deliverables{display:flex;flex-wrap:wrap;gap:10px}.deliverables span{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:8px 12px}section,article{margin-bottom:38px}table{border-collapse:collapse;width:100%;background:var(--panel)}th,td{border:1px solid var(--line);padding:10px 12px;text-align:left;vertical-align:top}th{background:var(--mist)}.report-body{max-width:850px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:28px;overflow-wrap:anywhere}.citation{color:var(--teal);font-weight:800;text-decoration:none}.references{padding-left:20px}code{background:var(--mist);padding:2px 5px;border-radius:4px}@media(max-width:850px){.site-header{padding:18px 22px;align-items:flex-start;flex-direction:column}.hero-home,.story-grid,.release-section{grid-template-columns:1fr;gap:35px}.cards{grid-template-columns:repeat(2,1fr)}.release-section{margin:0 -22px;padding:58px 22px}.report-grid{grid-template-columns:repeat(2,1fr)}main{padding:0 22px 70px}.hero-home{padding:62px 0}.report-cta{align-items:start;flex-direction:column}footer{padding:24px 22px;flex-direction:column}.proof-panel{max-width:470px}}@media(max-width:540px){nav{gap:13px}.hero h1{font-size:3rem}.cards,.report-grid,.release-grid{grid-template-columns:1fr}.release-grid article{padding:0 0 17px;border-right:0;border-bottom:1px solid rgba(255,255,255,.17)}.release-grid article:last-child{border:0}.report-body{padding:18px}.boundary-note{align-items:flex-start}.card{min-height:auto}}
+""",
+        encoding="utf-8",
+    )
 
 
 if __name__ == "__main__":
