@@ -6,6 +6,8 @@ from datetime import date
 from deepresearch_agent.domains.protocols import RetrievalFilterValues
 from deepresearch_agent.rag.retrieval import FixtureRerankerProvider
 from deepresearch_agent.rag.search import RagSearchService, RetrievalFilter, SearchChunk
+from deepresearch_agent.tools.contracts import ToolErrorKind
+from deepresearch_agent.tools.reliable_execution import ToolExecutionError
 
 
 class StaticBackend:
@@ -25,6 +27,11 @@ class RecordingBackend(StaticBackend):
     def search(self, *, query: str, filters: RetrievalFilter, limit: int) -> list[SearchChunk]:
         self.filters.append(filters)
         return super().search(query=query, filters=filters, limit=limit)
+
+
+class FailingBackend:
+    def search(self, **_kwargs: object) -> list[SearchChunk]:
+        raise ToolExecutionError(ToolErrorKind.TIMEOUT, "simulated timeout")
 
 
 class FinanceLikeRetrievalDomain:
@@ -123,6 +130,23 @@ class RagSearchTests(unittest.TestCase):
         self.assertEqual(candidate["dense_score"], 0.75)
         self.assertGreater(candidate["rrf_score"], 0)
         self.assertIsNotNone(candidate["rerank_score"])
+
+    def test_backend_failure_is_explicit_degradation_not_a_fabricated_hit(self) -> None:
+        service = RagSearchService(
+            lexical=FailingBackend(),
+            dense=StaticBackend([]),
+            reranker=None,
+            retrieval_top_k=10,
+            rerank_top_n=5,
+            rerank_enabled=False,
+            rerank_fail_open=True,
+        )
+
+        result = service.search(query="问题", as_of="2026-01-01")
+
+        self.assertEqual(result["candidates"], [])
+        self.assertEqual(result["trace"].degradation.tool, "rag_search")
+        self.assertEqual(result["trace"].degradation.reason, ToolErrorKind.TIMEOUT)
 
 
 if __name__ == "__main__":

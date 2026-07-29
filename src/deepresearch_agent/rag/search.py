@@ -11,7 +11,7 @@ from deepresearch_agent.rag.retrieval import (
     rrf_fuse,
 )
 from deepresearch_agent.tools.contracts import DegradationEvent
-from deepresearch_agent.tools.reliable_execution import ToolExecutionError
+from deepresearch_agent.tools.reliable_execution import ToolExecutionError, classify_tool_error
 
 
 @dataclass(frozen=True)
@@ -98,8 +98,32 @@ class RagSearchService:
             as_of=date.fromisoformat(as_of),
             index_version=effective_filters.index_version,
         )
-        lexical = self.lexical.search(query=query, filters=effective_filters, limit=self.retrieval_top_k)
-        dense = self.dense.search(query=query, filters=effective_filters, limit=self.retrieval_top_k)
+        try:
+            lexical = self.lexical.search(
+                query=query, filters=effective_filters, limit=self.retrieval_top_k
+            )
+            dense = self.dense.search(
+                query=query, filters=effective_filters, limit=self.retrieval_top_k
+            )
+        except BaseException as exc:
+            error = exc if isinstance(exc, ToolExecutionError) else ToolExecutionError(
+                classify_tool_error(exc), str(exc)
+            )
+            degradation = DegradationEvent(
+                tool="rag_search", reason=error.kind, impact="empty_result", attempts=1
+            )
+            return {
+                "candidates": [],
+                "trace": RetrievalTrace(
+                    index_version=effective_filters.index_version or "unspecified",
+                    lexical_count=0,
+                    dense_count=0,
+                    fused_count=0,
+                    delivered_count=0,
+                    rerank_status="not_attempted",
+                    degradation=degradation,
+                ),
+            }
         permitted = {
             chunk.chunk_id: chunk
             for chunk in [*lexical, *dense]
