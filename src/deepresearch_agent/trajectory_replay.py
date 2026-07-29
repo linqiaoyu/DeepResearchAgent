@@ -265,6 +265,28 @@ class ReplayLLMClient:
             )
 
 
+def replay_recorded_rag_search(call: ToolCallTrace) -> tuple[str, ...]:
+    """Replay a recorded RAG result without invoking a retrieval provider.
+
+    A degraded rerank replays the recorded RRF delivery order rather than
+    calling rerank again and accidentally taking a successful branch.
+    """
+
+    if call.tool_spec.get("name") != "rag_search":
+        raise TrajectoryCacheMissError("strict replay expected a rag_search trace")
+    if not isinstance(call.result, dict):
+        raise TrajectoryCacheMissError("rag_search trace lacks a result object")
+    identifiers = call.result.get("candidate_ids")
+    if not isinstance(identifiers, list) or not all(isinstance(item, str) for item in identifiers):
+        raise TrajectoryCacheMissError("rag_search trace lacks ordered candidate_ids")
+    status = call.result.get("rerank_status")
+    if status not in {"ok", "disabled", "degraded", "not_attempted"}:
+        raise TrajectoryCacheMissError("rag_search trace has an invalid rerank status")
+    if status == "degraded" and not isinstance(call.result.get("degradation_reason"), str):
+        raise TrajectoryCacheMissError("degraded rag_search trace lacks a degradation reason")
+    return tuple(identifiers)
+
+
 class ReplaySearchProvider:
     def __init__(self, trajectory: AgentTrajectory) -> None:
         self._context: RunToolContext | None = None

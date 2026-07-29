@@ -241,6 +241,11 @@ class RagSearchService:
                 result={
                     "candidate_ids": candidate_ids,
                     "rerank_status": getattr(trace, "rerank_status", None),
+                    "degradation_reason": (
+                        str(trace.degradation.reason)
+                        if getattr(trace, "degradation", None) is not None
+                        else None
+                    ),
                 },
                 attempts=1,
             )

@@ -9,6 +9,7 @@ from deepresearch_agent.rag.search import RagSearchService, RetrievalFilter, Sea
 from deepresearch_agent.tools.contracts import ToolErrorKind
 from deepresearch_agent.tools.reliable_execution import ToolExecutionError
 from deepresearch_agent.trajectory import TrajectoryRecorder, trajectory_recording
+from deepresearch_agent.trajectory_replay import replay_recorded_rag_search
 
 
 class StaticBackend:
@@ -183,6 +184,30 @@ class RagSearchTests(unittest.TestCase):
         self.assertEqual(result["candidates"], [])
         self.assertEqual(result["trace"].degradation.tool, "rag_search")
         self.assertEqual(result["trace"].degradation.reason, ToolErrorKind.TIMEOUT)
+
+    def test_degraded_rerank_replays_the_recorded_rrf_order_without_provider_call(self) -> None:
+        class FailingReranker:
+            def rerank(self, *_args: object, **_kwargs: object) -> object:
+                raise ToolExecutionError(ToolErrorKind.TIMEOUT, "rerank unavailable")
+
+        chunks = [
+            SearchChunk("a", "甲", date(2025, 1, 1), "v1", 0, 1),
+            SearchChunk("b", "乙", date(2025, 1, 1), "v1", 1, 2),
+        ]
+        service = RagSearchService(
+            lexical=StaticBackend(chunks), dense=StaticBackend([]), reranker=FailingReranker(),
+            retrieval_top_k=10, rerank_top_n=8, rerank_enabled=True,
+            rerank_fail_open=True, index_version="idx-v1",
+        )
+        recorder = TrajectoryRecorder(run_id="degraded", request={})
+        with trajectory_recording(recorder):
+            result = service.search(query="问题", as_of="2026-01-01")
+
+        self.assertEqual(result["trace"].rerank_status, "degraded")
+        self.assertEqual(
+            replay_recorded_rag_search(recorder.trajectory.tool_calls[0]),
+            tuple(item["chunk_id"] for item in result["candidates"]),
+        )
 
 
 if __name__ == "__main__":
