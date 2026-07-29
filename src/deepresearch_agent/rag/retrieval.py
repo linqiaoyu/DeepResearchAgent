@@ -89,6 +89,51 @@ class ProviderPricing:
         return input_tokens * self.cny_per_million_input_tokens / 1_000_000
 
 
+class RecordedEmbeddingProvider:
+    """Offline embedding fixture keyed only by content SHA-256."""
+
+    fidelity = "replay"
+
+    def __init__(self, recording: Path) -> None:
+        payload = json.loads(recording.read_text(encoding="utf-8"))
+        if payload.get("schema_version") != 1:
+            raise ValueError("embedding recording schema_version must be 1")
+        dimensions = payload.get("dimensions")
+        records = payload.get("records")
+        if not isinstance(dimensions, int) or dimensions < 1 or not isinstance(records, list):
+            raise ValueError("embedding recording metadata is invalid")
+        vectors: dict[str, list[float]] = {}
+        for record in records:
+            if not isinstance(record, dict):
+                raise ValueError("embedding recording item is invalid")
+            digest = record.get("input_sha256")
+            vector = record.get("embedding")
+            if (
+                not isinstance(digest, str)
+                or len(digest) != 64
+                or not isinstance(vector, list)
+                or len(vector) != dimensions
+                or not all(isinstance(value, (int, float)) for value in vector)
+            ):
+                raise ValueError("embedding recording item is invalid")
+            vectors[digest] = [float(value) for value in vector]
+        if len(vectors) != len(records):
+            raise ValueError("embedding recording contains duplicate input hashes")
+        self.model = payload.get("model")
+        self.dimensions = dimensions
+        self._vectors = vectors
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        result: list[list[float]] = []
+        for text in texts:
+            digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
+            vector = self._vectors.get(digest)
+            if vector is None:
+                raise ValueError("embedding recording cache_miss")
+            result.append(list(vector))
+        return result
+
+
 class DashScopeEmbeddingProvider:
     """Direct embedding adapter with pre-reserved shared-ledger accounting."""
 

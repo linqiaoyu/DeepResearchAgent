@@ -14,6 +14,7 @@ from deepresearch_agent.rag.retrieval import (
     CachedEmbeddingProvider,
     FixtureRerankerProvider,
     ProviderPricing,
+    RecordedEmbeddingProvider,
     RetrievalCandidate,
     _estimated_tokens,
     rrf_fuse,
@@ -190,6 +191,13 @@ class RagRetrievalTests(unittest.TestCase):
             reloaded = CachedEmbeddingProvider(delegate=delegate, path=path)
             self.assertEqual(reloaded.embed(["另一个", "同一文本"]), [[3.0], [4.0]])
             self.assertEqual(len(delegate.calls), 1)
+
+    def test_recorded_embedding_fixture_replays_without_network_and_fails_closed(self) -> None:
+        provider = RecordedEmbeddingProvider(Path("data/recordings/embeddings_v1/fixture_v1.json"))
+        vector = provider.embed(["DeepResearchAgent embedding recording fixture v1"])[0]
+        self.assertEqual(len(vector), 1024)
+        with self.assertRaisesRegex(ValueError, "cache_miss"):
+            provider.embed(["unrecorded embedding input"])
 
     def test_real_provider_calls_are_written_to_v5_trajectory(self) -> None:
         class Response:

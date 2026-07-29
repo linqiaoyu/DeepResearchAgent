@@ -187,8 +187,7 @@
   },
   {
     "plan_ref": "B4-3",
-    "status": "DEFERRED",
-    "reason": "The rebuild now uses a persistent content-hash embedding cache, but no real provider response payload may be fabricated as the required embeddings_v1 recording fixture."
+    "status": "PASS"
   },
   {
     "plan_ref": "B4-4",
