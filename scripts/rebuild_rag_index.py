@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -73,10 +74,13 @@ def rebuild(
     index_version: str,
     dimensions: int,
     chunks_per_batch: int,
+    embedding_concurrency: int,
     budget_cny: float,
 ) -> RebuildReport:
     if chunks_per_batch < 1 or chunks_per_batch > 10:
         raise ValueError("chunks_per_batch must be in 1..10, matching the verified provider limit")
+    if embedding_concurrency < 1:
+        raise ValueError("embedding_concurrency must be positive")
     required = ("DASHSCOPE_API_KEY", "DEEPRESEARCH_QDRANT_URL", "DEEPRESEARCH_QDRANT_COLLECTION")
     missing = [name for name in required if not (env.get(name) or "").strip()]
     if missing:
@@ -108,29 +112,38 @@ def rebuild(
         collection=str(env["DEEPRESEARCH_QDRANT_COLLECTION"]),
     )
     embedded = 0
-    for batch in _batches(pending, chunks_per_batch):
-        vectors = embedding.embed([chunk.content for chunk in batch])
-        if len(vectors) != len(batch):
-            raise RuntimeError("embedding provider returned an incomplete batch")
-        index.upsert(
-            chunks=[
-                IndexedChunk(
-                    chunk_id=chunk.id,
-                    document_version_id=chunk.document_version_id,
-                    effective_date=chunk.effective_date,
-                    char_start=chunk.char_start,
-                    char_end=chunk.char_end,
-                    vector=vector,
+    batches = _batches(pending, chunks_per_batch)
+
+    def embed_batch(batch: list[object]) -> list[list[float]]:
+        return embedding.embed([getattr(chunk, "content") for chunk in batch])
+
+    with ThreadPoolExecutor(max_workers=embedding_concurrency) as executor:
+        for offset in range(0, len(batches), embedding_concurrency):
+            window = batches[offset : offset + embedding_concurrency]
+            futures = [(batch, executor.submit(embed_batch, batch)) for batch in window]
+            for batch, future in futures:
+                vectors = future.result()
+                if len(vectors) != len(batch):
+                    raise RuntimeError("embedding provider returned an incomplete batch")
+                index.upsert(
+                    chunks=[
+                        IndexedChunk(
+                            chunk_id=chunk.id,
+                            document_version_id=chunk.document_version_id,
+                            effective_date=chunk.effective_date,
+                            char_start=chunk.char_start,
+                            char_end=chunk.char_end,
+                            vector=vector,
+                        )
+                        for chunk, vector in zip(batch, vectors, strict=True)
+                    ],
+                    model="text-embedding-v4",
+                    chunker_version=CHUNKER_VERSION,
+                    index_version=index_version,
                 )
-                for chunk, vector in zip(batch, vectors, strict=True)
-            ],
-            model="text-embedding-v4",
-            chunker_version=CHUNKER_VERSION,
-            index_version=index_version,
-        )
-        completed.update(chunk.id for chunk in batch)
-        _save_checkpoint(checkpoint, index_version, completed)
-        embedded += len(batch)
+                completed.update(chunk.id for chunk in batch)
+                _save_checkpoint(checkpoint, index_version, completed)
+                embedded += len(batch)
     report = RebuildReport(
         index_version=index_version,
         active_chunks=len(chunks),
@@ -153,6 +166,7 @@ def main() -> None:
     parser.add_argument("--index-version", required=True)
     parser.add_argument("--dimensions", type=int, default=1024)
     parser.add_argument("--chunks-per-batch", type=int, default=10)
+    parser.add_argument("--embedding-concurrency", type=int, default=1)
     parser.add_argument("--budget-cny", type=float, default=50.0)
     parser.add_argument("--env-file", type=Path, default=Path(".env"))
     args = parser.parse_args()
@@ -164,6 +178,7 @@ def main() -> None:
         index_version=args.index_version,
         dimensions=args.dimensions,
         chunks_per_batch=args.chunks_per_batch,
+        embedding_concurrency=args.embedding_concurrency,
         budget_cny=args.budget_cny,
     )
     print(json.dumps(asdict(result), ensure_ascii=False))
