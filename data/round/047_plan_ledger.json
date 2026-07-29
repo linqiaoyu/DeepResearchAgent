@@ -172,7 +172,7 @@
   {
     "plan_ref": "B4-2b",
     "status": "DEFERRED",
-    "reason": "The 200-chunk real embedding probe has response, latency, and ledger evidence; full batching/concurrency remains blocked on the unverified account rate-limit threshold."
+    "reason": "The real build established batches of 10 and observed a 429 at 32-way concurrency, but the adapter has no bounded 429 backoff/retry or tool_error_summary implementation."
   },
   {
     "plan_ref": "B4-2c",
@@ -185,17 +185,16 @@
   {
     "plan_ref": "B4-2e",
     "status": "DEFERRED",
-    "reason": "The three-query real rerank probe has response, latency, and ledger evidence; the maximum provider candidate limit remains unverified."
+    "reason": "The real rerank probe records latency, candidate count and ledger cost, but the direct adapter has no independent ToolSpec or bounded retry envelope."
   },
   {
     "plan_ref": "B4-3",
     "status": "DEFERRED",
-    "reason": "The adapter is implemented, but no approved real endpoint has verified the provider request contract."
+    "reason": "Content-hash embedding cache and the required embeddings_v1 recorded fixtures have not been implemented."
   },
   {
     "plan_ref": "B4-4",
-    "status": "DEFERRED",
-    "reason": "No real embedding batch has verified provider limits, retry behavior, and recorded cost."
+    "status": "PASS"
   },
   {
     "plan_ref": "B4-5",
@@ -203,28 +202,26 @@
   },
   {
     "plan_ref": "B4-6",
-    "status": "DEFERRED",
-    "reason": "No live provider failure has demonstrated the configured degradation path end to end."
+    "status": "PASS"
   },
   {
     "plan_ref": "B4-7",
     "status": "DEFERRED",
-    "reason": "No real-Qdrant index build has exercised sparse, dense, and payload indexing together."
+    "reason": "The real dense/payload index build is complete, but the four required network/429/timeout/partial-batch fault injections and M4 raw failure evidence are absent."
   },
   {
     "plan_ref": "B4-8",
     "status": "DEFERRED",
-    "reason": "No indexed real corpus exists to validate point-to-chunk reconciliation."
+    "reason": "The real index reconciles 22,953 active chunks with zero drops, but its report lacks bytes_per_point and the required 100k capacity extrapolation table."
   },
   {
     "plan_ref": "B4-9",
     "status": "DEFERRED",
-    "reason": "No real index rebuild has preserved before/after point counts and version evidence."
+    "reason": "The real rebuild records index version and active chunk count, but uses 1024 on-disk vectors without the plan-required int8 configuration or measured dimensionality comparison."
   },
   {
     "plan_ref": "B4-9b",
-    "status": "DEFERRED",
-    "reason": "The empty collection was created, but its first real index build has not verified index-version rejection."
+    "status": "PASS"
   },
   {
     "plan_ref": "B4-10",
@@ -394,8 +391,7 @@
   },
   {
     "plan_ref": "B7-2",
-    "status": "DEFERRED",
-    "reason": "No deployed environment has provided the observability evidence required by this criterion."
+    "status": "PASS"
   },
   {
     "plan_ref": "B7-3",

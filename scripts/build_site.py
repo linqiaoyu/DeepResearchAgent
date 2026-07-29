@@ -34,6 +34,7 @@ CITATION_PATH = ROOT / "data" / "golden_set" / "v1" / "results" / "g3_citation_s
 AUDIT_PATH = ROOT / "data" / "golden_set" / "v1" / "audit_v11.json"
 FREEZE_PATH = ROOT / "data" / "golden_set" / "v1" / "freeze.md"
 BUSINESS_FIXTURE_PATH = ROOT / "tests" / "golden_output" / "wealth_research.json"
+RAG_RELEASE_EVIDENCE_PATH = ROOT / "data" / "round" / "047_release_evidence.json"
 FORBIDDEN_V10_NUMBERS = ("0.7803", "0.7999")
 HISTORICAL_JUDGE_DECOMPOSITION = "0.6134 + 0.1865 - 0.0585 = 0.7414"
 RELEASE_LEAK_PATTERNS = {
@@ -52,8 +53,10 @@ def main() -> None:
     g3 = _read_json(G3_PATH)
     citation = _read_json(CITATION_PATH)
     audit = _read_json(AUDIT_PATH)
+    rag_evidence = _read_json(RAG_RELEASE_EVIDENCE_PATH)
     freeze = FREEZE_PATH.read_text(encoding="utf-8")
     validation = _validate_release_assets(showcase, g3, citation, audit, freeze)
+    _validate_rag_release_evidence(rag_evidence)
     business = _business_scenario_from_fixture()
     if DIST.exists():
         shutil.rmtree(DIST)
@@ -64,6 +67,7 @@ def main() -> None:
     reports = showcase["reports"]
     _write_page("index.html", _home_page(showcase, validation))
     _write_page("methodology.html", _methodology_page(showcase, validation))
+    _write_page("rag.html", _rag_page(rag_evidence))
     _write_page("reproduce.html", _reproduce_page())
     _write_page("scenarios.html", _business_scenario_page(business))
     _write_page(
@@ -86,6 +90,7 @@ def main() -> None:
             "audit": str(AUDIT_PATH.relative_to(ROOT)),
             "freeze": str(FREEZE_PATH.relative_to(ROOT)),
             "business_fixture": str(BUSINESS_FIXTURE_PATH.relative_to(ROOT)),
+            "rag_release_evidence": str(RAG_RELEASE_EVIDENCE_PATH.relative_to(ROOT)),
         },
         "validation": validation,
         "files": sorted(str(path.relative_to(DIST)) for path in DIST.rglob("*") if path.is_file()),
@@ -142,6 +147,16 @@ def _validate_release_assets(
         "audit_counts": audit["summary"]["counts"],
         "citation_samples": 3,
     }
+
+
+def _validate_rag_release_evidence(evidence: dict[str, Any]) -> None:
+    required = ("corpus", "index", "retrieval", "trace", "limitations")
+    if evidence.get("schema_version") != "047-release-evidence-v1" or any(key not in evidence for key in required):
+        raise SystemExit("RAG release evidence has an invalid schema")
+    if evidence["corpus"].get("documents") != 60 or evidence["corpus"].get("chunks") != 22953:
+        raise SystemExit("RAG release evidence corpus summary is not the reviewed 047 result")
+    if evidence["retrieval"].get("quality_gate") != "FAIL":
+        raise SystemExit("RAG release evidence must retain the 047 quality-gate result")
 
 
 def _assert_site(
@@ -258,7 +273,7 @@ def _layout(title: str, content: str) -> str:
 <meta property="og:image" content="https://deepresearch-agent.jacksonyu1109.workers.dev/assets/og.png"><meta property="og:image:alt" content="DeepResearchAgent：让每一个研究结论，都经得起回看。">
 <title>{html.escape(title)} · DeepResearchAgent</title><link rel="stylesheet" href="{prefix}assets/styles.css"></head>
 <body><a class="skip-link" href="#content">跳至内容</a><header class="site-header"><a class="brand" href="{prefix}index.html"><span class="brand-mark">DR</span><span>DeepResearch<br><em>Agent</em></span></a><nav aria-label="主导航">
-<a href="{prefix}reports/index.html">成果报告</a><a href="{prefix}scenarios.html">工作流演示</a><a href="{prefix}methodology.html">评测方法</a><a href="{prefix}reproduce.html">复现路径</a>
+<a href="{prefix}reports/index.html">成果报告</a><a href="{prefix}scenarios.html">工作流演示</a><a href="{prefix}methodology.html">评测方法</a><a href="{prefix}rag.html">RAG 证据</a><a href="{prefix}reproduce.html">复现路径</a>
 <a class="nav-github" href="https://github.com/linqiaoyu/DeepResearchAgent">GitHub ↗</a></nav></header><main id="content">{content}</main><footer><span>DeepResearchAgent</span><span>静态展示 · 冻结语料 · 可审计产物</span></footer></body></html>"""
 
 
@@ -298,6 +313,19 @@ def _methodology_page(showcase: dict[str, Any], validation: dict[str, Any]) -> s
 
 def _reproduce_page() -> str:
     return _layout("复现", """<section class="page-title"><h1>复现与可部署资产</h1><p>静态站不依赖后端；仓库保留 API/UI 演示资产。</p></section><section><h2>三步</h2><ol><li>复制仓库并配置服务器侧 .env。</li><li>运行 <code>docker compose up -d --build</code>。</li><li>访问 <code>/demo</code> 或 Streamlit UI。</li></ol></section><section><h2>RAG MVP 边界</h2><ul><li>摄取仅接受本地、manifest 列出的公开 PDF、HTML 或 TXT，并保留文件 hash、版本与字符范围。</li><li>默认没有已配置的向量索引，因此 <code>rag_search</code> 返回明确的空结果，不伪造来源或指标。</li><li>rerank 默认开启的单项检索收益尚未经测量；未来展示的整条流水线提升也不可归因到 rerank。</li><li>公开站点只包含冻结发布资产，不包含 API key、私有 endpoint、运行机路径或全文语料。</li></ul></section>""")
+
+
+def _rag_page(evidence: dict[str, Any]) -> str:
+    corpus, index, retrieval, trace = (evidence[key] for key in ("corpus", "index", "retrieval", "trace"))
+    limitations = "".join(f"<li>{html.escape(item)}</li>" for item in evidence["limitations"])
+    return _layout(
+        "RAG 证据",
+        f"""<section class="page-title"><p class="eyebrow">ROUND 047 · REVIEWED RELEASE EVIDENCE</p><h1>RAG 是一组可复核的结果。</h1><p>此页只读取版本控制的脱敏摘要；不包含 endpoint、密钥、运行机路径或原始全文。</p></section>
+<section><h2>检索链路</h2><div class="workflow-grid"><article><span>01</span><h3>SQLite 词法检索</h3><p>候选 Top-50</p></article><article><span>02</span><h3>Qdrant 稠密检索</h3><p>以 index_version 与 as-of 过滤，候选 Top-50。</p></article><article><span>03</span><h3>RRF 融合</h3><p>只传递 chunk identity；正文仍由权威存储读取。</p></article><article><span>04</span><h3>DashScope rerank</h3><p>交付 Top-{trace['delivered_candidates']}，降级状态显式记录。</p></article></div></section>
+<section><h2>语料、索引与真实 trace</h2><table><tbody><tr><th>语料</th><td>{html.escape(corpus['version'])} · {corpus['documents']} 份公开原件 · {corpus['chunks']} active chunks</td></tr><tr><th>语料指纹</th><td><code>{html.escape(corpus['fingerprint'])}</code></td></tr><tr><th>索引</th><td><code>{html.escape(index['version'])}</code> · 重建 {index['rebuild_seconds']} s · ¥{index['cost_cny']:.6f}</td></tr><tr><th>真实检索 trace</th><td>{html.escape(trace['kind'])}：词法 {trace['lexical_candidates']} / 稠密 {trace['dense_candidates']} / 交付 {trace['delivered_candidates']}；rerank={trace['rerank_status']}；¥{trace['cost_cny']:.7f}</td></tr></tbody></table></section>
+<section><h2>冻结 test split：BM25 基线 vs hybrid + rerank</h2><table><thead><tr><th>链路</th><th>Recall@20</th><th>nDCG@10</th></tr></thead><tbody><tr><td>BM25</td><td>{retrieval['bm25']['recall_at_20']:.4f}</td><td>{retrieval['bm25']['ndcg_at_10']:.4f}</td></tr><tr><td>Hybrid + rerank</td><td>{retrieval['hybrid_rerank']['recall_at_20']:.4f}</td><td>{retrieval['hybrid_rerank']['ndcg_at_10']:.4f}</td></tr></tbody></table><p class="notice">质量门槛：<strong>{html.escape(retrieval['quality_gate'])}</strong>。{html.escape(retrieval['decision'])}</p></section>
+<section><h2>MVP 限制清单</h2><ul>{limitations}</ul></section>""",
+    )
 
 
 def _business_scenario_from_fixture() -> dict[str, Any]:

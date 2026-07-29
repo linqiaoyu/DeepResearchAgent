@@ -1,0 +1,17 @@
+{
+  "schema_version": "047-release-evidence-v1",
+  "corpus": {"version": "finance_v1", "fingerprint": "43f1108577d5c3a56f9daeb1d9c942b985a73759fce7d11e374831c67c0badb5", "documents": 60, "chunks": 22953},
+  "index": {"version": "finance_v1-43f11085-heading_page_first_1024_256", "rebuild_seconds": 113.604, "cost_cny": 13.797413},
+  "retrieval": {
+    "bm25": {"recall_at_20": 0.0, "ndcg_at_10": 0.0},
+    "hybrid_rerank": {"recall_at_20": 0.01282051282051282, "ndcg_at_10": 0.0},
+    "quality_gate": "FAIL",
+    "decision": "No paid retuning was performed after the preregistered test result."
+  },
+  "trace": {"kind": "real retrieval-chain probe", "lexical_candidates": 50, "dense_candidates": 50, "delivered_candidates": 8, "rerank_status": "ok", "cost_cny": 0.0458275},
+  "limitations": [
+    "rerank 默认开启，其单项检索收益在本轮未经测量；展示的提升数字来自整条流水线，不可归因到 rerank。",
+    "冻结 test split 的检索质量门槛未通过；该负面结果不能被演示页面改写为已验证有效。",
+    "真实三层端到端研究运行未完成；这里的真实 probe 仅证明检索链路。"
+  ]
+}
