@@ -1,6 +1,7 @@
 from deepresearch_agent.storage.factory import build_store
 from deepresearch_agent.storage.protocol import (
     DocumentIngestResult,
+    ResolvedChunk,
     StorageProtocol,
     StoredChunk,
 )
@@ -9,6 +10,7 @@ from deepresearch_agent.storage.sqlite_store import SQLiteStore
 
 __all__ = [
     "DocumentIngestResult",
+    "ResolvedChunk",
     "PostgresStore",
     "SQLiteStore",
     "StorageProtocol",

@@ -8,7 +8,7 @@ from uuid import NAMESPACE_URL, uuid5
 
 from deepresearch_agent.schemas import EvaluationResult, Evidence
 from deepresearch_agent.storage.sqlite_store import SQLiteStore
-from deepresearch_agent.storage.protocol import DocumentIngestResult, StoredChunk
+from deepresearch_agent.storage.protocol import DocumentIngestResult, ResolvedChunk, StoredChunk
 
 
 class PostgresStore(SQLiteStore):
@@ -217,6 +217,27 @@ class PostgresStore(SQLiteStore):
             "active_chunks": int(row[2]),
             "superseded_chunks": int(row[3]),
         }
+
+    def list_ready_chunks(self, *, as_of: str) -> list[ResolvedChunk]:
+        with self._connection() as conn, conn.cursor(row_factory=self._psycopg.rows.dict_row) as cursor:
+            rows = cursor.execute(
+                "SELECT id, document_version_id, char_start, char_end, page_number, effective_date, content "
+                "FROM chunk WHERE status = 'ready' AND effective_date <= %s ORDER BY id",
+                (as_of,),
+            ).fetchall()
+        return [self._resolved_chunk_from_row(row) for row in rows]
+
+    def resolve_ready_chunks(self, chunk_ids: list[str], *, as_of: str) -> list[ResolvedChunk]:
+        if not chunk_ids:
+            return []
+        with self._connection() as conn, conn.cursor(row_factory=self._psycopg.rows.dict_row) as cursor:
+            rows = cursor.execute(
+                "SELECT id, document_version_id, char_start, char_end, page_number, effective_date, content "
+                "FROM chunk WHERE status = 'ready' AND effective_date <= %s AND id = ANY(%s)",
+                (as_of, chunk_ids),
+            ).fetchall()
+        resolved = {str(row["id"]): self._resolved_chunk_from_row(row) for row in rows}
+        return [resolved[chunk_id] for chunk_id in chunk_ids if chunk_id in resolved]
 
 
 def _evidence_row(item: Evidence, position: int) -> dict[str, object]:

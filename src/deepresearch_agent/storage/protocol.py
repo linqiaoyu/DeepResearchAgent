@@ -17,6 +17,19 @@ class StoredChunk:
 
 
 @dataclass(frozen=True)
+class ResolvedChunk:
+    """A ready chunk resolved from the authoritative relational store."""
+
+    id: str
+    document_version_id: str
+    char_start: int
+    char_end: int
+    page_number: int | None
+    effective_date: str
+    content: str
+
+
+@dataclass(frozen=True)
 class DocumentIngestResult:
     document_id: str
     document_version_id: str
@@ -51,3 +64,7 @@ class StorageProtocol(Protocol):
     ) -> DocumentIngestResult: ...
 
     def rag_status(self) -> dict[str, int]: ...
+
+    def list_ready_chunks(self, *, as_of: str) -> list[ResolvedChunk]: ...
+
+    def resolve_ready_chunks(self, chunk_ids: list[str], *, as_of: str) -> list[ResolvedChunk]: ...

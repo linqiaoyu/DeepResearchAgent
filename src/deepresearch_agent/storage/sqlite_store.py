@@ -17,6 +17,7 @@ from deepresearch_agent.schemas import (
 )
 from deepresearch_agent.storage.protocol import (
     DocumentIngestResult,
+    ResolvedChunk,
     StoredChunk,
 )
 
@@ -326,6 +327,41 @@ class SQLiteStore:
                 "(SELECT count(*) FROM chunk WHERE status = 'superseded') AS superseded_chunks"
             ).fetchone()
         return {key: int(row[key]) for key in row.keys()}
+
+    def list_ready_chunks(self, *, as_of: str) -> list[ResolvedChunk]:
+        with self._connection() as conn:
+            rows = conn.execute(
+                "SELECT id, document_version_id, char_start, char_end, page_number, effective_date, content "
+                "FROM chunk WHERE status = 'ready' AND effective_date <= ? "
+                "ORDER BY id",
+                (as_of,),
+            ).fetchall()
+        return [self._resolved_chunk_from_row(row) for row in rows]
+
+    def resolve_ready_chunks(self, chunk_ids: list[str], *, as_of: str) -> list[ResolvedChunk]:
+        if not chunk_ids:
+            return []
+        placeholders = ", ".join("?" for _ in chunk_ids)
+        with self._connection() as conn:
+            rows = conn.execute(
+                "SELECT id, document_version_id, char_start, char_end, page_number, effective_date, content "
+                f"FROM chunk WHERE status = 'ready' AND effective_date <= ? AND id IN ({placeholders})",
+                (as_of, *chunk_ids),
+            ).fetchall()
+        resolved = {str(row["id"]): self._resolved_chunk_from_row(row) for row in rows}
+        return [resolved[chunk_id] for chunk_id in chunk_ids if chunk_id in resolved]
+
+    @staticmethod
+    def _resolved_chunk_from_row(row: Mapping[str, object]) -> ResolvedChunk:
+        return ResolvedChunk(
+            id=str(row["id"]),
+            document_version_id=str(row["document_version_id"]),
+            char_start=int(row["char_start"]),
+            char_end=int(row["char_end"]),
+            page_number=None if row["page_number"] is None else int(row["page_number"]),
+            effective_date=str(row["effective_date"]),
+            content=str(row["content"]),
+        )
 
 
 def _as_json_text(value: object) -> str | None:

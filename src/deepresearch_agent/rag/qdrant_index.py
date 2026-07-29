@@ -16,6 +16,14 @@ class IndexedChunk:
     vector: list[float]
 
 
+@dataclass(frozen=True)
+class QdrantQueryHit:
+    """A score and chunk identity returned by the derived vector index."""
+
+    chunk_id: str
+    score: float
+
+
 class QdrantIndex:
     """Small fail-closed REST adapter for one derived-vector collection."""
 
@@ -109,6 +117,38 @@ class QdrantIndex:
         )
         response.raise_for_status()
         return len(points)
+
+    def query(
+        self, *, vector: list[float], as_of: str, index_version: str | None, limit: int
+    ) -> list[QdrantQueryHit]:
+        """Query only payload identities; canonical chunk text stays in StorageProtocol."""
+
+        if not vector or limit < 1:
+            return []
+        must = [{"key": "effective_date", "range": {"lte": as_of}}]
+        if index_version:
+            must.append({"key": "index_version", "match": {"value": index_version}})
+        response = httpx.post(
+            f"{self._collection_url}/points/query",
+            headers=self.headers,
+            timeout=self.timeout_seconds,
+            json={
+                "query": vector,
+                "limit": limit,
+                "filter": {"must": must},
+                "with_payload": ["chunk_id"],
+                "with_vector": False,
+            },
+        )
+        response.raise_for_status()
+        points = response.json().get("result", {}).get("points", [])
+        hits: list[QdrantQueryHit] = []
+        for point in points:
+            payload = point.get("payload", {})
+            chunk_id = payload.get("chunk_id")
+            if isinstance(chunk_id, str):
+                hits.append(QdrantQueryHit(chunk_id=chunk_id, score=float(point["score"])))
+        return hits
 
     @property
     def _collection_url(self) -> str:

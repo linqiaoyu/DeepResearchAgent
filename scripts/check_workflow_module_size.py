@@ -24,6 +24,7 @@ MODULES = (
     ROOT / "src/deepresearch_agent/workflow/nodes/quality.py",
     ROOT / "src/deepresearch_agent/reporting/report_assembly.py",
     ROOT / "src/deepresearch_agent/rag/__main__.py",
+    ROOT / "src/deepresearch_agent/rag/backends.py",
     ROOT / "src/deepresearch_agent/rag/chunking.py",
     ROOT / "src/deepresearch_agent/rag/evaluation.py",
     ROOT / "src/deepresearch_agent/rag/ingest.py",
