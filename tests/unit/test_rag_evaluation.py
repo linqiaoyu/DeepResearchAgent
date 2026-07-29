@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+import tempfile
 from pathlib import Path
 
 from deepresearch_agent.rag.evaluation import (
@@ -10,9 +11,22 @@ from deepresearch_agent.rag.evaluation import (
     recall_at_k,
     resolve_labels_to_chunks,
 )
+from deepresearch_agent.rag.__main__ import _write_benchmark_report, build_benchmark_report
 
 
 class RagEvaluationTests(unittest.TestCase):
+    def test_benchmark_schema_reports_missing_evidence_as_null(self) -> None:
+        report = build_benchmark_report({"active_chunks": 0})
+        self.assertEqual(report["active_chunks"], 0)
+        self.assertIsNone(report["metrics"]["recall_at_20"])
+        self.assertIn("no_active_chunks", report["unavailable_reasons"])
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            _write_benchmark_report(report, root / "benchmark.json", root / "benchmark.md")
+            self.assertIn('"recall_at_20": null', (root / "benchmark.json").read_text())
+            self.assertIn("## Unavailable evidence", (root / "benchmark.md").read_text())
+
     def test_evaluation_document_records_the_retrieval_metric_contract(self) -> None:
         root = Path(__file__).resolve().parents[2]
         document = (root / "docs" / "evaluation.md").read_text(encoding="utf-8")

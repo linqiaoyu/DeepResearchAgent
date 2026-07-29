@@ -17,6 +17,8 @@ from deepresearch_agent.rag.retrieval import (
 )
 from deepresearch_agent.tools.contracts import ToolErrorKind
 from deepresearch_agent.tools.reliable_execution import ToolExecutionError
+from scripts.probe_embedding import DEFAULT_EMBEDDING_ENDPOINT
+from scripts.probe_rerank import DEFAULT_RERANK_ENDPOINT
 
 
 class FailingReranker:
@@ -25,6 +27,16 @@ class FailingReranker:
 
 
 class RagRetrievalTests(unittest.TestCase):
+    def test_probe_defaults_use_public_dashscope_compatible_endpoints(self) -> None:
+        self.assertEqual(
+            DEFAULT_EMBEDDING_ENDPOINT,
+            "https://dashscope.aliyuncs.com/compatible-mode/v1/embeddings",
+        )
+        self.assertEqual(
+            DEFAULT_RERANK_ENDPOINT,
+            "https://dashscope.aliyuncs.com/compatible-api/v1/reranks",
+        )
+
     def test_dashscope_adapters_record_shared_ledger_rows(self) -> None:
         class Response:
             def __init__(self, payload: dict[str, object]) -> None:

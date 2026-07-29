@@ -23,6 +23,7 @@ import httpx
 from deepresearch_agent.llm_config import DASHSCOPE_EMBEDDING_MODEL
 
 MAX_BATCH_SIZE = 10
+DEFAULT_EMBEDDING_ENDPOINT = "https://dashscope.aliyuncs.com/compatible-mode/v1/embeddings"
 
 
 def _load_chunks(path: Path) -> list[str]:
@@ -99,9 +100,7 @@ def main() -> None:
     api_key = os.getenv("DASHSCOPE_API_KEY", "").strip()
     if not api_key:
         raise SystemExit("DASHSCOPE_API_KEY is required")
-    endpoint = os.getenv("DASHSCOPE_EMBEDDING_ENDPOINT", "").strip()
-    if not endpoint:
-        raise SystemExit("DASHSCOPE_EMBEDDING_ENDPOINT is required")
+    endpoint = os.getenv("DASHSCOPE_EMBEDDING_ENDPOINT", DEFAULT_EMBEDDING_ENDPOINT).strip()
     result = run_probe(
         chunks=_load_chunks(args.chunks),
         cny_per_1k_input_tokens=args.cny_per_1k_input_tokens,

@@ -20,6 +20,7 @@ import httpx
 
 from deepresearch_agent.llm_config import DASHSCOPE_RERANK_MODEL
 
+DEFAULT_RERANK_ENDPOINT = "https://dashscope.aliyuncs.com/compatible-api/v1/reranks"
 
 
 def _load_cases(path: Path) -> list[dict[str, Any]]:
@@ -101,9 +102,7 @@ def main() -> None:
     api_key = os.getenv("DASHSCOPE_API_KEY", "").strip()
     if not api_key:
         raise SystemExit("DASHSCOPE_API_KEY is required")
-    endpoint = os.getenv("DASHSCOPE_RERANK_ENDPOINT", "").strip()
-    if not endpoint:
-        raise SystemExit("DASHSCOPE_RERANK_ENDPOINT is required")
+    endpoint = os.getenv("DASHSCOPE_RERANK_ENDPOINT", DEFAULT_RERANK_ENDPOINT).strip()
     result = run_probe(
         cases=_load_cases(args.cases),
         cny_per_1k_input_tokens=args.cny_per_1k_input_tokens,
