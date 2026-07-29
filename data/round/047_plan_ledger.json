@@ -364,8 +364,7 @@
   },
   {
     "plan_ref": "B6-10",
-    "status": "DEFERRED",
-    "reason": "The required four adversarial retrieval integration cases (irrelevant, outdated, injected, duplicate) have no saved end-to-end report evidence."
+    "status": "PASS"
   },
   {
     "plan_ref": "B6-11",

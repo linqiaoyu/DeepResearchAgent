@@ -76,7 +76,7 @@ class RagResearcherTests(unittest.TestCase):
             title="retrieval chunk",
             url="https://example.test/report#chunk=chunk-1",
             source_type="rag_chunk",
-            content="这是足够长的权威原文片段，用于验证检索引用可以进入既有证据存储并保持完整可追溯性。",
+            content="这是足够长的权威问题原文片段，用于验证检索引用可以进入既有证据存储并保持完整可追溯性。",
             retrieval_ref=RetrievalReference(
                 chunk_id="chunk-1",
                 document_version_id="version-1",

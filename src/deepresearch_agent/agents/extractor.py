@@ -14,6 +14,8 @@ from deepresearch_agent.settings import project_root
 SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
 NUMBER_RE = re.compile(r"(\$?\d+(?:\.\d+)?%?|\d+(?:\.\d+)?)")
 PDF_PAGE_MARKER_RE = re.compile(r"\[\[PDF_PAGE=(\d+)\]\]")
+_CJK_RUN_RE = re.compile(r"[\u3400-\u9fff]+")
+_WORD_RE = re.compile(r"[A-Za-z0-9_]+")
 
 
 class ExtractorAgent:
@@ -34,6 +36,7 @@ class ExtractorAgent:
     def extract(self, research_id: str, sub_question: SubQuestion, sources: list[Source]) -> list[Evidence]:
         if not all(isinstance(source, Source) for source in sources):
             raise TypeError("Extractor accepts Source instances, not retrieval candidates")
+        sources, admission_stats = self._admit_sources(sub_question, sources)
         if self.llm_client:
             try:
                 evidence = self._llm_extract(
@@ -41,12 +44,14 @@ class ExtractorAgent:
                     sub_question,
                     sources,
                 )
-                return self._with_authoritative_backfills(
+                result = self._with_authoritative_backfills(
                     research_id,
                     sub_question,
                     sources,
                     evidence,
                 )
+                self.last_stats = {**self.last_stats, **admission_stats}
+                return result
             except (LLMClientError, StructuredOutputError, ValueError) as exc:
                 self.last_stats = {"fallback": True, "error_type": type(exc).__name__}
         evidence = self._deterministic_extract(
@@ -54,12 +59,61 @@ class ExtractorAgent:
             sub_question,
             sources,
         )
-        return self._with_authoritative_backfills(
+        result = self._with_authoritative_backfills(
             research_id,
             sub_question,
             sources,
             evidence,
         )
+        self.last_stats = {**self.last_stats, **admission_stats}
+        return result
+
+    def _admit_sources(
+        self,
+        sub_question: SubQuestion,
+        sources: list[Source],
+    ) -> tuple[list[Source], dict[str, int]]:
+        """Keep untrusted or irrelevant RAG chunks from becoming Evidence.
+
+        RAG candidates are only retrieval hints until this boundary.  The
+        lexical overlap check is deliberately confined to RAG sources: web
+        sources retain their established extraction behavior, while a chunk
+        that cannot even relate to the requested question must not enter a
+        reader-facing conclusion.
+        """
+
+        query_terms = self._retrieval_terms(
+            " ".join([sub_question.question, *sub_question.search_queries])
+        )
+        admitted: list[Source] = []
+        rejected_irrelevant = 0
+        rejected_injection = 0
+        for source in sources:
+            if source.retrieval_ref is None:
+                admitted.append(source)
+                continue
+            if query_terms and not (query_terms & self._retrieval_terms(source.content)):
+                rejected_irrelevant += 1
+                continue
+            if self.injection_guard_enabled and detect_injection(source.content).risk_score >= 0.5:
+                rejected_injection += 1
+                continue
+            admitted.append(source)
+        return admitted, {
+            "rag_sources_admitted": len(admitted),
+            "rag_sources_rejected_irrelevant": rejected_irrelevant,
+            "rag_sources_rejected_injection": rejected_injection,
+        }
+
+    @staticmethod
+    def _retrieval_terms(text: str) -> set[str]:
+        terms: set[str] = set()
+        for run in _CJK_RUN_RE.findall(text):
+            terms.update(run[index : index + 2] for index in range(max(0, len(run) - 1)))
+            if len(run) == 1:
+                terms.add(run)
+        terms.update(word.lower() for word in _WORD_RE.findall(text) if len(word) > 1)
+        return terms
 
     def _with_authoritative_backfills(
         self,
