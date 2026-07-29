@@ -301,8 +301,7 @@
   },
   {
     "plan_ref": "B5-10",
-    "status": "DEFERRED",
-    "reason": "No Chinese lexical backend or M9 mutation guard demonstrates a non-empty lexical result for Chinese query and chunk text."
+    "status": "PASS"
   },
   {
     "plan_ref": "B5-11",
