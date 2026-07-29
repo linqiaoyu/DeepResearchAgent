@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+import hashlib
 from typing import Protocol
 
 from deepresearch_agent.domains.protocols import RetrievalDomain
@@ -11,7 +12,9 @@ from deepresearch_agent.rag.retrieval import (
     rrf_fuse,
 )
 from deepresearch_agent.tools.contracts import DegradationEvent
+from deepresearch_agent.tools.capability_registry import RAG_SEARCH_TOOL_SPEC
 from deepresearch_agent.tools.reliable_execution import ToolExecutionError, classify_tool_error
+from deepresearch_agent.trajectory import ToolCallTrace, active_trajectory_recorder
 
 
 @dataclass(frozen=True)
@@ -115,7 +118,7 @@ class RagSearchService:
             degradation = DegradationEvent(
                 tool="rag_search", reason=error.kind, impact="empty_result", attempts=1
             )
-            return {
+            result = {
                 "candidates": [],
                 "trace": RetrievalTrace(
                     index_version=effective_filters.index_version or "unspecified",
@@ -127,6 +130,8 @@ class RagSearchService:
                     degradation=degradation,
                 ),
             }
+            self._record_trace(query=query, as_of=as_of, filters=effective_filters, result=result)
+            return result
         permitted = {
             chunk.chunk_id: chunk
             for chunk in [*lexical, *dense]
@@ -187,7 +192,7 @@ class RagSearchService:
             rerank_status=rerank_status,
             degradation=degradation,
         )
-        return {
+        result = {
             "candidates": [
                 {
                     "chunk_id": candidate.chunk_id,
@@ -208,3 +213,35 @@ class RagSearchService:
             ],
             "trace": trace,
         }
+        self._record_trace(query=query, as_of=as_of, filters=effective_filters, result=result)
+        return result
+
+    @staticmethod
+    def _record_trace(
+        *, query: str, as_of: str, filters: RetrievalFilter, result: dict[str, object]
+    ) -> None:
+        recorder = active_trajectory_recorder()
+        if recorder is None:
+            return
+        candidates = result.get("candidates", [])
+        candidate_ids = [
+            item.get("chunk_id")
+            for item in candidates
+            if isinstance(item, dict) and isinstance(item.get("chunk_id"), str)
+        ]
+        trace = result.get("trace")
+        recorder.record_tool_call(
+            ToolCallTrace(
+                tool_spec=RAG_SEARCH_TOOL_SPEC.model_dump(mode="json"),
+                inputs={
+                    "query_hash": hashlib.sha256(query.encode("utf-8")).hexdigest(),
+                    "as_of": as_of,
+                    "index_version": filters.index_version,
+                },
+                result={
+                    "candidate_ids": candidate_ids,
+                    "rerank_status": getattr(trace, "rerank_status", None),
+                },
+                attempts=1,
+            )
+        )

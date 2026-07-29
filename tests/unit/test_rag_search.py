@@ -8,6 +8,7 @@ from deepresearch_agent.rag.retrieval import FixtureRerankerProvider
 from deepresearch_agent.rag.search import RagSearchService, RetrievalFilter, SearchChunk
 from deepresearch_agent.tools.contracts import ToolErrorKind
 from deepresearch_agent.tools.reliable_execution import ToolExecutionError
+from deepresearch_agent.trajectory import TrajectoryRecorder, trajectory_recording
 
 
 class StaticBackend:
@@ -92,6 +93,23 @@ class RagSearchTests(unittest.TestCase):
         service.search(query="问题", as_of="2026-01-01")
 
         self.assertEqual(backend.filters[0].index_version, "finance-v1")
+
+    def test_search_records_a_redacted_index_version_trace_for_replay(self) -> None:
+        chunk = SearchChunk("a", "文本", date(2025, 1, 1), "v1", 0, 2)
+        service = RagSearchService(
+            lexical=StaticBackend([chunk]), dense=StaticBackend([]), reranker=None,
+            retrieval_top_k=10, rerank_top_n=5, rerank_enabled=False,
+            rerank_fail_open=True, index_version="finance-v1",
+        )
+        recorder = TrajectoryRecorder(run_id="trace", request={})
+
+        with trajectory_recording(recorder):
+            service.search(query="不可写入轨迹的明文问题", as_of="2026-01-01")
+
+        call = recorder.trajectory.tool_calls[0]
+        self.assertEqual(call.tool_spec["name"], "rag_search")
+        self.assertEqual(call.inputs["index_version"], "finance-v1")
+        self.assertNotIn("不可写入轨迹的明文问题", str(call.inputs))
 
     def test_missing_reranker_fails_closed_when_fail_open_is_disabled(self) -> None:
         chunk = SearchChunk("a", "文本", date(2025, 1, 1), "v1", 0, 2)

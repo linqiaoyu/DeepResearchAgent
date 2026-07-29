@@ -1003,6 +1003,7 @@ _STRATEGY_SETTING_KEYS = {
     "prior_watch_confidence_threshold",
     "skill_packs_enabled",
     "rag_enabled",
+    "rag_index_version",
 }
 
 

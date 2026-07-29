@@ -530,6 +530,13 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
                                 self.settings.skill_packs_enabled
                             ),
                             "rag_enabled": self.settings.rag_enabled,
+                            "rag_index_version": (
+                                self.researcher.rag_search.index_version
+                                if isinstance(
+                                    getattr(self.researcher.rag_search, "index_version", None), str
+                                )
+                                else None
+                            ),
                         },
                     },
                 )

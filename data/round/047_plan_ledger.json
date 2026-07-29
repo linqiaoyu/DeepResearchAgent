@@ -347,8 +347,7 @@
   },
   {
     "plan_ref": "B6-7",
-    "status": "DEFERRED",
-    "reason": "No strict replay run has preserved raw failure evidence for missing, forged, and mismatched retrieval index-version records."
+    "status": "PASS"
   },
   {
     "plan_ref": "B6-7b",

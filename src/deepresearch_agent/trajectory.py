@@ -413,12 +413,23 @@ def validate_strict_replay_trajectory(trajectory: AgentTrajectory) -> None:
                 "trajectory LLM normalized_key mismatch: expected exact prompt key "
                 f"for role {call.role}"
             )
-    if trajectory.schema_version == 4 and bool(
-        trajectory.request.get("strategy_config", {}).get("rag_enabled", False)
-        if isinstance(trajectory.request.get("strategy_config"), dict)
-        else False
-    ):
+    strategy = trajectory.request.get("strategy_config", {})
+    strategy = strategy if isinstance(strategy, dict) else {}
+    if trajectory.schema_version == 4 and bool(strategy.get("rag_enabled", False)):
         raise ValueError("v4 trajectory cannot replay with RAG enabled; record schema v5 retrieval calls")
+    if trajectory.schema_version >= 5 and bool(strategy.get("rag_enabled", False)):
+        expected_index = strategy.get("rag_index_version")
+        if not isinstance(expected_index, str) or not expected_index:
+            raise ValueError("v5 RAG trajectory missing configured rag_index_version")
+        rag_calls = [
+            call
+            for call in trajectory.tool_calls
+            if call.tool_spec.get("name") == "rag_search" and not call.inputs.get("selection_only")
+        ]
+        if not rag_calls:
+            raise ValueError("v5 RAG trajectory missing rag_search index-version record")
+        if any(call.inputs.get("index_version") != expected_index for call in rag_calls):
+            raise ValueError("v5 RAG trajectory index_version mismatch")
 
 
 def load_trajectory(path: Path) -> AgentTrajectory:

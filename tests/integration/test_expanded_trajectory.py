@@ -146,6 +146,25 @@ class ExpandedTrajectoryTest(unittest.TestCase):
         legacy_rag.request["strategy_config"] = {"rag_enabled": True}
         with self.assertRaisesRegex(ValueError, "v4 trajectory cannot replay with RAG enabled"):
             validate_strict_replay_trajectory(legacy_rag)
+        rag_v5 = valid.model_copy(deep=True)
+        rag_v5.request["strategy_config"] = {"rag_enabled": True, "rag_index_version": "idx-v1"}
+        rag_v5.tool_calls.append(
+            ToolCallTrace(
+                tool_spec={"name": "rag_search"},
+                inputs={"query_hash": "a" * 64, "as_of": "2026-01-01", "index_version": "idx-v1"},
+                result={"candidate_ids": []}, attempts=1, sequence=2,
+                recorded_at=valid.llm_calls[0].recorded_at,
+            )
+        )
+        validate_strict_replay_trajectory(rag_v5)
+        missing_index = rag_v5.model_copy(deep=True)
+        missing_index.tool_calls = []
+        with self.assertRaisesRegex(ValueError, "missing rag_search index-version"):
+            replay_trajectory(missing_index, mode="strict")
+        forged_index = rag_v5.model_copy(deep=True)
+        forged_index.tool_calls[0].inputs["index_version"] = "idx-forged"
+        with self.assertRaisesRegex(ValueError, "index_version mismatch"):
+            replay_trajectory(forged_index, mode="strict")
         bad_order = valid.model_copy(deep=True)
         bad_order.llm_calls[0].sequence = 2
         with self.assertRaisesRegex(ValueError, "sequence mismatch"):
