@@ -20,6 +20,8 @@ class RetrievalCandidate:
     text: str
     lexical_rank: int | None = None
     dense_rank: int | None = None
+    lexical_score: float | None = None
+    dense_score: float | None = None
     rrf_score: float = 0.0
     rerank_score: float | None = None
 
@@ -215,7 +217,24 @@ class FixtureRerankerProvider:
         return RerankResult(candidates=ranked[:top_n], candidate_count=len(candidates))
 
 
-def rrf_fuse(*, lexical_ids: list[str], dense_ids: list[str], texts: dict[str, str], top_k: int) -> list[RetrievalCandidate]:
+def rrf_fuse(
+    *,
+    lexical_ids: list[str],
+    dense_ids: list[str],
+    texts: dict[str, str],
+    top_k: int,
+    lexical_scores: dict[str, float] | None = None,
+    dense_scores: dict[str, float] | None = None,
+) -> list[RetrievalCandidate]:
+    """Fuse ranked lists while retaining each backend's native score.
+
+    RRF intentionally ranks on positions, but callers still need the native
+    lexical and dense scores to explain a returned candidate.  Missing scores
+    remain explicit ``None`` rather than being invented from rank.
+    """
+
+    lexical_scores = lexical_scores or {}
+    dense_scores = dense_scores or {}
     scores: dict[str, float] = {}
     positions: dict[str, dict[str, int]] = {}
     for kind, identifiers in (("lexical", lexical_ids), ("dense", dense_ids)):
@@ -228,6 +247,8 @@ def rrf_fuse(*, lexical_ids: list[str], dense_ids: list[str], texts: dict[str, s
             text=texts[identifier],
             lexical_rank=positions[identifier].get("lexical"),
             dense_rank=positions[identifier].get("dense"),
+            lexical_score=lexical_scores.get(identifier),
+            dense_score=dense_scores.get(identifier),
             rrf_score=score,
         )
         for identifier, score in scores.items()

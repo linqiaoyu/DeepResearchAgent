@@ -31,6 +31,7 @@ class SearchChunk:
     document_version_id: str
     char_start: int
     char_end: int
+    score: float | None = None
 
 
 @dataclass(frozen=True)
@@ -109,6 +110,16 @@ class RagSearchService:
             dense_ids=[chunk.chunk_id for chunk in dense if chunk.chunk_id in permitted],
             texts={identifier: chunk.text for identifier, chunk in permitted.items()},
             top_k=self.retrieval_top_k,
+            lexical_scores={
+                chunk.chunk_id: chunk.score
+                for chunk in lexical
+                if chunk.chunk_id in permitted and chunk.score is not None
+            },
+            dense_scores={
+                chunk.chunk_id: chunk.score
+                for chunk in dense
+                if chunk.chunk_id in permitted and chunk.score is not None
+            },
         )
         degradation: DegradationEvent | None = None
         rerank_status = "disabled"
@@ -156,6 +167,8 @@ class RagSearchService:
                     "text": candidate.text,
                     "lexical_rank": candidate.lexical_rank,
                     "dense_rank": candidate.dense_rank,
+                    "lexical_score": candidate.lexical_score,
+                    "dense_score": candidate.dense_score,
                     "rrf_score": candidate.rrf_score,
                     "rerank_score": candidate.rerank_score,
                     "document_version_id": permitted[candidate.chunk_id].document_version_id,

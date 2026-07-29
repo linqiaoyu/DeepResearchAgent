@@ -104,6 +104,26 @@ class RagSearchTests(unittest.TestCase):
         self.assertEqual(backend.filters[0].doc_types, ("annual-report",))
         self.assertEqual(backend.filters[0].period_labels, ("2024",))
 
+    def test_returned_candidate_retains_all_backend_scores(self) -> None:
+        lexical = SearchChunk("a", "文本", date(2025, 1, 1), "v1", 0, 2, score=0.25)
+        dense = SearchChunk("a", "文本", date(2025, 1, 1), "v1", 0, 2, score=0.75)
+        service = RagSearchService(
+            lexical=StaticBackend([lexical]),
+            dense=StaticBackend([dense]),
+            reranker=FixtureRerankerProvider(),
+            retrieval_top_k=10,
+            rerank_top_n=5,
+            rerank_enabled=True,
+            rerank_fail_open=True,
+        )
+
+        candidate = service.search(query="文本", as_of="2026-01-01")["candidates"][0]
+
+        self.assertEqual(candidate["lexical_score"], 0.25)
+        self.assertEqual(candidate["dense_score"], 0.75)
+        self.assertGreater(candidate["rrf_score"], 0)
+        self.assertIsNotNone(candidate["rerank_score"])
+
 
 if __name__ == "__main__":
     unittest.main()
