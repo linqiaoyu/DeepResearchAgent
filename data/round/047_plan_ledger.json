@@ -201,8 +201,7 @@
   },
   {
     "plan_ref": "B4-5",
-    "status": "DEFERRED",
-    "reason": "Payload content exclusion is unit-tested, but the required M5 mutation failure output has not been saved."
+    "status": "PASS"
   },
   {
     "plan_ref": "B4-6",
