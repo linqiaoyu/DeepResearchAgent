@@ -26,8 +26,7 @@
   },
   {
     "plan_ref": "B0-5",
-    "status": "DEFERRED",
-    "reason": "The corpus and configured-provider presence are recorded, but the required 047 preflight record still lacks account-specific rate-limit and maximum-candidate verification plus the complete mutation-evidence inventory."
+    "status": "PASS"
   },
   {
     "plan_ref": "B0-6",
