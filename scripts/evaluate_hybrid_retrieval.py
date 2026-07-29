@@ -33,6 +33,28 @@ def _mean(values: list[float]) -> float:
     return sum(values) / len(values) if values else 0.0
 
 
+def _save_checkpoint(
+    *, output: Path, split: str, index_version: str, rows: list[dict[str, Any]]
+) -> None:
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "status": "in_progress",
+                "split": split,
+                "index_version": index_version,
+                "parameters": {"rrf_top_k": TOP_K, "rerank_top_n": RERANK_TOP_N},
+                "per_question": rows,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
 def evaluate(
     *,
     database: Path,
@@ -82,7 +104,20 @@ def evaluate(
     selected = [item for item in all_questions if item["split"] == split and item["question_type"] != "refusal"]
     spans_cache: dict[str, list[ChunkSpan]] = {}
     rows: list[dict[str, Any]] = []
+    if output.exists():
+        checkpoint = json.loads(output.read_text(encoding="utf-8"))
+        if (
+            checkpoint.get("status") != "in_progress"
+            or checkpoint.get("split") != split
+            or checkpoint.get("index_version") != index_version
+            or checkpoint.get("parameters") != {"rrf_top_k": TOP_K, "rerank_top_n": RERANK_TOP_N}
+        ):
+            raise ValueError("evaluation checkpoint does not match the requested frozen parameters")
+        rows = list(checkpoint.get("per_question", []))
+    completed_ids = {str(row["id"]) for row in rows}
     for item in selected:
+        if item["id"] in completed_ids:
+            continue
         as_of = str(item["as_of"])
         if as_of not in spans_cache:
             spans_cache[as_of] = [
@@ -121,11 +156,13 @@ def evaluate(
                 "rerank_count": len(reranked.candidates),
             }
         )
+        _save_checkpoint(output=output, split=split, index_version=index_version, rows=rows)
     by_type: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
         by_type[str(row["question_type"])].append(row)
     result = {
         "schema_version": 1,
+        "status": "complete",
         "split": split,
         "index_version": index_version,
         "parameters": {"rrf_top_k": TOP_K, "rerank_top_n": RERANK_TOP_N},
