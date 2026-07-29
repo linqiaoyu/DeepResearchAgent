@@ -254,6 +254,10 @@ class SQLiteStore:
     ) -> DocumentIngestResult:
         if not chunks:
             raise ValueError("document version must contain at least one located chunk")
+        if any(chunk.char_start < 0 or chunk.char_end <= chunk.char_start for chunk in chunks):
+            raise ValueError("chunk character ranges must be non-empty and non-negative")
+        if any(chunk.page_number is not None and chunk.page_number < 1 for chunk in chunks):
+            raise ValueError("chunk page numbers must be positive when present")
         if any(chunk.effective_date != effective_date for chunk in chunks):
             raise ValueError("every chunk must use the document effective_date")
         document_id = str(uuid5(NAMESPACE_URL, canonical_url))

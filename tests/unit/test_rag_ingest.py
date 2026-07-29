@@ -116,6 +116,29 @@ class RagIngestTests(unittest.TestCase):
 
         self.assertEqual([chunk.id for chunk in chunks], ["new-layout"])
 
+    def test_storage_rejects_invalid_chunk_location_mutations(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            store = SQLiteStore(Path(directory) / "research.db")
+            for name, chunk, message in (
+                (
+                    "char_range",
+                    StoredChunk("bad-range", 5, 5, None, "2025-12-31", "text"),
+                    "character ranges",
+                ),
+                (
+                    "page",
+                    StoredChunk("bad-page", 0, 4, 0, "2025-12-31", "text"),
+                    "page numbers",
+                ),
+            ):
+                with self.subTest(mutation=name), self.assertRaisesRegex(ValueError, message):
+                    store.record_document_version(
+                        canonical_url=f"https://example.test/{name}",
+                        file_sha256=("b" if name == "char_range" else "c") * 64,
+                        effective_date="2025-12-31",
+                        chunks=[chunk],
+                    )
+
 
 if __name__ == "__main__":
     unittest.main()
