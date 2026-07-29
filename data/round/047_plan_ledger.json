@@ -188,7 +188,7 @@
   {
     "plan_ref": "B4-3",
     "status": "DEFERRED",
-    "reason": "Content-hash embedding cache and the required embeddings_v1 recorded fixtures have not been implemented."
+    "reason": "The rebuild now uses a persistent content-hash embedding cache, but no real provider response payload may be fabricated as the required embeddings_v1 recording fixture."
   },
   {
     "plan_ref": "B4-4",

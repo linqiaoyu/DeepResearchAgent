@@ -11,6 +11,7 @@ from deepresearch_agent.llm_config import DASHSCOPE_EMBEDDING_ENDPOINT, DASHSCOP
 from deepresearch_agent.rag.retrieval import (
     DashScopeEmbeddingProvider,
     DashScopeRerankerProvider,
+    CachedEmbeddingProvider,
     FixtureRerankerProvider,
     ProviderPricing,
     RetrievalCandidate,
@@ -169,6 +170,25 @@ class RagRetrievalTests(unittest.TestCase):
         self.assertEqual(post.call_count, 4)
         self.assertEqual(embedding_context.degradation_events[0].reason, ToolErrorKind.RATE_LIMITED)
         self.assertEqual(rerank_context.degradation_events[0].reason, ToolErrorKind.RATE_LIMITED)
+
+    def test_content_hash_embedding_cache_is_persistent_and_deduplicates_inputs(self) -> None:
+        class CountingEmbedding:
+            def __init__(self) -> None:
+                self.calls: list[list[str]] = []
+
+            def embed(self, texts: list[str]) -> list[list[float]]:
+                self.calls.append(texts)
+                return [[float(len(text))] for text in texts]
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "embedding-cache.json"
+            delegate = CountingEmbedding()
+            cached = CachedEmbeddingProvider(delegate=delegate, path=path)
+            self.assertEqual(cached.embed(["同一文本", "同一文本", "另一个"]), [[4.0], [4.0], [3.0]])
+            self.assertEqual(delegate.calls, [["同一文本", "另一个"]])
+            reloaded = CachedEmbeddingProvider(delegate=delegate, path=path)
+            self.assertEqual(reloaded.embed(["另一个", "同一文本"]), [[3.0], [4.0]])
+            self.assertEqual(len(delegate.calls), 1)
 
     def test_rrf_is_deterministic_on_ties(self) -> None:
         candidates = rrf_fuse(

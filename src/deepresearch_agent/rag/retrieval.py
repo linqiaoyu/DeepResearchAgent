@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import math
+import threading
 import time
 from dataclasses import dataclass, replace
+from pathlib import Path
 from typing import Protocol
 
 import httpx
@@ -275,6 +278,72 @@ class FixtureEmbeddingProvider:
 
     def embed(self, texts: list[str]) -> list[list[float]]:
         return [_embedding(text) for text in texts]
+
+
+class CachedEmbeddingProvider:
+    """Persistent content-hash cache around an embedding provider.
+
+    The cache is deliberately an ignored runtime artifact: vectors are derived
+    from the authoritative corpus and can always be rebuilt.  A process-local
+    lock keeps concurrent rebuild batches from corrupting the cache file.
+    """
+
+    def __init__(self, *, delegate: EmbeddingProvider, path: Path) -> None:
+        self.delegate = delegate
+        self.path = path
+        self._lock = threading.Lock()
+        self._vectors = self._load()
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        if not texts:
+            return []
+        keys = [_content_hash(text) for text in texts]
+        with self._lock:
+            missing_by_key = {
+                key: text
+                for text, key in zip(texts, keys, strict=True)
+                if key not in self._vectors
+            }
+        missing = list(missing_by_key.values())
+        if missing:
+            vectors = self.delegate.embed(missing)
+            if len(vectors) != len(missing):
+                raise ValueError("embedding cache delegate returned an incomplete batch")
+            with self._lock:
+                self._vectors.update(
+                    {
+                        key: vector
+                        for key, vector in zip(missing_by_key, vectors, strict=True)
+                    }
+                )
+                self._write()
+        with self._lock:
+            return [list(self._vectors[key]) for key in keys]
+
+    def _load(self) -> dict[str, list[float]]:
+        if not self.path.exists():
+            return {}
+        payload = json.loads(self.path.read_text(encoding="utf-8"))
+        vectors = payload.get("vectors", {})
+        if not isinstance(vectors, dict) or not all(
+            isinstance(key, str) and isinstance(value, list) and all(isinstance(item, (int, float)) for item in value)
+            for key, value in vectors.items()
+        ):
+            raise ValueError("embedding cache is invalid")
+        return {key: [float(item) for item in value] for key, value in vectors.items()}
+
+    def _write(self) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = self.path.with_suffix(f"{self.path.suffix}.tmp")
+        temporary.write_text(
+            json.dumps({"version": 1, "vectors": self._vectors}, ensure_ascii=False, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        temporary.replace(self.path)
+
+
+def _content_hash(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 class FixtureRerankerProvider:

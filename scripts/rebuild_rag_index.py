@@ -21,7 +21,7 @@ from dotenv import dotenv_values
 from deepresearch_agent.llm import LLMClient
 from deepresearch_agent.rag.chunking import CHUNKER_VERSION
 from deepresearch_agent.rag.qdrant_index import IndexedChunk, QdrantIndex
-from deepresearch_agent.rag.retrieval import DashScopeEmbeddingProvider, ProviderPricing
+from deepresearch_agent.rag.retrieval import CachedEmbeddingProvider, DashScopeEmbeddingProvider, ProviderPricing
 from deepresearch_agent.storage import SQLiteStore
 
 
@@ -98,13 +98,16 @@ def rebuild(
     )
     run_id = f"047-index-{index_version}"
     ledger.start_run(run_id)
-    embedding = DashScopeEmbeddingProvider(
+    embedding = CachedEmbeddingProvider(
+        delegate=DashScopeEmbeddingProvider(
         api_key=str(env["DASHSCOPE_API_KEY"]),
         ledger=ledger,
         run_id=run_id,
         pricing=ProviderPricing(0.5, "aliyun_model_studio_public_20260729"),
         dimensions=dimensions,
         max_batch_size=chunks_per_batch,
+        ),
+        path=checkpoint.with_name("embedding_cache.json"),
     )
     index = QdrantIndex(
         url=str(env["DEEPRESEARCH_QDRANT_URL"]),
