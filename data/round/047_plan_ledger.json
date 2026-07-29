@@ -343,12 +343,12 @@
   {
     "plan_ref": "B6-3",
     "status": "DEFERRED",
-    "reason": "The full retrieval-backed workflow has no baseline-versus-enabled report comparison."
+    "reason": "No saved characterization comparison proves that RAG_ENABLED=false preserves CapabilitySelection output after the 047 retrieval integration."
   },
   {
     "plan_ref": "B6-4",
     "status": "DEFERRED",
-    "reason": "No 047 final run artifact records costs, timing, results, and required mutations together."
+    "reason": "Candidate-to-Source adaptation has unit coverage, but no completed retrieval-backed workflow artifact proves Extractor, citation, bbox, numeric, and Critic behavior together."
   },
   {
     "plan_ref": "B6-5",
@@ -357,17 +357,17 @@
   {
     "plan_ref": "B6-6",
     "status": "DEFERRED",
-    "reason": "No operational load run has validated the scaling trigger thresholds."
+    "reason": "No v5 trajectory artifact has recorded embedding_calls and rerank_calls and then demonstrated v4 replay compatibility with RAG disabled and rejection with RAG enabled."
   },
   {
     "plan_ref": "B6-7",
     "status": "DEFERRED",
-    "reason": "No disaster-recovery exercise has restored the live relational and vector indexes."
+    "reason": "No strict replay run has preserved raw failure evidence for missing, forged, and mismatched retrieval index-version records."
   },
   {
     "plan_ref": "B6-7b",
     "status": "DEFERRED",
-    "reason": "No support runbook drill has verified the required incident response path."
+    "reason": "No recorded rerank-degradation trajectory has been replayed through the same fail-open branch to prove identical Top-8 output."
   },
   {
     "plan_ref": "B6-8",
@@ -380,7 +380,7 @@
   {
     "plan_ref": "B6-10",
     "status": "DEFERRED",
-    "reason": "No real retrieval-backed report has been inspected for citation correctness and completeness."
+    "reason": "The required four adversarial retrieval integration cases (irrelevant, outdated, injected, duplicate) have no saved end-to-end report evidence."
   },
   {
     "plan_ref": "B6-11",
@@ -389,7 +389,7 @@
   {
     "plan_ref": "B6-12",
     "status": "DEFERRED",
-    "reason": "No real cost ledger from a retrieval-backed run exists for the planned budget assessment."
+    "reason": "The first real LLM E2E carrier ended after planning and before any RAG call; therefore no completed three-provider run records retrieval metrics, report, cost, and duration."
   },
   {
     "plan_ref": "B6-13",
