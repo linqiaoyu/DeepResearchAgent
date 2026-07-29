@@ -7,12 +7,12 @@
   {
     "plan_ref": "B0-2",
     "status": "DEFERRED",
-    "reason": "DashScope embedding endpoint, approved price, and real-corpus probe run are not recorded."
+    "reason": "A 200-chunk real-corpus probe succeeded and is preregistered, but the account-specific rate-limit threshold has not been verified."
   },
   {
     "plan_ref": "B0-2b",
     "status": "DEFERRED",
-    "reason": "DashScope rerank endpoint, approved price, and real-corpus probe run are not recorded."
+    "reason": "A three-query, 50-candidate real-corpus probe succeeded and is preregistered, but the provider maximum candidate count is not yet verified."
   },
   {
     "plan_ref": "B0-3",
@@ -174,7 +174,7 @@
   {
     "plan_ref": "B4-2b",
     "status": "DEFERRED",
-    "reason": "No real embedding call has produced the plan-required response, latency, and ledger evidence."
+    "reason": "The 200-chunk real embedding probe has response, latency, and ledger evidence; full batching/concurrency remains blocked on the unverified account rate-limit threshold."
   },
   {
     "plan_ref": "B4-2c",
@@ -187,7 +187,7 @@
   {
     "plan_ref": "B4-2e",
     "status": "DEFERRED",
-    "reason": "No real rerank call has produced the plan-required response, latency, and ledger evidence."
+    "reason": "The three-query real rerank probe has response, latency, and ledger evidence; the maximum provider candidate limit remains unverified."
   },
   {
     "plan_ref": "B4-3",
