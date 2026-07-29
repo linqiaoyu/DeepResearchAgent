@@ -55,6 +55,7 @@ class ResearcherAgent:
         max_searches_per_run: int = 20,
         fetch_tool: FetchProvider | None = None,
         disclosure_source: object | None = None,
+        rag_search: object | None = None,
         as_of: date | None = None,
         domain_pack: DisclosureQueryDomain | None = None,
     ) -> None:
@@ -63,6 +64,7 @@ class ResearcherAgent:
         self.structured_data_provider = structured_data_provider or FixtureStructuredDataProvider()
         self.max_searches_per_run = max_searches_per_run
         self.disclosure_source = disclosure_source
+        self.rag_search = rag_search
         self.as_of = as_of or date.today()
         self.domain_pack = resolve_domain_capability(
             domain_pack, consumer="ResearcherAgent"
@@ -93,6 +95,7 @@ class ResearcherAgent:
         enable_web_fetch: bool = False,
         source_decision_enabled: bool = False,
         enable_disclosure: bool = False,
+        enable_rag_search: bool = False,
         run_scope: RunScope | None = None,
     ) -> tuple[list[Source], list[SearchRecord], int, bool, list[AgentDecision]]:
         run_scope = run_scope or RunScope(
@@ -107,6 +110,26 @@ class ResearcherAgent:
         branch_exhausted = False
         primary_hydrated = False
         authority_returned = False
+
+        if enable_rag_search and self.rag_search is not None:
+            rag_query = next(iter(sub_question.search_queries), sub_question.question)
+            started = time.perf_counter()
+            retrieval = self.rag_search.search(query=rag_query, as_of=self.as_of.isoformat())
+            candidates = retrieval.get("candidates", []) if isinstance(retrieval, dict) else []
+            rag_sources = [
+                self._rag_source(candidate)
+                for candidate in candidates
+                if isinstance(candidate, dict)
+            ]
+            for source in rag_sources:
+                seen[source.url] = source
+            records.append(
+                SearchRecord(
+                    query=f"[rag_search] {rag_query}",
+                    source_ids=[source.id for source in rag_sources],
+                    latency_ms=int((time.perf_counter() - started) * 1000),
+                )
+            )
 
         def consume_call() -> bool:
             nonlocal branch_calls, branch_exhausted
@@ -352,6 +375,23 @@ class ResearcherAgent:
             else []
         )
         return list(seen.values()), records, branch_calls, branch_exhausted, decisions
+
+    @staticmethod
+    def _rag_source(candidate: dict[str, object]) -> Source:
+        chunk_id = candidate.get("chunk_id")
+        source_url = candidate.get("source_url")
+        text = candidate.get("text")
+        version_id = candidate.get("document_version_id")
+        if not all(isinstance(value, str) and value for value in (chunk_id, source_url, text, version_id)):
+            raise ValueError("rag candidate lacks authoritative source identity")
+        return Source(
+            id=f"rag:{chunk_id}",
+            title=f"retrieval chunk {version_id}",
+            url=f"{source_url}#chunk={chunk_id}",
+            source_type="rag_chunk",
+            content=text,
+            source_tier="unknown",
+        )
 
     def retry(self, query: str, source_type: str | None = None, top_k: int = 2, *, run_scope: RunScope | None = None) -> tuple[list[Source], SearchRecord]:
         run_scope = run_scope or RunScope(RunToolContext.for_run(), SearchQuota(self.max_searches_per_run))

@@ -32,6 +32,7 @@ class SearchChunk:
     char_start: int
     char_end: int
     score: float | None = None
+    source_url: str = ""
 
 
 @dataclass(frozen=True)
@@ -196,6 +197,7 @@ class RagSearchService:
                     "rrf_score": candidate.rrf_score,
                     "rerank_score": candidate.rerank_score,
                     "document_version_id": permitted[candidate.chunk_id].document_version_id,
+                    "source_url": permitted[candidate.chunk_id].source_url,
                     "char_start": permitted[candidate.chunk_id].char_start,
                     "char_end": permitted[candidate.chunk_id].char_end,
                 }

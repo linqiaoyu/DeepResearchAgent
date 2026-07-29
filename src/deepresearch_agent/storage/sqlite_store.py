@@ -331,9 +331,12 @@ class SQLiteStore:
     def list_ready_chunks(self, *, as_of: str) -> list[ResolvedChunk]:
         with self._connection() as conn:
             rows = conn.execute(
-                "SELECT id, document_version_id, char_start, char_end, page_number, effective_date, content "
-                "FROM chunk WHERE status = 'ready' AND effective_date <= ? "
-                "ORDER BY id",
+                "SELECT chunk.id, chunk.document_version_id, document.canonical_url, chunk.char_start, "
+                "chunk.char_end, chunk.page_number, chunk.effective_date, chunk.content "
+                "FROM chunk JOIN document_version ON document_version.id = chunk.document_version_id "
+                "JOIN document ON document.id = document_version.document_id "
+                "WHERE chunk.status = 'ready' AND chunk.effective_date <= ? "
+                "ORDER BY chunk.id",
                 (as_of,),
             ).fetchall()
         return [self._resolved_chunk_from_row(row) for row in rows]
@@ -344,8 +347,11 @@ class SQLiteStore:
         placeholders = ", ".join("?" for _ in chunk_ids)
         with self._connection() as conn:
             rows = conn.execute(
-                "SELECT id, document_version_id, char_start, char_end, page_number, effective_date, content "
-                f"FROM chunk WHERE status = 'ready' AND effective_date <= ? AND id IN ({placeholders})",
+                "SELECT chunk.id, chunk.document_version_id, document.canonical_url, chunk.char_start, "
+                "chunk.char_end, chunk.page_number, chunk.effective_date, chunk.content "
+                "FROM chunk JOIN document_version ON document_version.id = chunk.document_version_id "
+                "JOIN document ON document.id = document_version.document_id "
+                f"WHERE chunk.status = 'ready' AND chunk.effective_date <= ? AND chunk.id IN ({placeholders})",
                 (as_of, *chunk_ids),
             ).fetchall()
         resolved = {str(row["id"]): self._resolved_chunk_from_row(row) for row in rows}
@@ -356,6 +362,7 @@ class SQLiteStore:
         return ResolvedChunk(
             id=str(row["id"]),
             document_version_id=str(row["document_version_id"]),
+            canonical_url=str(row["canonical_url"]),
             char_start=int(row["char_start"]),
             char_end=int(row["char_end"]),
             page_number=None if row["page_number"] is None else int(row["page_number"]),

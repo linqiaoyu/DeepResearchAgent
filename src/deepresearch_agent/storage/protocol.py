@@ -22,6 +22,7 @@ class ResolvedChunk:
 
     id: str
     document_version_id: str
+    canonical_url: str
     char_start: int
     char_end: int
     page_number: int | None

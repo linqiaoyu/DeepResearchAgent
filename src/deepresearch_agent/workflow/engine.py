@@ -174,6 +174,11 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
             disclosure_source=self.capability_registry.resolve(
                 "disclosure_source"
             ),
+            rag_search=(
+                self.capability_registry.resolve("rag_search")
+                if self.settings.rag_enabled
+                else None
+            ),
             as_of=self.settings.as_of,
             domain_pack=self.domain_pack,
         )

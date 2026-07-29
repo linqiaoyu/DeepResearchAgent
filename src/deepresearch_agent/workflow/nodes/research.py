@@ -153,6 +153,8 @@ class ResearchNodes:
         state = self._state_from_graph_values(graph_state)
         sub_question = SubQuestion.model_validate(graph_state["fanout_sub_question"])
         selected_capabilities = set(FIXED_CAPABILITY_SET)
+        if self.settings.rag_enabled:
+            selected_capabilities.add("rag_search")
         if self.settings.dynamic_capability_enabled:
             raw_selections = state.metadata.get(
                 "capability_selections",
@@ -230,6 +232,7 @@ class ResearchNodes:
                 enable_disclosure=(
                     "disclosure_source" in selected_capabilities
                 ),
+                enable_rag_search="rag_search" in selected_capabilities,
             )
         elif (
             priority_urls
@@ -255,6 +258,7 @@ class ResearchNodes:
                 enable_disclosure=(
                     "disclosure_source" in selected_capabilities
                 ),
+                enable_rag_search="rag_search" in selected_capabilities,
             )
         else:
             if "web_search" in selected_capabilities:

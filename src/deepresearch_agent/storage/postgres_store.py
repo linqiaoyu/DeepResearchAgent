@@ -221,8 +221,11 @@ class PostgresStore(SQLiteStore):
     def list_ready_chunks(self, *, as_of: str) -> list[ResolvedChunk]:
         with self._connection() as conn, conn.cursor(row_factory=self._psycopg.rows.dict_row) as cursor:
             rows = cursor.execute(
-                "SELECT id, document_version_id, char_start, char_end, page_number, effective_date, content "
-                "FROM chunk WHERE status = 'ready' AND effective_date <= %s ORDER BY id",
+                "SELECT chunk.id, chunk.document_version_id, document.canonical_url, chunk.char_start, "
+                "chunk.char_end, chunk.page_number, chunk.effective_date, chunk.content "
+                "FROM chunk JOIN document_version ON document_version.id = chunk.document_version_id "
+                "JOIN document ON document.id = document_version.document_id "
+                "WHERE chunk.status = 'ready' AND chunk.effective_date <= %s ORDER BY chunk.id",
                 (as_of,),
             ).fetchall()
         return [self._resolved_chunk_from_row(row) for row in rows]
@@ -232,8 +235,11 @@ class PostgresStore(SQLiteStore):
             return []
         with self._connection() as conn, conn.cursor(row_factory=self._psycopg.rows.dict_row) as cursor:
             rows = cursor.execute(
-                "SELECT id, document_version_id, char_start, char_end, page_number, effective_date, content "
-                "FROM chunk WHERE status = 'ready' AND effective_date <= %s AND id = ANY(%s)",
+                "SELECT chunk.id, chunk.document_version_id, document.canonical_url, chunk.char_start, "
+                "chunk.char_end, chunk.page_number, chunk.effective_date, chunk.content "
+                "FROM chunk JOIN document_version ON document_version.id = chunk.document_version_id "
+                "JOIN document ON document.id = document_version.document_id "
+                "WHERE chunk.status = 'ready' AND chunk.effective_date <= %s AND chunk.id = ANY(%s)",
                 (as_of, chunk_ids),
             ).fetchall()
         resolved = {str(row["id"]): self._resolved_chunk_from_row(row) for row in rows}

@@ -34,6 +34,7 @@ def _as_search_chunk(chunk: ResolvedChunk, *, score: float) -> SearchChunk:
         char_start=chunk.char_start,
         char_end=chunk.char_end,
         score=score,
+        source_url=chunk.canonical_url,
     )
 
 
