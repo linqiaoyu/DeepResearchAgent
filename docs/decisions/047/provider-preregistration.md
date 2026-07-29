@@ -33,3 +33,19 @@ Sources:
 Account-specific discounts or free quotas are not claimed. Actual provider
 usage tokens and the calculated cost remain in the shared ledger; an unexpected
 cost or three retry-exhausted provider failures stops the paid path.
+
+## Observed probes
+
+The first embedding contract probe returned ten 1024-dimensional vectors for
+ten real-corpus chunks (11,273 input tokens, ¥0.0056365, 2.425 seconds).
+The registered 200-chunk probe then completed in twenty ten-item calls:
+213,354 input tokens, ¥0.106677, latency p50 2,255.5 ms, and p95 6,825 ms.
+The rerank probe completed three queries with fifty candidates each, returned
+fifty scored candidates per query, and recorded 169,085 input tokens,
+¥0.0845425, p50 1,852 ms, and p95 1,948 ms.
+
+The probe confirms the public endpoint and 1024-dimensional response contract.
+It does not establish an account-specific rate-limit threshold or the provider's
+maximum rerank candidate count; those remain explicit inputs to the full index
+and evaluation run rather than being inferred from a successful 50-candidate
+request.
