@@ -57,31 +57,22 @@ from deepresearch_agent.workflow.nodes.planning import PlanningNodes
 from deepresearch_agent.workflow.nodes.quality import QualityNodes
 from deepresearch_agent.workflow.helpers import WorkflowHelpers
 from deepresearch_agent.workflow.graph_assembly import GraphAssembly
+from deepresearch_agent.workflow.capability_setup import build_engine_capability_registry
 from deepresearch_agent.workflow.state import ResearchGraphState
 from deepresearch_agent.skills import (
     SkillPackLoader,
 )
 from deepresearch_agent.storage import StorageProtocol, build_store
-from deepresearch_agent.rag.retrieval import EmptyRagSearchTool
 from deepresearch_agent.tools import (
     CapabilityRegistry,
     DeterministicCapabilitySelector,
     LLMCapabilitySelector,
     SearchProvider,
     StructuredDataProvider,
-    TrajectoryStructuredDataProvider,
     RunToolContext,
     ToolErrorKind,
     ToolExecutionError,
-    build_capability_registry,
-    build_search_provider,
-    build_structured_data_provider,
 )
-from deepresearch_agent.tools.disclosure_source import (
-    CninfoDisclosureSource,
-    FixtureDisclosureSource,
-)
-from deepresearch_agent.tools.contract_adapter import ContractSearchProvider
 from deepresearch_agent.trajectory import (
     TrajectoryRecorder,
     TrajectoryTermination,
@@ -130,40 +121,13 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
             validate_required_configuration(self.settings)
         self.logger = JsonLogger(enabled=self.settings.structured_logging_enabled)
         self.store = store or build_store(self.settings)
-        configured_search_tool = search_tool or build_search_provider(
-            as_of=self.settings.as_of
-        )
-        if self.settings.tool_contract_enabled:
-            configured_search_tool = ContractSearchProvider(
-                configured_search_tool,
-                logger=self.logger,
-            )
-        configured_structured_provider = (
-            structured_data_provider or build_structured_data_provider(
-                domain_pack=self.domain_pack
-            )
-        )
-        configured_structured_provider = (
-            TrajectoryStructuredDataProvider(
-                configured_structured_provider
-            )
-        )
-        configured_disclosure_source = disclosure_source or (
-            FixtureDisclosureSource(domain_pack=self.domain_pack)
-            if self.settings.execution_mode == "deterministic"
-            else CninfoDisclosureSource(
-                pdf_max_pages=self.settings.pdf_max_pages,
-                char_limit=self.settings.tavily_raw_content_char_limit,
-                domain_pack=self.domain_pack,
-            )
-        )
-        self.capability_registry: CapabilityRegistry = (
-            build_capability_registry(
-                search_provider=configured_search_tool,
-                structured_data_provider=configured_structured_provider,
-                disclosure_source=configured_disclosure_source,
-                rag_search=EmptyRagSearchTool() if self.settings.rag_enabled else None,
-            )
+        self.capability_registry: CapabilityRegistry = build_engine_capability_registry(
+            settings=self.settings,
+            domain_pack=self.domain_pack,
+            logger=self.logger,
+            search_tool=search_tool,
+            structured_data_provider=structured_data_provider,
+            disclosure_source=disclosure_source,
         )
         self.skill_loader = SkillPackLoader(
             project_root() / "skills"
