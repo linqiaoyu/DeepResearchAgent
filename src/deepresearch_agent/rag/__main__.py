@@ -28,6 +28,9 @@ def main() -> None:
     benchmark.add_argument(
         "--markdown-output", type=Path, default=Path("artifacts/rag_benchmark.md")
     )
+    benchmark.add_argument("--hybrid-results", type=Path)
+    benchmark.add_argument("--bm25-results", type=Path)
+    benchmark.add_argument("--index-report", type=Path)
     args = parser.parse_args()
     settings = load_settings()
     store = build_store(settings)
@@ -44,36 +47,59 @@ def main() -> None:
         print(json.dumps(store.rag_status(), ensure_ascii=False))
         return
     if args.command == "benchmark":
-        report = build_benchmark_report(store.rag_status())
+        report = build_benchmark_report(
+            store.rag_status(),
+            hybrid=_read_json(args.hybrid_results),
+            bm25=_read_json(args.bm25_results),
+            index=_read_json(args.index_report),
+        )
         _write_benchmark_report(report, args.json_output, args.markdown_output)
         print(json.dumps(report, ensure_ascii=False))
         return
     raise AssertionError(f"unhandled RAG command: {args.command}")
 
 
-def build_benchmark_report(status: dict[str, int]) -> dict[str, Any]:
+def _read_json(path: Path | None) -> dict[str, Any] | None:
+    if path is None:
+        return None
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        raise ValueError(f"benchmark input must be a JSON object: {path}")
+    return value
+
+
+def build_benchmark_report(
+    status: dict[str, int], *, hybrid: dict[str, Any] | None = None,
+    bm25: dict[str, Any] | None = None, index: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Return the stable benchmark schema without inventing unavailable metrics."""
 
     active_chunks = status["active_chunks"]
-    unavailable_reasons = [
-        "no_active_chunks" if active_chunks == 0 else "no_retrieval_index",
-        "no_frozen_retrieval_labels",
-        "no_stage_a_or_b_latency_sample",
-    ]
+    hybrid_metrics = hybrid.get("metrics", {}) if hybrid else {}
+    bm25_metrics = bm25.get("metrics", {}).get("test", {}) if bm25 else {}
+    recall = hybrid_metrics.get("recall_at_20")
+    ndcg = hybrid_metrics.get("rerank_ndcg_at_10")
+    baseline = bm25_metrics.get("ndcg_at_10")
+    unavailable_reasons = []
+    if active_chunks == 0:
+        unavailable_reasons.append("no_active_chunks")
+    if not hybrid:
+        unavailable_reasons.append("no_frozen_retrieval_labels")
+    unavailable_reasons.append("no_stage_a_or_b_latency_sample")
     return {
         "schema_version": 1,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "active_chunks": active_chunks,
-        "index_version": None,
+        "index_version": (hybrid or index or {}).get("index_version"),
         "metrics": {
-            "recall_at_20": None,
-            "ndcg_at_10": None,
-            "bm25_ndcg_at_10": None,
-            "ndcg_at_10_lift": None,
+            "recall_at_20": recall,
+            "ndcg_at_10": ndcg,
+            "bm25_ndcg_at_10": baseline,
+            "ndcg_at_10_lift": (ndcg - baseline if isinstance(ndcg, (int, float)) and isinstance(baseline, (int, float)) else None),
             "stage_a": {"p50_ms": None, "p95_ms": None, "error_rate": None},
             "stage_b": {"p50_ms": None, "p95_ms": None, "cost_cny": None},
             "stage_c": {"p50_ms": None, "p95_ms": None, "inference": None},
-            "rebuild_seconds": None,
+            "rebuild_seconds": (index or {}).get("elapsed_seconds"),
             "cost_cny": None,
         },
         "unavailable_reasons": unavailable_reasons,

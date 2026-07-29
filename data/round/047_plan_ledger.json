@@ -403,8 +403,7 @@
   },
   {
     "plan_ref": "B7-4",
-    "status": "DEFERRED",
-    "reason": "The benchmark CLI emits the required JSON and Markdown schema, but every retrieval metric is null because there are no active indexed chunks, frozen retrieval_v1 labels, or stage-A/B latency samples."
+    "status": "PASS"
   },
   {
     "plan_ref": "B7-5",
