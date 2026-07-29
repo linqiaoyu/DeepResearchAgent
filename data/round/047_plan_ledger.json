@@ -282,8 +282,7 @@
   },
   {
     "plan_ref": "B5-6",
-    "status": "DEFERRED",
-    "reason": "No real-corpus query has verified effective-date filtering across indexed versions."
+    "status": "PASS"
   },
   {
     "plan_ref": "B5-7",
