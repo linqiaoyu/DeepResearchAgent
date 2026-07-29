@@ -49,3 +49,25 @@ It does not establish an account-specific rate-limit threshold or the provider's
 maximum rerank candidate count; those remain explicit inputs to the full index
 and evaluation run rather than being inferred from a successful 50-candidate
 request.
+
+## Full index and frozen quality experiment
+
+The authorized full rebuild completed against the real `finance_v1` corpus.
+The Qdrant collection contains 22,953 payload-only points, matching the 22,953
+ready authoritative chunks; no unresolvable chunk was dropped. The aggregate
+embedding ledger records 2,417 calls, 27,594,827 input tokens, and ¥13.797413
+of calculated cost. One 32-way concurrency attempt received a real 429 and
+stopped; the completed rebuild used bounded 16-way windows and checkpointed
+each completed batch before any later error could lose it.
+
+The frozen test split was then evaluated exactly once after parameters were
+committed in `hybrid-evaluation-parameters.md`. It produced Recall@20
+0.01282051282051282, RRF nDCG@10 0.0, and hybrid-plus-rerank nDCG@10 0.0.
+This fails every B5-5 acceptance threshold. The outcome is a negative result,
+not an availability failure, and the preregistered rule therefore forbids paid
+parameter tuning or a replacement test run.
+
+An explicit real RAG E2E package was added after the quality experiment. Its
+first attempt completed the real planner call but the local execution carrier
+ended before any RAG request, report, or RAG ledger row was written. It is not
+reported as a three-provider E2E result.
