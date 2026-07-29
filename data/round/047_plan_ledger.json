@@ -279,8 +279,7 @@
   },
   {
     "plan_ref": "B5-5",
-    "status": "DEFERRED",
-    "reason": "Frozen assets and BM25 baseline now exist, but the authorized real embedding/rerank evaluation has not run; no hybrid test-gate result exists."
+    "status": "FAIL"
   },
   {
     "plan_ref": "B5-6",
