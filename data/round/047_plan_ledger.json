@@ -17,7 +17,7 @@
   {
     "plan_ref": "B0-3",
     "status": "DEFERRED",
-    "reason": "The required real-provider budget/cost probe has not been run under approved pricing."
+    "reason": "scripts/probe_chinese_lexical.py and its required 20-query comparison output do not exist."
   },
   {
     "plan_ref": "B0-4",
@@ -75,8 +75,7 @@
   },
   {
     "plan_ref": "B1-10",
-    "status": "DEFERRED",
-    "reason": "Final full-gate output after all staged changes has not yet been recorded in the round report."
+    "status": "PASS"
   },
   {
     "plan_ref": "B2-1",
@@ -116,17 +115,16 @@
   {
     "plan_ref": "B2-9",
     "status": "DEFERRED",
-    "reason": "No original report has been changed and re-ingested to preserve supersession mutation output."
+    "reason": "The three required M2 mutation outputs for file hash, page, and char-range corruption have not been saved."
   },
   {
     "plan_ref": "B2-10",
     "status": "DEFERRED",
-    "reason": "No real-corpus chunk boundary audit has been saved for the required sample."
+    "reason": "No ingest-run git-status output has been saved to prove runtime artifacts stay in ignored paths."
   },
   {
     "plan_ref": "B2-11",
-    "status": "DEFERRED",
-    "reason": "No corpus ingestion log demonstrates the required malformed-document skip behavior."
+    "status": "PASS"
   },
   {
     "plan_ref": "B3-1",
@@ -146,7 +144,7 @@
   {
     "plan_ref": "B3-4",
     "status": "DEFERRED",
-    "reason": "No independent double-label adjudication record exists for the required quality sample."
+    "reason": "The required 24/36 frozen split and guard preventing threshold tuning from reading test questions do not exist."
   },
   {
     "plan_ref": "B3-5",
@@ -164,7 +162,7 @@
   {
     "plan_ref": "B3-8",
     "status": "DEFERRED",
-    "reason": "No hybrid retrieval evaluation has run against a frozen real-labelled test split."
+    "reason": "docs/evaluation.md has no retrieval metric contract or explicit contract-change record."
   },
   {
     "plan_ref": "B3-9",
@@ -173,8 +171,7 @@
   },
   {
     "plan_ref": "B3-10",
-    "status": "DEFERRED",
-    "reason": "The paid-call decision rule cannot be applied without the frozen labels and measured metrics."
+    "status": "PASS"
   },
   {
     "plan_ref": "B4-1",
@@ -215,7 +212,7 @@
   {
     "plan_ref": "B4-5",
     "status": "DEFERRED",
-    "reason": "No real rerank batch has verified provider limits, retry behavior, and recorded cost."
+    "reason": "Payload content exclusion is unit-tested, but the required M5 mutation failure output has not been saved."
   },
   {
     "plan_ref": "B4-6",
@@ -249,8 +246,7 @@
   },
   {
     "plan_ref": "B4-11",
-    "status": "DEFERRED",
-    "reason": "No capacity experiment over the required indexed corpus has measured latency, recall, or resource use."
+    "status": "PASS"
   },
   {
     "plan_ref": "B5-1",
@@ -258,8 +254,7 @@
   },
   {
     "plan_ref": "B5-2",
-    "status": "DEFERRED",
-    "reason": "No frozen human-labelled data exists to validate citation-to-source retrieval fidelity."
+    "status": "PASS"
   },
   {
     "plan_ref": "B5-3",
@@ -295,7 +290,7 @@
   {
     "plan_ref": "B5-5",
     "status": "DEFERRED",
-    "reason": "No documented live-collection migration or rollback exercise exists for this schema change."
+    "reason": "No frozen human-labelled test split or real hybrid-plus-rerank evaluation exists to calculate the required Recall@20 and nDCG@10 gate."
   },
   {
     "plan_ref": "B5-6",
@@ -305,12 +300,12 @@
   {
     "plan_ref": "B5-7",
     "status": "DEFERRED",
-    "reason": "No indexed corpus exists to prove retrieval returns the intended document-version identity."
+    "reason": "The required local 20,000-chunk Qdrant load test cannot run because Docker and an indexed corpus are unavailable."
   },
   {
     "plan_ref": "B5-8",
     "status": "DEFERRED",
-    "reason": "No end-to-end RAG-on/off workflow comparison has demonstrated report invariance."
+    "reason": "No N=50 paid network sample has recorded embedding/rerank latency and CNY cost."
   },
   {
     "plan_ref": "B5-9",
@@ -320,7 +315,7 @@
   {
     "plan_ref": "B5-10",
     "status": "DEFERRED",
-    "reason": "No real retrieval-assisted trajectory has been recorded for strict replay validation."
+    "reason": "No Chinese lexical backend or M9 mutation guard demonstrates a non-empty lexical result for Chinese query and chunk text."
   },
   {
     "plan_ref": "B5-11",
@@ -329,17 +324,16 @@
   {
     "plan_ref": "B5-12",
     "status": "DEFERRED",
-    "reason": "No strict replay has verified a retrieval trajectory with persisted index-version metadata."
+    "reason": "No test enforces the M7 boundary that retrieval candidates cannot be written directly as Evidence, and no mutation output is saved."
   },
   {
     "plan_ref": "B5-13",
     "status": "DEFERRED",
-    "reason": "No failure-injection run has exercised RAG fallback while preserving the workflow contract."
+    "reason": "The new RAG modules are not listed in the workflow module-size guard."
   },
   {
     "plan_ref": "B5-14",
-    "status": "DEFERRED",
-    "reason": "No complete three-provider run exists to establish the requested end-to-end operating envelope."
+    "status": "PASS"
   },
   {
     "plan_ref": "B5-16",
@@ -370,8 +364,7 @@
   },
   {
     "plan_ref": "B6-5",
-    "status": "DEFERRED",
-    "reason": "No deployed retrieval service exists to test the plan-required operational alert path."
+    "status": "PASS"
   },
   {
     "plan_ref": "B6-6",
@@ -390,8 +383,7 @@
   },
   {
     "plan_ref": "B6-8",
-    "status": "DEFERRED",
-    "reason": "No retrieval integration load test has established the required latency and failure budget."
+    "status": "PASS"
   },
   {
     "plan_ref": "B6-9",
@@ -404,8 +396,7 @@
   },
   {
     "plan_ref": "B6-11",
-    "status": "DEFERRED",
-    "reason": "No operational rollout record demonstrates the required RAG enablement and rollback decision."
+    "status": "PASS"
   },
   {
     "plan_ref": "B6-12",
@@ -414,8 +405,7 @@
   },
   {
     "plan_ref": "B6-13",
-    "status": "DEFERRED",
-    "reason": "The final B6 acceptance package lacks the required real-run and replay artifacts."
+    "status": "PASS"
   },
   {
     "plan_ref": "B7-1",
@@ -429,12 +419,12 @@
   {
     "plan_ref": "B7-3",
     "status": "DEFERRED",
-    "reason": "No production-like evaluation run has validated the documented SLO measurements."
+    "reason": "No site-artifact and build-log leakage scan covers API keys, Qdrant endpoint/token, absolute paths, and unauthorized full text."
   },
   {
     "plan_ref": "B7-4",
     "status": "DEFERRED",
-    "reason": "No release evidence verifies the public deployment content against an enabled retrieval backend."
+    "reason": "The rag benchmark CLI does not emit the required JSON and Markdown metrics report."
   },
   {
     "plan_ref": "B7-5",
@@ -446,7 +436,6 @@
   },
   {
     "plan_ref": "B7-7",
-    "status": "DEFERRED",
-    "reason": "No final deployment or rollback drill has been executed for the retrieval release path."
+    "status": "PASS"
   }
 ]
