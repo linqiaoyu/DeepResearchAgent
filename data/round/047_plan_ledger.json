@@ -351,8 +351,7 @@
   },
   {
     "plan_ref": "B6-7b",
-    "status": "DEFERRED",
-    "reason": "No recorded rerank-degradation trajectory has been replayed through the same fail-open branch to prove identical Top-8 output."
+    "status": "PASS"
   },
   {
     "plan_ref": "B6-8",
