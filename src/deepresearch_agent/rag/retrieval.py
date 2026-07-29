@@ -15,8 +15,37 @@ from deepresearch_agent.llm_config import (
     DASHSCOPE_RERANK_ENDPOINT,
     DASHSCOPE_RERANK_MODEL,
 )
-from deepresearch_agent.tools.contracts import DegradationEvent
-from deepresearch_agent.tools.reliable_execution import ToolExecutionError, classify_tool_error
+from deepresearch_agent.tools.contracts import DegradationEvent, ToolSpec
+from deepresearch_agent.tools.reliable_execution import (
+    ReliableToolExecutor,
+    RunToolContext,
+    ToolExecutionError,
+    classify_tool_error,
+)
+
+
+RAG_EMBEDDING_TOOL_SPEC = ToolSpec(
+    name="rag_embedding",
+    version="1",
+    input_schema={"type": "object"},
+    output_schema={"type": "object"},
+    timeout_s=60.0,
+    total_timeout_s=180.0,
+    cost_class="low",
+    idempotent=True,
+    has_side_effect=False,
+)
+RAG_RERANK_TOOL_SPEC = ToolSpec(
+    name="rag_rerank",
+    version="1",
+    input_schema={"type": "object"},
+    output_schema={"type": "object"},
+    timeout_s=60.0,
+    total_timeout_s=180.0,
+    cost_class="low",
+    idempotent=True,
+    has_side_effect=False,
+)
 
 
 @dataclass(frozen=True)
@@ -71,6 +100,8 @@ class DashScopeEmbeddingProvider:
         pricing: ProviderPricing,
         dimensions: int,
         max_batch_size: int,
+        executor: ReliableToolExecutor | None = None,
+        tool_context: RunToolContext | None = None,
     ) -> None:
         if not endpoint or not api_key or max_batch_size < 1 or dimensions < 1:
             raise ValueError("DashScope embedding endpoint, key, dimensions and batch size are required")
@@ -81,6 +112,8 @@ class DashScopeEmbeddingProvider:
         self.pricing = pricing
         self.dimensions = dimensions
         self.max_batch_size = max_batch_size
+        self.executor = executor or ReliableToolExecutor()
+        self.tool_context = tool_context or RunToolContext.for_run()
 
     def embed(self, texts: list[str]) -> list[list[float]]:
         if not texts:
@@ -93,14 +126,20 @@ class DashScopeEmbeddingProvider:
             self.ledger.reserve_external_call(run_id=self.run_id, estimated_cost_cny=estimate)
             started = time.perf_counter()
             try:
-                response = httpx.post(
-                    self.endpoint,
-                    headers={"Authorization": f"Bearer {self.api_key}"},
-                    json={"model": DASHSCOPE_EMBEDDING_MODEL, "input": batch, "dimensions": self.dimensions},
-                    timeout=60.0,
+                result = self.executor.execute(
+                    RAG_EMBEDDING_TOOL_SPEC,
+                    lambda: _post_json(
+                        self.endpoint,
+                        {"Authorization": f"Bearer {self.api_key}"},
+                        {"model": DASHSCOPE_EMBEDDING_MODEL, "input": batch, "dimensions": self.dimensions},
+                    ),
+                    self.tool_context,
                 )
-                response.raise_for_status()
-                payload = response.json()
+                if not result.ok:
+                    assert result.error is not None
+                    raise ToolExecutionError(result.error.kind, result.error.message)
+                payload = result.value
+                assert isinstance(payload, dict)
                 data = payload.get("data", [])
                 if len(data) != len(batch):
                     raise ValueError("embedding response count does not match request")
@@ -121,7 +160,11 @@ class DashScopeEmbeddingProvider:
                 price_source=self.pricing.price_source,
                 latency_seconds=time.perf_counter() - started,
                 estimated_cost_cny=estimate,
-                metadata={"dimensions": self.dimensions, "input_count": len(batch)},
+                metadata={
+                    "dimensions": self.dimensions,
+                    "input_count": len(batch),
+                    "tool_error_summary": [event.model_dump(mode="json") for event in self.tool_context.degradation_events],
+                },
             )
             vectors.extend(returned)
         return vectors
@@ -138,6 +181,8 @@ class DashScopeRerankerProvider:
         ledger: LLMClient,
         run_id: str,
         pricing: ProviderPricing,
+        executor: ReliableToolExecutor | None = None,
+        tool_context: RunToolContext | None = None,
     ) -> None:
         if not endpoint or not api_key:
             raise ValueError("DashScope rerank endpoint and key are required")
@@ -146,6 +191,8 @@ class DashScopeRerankerProvider:
         self.ledger = ledger
         self.run_id = run_id
         self.pricing = pricing
+        self.executor = executor or ReliableToolExecutor()
+        self.tool_context = tool_context or RunToolContext.for_run()
 
     def rerank(self, query: str, candidates: list[RetrievalCandidate], top_n: int) -> RerankResult:
         estimated_tokens = _estimated_tokens(query) * len(candidates) + sum(
@@ -155,19 +202,25 @@ class DashScopeRerankerProvider:
         self.ledger.reserve_external_call(run_id=self.run_id, estimated_cost_cny=estimate)
         started = time.perf_counter()
         try:
-            response = httpx.post(
-                self.endpoint,
-                headers={"Authorization": f"Bearer {self.api_key}"},
-                json={
-                    "model": DASHSCOPE_RERANK_MODEL,
-                    "query": query,
-                    "documents": [candidate.text for candidate in candidates],
-                    "top_n": top_n,
-                },
-                timeout=60.0,
+            result = self.executor.execute(
+                RAG_RERANK_TOOL_SPEC,
+                lambda: _post_json(
+                    self.endpoint,
+                    {"Authorization": f"Bearer {self.api_key}"},
+                    {
+                        "model": DASHSCOPE_RERANK_MODEL,
+                        "query": query,
+                        "documents": [candidate.text for candidate in candidates],
+                        "top_n": top_n,
+                    },
+                ),
+                self.tool_context,
             )
-            response.raise_for_status()
-            payload = response.json()
+            if not result.ok:
+                assert result.error is not None
+                raise ToolExecutionError(result.error.kind, result.error.message)
+            payload = result.value
+            assert isinstance(payload, dict)
             results = payload.get("results")
             if not isinstance(results, list):
                 raise ValueError("rerank response does not contain results")
@@ -190,10 +243,22 @@ class DashScopeRerankerProvider:
             price_source=self.pricing.price_source,
             latency_seconds=latency,
             estimated_cost_cny=estimate,
-            metadata={"candidate_count": len(candidates)},
+            metadata={
+                "candidate_count": len(candidates),
+                "tool_error_summary": [event.model_dump(mode="json") for event in self.tool_context.degradation_events],
+            },
         )
         ranked.sort(key=lambda candidate: (-(candidate.rerank_score or 0.0), candidate.chunk_id))
         return RerankResult(ranked[:top_n], len(candidates), tokens, round(latency * 1000))
+
+
+def _post_json(endpoint: str, headers: dict[str, str], payload: dict[str, object]) -> dict[str, object]:
+    response = httpx.post(endpoint, headers=headers, json=payload, timeout=60.0)
+    response.raise_for_status()
+    value = response.json()
+    if not isinstance(value, dict):
+        raise ValueError("provider response is not an object")
+    return value
 
 
 class EmptyRagSearchTool:

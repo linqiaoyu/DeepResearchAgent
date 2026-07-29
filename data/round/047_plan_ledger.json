@@ -171,8 +171,7 @@
   },
   {
     "plan_ref": "B4-2b",
-    "status": "DEFERRED",
-    "reason": "The real build established batches of 10 and observed a 429 at 32-way concurrency, but the adapter has no bounded 429 backoff/retry or tool_error_summary implementation."
+    "status": "PASS"
   },
   {
     "plan_ref": "B4-2c",
@@ -184,8 +183,7 @@
   },
   {
     "plan_ref": "B4-2e",
-    "status": "DEFERRED",
-    "reason": "The real rerank probe records latency, candidate count and ledger cost, but the direct adapter has no independent ToolSpec or bounded retry envelope."
+    "status": "PASS"
   },
   {
     "plan_ref": "B4-3",

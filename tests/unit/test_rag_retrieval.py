@@ -20,7 +20,7 @@ from deepresearch_agent.rag.retrieval import (
 )
 import deepresearch_agent.rag.retrieval as retrieval_module
 from deepresearch_agent.tools.contracts import ToolErrorKind
-from deepresearch_agent.tools.reliable_execution import ToolExecutionError
+from deepresearch_agent.tools.reliable_execution import ReliableToolExecutor, RunToolContext, ToolExecutionError
 from scripts.probe_embedding import DEFAULT_EMBEDDING_ENDPOINT
 from scripts.probe_rerank import DEFAULT_RERANK_ENDPOINT
 
@@ -125,6 +125,50 @@ class RagRetrievalTests(unittest.TestCase):
         self.assertEqual(len(rows), 2)
         self.assertIn('"call_kind": "embedding"', rows[0])
         self.assertIn('"call_kind": "rerank"', rows[1])
+
+    def test_real_adapters_retry_rate_limits_with_bounded_tool_contracts(self) -> None:
+        class Response:
+            def __init__(self, payload: dict[str, object]) -> None:
+                self.payload = payload
+
+            def raise_for_status(self) -> None:
+                return None
+
+            def json(self) -> dict[str, object]:
+                return self.payload
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            client = LLMClient(
+                ledger_path=root / "ledger.jsonl", global_ledger_path=root / "global.jsonl",
+                budget_cny=1.0, completion_func=lambda **_: {},
+            )
+            executor = ReliableToolExecutor(sleep=lambda _: None, random_source=lambda: 0.5)
+            embedding_context = RunToolContext.for_run(max_retries=2)
+            rerank_context = RunToolContext.for_run(max_retries=2)
+            embedding = DashScopeEmbeddingProvider(
+                endpoint="https://provider.test/embeddings", api_key="test-key", ledger=client,
+                run_id="rag-run", pricing=ProviderPricing(100.0, "operator-confirmed"),
+                dimensions=2, max_batch_size=2, executor=executor, tool_context=embedding_context,
+            )
+            reranker = DashScopeRerankerProvider(
+                endpoint="https://provider.test/reranks", api_key="test-key", ledger=client,
+                run_id="rag-run", pricing=ProviderPricing(100.0, "operator-confirmed"),
+                executor=executor, tool_context=rerank_context,
+            )
+            responses = [
+                ToolExecutionError(ToolErrorKind.RATE_LIMITED, "429"),
+                Response({"data": [{"embedding": [0.1, 0.2]}], "usage": {"prompt_tokens": 3}}),
+                ToolExecutionError(ToolErrorKind.RATE_LIMITED, "429"),
+                Response({"results": [{"index": 0, "relevance_score": 0.9}], "usage": {"total_tokens": 4}}),
+            ]
+            with patch("deepresearch_agent.rag.retrieval.httpx.post", side_effect=responses) as post:
+                self.assertEqual(embedding.embed(["中文"]), [[0.1, 0.2]])
+                self.assertEqual(reranker.rerank("问题", [RetrievalCandidate("a", "答案")], 1).candidate_count, 1)
+
+        self.assertEqual(post.call_count, 4)
+        self.assertEqual(embedding_context.degradation_events[0].reason, ToolErrorKind.RATE_LIMITED)
+        self.assertEqual(rerank_context.degradation_events[0].reason, ToolErrorKind.RATE_LIMITED)
 
     def test_rrf_is_deterministic_on_ties(self) -> None:
         candidates = rrf_fuse(
