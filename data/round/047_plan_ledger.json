@@ -310,8 +310,7 @@
   },
   {
     "plan_ref": "B5-12",
-    "status": "DEFERRED",
-    "reason": "No test enforces the M7 boundary that retrieval candidates cannot be written directly as Evidence, and no mutation output is saved."
+    "status": "PASS"
   },
   {
     "plan_ref": "B5-13",

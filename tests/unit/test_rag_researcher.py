@@ -57,6 +57,19 @@ class RagResearcherTests(unittest.TestCase):
                 max_search_calls=0,
             )
 
+    def test_extractor_rejects_raw_retrieval_candidate(self) -> None:
+        with self.assertRaisesRegex(TypeError, "not retrieval candidates"):
+            ExtractorAgent().extract(
+                "run",
+                SubQuestion(id="q", question="问题", search_queries=[]),
+                [
+                    {
+                        "chunk_id": "chunk-1",
+                        "text": "不应绕过 Source 适配直接成为 Evidence。",
+                    }
+                ],  # type: ignore[list-item]
+            )
+
     def test_extractor_persists_retrieval_reference_from_source_metadata(self) -> None:
         source = Source(
             id="rag:chunk-1",

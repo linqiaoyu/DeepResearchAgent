@@ -32,6 +32,8 @@ class ExtractorAgent:
         self.last_stats: dict[str, int | bool | str] = {}
 
     def extract(self, research_id: str, sub_question: SubQuestion, sources: list[Source]) -> list[Evidence]:
+        if not all(isinstance(source, Source) for source in sources):
+            raise TypeError("Extractor accepts Source instances, not retrieval candidates")
         if self.llm_client:
             try:
                 evidence = self._llm_extract(
