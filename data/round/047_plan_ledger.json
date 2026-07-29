@@ -274,8 +274,7 @@
   },
   {
     "plan_ref": "B5-4e",
-    "status": "DEFERRED",
-    "reason": "The implementation contains no custom instruct literal, but no dedicated assertion test yet guards that absence as required by this criterion."
+    "status": "PASS"
   },
   {
     "plan_ref": "B5-5",
