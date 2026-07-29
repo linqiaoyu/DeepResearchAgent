@@ -24,12 +24,25 @@ class QdrantIndex:
     def __init__(
         self, *, url: str, api_key: str, collection: str, timeout_seconds: float = 10.0
     ) -> None:
-        if not url or not api_key or not collection:
-            raise ValueError("Qdrant url, API key, and collection are required")
+        if not url or not collection:
+            raise ValueError("Qdrant url and collection are required")
         self.base_url = url.rstrip("/")
         self.collection = collection
         self.timeout_seconds = timeout_seconds
-        self.headers = {"api-key": api_key}
+        self.headers = {"api-key": api_key} if api_key else {}
+
+    def collection_status(self) -> str:
+        """Return collection existence without creating or mutating it."""
+
+        response = httpx.get(
+            self._collection_url,
+            headers=self.headers,
+            timeout=self.timeout_seconds,
+        )
+        if response.status_code == 404:
+            return "missing"
+        response.raise_for_status()
+        return "exists"
 
     @staticmethod
     def point_id(*, chunk_id: str, model: str, chunker_version: str) -> str:

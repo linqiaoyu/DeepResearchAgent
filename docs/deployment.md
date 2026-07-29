@@ -58,6 +58,20 @@ Expected local smoke signals:
 docker compose up --build
 ```
 
+### Local Qdrant profile
+
+The optional local vector backend is bound to loopback only. It is intended for
+development and integration tests, not public exposure:
+
+```bash
+docker compose --profile qdrant up -d qdrant
+DEEPRESEARCH_QDRANT_URL=http://127.0.0.1:6333 \
+PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m unittest \
+  tests.integration.test_qdrant_integration
+```
+
+The integration test is skipped when `DEEPRESEARCH_QDRANT_URL` is absent.
+
 Expected services:
 
 - API: `http://localhost:8000`

@@ -20,6 +20,16 @@ class Response:
 
 
 class QdrantIndexTests(unittest.TestCase):
+    def test_collection_status_is_read_only_and_allows_local_no_auth(self) -> None:
+        index = QdrantIndex(url="http://127.0.0.1:6333", api_key="", collection="collection")
+        with patch(
+            "deepresearch_agent.rag.qdrant_index.httpx.get",
+            return_value=Response(status_code=404),
+        ) as get:
+            self.assertEqual(index.collection_status(), "missing")
+
+        self.assertEqual(get.call_count, 1)
+
     def test_point_id_is_stable_and_model_scoped(self) -> None:
         first = QdrantIndex.point_id(chunk_id="chunk", model="model-a", chunker_version="v1")
         self.assertEqual(

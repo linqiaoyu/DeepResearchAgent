@@ -59,5 +59,15 @@ services:
     volumes:
       - deepresearch_pg:/var/lib/postgresql/data
 
+  qdrant:
+    image: qdrant/qdrant:v1.18.3-unprivileged
+    profiles: ["qdrant"]
+    ports:
+      - "127.0.0.1:6333:6333"
+    volumes:
+      - deepresearch_qdrant:/qdrant/storage
+    restart: unless-stopped
+
 volumes:
   deepresearch_pg:
+  deepresearch_qdrant:

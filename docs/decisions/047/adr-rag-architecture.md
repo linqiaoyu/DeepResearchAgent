@@ -32,6 +32,9 @@ preconditions that prevented end-to-end acceptance in this round.
   created with the expected vector dimension and cosine distance. This proves
   collection provisioning only: no source chunks, embeddings, or points were
   uploaded, and no search integration has been accepted.
+- A pinned, loopback-only `qdrant` Docker Compose profile and an explicit-URL
+  integration test are available for local verification. Docker was unavailable
+  in this round, so that profile has not been executed.
 - PostgreSQL integration is not claimed: `DEEPRESEARCH_PG_DSN` was absent, so
   its contract test was skipped by design.
 - No real corpus, sixty-question human-labelled retrieval set, or real
