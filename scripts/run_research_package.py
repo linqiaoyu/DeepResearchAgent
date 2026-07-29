@@ -232,6 +232,7 @@ def _build_live_rag_search(
         rerank_top_n=rerank_top_n,
         rerank_enabled=True,
         rerank_fail_open=True,
+        index_version=index_version,
     )
 
 

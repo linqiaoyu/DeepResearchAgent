@@ -75,6 +75,24 @@ class RagSearchTests(unittest.TestCase):
         self.assertEqual(result["trace"].rerank_status, "disabled")
         self.assertEqual([item["chunk_id"] for item in result["candidates"]], ["a"])
 
+    def test_service_uses_configured_index_version_when_call_has_none(self) -> None:
+        chunk = SearchChunk("a", "文本", date(2025, 1, 1), "v1", 0, 2)
+        backend = RecordingBackend([chunk])
+        service = RagSearchService(
+            lexical=backend,
+            dense=backend,
+            reranker=None,
+            retrieval_top_k=10,
+            rerank_top_n=5,
+            rerank_enabled=False,
+            rerank_fail_open=True,
+            index_version="finance-v1",
+        )
+
+        service.search(query="问题", as_of="2026-01-01")
+
+        self.assertEqual(backend.filters[0].index_version, "finance-v1")
+
     def test_missing_reranker_fails_closed_when_fail_open_is_disabled(self) -> None:
         chunk = SearchChunk("a", "文本", date(2025, 1, 1), "v1", 0, 2)
         service = RagSearchService(

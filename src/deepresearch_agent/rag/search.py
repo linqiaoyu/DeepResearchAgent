@@ -67,6 +67,7 @@ class RagSearchService:
         rerank_enabled: bool,
         rerank_fail_open: bool,
         retrieval_domain: RetrievalDomain | None = None,
+        index_version: str | None = None,
     ) -> None:
         if retrieval_top_k < 1 or rerank_top_n < 1:
             raise ValueError("retrieval_top_k and rerank_top_n must be positive")
@@ -78,6 +79,7 @@ class RagSearchService:
         self.rerank_enabled = rerank_enabled
         self.rerank_fail_open = rerank_fail_open
         self.retrieval_domain = retrieval_domain
+        self.index_version = index_version
 
     def search(
         self, *, query: str, as_of: str, filters: RetrievalFilter | None = None
@@ -97,7 +99,7 @@ class RagSearchService:
             entity_ids=effective_filters.entity_ids or (domain_values.entity_ids if domain_values else ()),
             period_labels=effective_filters.period_labels or (domain_values.period_labels if domain_values else ()),
             as_of=date.fromisoformat(as_of),
-            index_version=effective_filters.index_version,
+            index_version=effective_filters.index_version or self.index_version,
         )
         try:
             lexical = self.lexical.search(
