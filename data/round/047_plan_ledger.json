@@ -416,8 +416,7 @@
   },
   {
     "plan_ref": "B7-3",
-    "status": "DEFERRED",
-    "reason": "No site-artifact and build-log leakage scan covers API keys, Qdrant endpoint/token, absolute paths, and unauthorized full text."
+    "status": "PASS"
   },
   {
     "plan_ref": "B7-4",

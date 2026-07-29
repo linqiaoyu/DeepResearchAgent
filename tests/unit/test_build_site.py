@@ -4,10 +4,42 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.build_site import _assert_showcase_contract, _assert_site, _markdown_to_html
+from scripts.build_site import (
+    _assert_release_safety,
+    _assert_showcase_contract,
+    _assert_site,
+    _markdown_to_html,
+    _release_build_log,
+)
 
 
 class StaticSiteBuildTests(unittest.TestCase):
+    def test_release_scan_rejects_sensitive_artifacts_and_local_build_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            dist = Path(tmp)
+            (dist / "index.html").write_text("published", encoding="utf-8")
+            _assert_release_safety(dist, _release_build_log(1))
+            self.assertEqual(_release_build_log(1), "built site/dist\nfiles 1\nvalidation ok\n")
+
+            (dist / "index.html").write_text(
+                "Authorization: Bearer forbidden-token", encoding="utf-8"
+            )
+            with self.assertRaisesRegex(SystemExit, "credential:index.html"):
+                _assert_release_safety(dist, _release_build_log(1))
+            (dist / "index.html").write_text("published", encoding="utf-8")
+            (dist / "manifest.json").write_text(
+                "https://cluster.cloud.qdrant.io", encoding="utf-8"
+            )
+            with self.assertRaisesRegex(SystemExit, "qdrant_endpoint:manifest.json"):
+                _assert_release_safety(dist, _release_build_log(2))
+            (dist / "manifest.json").write_text("{}", encoding="utf-8")
+            (dist / "index.html").write_text("data/corpus/report.pdf", encoding="utf-8")
+            with self.assertRaisesRegex(SystemExit, "raw_corpus_reference:index.html"):
+                _assert_release_safety(dist, _release_build_log(2))
+            (dist / "index.html").write_text("published", encoding="utf-8")
+            with self.assertRaisesRegex(SystemExit, "absolute_path:build.log"):
+                _assert_release_safety(dist, "built /Users/example/site/dist\n")
+
     def test_showcase_contract_requires_boundary_and_visual_system(self) -> None:
         home = " ".join(
             (

@@ -36,6 +36,15 @@ FREEZE_PATH = ROOT / "data" / "golden_set" / "v1" / "freeze.md"
 BUSINESS_FIXTURE_PATH = ROOT / "tests" / "golden_output" / "wealth_research.json"
 FORBIDDEN_V10_NUMBERS = ("0.7803", "0.7999")
 HISTORICAL_JUDGE_DECOMPOSITION = "0.6134 + 0.1865 - 0.0585 = 0.7414"
+RELEASE_LEAK_PATTERNS = {
+    "credential": re.compile(
+        r"(?i)(?:api[_-]?key|authorization)\s*[:=]\s*(?:bearer\s+)?[a-z0-9._-]{8,}"
+    ),
+    "qdrant_endpoint": re.compile(r"(?i)https?://[^\s\"']*(?:qdrant|cloud\.qdrant)[^\s\"']*"),
+    "absolute_path": re.compile(r"(?:^|[\s\"'])/(?:Users|home|private|var/folders|tmp)/"),
+    "raw_corpus_reference": re.compile(r"(?i)(?:data/(?:corpus|recordings)/|<raw-corpus>)"),
+}
+RELEASE_TEXT_SUFFIXES = {".css", ".html", ".json", ".md", ".txt"}
 
 
 def main() -> None:
@@ -84,9 +93,9 @@ def main() -> None:
     (DIST / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
-    print(f"built {DIST}")
-    print(f"files {len(manifest['files']) + 1}")
-    print("validation ok")
+    build_log = _release_build_log(len(manifest["files"]) + 1)
+    _assert_release_safety(DIST, build_log)
+    print(build_log, end="")
 
 
 def _validate_release_assets(
@@ -199,6 +208,29 @@ def _assert_showcase_contract(home: str, stylesheet: str) -> None:
     missing_styles = [selector for selector in required_styles if selector not in stylesheet]
     if missing_styles:
         raise SystemExit(f"showcase stylesheet misses visual system selectors: {missing_styles}")
+
+
+def _release_build_log(file_count: int) -> str:
+    """Return publishable build output without a workstation-specific path."""
+
+    return f"built site/dist\nfiles {file_count}\nvalidation ok\n"
+
+
+def _assert_release_safety(dist: Path, build_log: str) -> None:
+    """Reject secrets, service endpoints, local paths, and raw corpus links."""
+
+    texts = {"build.log": build_log}
+    for path in dist.rglob("*"):
+        if path.is_file() and path.suffix in RELEASE_TEXT_SUFFIXES:
+            texts[str(path.relative_to(dist))] = path.read_text(encoding="utf-8")
+    leaks = [
+        f"{name}:{relative_path}"
+        for relative_path, text in texts.items()
+        for name, pattern in RELEASE_LEAK_PATTERNS.items()
+        if pattern.search(text)
+    ]
+    if leaks:
+        raise SystemExit(f"release leak scan failed: {', '.join(leaks)}")
 
 
 def _required_match(pattern: str, text: str) -> str:
