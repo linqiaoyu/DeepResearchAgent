@@ -18,9 +18,10 @@ the global coordinates plus exact excerpt are authoritative.
 
 `retrieval_v1` has 60 frozen Chinese questions: 20 numeric, 15 table, 15
 cross-period, and 10 refusal questions, split 24 development / 36 test. Its
-annotations were drafted and self-reviewed by Codex using two passes. They are
-not human annotations; `human_verified` remains false pending review of the
-generated review packet.
+annotations were drafted and self-reviewed by Codex using two passes. The user
+subsequently reviewed the generated review packet and signed off, so
+`human_verified` is true. The original annotation provenance remains Codex;
+human sign-off is recorded as verification rather than a rewritten author.
 
 ## Consequences
 

@@ -19,8 +19,9 @@
   "annotation_method": "codex_single_annotator_two_pass",
   "annotator_kind": "codex",
   "drafted_by": "codex",
-  "verified_by": "codex_self_review",
-  "human_verified": false,
+  "verified_by": "user_human_review",
+  "human_verified": true,
+  "human_review_status": "user_signed_off",
   "inter_annotator_agreement": null,
   "known_limitations": [
     "Codex is a single annotator; the second pass is self-review rather than independent human adjudication.",
