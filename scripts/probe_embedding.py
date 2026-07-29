@@ -20,10 +20,10 @@ from typing import Any
 
 import httpx
 
-from deepresearch_agent.llm_config import DASHSCOPE_EMBEDDING_MODEL
+from deepresearch_agent.llm_config import DASHSCOPE_EMBEDDING_ENDPOINT, DASHSCOPE_EMBEDDING_MODEL
 
 MAX_BATCH_SIZE = 10
-DEFAULT_EMBEDDING_ENDPOINT = "https://dashscope.aliyuncs.com/compatible-mode/v1/embeddings"
+DEFAULT_EMBEDDING_ENDPOINT = DASHSCOPE_EMBEDDING_ENDPOINT
 
 
 def _load_chunks(path: Path) -> list[str]:

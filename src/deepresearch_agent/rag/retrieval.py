@@ -9,7 +9,12 @@ from typing import Protocol
 import httpx
 
 from deepresearch_agent.llm import LLMClient
-from deepresearch_agent.llm_config import DASHSCOPE_EMBEDDING_MODEL, DASHSCOPE_RERANK_MODEL
+from deepresearch_agent.llm_config import (
+    DASHSCOPE_EMBEDDING_ENDPOINT,
+    DASHSCOPE_EMBEDDING_MODEL,
+    DASHSCOPE_RERANK_ENDPOINT,
+    DASHSCOPE_RERANK_MODEL,
+)
 from deepresearch_agent.tools.contracts import DegradationEvent
 from deepresearch_agent.tools.reliable_execution import ToolExecutionError, classify_tool_error
 
@@ -59,7 +64,7 @@ class DashScopeEmbeddingProvider:
     def __init__(
         self,
         *,
-        endpoint: str,
+        endpoint: str = DASHSCOPE_EMBEDDING_ENDPOINT,
         api_key: str,
         ledger: LLMClient,
         run_id: str,
@@ -126,7 +131,13 @@ class DashScopeRerankerProvider:
     fidelity = "real"
 
     def __init__(
-        self, *, endpoint: str, api_key: str, ledger: LLMClient, run_id: str, pricing: ProviderPricing
+        self,
+        *,
+        endpoint: str = DASHSCOPE_RERANK_ENDPOINT,
+        api_key: str,
+        ledger: LLMClient,
+        run_id: str,
+        pricing: ProviderPricing,
     ) -> None:
         if not endpoint or not api_key:
             raise ValueError("DashScope rerank endpoint and key are required")

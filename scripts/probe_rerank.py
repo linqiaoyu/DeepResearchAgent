@@ -18,9 +18,9 @@ from typing import Any
 
 import httpx
 
-from deepresearch_agent.llm_config import DASHSCOPE_RERANK_MODEL
+from deepresearch_agent.llm_config import DASHSCOPE_RERANK_ENDPOINT, DASHSCOPE_RERANK_MODEL
 
-DEFAULT_RERANK_ENDPOINT = "https://dashscope.aliyuncs.com/compatible-api/v1/reranks"
+DEFAULT_RERANK_ENDPOINT = DASHSCOPE_RERANK_ENDPOINT
 
 
 def _load_cases(path: Path) -> list[dict[str, Any]]:

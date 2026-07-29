@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from deepresearch_agent.llm import LLMClient
+from deepresearch_agent.llm_config import DASHSCOPE_EMBEDDING_ENDPOINT, DASHSCOPE_RERANK_ENDPOINT
 from deepresearch_agent.rag.retrieval import (
     DashScopeEmbeddingProvider,
     DashScopeRerankerProvider,
@@ -28,6 +29,8 @@ class FailingReranker:
 
 class RagRetrievalTests(unittest.TestCase):
     def test_probe_defaults_use_public_dashscope_compatible_endpoints(self) -> None:
+        self.assertEqual(DEFAULT_EMBEDDING_ENDPOINT, DASHSCOPE_EMBEDDING_ENDPOINT)
+        self.assertEqual(DEFAULT_RERANK_ENDPOINT, DASHSCOPE_RERANK_ENDPOINT)
         self.assertEqual(
             DEFAULT_EMBEDDING_ENDPOINT,
             "https://dashscope.aliyuncs.com/compatible-mode/v1/embeddings",
@@ -36,6 +39,28 @@ class RagRetrievalTests(unittest.TestCase):
             DEFAULT_RERANK_ENDPOINT,
             "https://dashscope.aliyuncs.com/compatible-api/v1/reranks",
         )
+
+    def test_dashscope_adapters_default_to_public_compatible_endpoints(self) -> None:
+        client = LLMClient(
+            ledger_path=Path("artifacts/default-endpoint-ledger.jsonl"),
+            global_ledger_path=Path("artifacts/default-endpoint-global.jsonl"),
+            budget_cny=1.0,
+            completion_func=lambda **_: {},
+        )
+        pricing = ProviderPricing(1.0, "operator-confirmed")
+        embedding = DashScopeEmbeddingProvider(
+            api_key="test-key",
+            ledger=client,
+            run_id="rag-run",
+            pricing=pricing,
+            dimensions=2,
+            max_batch_size=2,
+        )
+        reranker = DashScopeRerankerProvider(
+            api_key="test-key", ledger=client, run_id="rag-run", pricing=pricing
+        )
+        self.assertEqual(embedding.endpoint, DASHSCOPE_EMBEDDING_ENDPOINT)
+        self.assertEqual(reranker.endpoint, DASHSCOPE_RERANK_ENDPOINT)
 
     def test_dashscope_adapters_record_shared_ledger_rows(self) -> None:
         class Response:
