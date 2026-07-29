@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 from deepresearch_agent.rag.ingest import ingest_and_persist, ingest_corpus
-from deepresearch_agent.storage import SQLiteStore
+from deepresearch_agent.storage import SQLiteStore, StoredChunk
 
 
 class RagIngestTests(unittest.TestCase):
@@ -80,6 +80,41 @@ class RagIngestTests(unittest.TestCase):
         self.assertGreater(changed.superseded_chunks, 0)
         self.assertEqual(status["active_chunks"], changed.chunks)
         self.assertEqual(status["superseded_chunks"], changed.superseded_chunks)
+
+    def test_reingest_replaces_stale_derived_chunk_layout(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            store = SQLiteStore(Path(directory) / "research.db")
+            first = StoredChunk(
+                id="old-layout",
+                char_start=0,
+                char_end=3,
+                page_number=None,
+                effective_date="2025-12-31",
+                content="old",
+            )
+            replacement = StoredChunk(
+                id="new-layout",
+                char_start=0,
+                char_end=6,
+                page_number=None,
+                effective_date="2025-12-31",
+                content="newest",
+            )
+            store.record_document_version(
+                canonical_url="https://example.test/document",
+                file_sha256="a" * 64,
+                effective_date="2025-12-31",
+                chunks=[first],
+            )
+            store.record_document_version(
+                canonical_url="https://example.test/document",
+                file_sha256="a" * 64,
+                effective_date="2025-12-31",
+                chunks=[replacement],
+            )
+            chunks = store.list_ready_chunks(as_of="2025-12-31")
+
+        self.assertEqual([chunk.id for chunk in chunks], ["new-layout"])
 
 
 if __name__ == "__main__":

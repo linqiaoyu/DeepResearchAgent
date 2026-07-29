@@ -37,9 +37,9 @@ results rather than define a live scoring contract.
 
 ### Retrieval metric contract (047)
 
-This is a new contract for the future immutable `retrieval_v1` dataset. It
-does not reinterpret any Golden Set v1 result and does not report an outcome
-until real source documents and human span labels have been frozen.
+This contract applies to the immutable `retrieval_v1` dataset. It does not
+reinterpret any Golden Set v1 result. Its source corpus and source-span labels
+are frozen separately from the historic Golden Set v1 assets.
 
 | Metric | Operator | Input | Range | Gated |
 | --- | --- | --- | --- | --- |
@@ -52,8 +52,10 @@ Labels are source spans, not `chunk_id`s: a chunk is relevant when its
 are resolved deterministically by `chunk_id`. Threshold selection may read
 only the frozen dev split (24 questions); the test split (36 questions) is
 run once as the pre-registered gate. The current repository has no
-`retrieval_v1` corpus or labels, so this section defines the contract only and
-intentionally contains no metric values.
+`retrieval_v1` outcome embedded in this document; measured values are saved as
+versioned result artifacts. Questions whose expected behavior is refusal have
+no relevant spans and are reported separately from answerable-query means, so
+the empty-relevance convention cannot inflate retrieval quality.
 
 - `task_success_rate`: requires a final report, at least one evidence record,
   zero detected financial numeric-citation mismatches, and a terminal outcome

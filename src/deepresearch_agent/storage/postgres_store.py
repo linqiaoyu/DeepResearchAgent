@@ -175,26 +175,26 @@ class PostgresStore(SQLiteStore):
                 "effective_date = EXCLUDED.effective_date",
                 (version_id, document_id, file_sha256, effective_date),
             )
-            cursor.execute(
-                "SELECT count(*) FROM chunk WHERE document_version_id = %s", (version_id,)
+            # Chunks are a rebuildable derived index.  Refresh an unchanged
+            # document version too, so a deterministic chunking-policy change
+            # cannot leave stale searchable chunks behind.
+            cursor.execute("DELETE FROM chunk WHERE document_version_id = %s", (version_id,))
+            cursor.executemany(
+                "INSERT INTO chunk (id, document_version_id, char_start, char_end, page_number, "
+                "effective_date, status, content) VALUES (%s, %s, %s, %s, %s, %s, 'ready', %s)",
+                [
+                    (
+                        chunk.id,
+                        version_id,
+                        chunk.char_start,
+                        chunk.char_end,
+                        chunk.page_number,
+                        chunk.effective_date,
+                        chunk.content,
+                    )
+                    for chunk in chunks
+                ],
             )
-            if int(cursor.fetchone()[0]) == 0:
-                cursor.executemany(
-                    "INSERT INTO chunk (id, document_version_id, char_start, char_end, page_number, "
-                    "effective_date, status, content) VALUES (%s, %s, %s, %s, %s, %s, 'ready', %s)",
-                    [
-                        (
-                            chunk.id,
-                            version_id,
-                            chunk.char_start,
-                            chunk.char_end,
-                            chunk.page_number,
-                            chunk.effective_date,
-                            chunk.content,
-                        )
-                        for chunk in chunks
-                    ],
-                )
             cursor.execute(
                 "SELECT count(*) FROM chunk WHERE document_version_id = %s AND status = 'ready'",
                 (version_id,),

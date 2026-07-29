@@ -290,23 +290,27 @@ class SQLiteStore:
                 "effective_date = excluded.effective_date",
                 (version_id, document_id, file_sha256, effective_date),
             )
-            if existing is None:
-                conn.executemany(
-                    "INSERT INTO chunk (id, document_version_id, char_start, char_end, page_number, "
-                    "effective_date, status, content) VALUES (?, ?, ?, ?, ?, ?, 'ready', ?)",
-                    [
-                        (
-                            chunk.id,
-                            version_id,
-                            chunk.char_start,
-                            chunk.char_end,
-                            chunk.page_number,
-                            chunk.effective_date,
-                            chunk.content,
-                        )
-                        for chunk in chunks
-                    ],
-                )
+            # Chunks are a derived index, not immutable source evidence.  A
+            # re-ingest of an unchanged document version must therefore refresh
+            # its layout when the deterministic chunking policy changes.
+            if existing is not None:
+                conn.execute("DELETE FROM chunk WHERE document_version_id = ?", (version_id,))
+            conn.executemany(
+                "INSERT INTO chunk (id, document_version_id, char_start, char_end, page_number, "
+                "effective_date, status, content) VALUES (?, ?, ?, ?, ?, ?, 'ready', ?)",
+                [
+                    (
+                        chunk.id,
+                        version_id,
+                        chunk.char_start,
+                        chunk.char_end,
+                        chunk.page_number,
+                        chunk.effective_date,
+                        chunk.content,
+                    )
+                    for chunk in chunks
+                ],
+            )
             active = conn.execute(
                 "SELECT count(*) AS count FROM chunk WHERE document_version_id = ? AND status = 'ready'",
                 (version_id,),
