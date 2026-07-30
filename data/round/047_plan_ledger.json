@@ -253,8 +253,7 @@
   },
   {
     "plan_ref": "B5-4c",
-    "status": "DEFERRED",
-    "reason": "No full workflow run has verified evidence persistence with live retrieval references."
+    "status": "PASS"
   },
   {
     "plan_ref": "B5-4d",

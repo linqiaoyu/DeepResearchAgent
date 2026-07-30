@@ -236,6 +236,8 @@ class RagSearchService:
                     )
                     delivered = []
                     rerank_status = "degraded"
+        if degradation is not None:
+            run_context.degradation_events.append(degradation)
         trace = RetrievalTrace(
             index_version=effective_filters.index_version or "unspecified",
             lexical_count=len(lexical),

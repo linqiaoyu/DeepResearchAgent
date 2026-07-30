@@ -333,7 +333,6 @@ class ReplayRagSearch:
         as_of: str,
         context: RunToolContext | None = None,
     ) -> dict[str, object]:
-        del context
         if not self._calls:
             raise TrajectoryCacheMissError(
                 "trajectory cache_miss: unexpected rag_search call"
@@ -361,6 +360,20 @@ class ReplayRagSearch:
         if (recorder := active_trajectory_recorder()) is not None:
             recorder.record_tool_call(call.model_copy(deep=True))
         result = call.result if isinstance(call.result, dict) else {}
+        if context is not None and result.get("rerank_status") == "degraded":
+            reason = result.get("degradation_reason")
+            if not isinstance(reason, str):
+                raise TrajectoryCacheMissError(
+                    "trajectory cache_miss: degraded rag_search trace lacks a reason"
+                )
+            context.degradation_events.append(
+                DegradationEvent(
+                    tool="rerank",
+                    reason=ToolErrorKind(reason),
+                    impact="rrf_top_n_used",
+                    attempts=1,
+                )
+            )
         return {
             "candidates": [
                 {

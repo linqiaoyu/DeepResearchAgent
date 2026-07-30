@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from datetime import date
@@ -101,13 +102,18 @@ class RagDegradedReplayTest(unittest.TestCase):
                 dynamic_capability_enabled=False,
                 trajectory_record_enabled=True,
                 structured_logging_enabled=False,
-                run_manifest_enabled=False,
+                run_manifest_enabled=True,
                 config_fail_fast_enabled=False,
             )
             engine = DeepResearchEngine(settings=settings, rag_search=rag)
             engine.planner = _FixedPlanner()
             state = engine.run(topic="公司收入", depth_level=1)
             engine._checkpoint_conn.close()
+            manifest = json.loads(
+                (root / "runs" / state.research_id / "manifest.json").read_text(
+                    encoding="utf-8"
+                )
+            )
             trajectory = load_trajectory(
                 root / "runs" / state.research_id / "trajectory.json"
             )
@@ -130,6 +136,12 @@ class RagDegradedReplayTest(unittest.TestCase):
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0].result["rerank_status"], "degraded")
         self.assertEqual(calls[0].result["candidate_ids"], ["chunk-1"])
+        self.assertTrue(
+            any(
+                event["tool"] == "rerank" and event["reason"] == "timeout"
+                for event in manifest["degradation_events"]
+            )
+        )
 
 
 if __name__ == "__main__":
