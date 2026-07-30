@@ -392,5 +392,10 @@
   {
     "plan_ref": "B7-7",
     "status": "PASS"
+  },
+  {
+    "plan_ref": "X-1",
+    "status": "DEFERRED",
+    "reason": "docker-compose build api exited before the Docker build started: docker-compose could not interpolate services.postgres.environment.POSTGRES_PASSWORD because that required variable was unset; artifacts/047/x1_api_image_build.log records the exact return."
   }
 ]
