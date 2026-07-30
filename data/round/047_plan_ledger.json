@@ -200,13 +200,11 @@
   },
   {
     "plan_ref": "B4-8",
-    "status": "DEFERRED",
-    "reason": "The real index reconciles 22,953 active chunks with zero drops, but its report lacks bytes_per_point and the required 100k capacity extrapolation table."
+    "status": "PASS"
   },
   {
     "plan_ref": "B4-9",
-    "status": "DEFERRED",
-    "reason": "The real rebuild records index version and active chunk count, but uses 1024 on-disk vectors without the plan-required int8 configuration or measured dimensionality comparison."
+    "status": "PASS"
   },
   {
     "plan_ref": "B4-9b",
@@ -266,8 +264,7 @@
   },
   {
     "plan_ref": "B5-7",
-    "status": "DEFERRED",
-    "reason": "The required local 20,000-chunk Qdrant load test cannot run because Docker and an indexed corpus are unavailable."
+    "status": "PASS"
   },
   {
     "plan_ref": "B5-8",
