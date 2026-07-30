@@ -84,6 +84,7 @@ class RagBackendsTests(unittest.TestCase):
                 StoredChunk(
                     "alibaba", 0, 60, 1, "2025-01-01",
                     "Alibaba Group Holding Limited reported Total revenue.",
+                    entity_id="baba",
                 )
             ],
         )

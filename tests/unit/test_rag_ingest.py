@@ -63,6 +63,10 @@ class RagIngestTests(unittest.TestCase):
             store = SQLiteStore(root / "research.db")
 
             first = ingest_and_persist(input_dir=root, corpus_path=manifest, store=store)
+            self.assertEqual(
+                {chunk.entity_id for chunk in store.list_ready_chunks(as_of="9999-12-31")},
+                {"report"},
+            )
             repeated = ingest_and_persist(input_dir=root, corpus_path=manifest, store=store)
 
             second_text = "b" * 3000

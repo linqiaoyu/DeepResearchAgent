@@ -50,14 +50,20 @@ class StorageLexicalBackend:
     def search(self, *, query: str, filters: RetrievalFilter, limit: int) -> list[SearchChunk]:
         if limit < 1 or filters.as_of is None:
             return []
-        # This storage schema does not yet store document/entity/period facets.
+        # This storage schema does not yet store document-type facets.
         # Ignoring a requested facet would make a retrieval claim too broad.
-        if filters.doc_types or filters.entity_ids or filters.period_labels:
+        if filters.doc_types:
             return []
         query_terms = chinese_lexical_terms(query)
         if not query_terms:
             return []
         chunks = self.store.list_ready_chunks(as_of=filters.as_of.isoformat())
+        if filters.entity_ids:
+            chunks = [chunk for chunk in chunks if chunk.entity_id in filters.entity_ids]
+        if filters.period_labels:
+            chunks = [
+                chunk for chunk in chunks if chunk.effective_date[:4] in filters.period_labels
+            ]
         if not chunks:
             return []
         documents = [(chunk, Counter(chinese_lexical_terms(chunk.content))) for chunk in chunks]
@@ -88,17 +94,24 @@ class QdrantDenseBackend:
     def search(self, *, query: str, filters: RetrievalFilter, limit: int) -> list[SearchChunk]:
         if limit < 1 or filters.as_of is None:
             return []
-        if filters.doc_types or filters.entity_ids or filters.period_labels:
+        if filters.doc_types:
             return []
         vectors = self.embedding.embed([query])
         if len(vectors) != 1:
             raise ValueError("embedding provider must return one query vector")
         hits = self.index.query(
-            vector=vectors[0], as_of=filters.as_of.isoformat(), index_version=filters.index_version, limit=limit
+            vector=vectors[0],
+            as_of=filters.as_of.isoformat(),
+            index_version=filters.index_version,
+            limit=limit,
+            entity_ids=filters.entity_ids,
+            period_labels=filters.period_labels,
         )
         resolved = self.store.resolve_ready_chunks(
             [hit.chunk_id for hit in hits], as_of=filters.as_of.isoformat()
         )
+        if filters.entity_ids:
+            resolved = [chunk for chunk in resolved if chunk.entity_id in filters.entity_ids]
         scores = {hit.chunk_id: hit.score for hit in hits}
         return [_as_search_chunk(chunk, score=scores[chunk.id]) for chunk in resolved]
 

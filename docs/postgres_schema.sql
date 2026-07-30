@@ -94,3 +94,7 @@ ALTER TABLE evidence ADD COLUMN IF NOT EXISTS retrieval_ref_json JSONB;
 -- 003_chunk_bbox_index.sql
 ALTER TABLE chunk ADD COLUMN IF NOT EXISTS bbox_index_json JSONB NOT NULL DEFAULT '[]'::jsonb;
 
+-- 004_chunk_entity_id.sql
+ALTER TABLE chunk ADD COLUMN IF NOT EXISTS entity_id TEXT NOT NULL DEFAULT '';
+CREATE INDEX IF NOT EXISTS idx_chunk_entity_id ON chunk(entity_id);
+

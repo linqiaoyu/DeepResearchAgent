@@ -14,6 +14,7 @@ class IndexedChunk:
     char_start: int
     char_end: int
     vector: list[float]
+    entity_id: str = ""
 
 
 @dataclass(frozen=True)
@@ -86,7 +87,12 @@ class QdrantIndex:
                 existing = points[0].get("payload", {}).get("index_version")
                 if existing != index_version:
                     raise ValueError("Qdrant collection index_version does not match index configuration")
-        for field_name, field_schema in (("effective_date", "datetime"), ("index_version", "keyword")):
+        for field_name, field_schema in (
+            ("effective_date", "datetime"),
+            ("index_version", "keyword"),
+            ("entity_id", "keyword"),
+            ("period_label", "keyword"),
+        ):
             indexed = httpx.put(
                 f"{self._collection_url}/index",
                 headers=self.headers,
@@ -116,6 +122,8 @@ class QdrantIndex:
                     "char_start": chunk.char_start,
                     "char_end": chunk.char_end,
                     "index_version": index_version,
+                    "entity_id": chunk.entity_id,
+                    "period_label": chunk.effective_date[:4],
                 },
             }
             for chunk in chunks
@@ -131,7 +139,14 @@ class QdrantIndex:
         return len(points)
 
     def query(
-        self, *, vector: list[float], as_of: str, index_version: str | None, limit: int
+        self,
+        *,
+        vector: list[float],
+        as_of: str,
+        index_version: str | None,
+        limit: int,
+        entity_ids: tuple[str, ...] = (),
+        period_labels: tuple[str, ...] = (),
     ) -> list[QdrantQueryHit]:
         """Query only payload identities; canonical chunk text stays in StorageProtocol."""
 
@@ -142,6 +157,10 @@ class QdrantIndex:
         self.ensure_collection(dimensions=len(vector), index_version=index_version)
         must = [{"key": "effective_date", "range": {"lte": as_of}}]
         must.append({"key": "index_version", "match": {"value": index_version}})
+        if entity_ids:
+            must.append({"key": "entity_id", "match": {"any": sorted(set(entity_ids))}})
+        if period_labels:
+            must.append({"key": "period_label", "match": {"any": sorted(set(period_labels))}})
         response = httpx.post(
             f"{self._collection_url}/points/query",
             headers=self.headers,
@@ -163,6 +182,34 @@ class QdrantIndex:
             if isinstance(chunk_id, str):
                 hits.append(QdrantQueryHit(chunk_id=chunk_id, score=float(point["score"])))
         return hits
+
+    def set_filter_payload(
+        self,
+        *,
+        chunk_ids: list[str],
+        payload: dict[str, str],
+        model: str,
+        chunker_version: str,
+    ) -> int:
+        """Backfill filter-only fields without re-embedding text."""
+
+        if not chunk_ids:
+            return 0
+        if not payload or any(not key or not value for key, value in payload.items()):
+            raise ValueError("payload backfill requires non-empty filter fields")
+        point_ids = [
+            self.point_id(chunk_id=chunk_id, model=model, chunker_version=chunker_version)
+            for chunk_id in chunk_ids
+        ]
+        response = httpx.post(
+            f"{self._collection_url}/points/payload",
+            headers=self.headers,
+            params={"wait": "true"},
+            timeout=self.timeout_seconds,
+            json={"payload": payload, "points": point_ids},
+        )
+        response.raise_for_status()
+        return len(point_ids)
 
     @property
     def _collection_url(self) -> str:

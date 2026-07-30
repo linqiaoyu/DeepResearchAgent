@@ -110,6 +110,7 @@ def ingest_and_persist(
                     page_number=chunk.page,
                     effective_date=chunk.effective_date,
                     content=chunk.text,
+                    entity_id=_source_entity_id(relative_path),
                 )
                 for chunk in chunks
             ],
@@ -143,3 +144,13 @@ def _extract(path: Path, *, max_pdf_pages: int | None = None) -> list[LocatedTex
         text = re.sub(r"<[^>]+>", " ", text)
         text = re.sub(r"\s+", " ", text)
     return [LocatedText(text=text, page=None, char_start=0)]
+
+
+def _source_entity_id(relative_path: str) -> str:
+    """Use the manifest filename's stable source identifier, not document text."""
+
+    stem = Path(relative_path).stem
+    entity_id = stem.split("_", 1)[0].lower()
+    if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", entity_id):
+        raise ValueError(f"corpus path lacks a stable entity identifier: {relative_path}")
+    return entity_id

@@ -15,6 +15,7 @@ class StoredChunk:
     effective_date: str
     content: str
     bbox_index: tuple[TextBoundingBox, ...] = ()
+    entity_id: str = ""
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,7 @@ class ResolvedChunk:
     effective_date: str
     content: str
     bbox_index: tuple[TextBoundingBox, ...] = ()
+    entity_id: str = ""
 
 
 @dataclass(frozen=True)

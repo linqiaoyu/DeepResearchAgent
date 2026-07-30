@@ -6,12 +6,17 @@ public English issuer alias to a retrieval request before either lexical or
 dense retrieval. Generic RAG code receives only the expanded string through
 the injected `RetrievalDomain`; it contains no finance vocabulary.
 
-The current authoritative storage does not yet persist document-type, entity,
-or fiscal-period facets. Finance consequently emits no such filter values:
-the generic backends correctly fail closed for unsupported facets, and emitting
-them would make every live RAG lookup empty. This is not a relaxation of
-as-of, URL, document-version, character-range, extraction, or evidence-chain
-guards.
+The authoritative `chunk` record now persists a stable `entity_id`, derived
+from the frozen corpus filename prefix during ingestion. `period_label` is
+derived from the already-authoritative `effective_date`. SQLite and Postgres
+carry the entity field; Qdrant receives only the two filter fields, never chunk
+text. The lexical and dense backends apply both entity and period constraints.
+`document_type` remains unsupported and is still rejected fail-closed.
+
+The existing derived index was backfilled by stable point ID: 22,953 points
+across 60 issuer/year groups. This payload-only operation did not invoke an
+embedding or rerank provider. It does not relax as-of, URL, document-version,
+character-range, extraction, or evidence-chain guards.
 
 The aliases are public issuer vocabulary, not writes to the frozen questions,
 labels, split, or relevance values. The completed test result predates this

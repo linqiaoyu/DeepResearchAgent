@@ -49,7 +49,7 @@ class QdrantIndexTests(unittest.TestCase):
             return_value=Response(status_code=404),
         ), patch(
             "deepresearch_agent.rag.qdrant_index.httpx.put",
-            side_effect=[Response(status_code=200), Response(status_code=200), Response(status_code=200), Response(status_code=200)],
+            side_effect=[Response(status_code=200)] * 6,
         ) as put:
             self.assertEqual(
                 index.upsert(chunks=[chunk], model="model", chunker_version="v1", index_version="idx-v1"),
@@ -58,8 +58,10 @@ class QdrantIndexTests(unittest.TestCase):
 
         self.assertEqual(put.call_args_list[1].kwargs["json"], {"field_name": "effective_date", "field_schema": "datetime"})
         self.assertEqual(put.call_args_list[2].kwargs["json"], {"field_name": "index_version", "field_schema": "keyword"})
-        payload = put.call_args_list[3].kwargs["json"]["points"][0]["payload"]
-        self.assertEqual(set(payload), {"chunk_id", "document_version_id", "effective_date", "char_start", "char_end", "index_version"})
+        self.assertEqual(put.call_args_list[3].kwargs["json"], {"field_name": "entity_id", "field_schema": "keyword"})
+        self.assertEqual(put.call_args_list[4].kwargs["json"], {"field_name": "period_label", "field_schema": "keyword"})
+        payload = put.call_args_list[5].kwargs["json"]["points"][0]["payload"]
+        self.assertEqual(set(payload), {"chunk_id", "document_version_id", "effective_date", "char_start", "char_end", "index_version", "entity_id", "period_label"})
         self.assertNotIn("text", payload)
         self.assertNotIn("content", payload)
 
@@ -122,11 +124,46 @@ class QdrantIndexTests(unittest.TestCase):
             hits = index.query(vector=[0.1, 0.2], as_of="2026-01-01", index_version="idx-v1", limit=3)
 
         self.assertEqual([(hit.chunk_id, hit.score) for hit in hits], [("chunk-a", 0.8)])
-        self.assertEqual(put.call_count, 2)
+        self.assertEqual(put.call_count, 4)
         payload = post.call_args_list[1].kwargs["json"]
         self.assertEqual(payload["with_payload"], ["chunk_id"])
         self.assertNotIn("text", str(payload))
         self.assertEqual(payload["filter"]["must"][0]["key"], "effective_date")
+
+    def test_query_adds_entity_filter_when_requested(self) -> None:
+        index = QdrantIndex(url="https://qdrant.test", api_key="test", collection="collection")
+        with patch("deepresearch_agent.rag.qdrant_index.httpx.get", return_value=Response(status_code=200, payload={"result": {"config": {"params": {"vectors": {"size": 2}}}}})), patch("deepresearch_agent.rag.qdrant_index.httpx.put", return_value=Response(status_code=200)), patch("deepresearch_agent.rag.qdrant_index.httpx.post", side_effect=[Response(status_code=200, payload={"result": {"points": []}}), Response(status_code=200, payload={"result": {"points": []}})]) as post:
+            index.query(
+                vector=[0.1, 0.2],
+                as_of="2026-01-01",
+                index_version="idx-v1",
+                limit=3,
+                entity_ids=("baba", "baba"),
+                period_labels=("2024",),
+            )
+
+        must = post.call_args_list[1].kwargs["json"]["filter"]["must"]
+        self.assertIn({"key": "entity_id", "match": {"any": ["baba"]}}, must)
+        self.assertIn({"key": "period_label", "match": {"any": ["2024"]}}, must)
+
+    def test_entity_payload_backfill_uses_stable_point_ids_without_text(self) -> None:
+        index = QdrantIndex(url="https://qdrant.test", api_key="test", collection="collection")
+        with patch(
+            "deepresearch_agent.rag.qdrant_index.httpx.post",
+            return_value=Response(status_code=200),
+        ) as post:
+            updated = index.set_filter_payload(
+                chunk_ids=["chunk-a", "chunk-b"],
+                payload={"entity_id": "baba", "period_label": "2024"},
+                model="model",
+                chunker_version="v1",
+            )
+
+        self.assertEqual(updated, 2)
+        payload = post.call_args.kwargs["json"]
+        self.assertEqual(payload["payload"], {"entity_id": "baba", "period_label": "2024"})
+        self.assertEqual(len(payload["points"]), 2)
+        self.assertNotIn("text", str(payload))
 
 
 if __name__ == "__main__":

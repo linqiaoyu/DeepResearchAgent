@@ -186,7 +186,7 @@ class PostgresStore(SQLiteStore):
             cursor.execute("DELETE FROM chunk WHERE document_version_id = %s", (version_id,))
             cursor.executemany(
                 "INSERT INTO chunk (id, document_version_id, char_start, char_end, page_number, "
-                "effective_date, status, content, bbox_index_json) VALUES (%s, %s, %s, %s, %s, %s, 'ready', %s, %s::jsonb)",
+                "effective_date, status, content, bbox_index_json, entity_id) VALUES (%s, %s, %s, %s, %s, %s, 'ready', %s, %s::jsonb, %s)",
                 [
                     (
                         chunk.id,
@@ -197,6 +197,7 @@ class PostgresStore(SQLiteStore):
                         chunk.effective_date,
                         chunk.content,
                         json.dumps([item.model_dump(mode="json") for item in chunk.bbox_index]),
+                        chunk.entity_id,
                     )
                     for chunk in chunks
                 ],
@@ -228,7 +229,7 @@ class PostgresStore(SQLiteStore):
         with self._connection() as conn, conn.cursor(row_factory=self._psycopg.rows.dict_row) as cursor:
             rows = cursor.execute(
                 "SELECT chunk.id, chunk.document_version_id, document.canonical_url, chunk.char_start, "
-                "chunk.char_end, chunk.page_number, chunk.effective_date, chunk.content, chunk.bbox_index_json "
+                "chunk.char_end, chunk.page_number, chunk.effective_date, chunk.content, chunk.bbox_index_json, chunk.entity_id "
                 "FROM chunk JOIN document_version ON document_version.id = chunk.document_version_id "
                 "JOIN document ON document.id = document_version.document_id "
                 "WHERE chunk.status = 'ready' AND chunk.effective_date <= %s ORDER BY chunk.id",
@@ -242,7 +243,7 @@ class PostgresStore(SQLiteStore):
         with self._connection() as conn, conn.cursor(row_factory=self._psycopg.rows.dict_row) as cursor:
             rows = cursor.execute(
                 "SELECT chunk.id, chunk.document_version_id, document.canonical_url, chunk.char_start, "
-                "chunk.char_end, chunk.page_number, chunk.effective_date, chunk.content, chunk.bbox_index_json "
+                "chunk.char_end, chunk.page_number, chunk.effective_date, chunk.content, chunk.bbox_index_json, chunk.entity_id "
                 "FROM chunk JOIN document_version ON document_version.id = chunk.document_version_id "
                 "JOIN document ON document.id = document_version.document_id "
                 "WHERE chunk.status = 'ready' AND chunk.effective_date <= %s AND chunk.id = ANY(%s)",
@@ -270,6 +271,7 @@ class PostgresStore(SQLiteStore):
             effective_date=str(row["effective_date"]),
             content=str(row["content"]),
             bbox_index=tuple(TextBoundingBox.model_validate(item) for item in bbox_items),
+            entity_id=str(row["entity_id"]),
         )
 
 
