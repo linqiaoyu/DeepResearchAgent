@@ -269,7 +269,7 @@
   {
     "plan_ref": "B5-8",
     "status": "DEFERRED",
-    "reason": "No N=50 paid network sample has recorded embedding/rerank latency and CNY cost."
+    "reason": "scripts/sample_provider_latency.py was terminated during module import before its first provider call; artifacts/047/provider_latency_n50.log records zero settled calls/cost and artifacts/047/provider_latency_sample_stack.txt records the import hang."
   },
   {
     "plan_ref": "B5-9",
@@ -355,7 +355,7 @@
   {
     "plan_ref": "B6-12",
     "status": "DEFERRED",
-    "reason": "The one preregistered real attempt reached Reporter after real planner, retrieval, embedding, rerank, and web research activity, but failed before final report/manifest serialization because duplicate metric requests produced ambiguous grounded-fact labels. The defect is fixed and unit-tested; a new authorized real E2E on the final commit is still required, because the recorded attempt predates that code change."
+    "reason": "The prior real attempt predates the final reporter repair. The required final-commit rerun directly depends on provider execution; scripts/sample_provider_latency.py was terminated during module import before its first provider call (artifacts/047/provider_latency_n50.log)."
   },
   {
     "plan_ref": "B6-13",
