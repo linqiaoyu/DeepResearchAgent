@@ -23,6 +23,7 @@ COPY src /app/src
 COPY ui /app/ui
 COPY data /app/data
 COPY prompts /app/prompts
+COPY skills /app/skills
 RUN mkdir -p /app/data/runtime \
     && chown -R deepresearch:deepresearch /app
 
