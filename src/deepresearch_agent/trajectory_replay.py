@@ -326,7 +326,14 @@ class ReplayRagSearch:
         )
         self.index_version = index_version
 
-    def search(self, *, query: str, as_of: str) -> dict[str, object]:
+    def search(
+        self,
+        *,
+        query: str,
+        as_of: str,
+        context: RunToolContext | None = None,
+    ) -> dict[str, object]:
+        del context
         if not self._calls:
             raise TrajectoryCacheMissError(
                 "trajectory cache_miss: unexpected rag_search call"

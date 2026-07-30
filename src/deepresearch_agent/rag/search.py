@@ -13,7 +13,12 @@ from deepresearch_agent.rag.retrieval import (
 )
 from deepresearch_agent.tools.contracts import DegradationEvent
 from deepresearch_agent.tools.capability_registry import RAG_SEARCH_TOOL_SPEC
-from deepresearch_agent.tools.reliable_execution import ToolExecutionError, classify_tool_error
+from deepresearch_agent.tools.reliable_execution import (
+    ReliableToolExecutor,
+    RunToolContext,
+    ToolExecutionError,
+    classify_tool_error,
+)
 from deepresearch_agent.trajectory import ToolCallTrace, active_trajectory_recorder
 
 
@@ -71,6 +76,7 @@ class RagSearchService:
         rerank_fail_open: bool,
         retrieval_domain: RetrievalDomain | None = None,
         index_version: str | None = None,
+        executor: ReliableToolExecutor | None = None,
     ) -> None:
         if retrieval_top_k < 1 or rerank_top_n < 1:
             raise ValueError("retrieval_top_k and rerank_top_n must be positive")
@@ -83,9 +89,15 @@ class RagSearchService:
         self.rerank_fail_open = rerank_fail_open
         self.retrieval_domain = retrieval_domain
         self.index_version = index_version
+        self.executor = executor or ReliableToolExecutor()
 
     def search(
-        self, *, query: str, as_of: str, filters: RetrievalFilter | None = None
+        self,
+        *,
+        query: str,
+        as_of: str,
+        filters: RetrievalFilter | None = None,
+        context: RunToolContext | None = None,
     ) -> dict[str, object]:
         if not as_of:
             raise ValueError("rag_search requires as_of")
@@ -104,19 +116,38 @@ class RagSearchService:
             as_of=date.fromisoformat(as_of),
             index_version=effective_filters.index_version or self.index_version,
         )
-        try:
+        run_context = context or RunToolContext.for_run()
+
+        def search_backends() -> tuple[list[SearchChunk], list[SearchChunk]]:
+            run_context.consume_external_request("search", tool="rag_search")
             lexical = self.lexical.search(
                 query=query, filters=effective_filters, limit=self.retrieval_top_k
             )
             dense = self.dense.search(
                 query=query, filters=effective_filters, limit=self.retrieval_top_k
             )
-        except BaseException as exc:
-            error = exc if isinstance(exc, ToolExecutionError) else ToolExecutionError(
-                classify_tool_error(exc), str(exc)
-            )
+            return lexical, dense
+
+        tool_result = self.executor.execute(
+            RAG_SEARCH_TOOL_SPEC,
+            search_backends,
+            run_context,
+            degrade=True,
+            degraded_value=([], []),
+            impact="empty_result",
+        )
+        if not tool_result.ok:
+            error = tool_result.error
+            if error is None:
+                error = ToolExecutionError(
+                    classify_tool_error(RuntimeError("rag_search failed")),
+                    "rag_search failed without an error",
+                )
             degradation = DegradationEvent(
-                tool="rag_search", reason=error.kind, impact="empty_result", attempts=1
+                tool="rag_search",
+                reason=error.kind,
+                impact="empty_result",
+                attempts=tool_result.attempts,
             )
             result = {
                 "candidates": [],
@@ -132,6 +163,7 @@ class RagSearchService:
             }
             self._record_trace(query=query, as_of=as_of, filters=effective_filters, result=result)
             return result
+        lexical, dense = tool_result.value
         permitted = {
             chunk.chunk_id: chunk
             for chunk in [*lexical, *dense]

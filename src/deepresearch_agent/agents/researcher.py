@@ -115,7 +115,11 @@ class ResearcherAgent:
         if enable_rag_search and self.rag_search is not None:
             rag_query = next(iter(sub_question.search_queries), sub_question.question)
             started = time.perf_counter()
-            retrieval = self.rag_search.search(query=rag_query, as_of=self.as_of.isoformat())
+            retrieval = self.rag_search.search(
+                query=rag_query,
+                as_of=self.as_of.isoformat(),
+                context=run_scope.tool_context,
+            )
             candidates = retrieval.get("candidates", []) if isinstance(retrieval, dict) else []
             rag_sources = [
                 self._rag_source(candidate)

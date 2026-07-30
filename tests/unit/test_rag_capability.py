@@ -26,7 +26,10 @@ class RagCapabilityTests(unittest.TestCase):
         class InjectedRag:
             fidelity = "real"
 
-            def search(self, *, query: str, as_of: str) -> dict[str, object]:
+            def search(
+                self, *, query: str, as_of: str, context: object | None = None
+            ) -> dict[str, object]:
+                del context
                 return {"candidates": [{"chunk_id": "authoritative"}], "trace": {"query": query, "as_of": as_of}}
 
         engine = DeepResearchEngine(

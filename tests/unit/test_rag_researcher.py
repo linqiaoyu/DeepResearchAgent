@@ -9,7 +9,10 @@ from deepresearch_agent.schemas import RetrievalReference, Source, SubQuestion
 
 
 class _RagSearch:
-    def search(self, *, query: str, as_of: str) -> dict[str, object]:
+    def search(
+        self, *, query: str, as_of: str, context: object | None = None
+    ) -> dict[str, object]:
+        del context
         return {
             "candidates": [
                 {

@@ -7,7 +7,12 @@ from deepresearch_agent.domains.protocols import RetrievalFilterValues
 from deepresearch_agent.rag.retrieval import FixtureRerankerProvider
 from deepresearch_agent.rag.search import RagSearchService, RetrievalFilter, SearchChunk
 from deepresearch_agent.tools.contracts import ToolErrorKind
-from deepresearch_agent.tools.reliable_execution import ToolExecutionError
+from deepresearch_agent.tools.reliable_execution import (
+    ExternalRequestBudget,
+    RetryBudget,
+    RunToolContext,
+    ToolExecutionError,
+)
 from deepresearch_agent.trajectory import TrajectoryRecorder, trajectory_recording
 from deepresearch_agent.trajectory_replay import replay_recorded_rag_search
 
@@ -184,6 +189,26 @@ class RagSearchTests(unittest.TestCase):
         self.assertEqual(result["candidates"], [])
         self.assertEqual(result["trace"].degradation.tool, "rag_search")
         self.assertEqual(result["trace"].degradation.reason, ToolErrorKind.TIMEOUT)
+
+    def test_external_request_budget_refusal_returns_explicit_empty_degradation(self) -> None:
+        chunk = SearchChunk("a", "文本", date(2025, 1, 1), "v1", 0, 2)
+        context = RunToolContext(
+            retry_budget=RetryBudget(max_retries=0),
+            external_request_budget=ExternalRequestBudget(
+                max_search_requests=0, max_fetch_requests=0
+            ),
+        )
+        service = RagSearchService(
+            lexical=StaticBackend([chunk]), dense=StaticBackend([]), reranker=None,
+            retrieval_top_k=10, rerank_top_n=5, rerank_enabled=False,
+            rerank_fail_open=True,
+        )
+
+        result = service.search(query="问题", as_of="2026-01-01", context=context)
+
+        self.assertEqual(result["candidates"], [])
+        self.assertEqual(result["trace"].degradation.reason, ToolErrorKind.BUDGET_EXCEEDED)
+        self.assertEqual(context.external_request_budget.rejected_by_tool["rag_search"]["search"], 1)
 
     def test_degraded_rerank_replays_the_recorded_rrf_order_without_provider_call(self) -> None:
         class FailingReranker:
