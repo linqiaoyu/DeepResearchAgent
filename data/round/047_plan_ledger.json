@@ -241,8 +241,7 @@
   },
   {
     "plan_ref": "B5-4",
-    "status": "DEFERRED",
-    "reason": "No real backend run has exercised the configured retrieval timeout and fallback contract."
+    "status": "PASS"
   },
   {
     "plan_ref": "B5-4a",

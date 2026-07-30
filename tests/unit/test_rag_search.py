@@ -210,6 +210,19 @@ class RagSearchTests(unittest.TestCase):
         self.assertEqual(result["trace"].degradation.reason, ToolErrorKind.BUDGET_EXCEEDED)
         self.assertEqual(context.external_request_budget.rejected_by_tool["rag_search"]["search"], 1)
 
+    def test_empty_backends_return_explicit_empty_degradation(self) -> None:
+        service = RagSearchService(
+            lexical=StaticBackend([]), dense=StaticBackend([]), reranker=None,
+            retrieval_top_k=10, rerank_top_n=5, rerank_enabled=False,
+            rerank_fail_open=True,
+        )
+
+        result = service.search(query="问题", as_of="2026-01-01")
+
+        self.assertEqual(result["candidates"], [])
+        self.assertEqual(result["trace"].degradation.tool, "rag_search")
+        self.assertEqual(result["trace"].degradation.reason, ToolErrorKind.NOT_FOUND)
+
     def test_degraded_rerank_replays_the_recorded_rrf_order_without_provider_call(self) -> None:
         class FailingReranker:
             def rerank(self, *_args: object, **_kwargs: object) -> object:

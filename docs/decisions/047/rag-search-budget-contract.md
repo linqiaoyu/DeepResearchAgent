@@ -25,5 +25,6 @@ output is retained in the ignored 047 mutation artifacts.
 ## Verification
 
 The RAG unit and integration subset covers normal retrieval, timeout
-degradation, budget refusal, adversarial evidence admission, and strict degraded
-replay. Full gate evidence is recorded after the change.
+degradation, explicit empty-index degradation, budget refusal, adversarial
+evidence admission, and strict degraded replay. Full gate evidence is recorded
+after the change.

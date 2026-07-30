@@ -164,6 +164,27 @@ class RagSearchService:
             self._record_trace(query=query, as_of=as_of, filters=effective_filters, result=result)
             return result
         lexical, dense = tool_result.value
+        if not lexical and not dense:
+            degradation = DegradationEvent(
+                tool="rag_search",
+                reason="not_found",
+                impact="empty_result",
+                attempts=tool_result.attempts,
+            )
+            result = {
+                "candidates": [],
+                "trace": RetrievalTrace(
+                    index_version=effective_filters.index_version or "unspecified",
+                    lexical_count=0,
+                    dense_count=0,
+                    fused_count=0,
+                    delivered_count=0,
+                    rerank_status="not_attempted",
+                    degradation=degradation,
+                ),
+            }
+            self._record_trace(query=query, as_of=as_of, filters=effective_filters, result=result)
+            return result
         permitted = {
             chunk.chunk_id: chunk
             for chunk in [*lexical, *dense]
