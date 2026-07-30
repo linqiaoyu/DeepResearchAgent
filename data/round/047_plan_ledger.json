@@ -15,8 +15,7 @@
   },
   {
     "plan_ref": "B0-3",
-    "status": "DEFERRED",
-    "reason": "scripts/probe_chinese_lexical.py and its required 20-query comparison output do not exist."
+    "status": "PASS"
   },
   {
     "plan_ref": "B0-4",
