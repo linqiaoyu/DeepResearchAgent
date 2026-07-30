@@ -7,9 +7,10 @@ from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
-from pypdf import PdfReader
+import pdfplumber
 
-from deepresearch_agent.rag.chunking import Chunk, LocatedText, chunk_located_text
+from deepresearch_agent.rag.chunking import Chunk, LocatedText, LocatedTextBox, chunk_located_text
+from deepresearch_agent.schemas import BoundingBox, TextBoundingBox
 from deepresearch_agent.storage import StorageProtocol, StoredChunk
 
 
@@ -110,6 +111,7 @@ def ingest_and_persist(
                     page_number=chunk.page,
                     effective_date=chunk.effective_date,
                     content=chunk.text,
+                    bbox_index=chunk.bbox_index,
                     entity_id=_source_entity_id(relative_path),
                 )
                 for chunk in chunks
@@ -132,12 +134,49 @@ def _extract(path: Path, *, max_pdf_pages: int | None = None) -> list[LocatedTex
     if suffix == ".pdf":
         sections: list[LocatedText] = []
         offset = 0
-        for page_number, page in enumerate(PdfReader(path).pages, 1):
-            if max_pdf_pages is not None and page_number > max_pdf_pages:
-                break
-            text = page.extract_text() or ""
-            sections.append(LocatedText(text=text, page=page_number, char_start=offset))
-            offset += len(text) + 1
+        with pdfplumber.open(path) as pdf:
+            for page_number, page in enumerate(pdf.pages, 1):
+                if max_pdf_pages is not None and page_number > max_pdf_pages:
+                    break
+                words = page.extract_words() or []
+                parts: list[str] = []
+                bbox_spans: list[LocatedTextBox] = []
+                position = 0
+                for word in words:
+                    value = str(word.get("text") or "").strip()
+                    if not value:
+                        continue
+                    if parts:
+                        position += 1
+                    start = position
+                    position += len(value)
+                    parts.append(value)
+                    bbox_spans.append(
+                        LocatedTextBox(
+                            char_start=start,
+                            char_end=position,
+                            value=TextBoundingBox(
+                                text=value,
+                                bbox=BoundingBox(
+                                    page=page_number,
+                                    x0=float(word["x0"]),
+                                    top=float(word["top"]),
+                                    x1=float(word["x1"]),
+                                    bottom=float(word["bottom"]),
+                                ),
+                            ),
+                        )
+                    )
+                text = " ".join(parts)
+                sections.append(
+                    LocatedText(
+                        text=text,
+                        page=page_number,
+                        char_start=offset,
+                        bbox_spans=tuple(bbox_spans),
+                    )
+                )
+                offset += len(text) + 1
         return sections
     text = path.read_text(encoding="utf-8")
     if suffix in {".html", ".htm"}:

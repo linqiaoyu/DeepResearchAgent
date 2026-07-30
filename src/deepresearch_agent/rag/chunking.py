@@ -4,6 +4,8 @@ import hashlib
 from dataclasses import dataclass
 from uuid import NAMESPACE_URL, uuid5
 
+from deepresearch_agent.schemas import TextBoundingBox
+
 
 # The version is deliberately decomposable: strategy, target, overlap,
 # tokenizer identifier, and tokenizer version.  This is recorded with every
@@ -18,6 +20,14 @@ class LocatedText:
     text: str
     page: int | None
     char_start: int
+    bbox_spans: tuple["LocatedTextBox", ...] = ()
+
+
+@dataclass(frozen=True)
+class LocatedTextBox:
+    char_start: int
+    char_end: int
+    value: TextBoundingBox
 
 
 @dataclass(frozen=True)
@@ -30,6 +40,7 @@ class Chunk:
     char_end: int
     effective_date: str
     chunker_version: str = CHUNKER_VERSION
+    bbox_index: tuple[TextBoundingBox, ...] = ()
 
 
 def chunk_located_text(*, document_sha256: str, sections: list[LocatedText], effective_date: str) -> list[Chunk]:
@@ -56,6 +67,11 @@ def chunk_located_text(*, document_sha256: str, sections: list[LocatedText], eff
                     char_start=absolute_start,
                     char_end=absolute_end,
                     effective_date=effective_date,
+                    bbox_index=tuple(
+                        item.value
+                        for item in section.bbox_spans
+                        if item.char_start < end and start < item.char_end
+                    ),
                 )
             )
             if end == len(text):

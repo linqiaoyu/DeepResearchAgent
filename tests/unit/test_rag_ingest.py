@@ -4,9 +4,22 @@ import hashlib
 import json
 import tempfile
 import unittest
+from datetime import date
 from pathlib import Path
+from unittest.mock import patch
 
-from deepresearch_agent.rag.ingest import ingest_and_persist, ingest_corpus
+from deepresearch_agent.agents import CriticAgent, ExtractorAgent
+from deepresearch_agent.agents.researcher import ResearcherAgent
+from deepresearch_agent.rag.backends import StorageLexicalBackend
+from deepresearch_agent.rag.chunking import chunk_located_text
+from deepresearch_agent.rag.ingest import _extract, ingest_and_persist, ingest_corpus
+from deepresearch_agent.rag.search import RagSearchService
+from deepresearch_agent.schemas import (
+    ResearchPlan,
+    ResearchState,
+    StructuredDataRequest,
+    SubQuestion,
+)
 from deepresearch_agent.storage import SQLiteStore, StoredChunk
 
 
@@ -147,6 +160,118 @@ class RagIngestTests(unittest.TestCase):
                         effective_date="2025-12-31",
                         chunks=[chunk],
                     )
+
+    def test_pdf_words_preserve_exact_page_bbox_into_chunks(self) -> None:
+        class Page:
+            def extract_words(self) -> list[dict[str, object]]:
+                return [
+                    {"text": "Total", "x0": 1.0, "top": 2.0, "x1": 3.0, "bottom": 4.0},
+                    {"text": "revenue", "x0": 5.0, "top": 2.0, "x1": 8.0, "bottom": 4.0},
+                ]
+
+        class Pdf:
+            pages = [Page()]
+
+            def __enter__(self) -> "Pdf":
+                return self
+
+            def __exit__(self, *_args: object) -> None:
+                return None
+
+        with patch("deepresearch_agent.rag.ingest.pdfplumber.open", return_value=Pdf()):
+            sections = _extract(Path("public-report.pdf"))
+        chunks = chunk_located_text(
+            document_sha256="a" * 64,
+            sections=sections,
+            effective_date="2025-12-31",
+        )
+
+        self.assertEqual(sections[0].text, "Total revenue")
+        self.assertEqual(chunks[0].bbox_index[0].bbox.page, 1)
+        self.assertEqual(chunks[0].bbox_index[1].text, "revenue")
+
+    def test_pdf_chunk_bbox_survives_retrieval_source_extraction_and_critic(self) -> None:
+        class Page:
+            def extract_words(self) -> list[dict[str, object]]:
+                return [
+                    {
+                        "text": word,
+                        "x0": float(index * 10),
+                        "top": 2.0,
+                        "x1": float(index * 10 + 8),
+                        "bottom": 12.0,
+                    }
+                    for index, word in enumerate(
+                        "Total revenue was 42 million dollars according to the annual report.".split()
+                    )
+                ]
+
+        class Pdf:
+            pages = [Page()]
+
+            def __enter__(self) -> "Pdf":
+                return self
+
+            def __exit__(self, *_args: object) -> None:
+                return None
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "issuer_2025.pdf"
+            source.write_bytes(b"fixture PDF bytes; layout extraction is mocked below")
+            manifest = root / "corpus.json"
+            manifest.write_text(
+                json.dumps(self._manifest(source, source.read_bytes().decode("utf-8"))),
+                encoding="utf-8",
+            )
+            store = SQLiteStore(root / "research.db")
+            with patch("deepresearch_agent.rag.ingest.pdfplumber.open", return_value=Pdf()):
+                ingest_and_persist(input_dir=root, corpus_path=manifest, store=store)
+
+            backend = StorageLexicalBackend(store=store)
+            search = RagSearchService(
+                lexical=backend,
+                dense=backend,
+                reranker=None,
+                retrieval_top_k=4,
+                rerank_top_n=1,
+                rerank_enabled=False,
+                rerank_fail_open=False,
+                index_version="test-pdf-bbox",
+            )
+            result = search.search(query="Total revenue", as_of="2026-01-01")
+            candidate = result["candidates"][0]
+            assert isinstance(candidate, dict)
+            source_from_candidate = ResearcherAgent._rag_source(candidate)
+
+        self.assertEqual(source_from_candidate.url.split("#chunk=")[0], "https://example.test/document")
+        self.assertEqual(source_from_candidate.bbox_index[0].bbox.page, 1)
+        self.assertEqual(source_from_candidate.bbox_index[0].text, "Total")
+
+        sub_question = SubQuestion(
+            id="revenue",
+            question="What was total revenue?",
+            search_queries=["Total revenue"],
+            structured_data_requests=[
+                StructuredDataRequest(
+                    capability="financial_indicators",
+                    metrics=["revenue"],
+                    periods=["2025"],
+                )
+            ],
+        )
+        evidence = ExtractorAgent().extract("pdf-bbox-run", sub_question, [source_from_candidate])
+        self.assertEqual(len(evidence), 1)
+        self.assertEqual(evidence[0].retrieval_ref, source_from_candidate.retrieval_ref)
+
+        state = ResearchState(topic="PDF revenue", plan=ResearchPlan(
+            topic="PDF revenue",
+            sub_questions=[sub_question],
+            success_criteria=["retrieve the requested figures"],
+        ))
+        state.evidence_store = evidence
+        critique = CriticAgent(today=date(2026, 1, 1)).critique(state)
+        self.assertTrue(critique.passed, critique.issues)
 
 
 if __name__ == "__main__":

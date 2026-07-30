@@ -328,8 +328,7 @@
   },
   {
     "plan_ref": "B6-4",
-    "status": "DEFERRED",
-    "reason": "Candidate-to-Source adaptation has unit coverage, but no completed retrieval-backed workflow artifact proves Extractor, citation, bbox, numeric, and Critic behavior together."
+    "status": "PASS"
   },
   {
     "plan_ref": "B6-5",

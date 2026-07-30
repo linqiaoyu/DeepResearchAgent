@@ -10,7 +10,14 @@ and dense backend adaptation passes it to `SearchChunk`. This makes the
 existing RAG candidate-to-`Source` adapter receive original layout coordinates
 without reading them from Qdrant payloads or fabricating a box.
 
-The verified `finance_v1` corpus is HTML-only. Its chunks correctly retain an
-empty bbox index. Consequently this persistence repair is not evidence that
-the plan-required real-PDF bbox extraction probe has passed; B6-4 remains
-DEFERRED until that distinct evidence exists.
+The verified `finance_v1` corpus is HTML-only, and its chunks correctly retain
+an empty bbox index. PDF support is therefore verified separately, without
+inventing coordinates for that corpus: `pdfplumber` extracts word-level boxes
+from two real public PDF probes (3/3 and 7/7 chunks carried boxes), while the
+cross-layer guard covers PDF words → authoritative SQLite chunk → lexical RAG
+candidate → `Source` URL with `#chunk` and bbox → Extractor-produced
+`Evidence.retrieval_ref` → Critic. The guard also fails when the
+`bbox_index=chunk.bbox_index` write in `ingest.py` is removed.
+
+This is sufficient for B6-4. It does not convert the HTML corpus into a PDF
+corpus or claim that a PDF-derived box has been observed for an HTML source.
