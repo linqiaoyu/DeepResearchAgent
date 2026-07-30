@@ -164,3 +164,6 @@ class NullDomainPack:
 
     def retrieval_filter_values(self, _query: str) -> RetrievalFilterValues:
         return RetrievalFilterValues()
+
+    def expand_retrieval_query(self, query: str) -> str:
+        return query

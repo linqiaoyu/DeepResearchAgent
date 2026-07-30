@@ -112,6 +112,8 @@ class RetrievalDomain(Protocol):
 
     def retrieval_filter_values(self, query: str) -> RetrievalFilterValues: ...
 
+    def expand_retrieval_query(self, query: str) -> str: ...
+
 
 class DomainPack(Protocol):
     """Explicit domain boundary used by generic orchestration code."""

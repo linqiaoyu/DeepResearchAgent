@@ -7,6 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from deepresearch_agent.domains.null import NullDomainPack
+from deepresearch_agent.domains.protocols import RetrievalFilterValues
 from deepresearch_agent.agents import PlannerAgent
 from deepresearch_agent.tools import FixtureStructuredDataProvider
 from deepresearch_agent.domains.registry import load_domain_pack
@@ -105,11 +106,16 @@ class RetrievalDomainTests(unittest.TestCase):
     def test_finance_retrieval_values_are_domain_owned(self) -> None:
         values = load_domain_pack("finance").retrieval_filter_values("2024年年度报告")
 
-        self.assertEqual(values.doc_types, ("年度报告",))
-        self.assertEqual(values.period_labels, ("2024年",))
+        self.assertEqual(values, RetrievalFilterValues())
 
     def test_null_domain_does_not_invent_retrieval_values(self) -> None:
         self.assertEqual(NullDomainPack().retrieval_filter_values("anything").doc_types, ())
+
+    def test_finance_domain_expands_public_issuer_aliases_outside_rag_core(self) -> None:
+        expanded = load_domain_pack("finance").expand_retrieval_query("阿里巴巴集团 2024年 20-F")
+
+        self.assertEqual(expanded, "阿里巴巴集团 2024年 20-F Alibaba Group Holding Limited")
+        self.assertEqual(NullDomainPack().expand_retrieval_query("anything"), "anything")
 
 
 class DomainPackRegistryTests(unittest.TestCase):

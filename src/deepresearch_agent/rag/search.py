@@ -111,6 +111,11 @@ class RagSearchService:
             if self.retrieval_domain is not None
             else None
         )
+        expanded_query = (
+            self.retrieval_domain.expand_retrieval_query(query)
+            if self.retrieval_domain is not None
+            else query
+        )
         effective_filters = RetrievalFilter(
             doc_types=effective_filters.doc_types or (domain_values.doc_types if domain_values else ()),
             entity_ids=effective_filters.entity_ids or (domain_values.entity_ids if domain_values else ()),
@@ -123,10 +128,10 @@ class RagSearchService:
         def search_backends() -> tuple[list[SearchChunk], list[SearchChunk]]:
             run_context.consume_external_request("search", tool="rag_search")
             lexical = self.lexical.search(
-                query=query, filters=effective_filters, limit=self.retrieval_top_k
+                query=expanded_query, filters=effective_filters, limit=self.retrieval_top_k
             )
             dense = self.dense.search(
-                query=query, filters=effective_filters, limit=self.retrieval_top_k
+                query=expanded_query, filters=effective_filters, limit=self.retrieval_top_k
             )
             return lexical, dense
 
@@ -226,7 +231,7 @@ class RagSearchService:
                 try:
                     delivered, degradation = rerank_or_degrade(
                         provider=self.reranker,
-                        query=query,
+                        query=expanded_query,
                         candidates=fused,
                         top_n=self.rerank_top_n,
                         fail_open=self.rerank_fail_open,

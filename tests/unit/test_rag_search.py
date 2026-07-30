@@ -30,9 +30,11 @@ class RecordingBackend(StaticBackend):
     def __init__(self, chunks: list[SearchChunk]) -> None:
         super().__init__(chunks)
         self.filters: list[RetrievalFilter] = []
+        self.queries: list[str] = []
 
     def search(self, *, query: str, filters: RetrievalFilter, limit: int) -> list[SearchChunk]:
         self.filters.append(filters)
+        self.queries.append(query)
         return super().search(query=query, filters=filters, limit=limit)
 
 
@@ -45,6 +47,9 @@ class FinanceLikeRetrievalDomain:
     def retrieval_filter_values(self, query: str) -> RetrievalFilterValues:
         self.query = query
         return RetrievalFilterValues(doc_types=("annual-report",), period_labels=("2024",))
+
+    def expand_retrieval_query(self, query: str) -> str:
+        return f"{query} issuer-alias"
 
 
 class RagSearchTests(unittest.TestCase):
@@ -150,6 +155,7 @@ class RagSearchTests(unittest.TestCase):
         service.search(query="annual performance", as_of="2026-01-01")
 
         self.assertEqual(domain.query, "annual performance")
+        self.assertEqual(backend.queries, ["annual performance issuer-alias"] * 2)
         self.assertEqual(backend.filters[0].doc_types, ("annual-report",))
         self.assertEqual(backend.filters[0].period_labels, ("2024",))
 

@@ -9,6 +9,7 @@ from pathlib import Path
 
 from deepresearch_agent.audit_bundle import export_audit_bundle
 from deepresearch_agent.config_validation import ConfigurationError, validate_required_configuration
+from deepresearch_agent.domains.registry import load_domain_pack
 from deepresearch_agent.llm import LLMClient
 from deepresearch_agent.provenance import build_run_manifest
 from deepresearch_agent.rag.backends import QdrantDenseBackend, StorageLexicalBackend
@@ -118,6 +119,7 @@ def main() -> None:
             budget_cny=12.0,
             retrieval_top_k=settings.retrieval_top_k,
             rerank_top_n=settings.rerank_top_n,
+            retrieval_domain=load_domain_pack(settings.domain_pack),
         )
         if args.rag_database is not None
         else None
@@ -189,6 +191,7 @@ def _build_live_rag_search(
     budget_cny: float,
     retrieval_top_k: int,
     rerank_top_n: int,
+    retrieval_domain: object | None = None,
 ) -> RagSearchService:
     """Compose an explicitly requested real RAG capability without changing defaults."""
 
@@ -234,6 +237,7 @@ def _build_live_rag_search(
         rerank_top_n=rerank_top_n,
         rerank_enabled=True,
         rerank_fail_open=True,
+        retrieval_domain=retrieval_domain,
         index_version=index_version,
     )
 

@@ -4,7 +4,6 @@ from collections.abc import Mapping
 from decimal import Decimal
 from pathlib import Path
 
-import re
 from typing import TYPE_CHECKING
 
 from deepresearch_agent.domains.protocols import RetrievalFilterValues
@@ -22,6 +21,32 @@ from deepresearch_agent.domains.finance.vocabulary import (
     canonical_metric,
     parse_period,
 )
+
+
+# Public issuer aliases bridge Chinese finance requests to the English SEC
+# 20-F corpus. This vocabulary stays at the finance-domain boundary.
+SEC_20F_ISSUER_ALIASES = {
+    "阿里巴巴集团": "Alibaba Group Holding Limited",
+    "百度": "Baidu Inc.",
+    "哔哩哔哩": "Bilibili Inc.",
+    "信也科技": "FinVolution Group",
+    "富途控股": "Futu Holdings Limited",
+    "爱奇艺": "iQIYI Inc.",
+    "京东": "JD.com Inc.",
+    "理想汽车": "Li Auto Inc.",
+    "乐信": "LexinFintech Holdings Ltd.",
+    "蔚来": "NIO Inc.",
+    "网易": "NetEase Inc.",
+    "拼多多": "PDD Holdings Inc.",
+    "奇富科技": "Qifu Technology Inc.",
+    "搜狐": "Sohu.com Limited",
+    "老虎证券": "UP Fintech Holding Limited",
+    "腾讯音乐": "Tencent Music Entertainment Group",
+    "微博": "Weibo Corporation",
+    "小鹏汽车": "XPeng Inc.",
+    "满帮集团": "Full Truck Alliance Co. Ltd.",
+    "知乎": "Zhihu Inc.",
+}
 
 
 class FinanceDomainPack:
@@ -236,14 +261,19 @@ class FinanceDomainPack:
         return FinancePlanning().valid_structured_request(request)
 
     def retrieval_filter_values(self, query: str) -> RetrievalFilterValues:
-        """Keep finance-specific wording outside the generic RAG module."""
+        """Do not emit facets until the authoritative corpus stores them.
 
-        doc_types: list[str] = []
-        for token in sorted(self.document_type_tokens(), key=len, reverse=True):
-            if token in query and not any(token in selected for selected in doc_types):
-                doc_types.append(token)
-        period_labels = tuple(sorted(set(re.findall(r"20\d{2}(?:年|Q[1-4])", query))))
-        return RetrievalFilterValues(
-            doc_types=tuple(doc_types),
-            period_labels=period_labels,
-        )
+        The generic backends correctly reject unsupported facets instead of
+        silently widening a search.  The current SEC corpus stores only URL,
+        version, date and character range, so Finance supplies its issuer
+        expansion but no unenforceable document-type or period filter.
+        """
+
+        del query
+        return RetrievalFilterValues()
+
+    def expand_retrieval_query(self, query: str) -> str:
+        """Append a public issuer alias while preserving the original request."""
+
+        aliases = [english for chinese, english in SEC_20F_ISSUER_ALIASES.items() if chinese in query]
+        return " ".join((query, *aliases))
