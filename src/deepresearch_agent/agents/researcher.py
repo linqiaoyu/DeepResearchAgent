@@ -390,10 +390,13 @@ class ResearcherAgent:
         index_version = candidate.get("index_version")
         char_start = candidate.get("char_start")
         char_end = candidate.get("char_end")
+        bbox_index = candidate.get("bbox_index", [])
         if not all(isinstance(value, str) and value for value in (chunk_id, source_url, text, version_id, index_version)):
             raise ValueError("rag candidate lacks authoritative source identity")
         if not isinstance(char_start, int) or not isinstance(char_end, int) or char_start < 0 or char_end <= char_start:
             raise ValueError("rag candidate lacks a valid authoritative character range")
+        if not isinstance(bbox_index, list):
+            raise ValueError("rag candidate bbox_index must be a list when present")
         return Source(
             id=f"rag:{chunk_id}",
             title=f"retrieval chunk {version_id}",
@@ -401,6 +404,7 @@ class ResearcherAgent:
             source_type="rag_chunk",
             content=text,
             source_tier="unknown",
+            bbox_index=bbox_index,
             retrieval_ref=RetrievalReference(
                 chunk_id=chunk_id,
                 document_version_id=version_id,

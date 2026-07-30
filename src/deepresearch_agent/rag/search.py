@@ -6,6 +6,7 @@ import hashlib
 from typing import Protocol
 
 from deepresearch_agent.domains.protocols import RetrievalDomain
+from deepresearch_agent.schemas import TextBoundingBox
 from deepresearch_agent.rag.retrieval import (
     RerankerProvider,
     rerank_or_degrade,
@@ -41,6 +42,7 @@ class SearchChunk:
     char_end: int
     score: float | None = None
     source_url: str = ""
+    bbox_index: tuple[TextBoundingBox, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -263,6 +265,10 @@ class RagSearchService:
                     "index_version": effective_filters.index_version or "unspecified",
                     "char_start": permitted[candidate.chunk_id].char_start,
                     "char_end": permitted[candidate.chunk_id].char_end,
+                    "bbox_index": [
+                        item.model_dump(mode="json")
+                        for item in permitted[candidate.chunk_id].bbox_index
+                    ],
                 }
                 for candidate in delivered
             ],

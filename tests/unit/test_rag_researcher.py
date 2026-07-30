@@ -23,6 +23,12 @@ class _RagSearch:
                     "index_version": "finance-v1",
                     "char_start": 10,
                     "char_end": 20,
+                    "bbox_index": [
+                        {
+                            "text": "权威原文片段",
+                            "bbox": {"page": 1, "x0": 1.0, "top": 2.0, "x1": 3.0, "bottom": 4.0},
+                        }
+                    ],
                 }
             ],
             "trace": {"query": query, "as_of": as_of},
@@ -44,6 +50,7 @@ class RagResearcherTests(unittest.TestCase):
         self.assertEqual(sources[0].url, "https://example.test/annual-report.pdf#chunk=chunk-1")
         self.assertEqual(sources[0].content, "权威原文片段")
         self.assertEqual(sources[0].retrieval_ref.chunk_id, "chunk-1")
+        self.assertEqual(sources[0].bbox_index[0].bbox.page, 1)
         self.assertEqual(records[0].query, "[rag_search] 检索问题")
 
     def test_invalid_rag_candidate_is_rejected_instead_of_becoming_a_source(self) -> None:
