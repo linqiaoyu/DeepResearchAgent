@@ -113,7 +113,9 @@ def main() -> None:
             index_version=args.rag_index_version,
             ledger_path=output / "runtime" / "rag_ledger.jsonl",
             global_ledger_path=settings.llm_ledger_path,
-            budget_cny=15.0,
+            # The live workflow LLM client is capped at CNY 3. Keep this
+            # separate RAG adapter inside the registered CNY 15 run ceiling.
+            budget_cny=12.0,
             retrieval_top_k=settings.retrieval_top_k,
             rerank_top_n=settings.rerank_top_n,
         )

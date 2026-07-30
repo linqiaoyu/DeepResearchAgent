@@ -72,6 +72,11 @@ first attempt completed the real planner call but the local execution carrier
 ended before any RAG request, report, or RAG ledger row was written. It is not
 reported as a three-provider E2E result.
 
+Before a replacement attempt, the package runner was corrected so its separate
+RAG adapter receives at most ¥12 while the workflow LLM client retains its ¥3
+hard limit. The combined single-run ceiling is therefore the registered ¥15,
+not two independent ¥15 allowances.
+
 The first direct real retrieval probe exposed a product defect: the workflow
 did not pass its configured `index_version` to `rag_search`, so Qdrant correctly
 rejected the unversioned request. Commit `4e14754` binds the configured index

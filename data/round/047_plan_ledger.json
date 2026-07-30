@@ -369,7 +369,7 @@
   {
     "plan_ref": "B6-12",
     "status": "DEFERRED",
-    "reason": "The first real LLM E2E carrier ended after planning and before any RAG call; therefore no completed three-provider run records retrieval metrics, report, cost, and duration."
+    "reason": "The one preregistered real attempt reached Reporter after real planner, retrieval, embedding, rerank, and web research activity, but failed before final report/manifest serialization because duplicate metric requests produced ambiguous grounded-fact labels. The defect is fixed and unit-tested; a new authorized real E2E on the final commit is still required, because the recorded attempt predates that code change."
   },
   {
     "plan_ref": "B6-13",

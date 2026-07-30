@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from collections import Counter
 from decimal import Decimal, ROUND_HALF_UP
 
 from deepresearch_agent.domains.finance.numeric_citations import (
@@ -43,9 +44,15 @@ class FinanceGroundedFactRenderer:
         rendered: list[GroundedReaderClaim] = []
         gaps: list[str] = []
         coverage_items = evaluate_metric_coverage(state, self.domain_pack)
+        metric_counts = Counter(item.metric for item in coverage_items)
         for coverage in coverage_items:
+            label = (
+                coverage.metric
+                if metric_counts[coverage.metric] == 1
+                else f"{coverage.sub_question_id} · {coverage.metric}"
+            )
             if coverage.status != "cited":
-                gaps.append(coverage.metric)
+                gaps.append(label)
                 continue
             candidates = [
                 evidence_by_id[evidence_id]
@@ -57,7 +64,7 @@ class FinanceGroundedFactRenderer:
                 coverage.requested_periods,
             )
             if not selected:
-                gaps.append(coverage.metric)
+                gaps.append(label)
                 continue
             parts = [self._canonical_text(item) for item in selected]
             if not any(_COMPARISON_RE.search(part) for part in parts):
@@ -74,11 +81,16 @@ class FinanceGroundedFactRenderer:
                         for evidence_id in evidence_ids
                         for key in fact_keys_by_id.get(evidence_id, set())
                     ),
-                    label=coverage.metric,
+                    label=label,
                 )
             )
         return GroundedFactBatch(
-            required_labels=tuple(item.metric for item in coverage_items),
+            required_labels=tuple(
+                item.metric
+                if metric_counts[item.metric] == 1
+                else f"{item.sub_question_id} · {item.metric}"
+                for item in coverage_items
+            ),
             claims=tuple(rendered),
             gaps=tuple(gaps),
         )
