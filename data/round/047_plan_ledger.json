@@ -1,8 +1,7 @@
 [
   {
     "plan_ref": "B0-1",
-    "status": "DEFERRED",
-    "reason": "The verified 60-document raw corpus is HTML 20-F material; the separate plan-required 20-document PDF extraction probe and its saved output have not been produced."
+    "status": "PASS"
   },
   {
     "plan_ref": "B0-2",
