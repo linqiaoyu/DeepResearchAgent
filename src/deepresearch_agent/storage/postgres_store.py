@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator
 from uuid import NAMESPACE_URL, uuid5
 
-from deepresearch_agent.schemas import EvaluationResult, Evidence
+from deepresearch_agent.schemas import EvaluationResult, Evidence, TextBoundingBox
 from deepresearch_agent.storage.sqlite_store import SQLiteStore
 from deepresearch_agent.storage.protocol import DocumentIngestResult, ResolvedChunk, StoredChunk
 
@@ -185,7 +186,7 @@ class PostgresStore(SQLiteStore):
             cursor.execute("DELETE FROM chunk WHERE document_version_id = %s", (version_id,))
             cursor.executemany(
                 "INSERT INTO chunk (id, document_version_id, char_start, char_end, page_number, "
-                "effective_date, status, content) VALUES (%s, %s, %s, %s, %s, %s, 'ready', %s)",
+                "effective_date, status, content, bbox_index_json) VALUES (%s, %s, %s, %s, %s, %s, 'ready', %s, %s::jsonb)",
                 [
                     (
                         chunk.id,
@@ -195,6 +196,7 @@ class PostgresStore(SQLiteStore):
                         chunk.page_number,
                         chunk.effective_date,
                         chunk.content,
+                        json.dumps([item.model_dump(mode="json") for item in chunk.bbox_index]),
                     )
                     for chunk in chunks
                 ],
@@ -226,7 +228,7 @@ class PostgresStore(SQLiteStore):
         with self._connection() as conn, conn.cursor(row_factory=self._psycopg.rows.dict_row) as cursor:
             rows = cursor.execute(
                 "SELECT chunk.id, chunk.document_version_id, document.canonical_url, chunk.char_start, "
-                "chunk.char_end, chunk.page_number, chunk.effective_date, chunk.content "
+                "chunk.char_end, chunk.page_number, chunk.effective_date, chunk.content, chunk.bbox_index_json "
                 "FROM chunk JOIN document_version ON document_version.id = chunk.document_version_id "
                 "JOIN document ON document.id = document_version.document_id "
                 "WHERE chunk.status = 'ready' AND chunk.effective_date <= %s ORDER BY chunk.id",
@@ -240,7 +242,7 @@ class PostgresStore(SQLiteStore):
         with self._connection() as conn, conn.cursor(row_factory=self._psycopg.rows.dict_row) as cursor:
             rows = cursor.execute(
                 "SELECT chunk.id, chunk.document_version_id, document.canonical_url, chunk.char_start, "
-                "chunk.char_end, chunk.page_number, chunk.effective_date, chunk.content "
+                "chunk.char_end, chunk.page_number, chunk.effective_date, chunk.content, chunk.bbox_index_json "
                 "FROM chunk JOIN document_version ON document_version.id = chunk.document_version_id "
                 "JOIN document ON document.id = document_version.document_id "
                 "WHERE chunk.status = 'ready' AND chunk.effective_date <= %s AND chunk.id = ANY(%s)",
@@ -248,6 +250,27 @@ class PostgresStore(SQLiteStore):
             ).fetchall()
         resolved = {str(row["id"]): self._resolved_chunk_from_row(row) for row in rows}
         return [resolved[chunk_id] for chunk_id in chunk_ids if chunk_id in resolved]
+
+    @staticmethod
+    def _resolved_chunk_from_row(row: dict[str, object]) -> ResolvedChunk:
+        bbox_value = row["bbox_index_json"]
+        if isinstance(bbox_value, str):
+            bbox_items = json.loads(bbox_value)
+        else:
+            bbox_items = bbox_value
+        if not isinstance(bbox_items, list):
+            raise ValueError("chunk bbox_index_json must be a list")
+        return ResolvedChunk(
+            id=str(row["id"]),
+            document_version_id=str(row["document_version_id"]),
+            canonical_url=str(row["canonical_url"]),
+            char_start=int(row["char_start"]),
+            char_end=int(row["char_end"]),
+            page_number=None if row["page_number"] is None else int(row["page_number"]),
+            effective_date=str(row["effective_date"]),
+            content=str(row["content"]),
+            bbox_index=tuple(TextBoundingBox.model_validate(item) for item in bbox_items),
+        )
 
 
 def _evidence_row(item: Evidence, position: int) -> dict[str, object]:

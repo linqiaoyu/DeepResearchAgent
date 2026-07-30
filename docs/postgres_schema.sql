@@ -91,3 +91,6 @@ CREATE TABLE IF NOT EXISTS retrieval_trace (
 -- 002_evidence_retrieval_ref.sql
 ALTER TABLE evidence ADD COLUMN IF NOT EXISTS retrieval_ref_json JSONB;
 
+-- 003_chunk_bbox_index.sql
+ALTER TABLE chunk ADD COLUMN IF NOT EXISTS bbox_index_json JSONB NOT NULL DEFAULT '[]'::jsonb;
+

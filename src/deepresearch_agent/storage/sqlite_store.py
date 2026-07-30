@@ -15,6 +15,7 @@ from deepresearch_agent.schemas import (
     NumericFields,
     RetrievalReference,
     StructuredDataRecord,
+    TextBoundingBox,
 )
 from deepresearch_agent.storage.protocol import (
     DocumentIngestResult,
@@ -99,6 +100,7 @@ class SQLiteStore:
                     effective_date TEXT NOT NULL,
                     status TEXT NOT NULL CHECK(status IN ('ready', 'superseded')),
                     content TEXT NOT NULL,
+                    bbox_index_json TEXT NOT NULL DEFAULT '[]',
                     CHECK(char_end > char_start)
                 );
                 CREATE INDEX IF NOT EXISTS idx_chunk_document_span
@@ -115,6 +117,7 @@ class SQLiteStore:
             self._ensure_column(conn, "evidence", "content_truncated", "INTEGER NOT NULL DEFAULT 0")
             self._ensure_column(conn, "evidence", "bbox_json", "TEXT")
             self._ensure_column(conn, "evidence", "retrieval_ref_json", "TEXT")
+            self._ensure_column(conn, "chunk", "bbox_index_json", "TEXT NOT NULL DEFAULT '[]'")
 
     def _ensure_column(self, conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:
         columns = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
@@ -304,7 +307,7 @@ class SQLiteStore:
                 conn.execute("DELETE FROM chunk WHERE document_version_id = ?", (version_id,))
             conn.executemany(
                 "INSERT INTO chunk (id, document_version_id, char_start, char_end, page_number, "
-                "effective_date, status, content) VALUES (?, ?, ?, ?, ?, ?, 'ready', ?)",
+                "effective_date, status, content, bbox_index_json) VALUES (?, ?, ?, ?, ?, ?, 'ready', ?, ?)",
                 [
                     (
                         chunk.id,
@@ -314,6 +317,7 @@ class SQLiteStore:
                         chunk.page_number,
                         chunk.effective_date,
                         chunk.content,
+                        json.dumps([item.model_dump(mode="json") for item in chunk.bbox_index]),
                     )
                     for chunk in chunks
                 ],
@@ -343,7 +347,7 @@ class SQLiteStore:
         with self._connection() as conn:
             rows = conn.execute(
                 "SELECT chunk.id, chunk.document_version_id, document.canonical_url, chunk.char_start, "
-                "chunk.char_end, chunk.page_number, chunk.effective_date, chunk.content "
+                "chunk.char_end, chunk.page_number, chunk.effective_date, chunk.content, chunk.bbox_index_json "
                 "FROM chunk JOIN document_version ON document_version.id = chunk.document_version_id "
                 "JOIN document ON document.id = document_version.document_id "
                 "WHERE chunk.status = 'ready' AND chunk.effective_date <= ? "
@@ -359,7 +363,7 @@ class SQLiteStore:
         with self._connection() as conn:
             rows = conn.execute(
                 "SELECT chunk.id, chunk.document_version_id, document.canonical_url, chunk.char_start, "
-                "chunk.char_end, chunk.page_number, chunk.effective_date, chunk.content "
+                "chunk.char_end, chunk.page_number, chunk.effective_date, chunk.content, chunk.bbox_index_json "
                 "FROM chunk JOIN document_version ON document_version.id = chunk.document_version_id "
                 "JOIN document ON document.id = document_version.document_id "
                 f"WHERE chunk.status = 'ready' AND chunk.effective_date <= ? AND chunk.id IN ({placeholders})",
@@ -379,6 +383,7 @@ class SQLiteStore:
             page_number=None if row["page_number"] is None else int(row["page_number"]),
             effective_date=str(row["effective_date"]),
             content=str(row["content"]),
+            bbox_index=tuple(TextBoundingBox.model_validate(item) for item in json.loads(str(row["bbox_index_json"]))),
         )
 
 

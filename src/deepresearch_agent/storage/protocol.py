@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
-from deepresearch_agent.schemas import EvaluationResult, Evidence
+from deepresearch_agent.schemas import EvaluationResult, Evidence, TextBoundingBox
 
 
 @dataclass(frozen=True)
@@ -14,6 +14,7 @@ class StoredChunk:
     page_number: int | None
     effective_date: str
     content: str
+    bbox_index: tuple[TextBoundingBox, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -28,6 +29,7 @@ class ResolvedChunk:
     page_number: int | None
     effective_date: str
     content: str
+    bbox_index: tuple[TextBoundingBox, ...] = ()
 
 
 @dataclass(frozen=True)

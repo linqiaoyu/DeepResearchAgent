@@ -8,6 +8,7 @@ from pathlib import Path
 from deepresearch_agent.rag.backends import QdrantDenseBackend, StorageLexicalBackend, chinese_lexical_terms
 from deepresearch_agent.rag.qdrant_index import QdrantQueryHit
 from deepresearch_agent.rag.search import RetrievalFilter
+from deepresearch_agent.schemas import BoundingBox, TextBoundingBox
 from deepresearch_agent.storage import SQLiteStore, StoredChunk
 
 
@@ -31,7 +32,12 @@ class RagBackendsTests(unittest.TestCase):
             file_sha256="a" * 64,
             effective_date="2025-01-01",
             chunks=[
-                StoredChunk("matched", 0, 10, 1, "2025-01-01", "营业收入增长明显"),
+                StoredChunk(
+                    "matched", 0, 10, 1, "2025-01-01", "营业收入增长明显",
+                    (TextBoundingBox(
+                        text="营业收入", bbox=BoundingBox(page=1, x0=1, top=2, x1=3, bottom=4)
+                    ),),
+                ),
                 StoredChunk("other", 10, 20, 1, "2025-01-01", "风险因素说明"),
             ],
         )
@@ -65,6 +71,7 @@ class RagBackendsTests(unittest.TestCase):
         self.assertEqual([item.chunk_id for item in results], ["matched"])
         self.assertEqual(results[0].text, "营业收入增长明显")
         self.assertEqual(results[0].score, 0.9)
+        self.assertEqual(results[0].bbox_index[0].bbox.page, 1)
 
 
 if __name__ == "__main__":
