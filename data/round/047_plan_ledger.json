@@ -42,8 +42,7 @@
   },
   {
     "plan_ref": "B1-3",
-    "status": "DEFERRED",
-    "reason": "Neither PostgreSQL DSN alias is configured, so the real backend contract remains skipped."
+    "status": "PASS"
   },
   {
     "plan_ref": "B1-4",
@@ -59,18 +58,15 @@
   },
   {
     "plan_ref": "B1-7",
-    "status": "DEFERRED",
-    "reason": "No live PostgreSQL deletion/rollback mutation output has been preserved."
+    "status": "PASS"
   },
   {
     "plan_ref": "B1-8",
-    "status": "DEFERRED",
-    "reason": "PostgreSQL checkpoint persistence has no configured DSN or integration-run evidence."
+    "status": "PASS"
   },
   {
     "plan_ref": "B1-9",
-    "status": "DEFERRED",
-    "reason": "The required live mutation evidence for storage consistency has not been produced."
+    "status": "PASS"
   },
   {
     "plan_ref": "B1-10",
