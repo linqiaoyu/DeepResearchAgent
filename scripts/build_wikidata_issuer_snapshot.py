@@ -7,11 +7,9 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
-import certifi
-import httpx
 
 
-QUERY = '''SELECT DISTINCT ?item ?enLabel ?zhName ?ticker WHERE {
+QUERY = """SELECT DISTINCT ?item ?enLabel ?zhName ?ticker WHERE {
   ?item p:P414 ?listing .
   ?listing ps:P414 ?exchange .
   VALUES ?exchange { wd:Q13677 wd:Q82059 }
@@ -20,7 +18,7 @@ QUERY = '''SELECT DISTINCT ?item ?enLabel ?zhName ?ticker WHERE {
   ?item (rdfs:label|skos:altLabel) ?zhName
     FILTER(LANG(?zhName) IN ("zh", "zh-hans", "zh-cn")) .
   OPTIONAL { ?item wdt:P249 ?ticker }
-}'''
+}"""
 SOURCE_URL = "https://query.wikidata.org/sparql"
 
 
@@ -29,7 +27,10 @@ def build(raw: Path, output: Path) -> dict[str, object]:
     by_id: dict[str, dict[str, object]] = {}
     for binding in bindings:
         item = binding["item"]["value"].rsplit("/", 1)[-1]
-        entry = by_id.setdefault(item, {"wikidata_id": item, "english_names": set(), "chinese_names": set(), "tickers": set()})
+        entry = by_id.setdefault(
+            item,
+            {"wikidata_id": item, "english_names": set(), "chinese_names": set(), "tickers": set()},
+        )
         entry["english_names"].add(binding["enLabel"]["value"])
         name = binding.get("zhName", binding.get("zhLabel", {})).get("value")
         if name:
@@ -37,9 +38,22 @@ def build(raw: Path, output: Path) -> dict[str, object]:
         ticker = binding.get("ticker", {}).get("value")
         if ticker:
             entry["tickers"].add(ticker)
-    issuers = [{key: sorted(value) if isinstance(value, set) else value for key, value in entry.items()} for entry in by_id.values()]
+    issuers = [
+        {key: sorted(value) if isinstance(value, set) else value for key, value in entry.items()}
+        for entry in by_id.values()
+    ]
     issuers.sort(key=lambda value: str(value["wikidata_id"]))
-    result: dict[str, object] = {"schema_version": 2, "source_url": SOURCE_URL, "license": "CC0-1.0", "attribution_required": False, "snapshot_utc": datetime.now(UTC).replace(microsecond=0).isoformat(), "query": QUERY, "issuer_count": len(issuers), "issuers": issuers, "not_an_evaluation_asset": True}
+    result: dict[str, object] = {
+        "schema_version": 2,
+        "source_url": SOURCE_URL,
+        "license": "CC0-1.0",
+        "attribution_required": False,
+        "snapshot_utc": datetime.now(UTC).replace(microsecond=0).isoformat(),
+        "query": QUERY,
+        "issuer_count": len(issuers),
+        "issuers": issuers,
+        "not_an_evaluation_asset": True,
+    }
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return result

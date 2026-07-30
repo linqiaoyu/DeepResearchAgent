@@ -1,14 +1,20 @@
 from __future__ import annotations
 
+import importlib
 import unittest
 
-from deepresearch_agent.domains.finance import issuer_aliases as aliases
+aliases = importlib.import_module("deepresearch_agent.domains.finance.issuer_aliases")
 
 
 class IssuerAliasGeneralizationTests(unittest.TestCase):
     def test_no_chinese_label_issuers_keep_corpus_derived_english_path(self) -> None:
         # Mutating any catalog registrant below makes this guard fail.
-        for name, expected in {"Qifu Technology, Inc.": "qfin", "FinVolution Group": "finv", "LexinFintech Holdings Ltd.": "lx", "Full Truck Alliance Co. Ltd.": "ymm"}.items():
+        for name, expected in {
+            "Qifu Technology, Inc.": "qfin",
+            "FinVolution Group": "finv",
+            "LexinFintech Holdings Ltd.": "lx",
+            "Full Truck Alliance Co. Ltd.": "ymm",
+        }.items():
             self.assertEqual(aliases.catalog_entity_for_english(name), expected)
 
     def test_removing_public_alias_does_not_remove_corpus_identity(self) -> None:

@@ -11,28 +11,58 @@ from functools import lru_cache
 from deepresearch_agent.settings import project_root
 
 
-_STOP = frozenset({"inc", "incorporated", "limited", "ltd", "group", "holding", "holdings", "co", "company", "corporation", "com", "technology", "auto", "up"})
+_STOP = frozenset(
+    {
+        "inc",
+        "incorporated",
+        "limited",
+        "ltd",
+        "group",
+        "holding",
+        "holdings",
+        "co",
+        "company",
+        "corporation",
+        "com",
+        "technology",
+        "auto",
+        "up",
+    }
+)
 
 
 def _tokens(value: str) -> frozenset[str]:
-    return frozenset(token for token in re.findall(r"[a-z0-9]+", value.casefold()) if token not in _STOP)
+    return frozenset(
+        token for token in re.findall(r"[a-z0-9]+", value.casefold()) if token not in _STOP
+    )
 
 
 @lru_cache(maxsize=1)
 def _assets() -> tuple[dict[str, list[str]], list[dict[str, object]]]:
     root = project_root()
-    catalog = json.loads((root / "data/finance_sec_issuer_catalog_v1.json").read_text(encoding="utf-8"))
-    snapshot = json.loads((root / "data/finance_wikidata_issuers_v1.json").read_text(encoding="utf-8"))
+    catalog = json.loads(
+        (root / "data/finance_sec_issuer_catalog_v1.json").read_text(encoding="utf-8")
+    )
+    snapshot = json.loads(
+        (root / "data/finance_wikidata_issuers_v1.json").read_text(encoding="utf-8")
+    )
     return catalog["issuers"], snapshot["issuers"]
 
 
 def _idf(snapshot: list[dict[str, object]]) -> dict[str, float]:
-    documents = [set().union(*(_tokens(name) for name in item["english_names"])) for item in snapshot]
+    documents = [
+        set().union(*(_tokens(name) for name in item["english_names"])) for item in snapshot
+    ]
     frequency = Counter(token for tokens in documents for token in tokens)
-    return {token: math.log((1 + len(documents)) / (1 + count)) + 1 for token, count in frequency.items()}
+    return {
+        token: math.log((1 + len(documents)) / (1 + count)) + 1
+        for token, count in frequency.items()
+    }
 
 
-def _winner(english_name: str, snapshot: list[dict[str, object]], weights: dict[str, float]) -> dict[str, object] | None:
+def _winner(
+    english_name: str, snapshot: list[dict[str, object]], weights: dict[str, float]
+) -> dict[str, object] | None:
     source = _tokens(english_name)
     scored: list[tuple[float, str, dict[str, object]]] = []
     for item in snapshot:

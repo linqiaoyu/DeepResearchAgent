@@ -41,12 +41,18 @@ def _embed(
     # estimate, remains the active circuit breaker.
     estimate = max(PRICE.cost_cny(_tokens(text)), 0.005)
     ledger.reserve_external_call(run_id=RUN_ID, estimated_cost_cny=estimate)
-    payload: dict[str, Any] = {"model": DASHSCOPE_EMBEDDING_MODEL, "input": text, "dimensions": 1024}
+    payload: dict[str, Any] = {
+        "model": DASHSCOPE_EMBEDDING_MODEL,
+        "input": text,
+        "dimensions": 1024,
+    }
     if text_type is not None:
         payload["text_type"] = text_type
     started = time.perf_counter()
     try:
-        response = client.post(DASHSCOPE_EMBEDDING_ENDPOINT, headers={"Authorization": f"Bearer {key}"}, json=payload)
+        response = client.post(
+            DASHSCOPE_EMBEDDING_ENDPOINT, headers={"Authorization": f"Bearer {key}"}, json=payload
+        )
         if response.status_code != 200:
             raise RuntimeError(f"embedding_http_status={response.status_code}")
         body = response.json()
@@ -60,9 +66,16 @@ def _embed(
     latency = time.perf_counter() - started
     cost = PRICE.cost_cny(tokens)
     ledger.settle_external_call(
-        run_id=RUN_ID, role="rag_embedding_probe", call_kind="embedding", model=DASHSCOPE_EMBEDDING_MODEL,
-        input_tokens=tokens, cost_cny=cost, price_source=PRICE.price_source, latency_seconds=latency,
-        estimated_cost_cny=estimate, metadata={"stage0_probe": True, "text_type": text_type or "omitted"},
+        run_id=RUN_ID,
+        role="rag_embedding_probe",
+        call_kind="embedding",
+        model=DASHSCOPE_EMBEDDING_MODEL,
+        input_tokens=tokens,
+        cost_cny=cost,
+        price_source=PRICE.price_source,
+        latency_seconds=latency,
+        estimated_cost_cny=estimate,
+        metadata={"stage0_probe": True, "text_type": text_type or "omitted"},
     )
     return [float(value) for value in vector], tokens, latency
 
@@ -74,9 +87,17 @@ def main() -> None:
     collection = str(env.get("DEEPRESEARCH_QDRANT_COLLECTION") or "")
     if not key or not base or not collection:
         raise SystemExit("required provider configuration is absent")
-    questions = {item["id"]: item for item in json.loads((ROOT / "data/golden_set/retrieval_v1/questions.json").read_text())}
+    questions = {
+        item["id"]: item
+        for item in json.loads((ROOT / "data/golden_set/retrieval_v1/questions.json").read_text())
+    }
     database = sqlite3.connect(ROOT / "data/runtime/047-assets.db")
-    ledger = LLMClient(ledger_path=ROOT / "artifacts/047/stage0_probe_b_ledger.jsonl", global_ledger_path=ROOT / "data/runtime/llm_ledger.jsonl", budget_cny=BUDGET_CNY, completion_func=lambda **_: {})
+    ledger = LLMClient(
+        ledger_path=ROOT / "artifacts/047/stage0_probe_b_ledger.jsonl",
+        global_ledger_path=ROOT / "data/runtime/llm_ledger.jsonl",
+        budget_cny=BUDGET_CNY,
+        completion_func=lambda **_: {},
+    )
     ledger.start_run(RUN_ID)
     rows: list[dict[str, object]] = []
     headers = {"api-key": str(env.get("DEEPRESEARCH_QDRANT_API_KEY") or "")}
@@ -84,20 +105,68 @@ def main() -> None:
         for question_id, english in TRANSLATIONS.items():
             question = questions[question_id]
             labels = [SpanLabel(**label) for label in question["labels"]]
-            chunks = [ChunkSpan(*row) for row in database.execute("select id, document_version_id, char_start, char_end from chunk where status='ready'")]
+            chunks = [
+                ChunkSpan(*row)
+                for row in database.execute(
+                    "select id, document_version_id, char_start, char_end from chunk where status='ready'"
+                )
+            ]
             gold = set(resolve_labels_to_chunks(labels, chunks))
-            variants = (("chinese_plain", question["question"], None), ("english_plain", english, None), ("chinese_query", question["question"], "query"), ("english_query", english, "query"))
+            variants = (
+                ("chinese_plain", question["question"], None),
+                ("english_plain", english, None),
+                ("chinese_query", question["question"], "query"),
+                ("english_query", english, "query"),
+            )
             for name, text, text_type in variants:
-                vector, tokens, latency = _embed(client=client, key=key, ledger=ledger, text=text, text_type=text_type)
+                vector, tokens, latency = _embed(
+                    client=client, key=key, ledger=ledger, text=text, text_type=text_type
+                )
                 if ledger.run_total_cny(RUN_ID) > BUDGET_CNY:
                     raise RuntimeError("probe_budget_circuit_breaker")
-                response = client.post(f"{base}/collections/{collection}/points/search", headers=headers, json={"vector": vector, "limit": 500, "with_payload": ["chunk_id"], "with_vector": False})
+                response = client.post(
+                    f"{base}/collections/{collection}/points/search",
+                    headers=headers,
+                    json={
+                        "vector": vector,
+                        "limit": 500,
+                        "with_payload": ["chunk_id"],
+                        "with_vector": False,
+                    },
+                )
                 if response.status_code != 200:
                     raise RuntimeError(f"search_http_status={response.status_code}")
                 hits = response.json()["result"]
-                gold_ranks = [index + 1 for index, point in enumerate(hits) if point.get("payload", {}).get("chunk_id") in gold]
-                rows.append({"question_id": question_id, "type": question["question_type"], "variant": name, "gold_rank": min(gold_ranks) if gold_ranks else None, "top_score": hits[0]["score"], "gold_score": next((point["score"] for point in hits if point.get("payload", {}).get("chunk_id") in gold), None), "tokens": tokens, "latency_s": round(latency, 3)})
-    output = {"run_id": RUN_ID, "budget_cny": BUDGET_CNY, "cost_cny": ledger.run_total_cny(RUN_ID), "rows": rows}
+                gold_ranks = [
+                    index + 1
+                    for index, point in enumerate(hits)
+                    if point.get("payload", {}).get("chunk_id") in gold
+                ]
+                rows.append(
+                    {
+                        "question_id": question_id,
+                        "type": question["question_type"],
+                        "variant": name,
+                        "gold_rank": min(gold_ranks) if gold_ranks else None,
+                        "top_score": hits[0]["score"],
+                        "gold_score": next(
+                            (
+                                point["score"]
+                                for point in hits
+                                if point.get("payload", {}).get("chunk_id") in gold
+                            ),
+                            None,
+                        ),
+                        "tokens": tokens,
+                        "latency_s": round(latency, 3),
+                    }
+                )
+    output = {
+        "run_id": RUN_ID,
+        "budget_cny": BUDGET_CNY,
+        "cost_cny": ledger.run_total_cny(RUN_ID),
+        "rows": rows,
+    }
     print(json.dumps(output, ensure_ascii=False))
 
 
