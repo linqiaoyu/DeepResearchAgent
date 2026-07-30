@@ -1,0 +1,1132 @@
+{
+  "schema_version": 2,
+  "source_url": "https://query.wikidata.org/sparql",
+  "license": "CC0-1.0",
+  "attribution_required": false,
+  "snapshot_utc": "2026-07-30T16:03:09+00:00",
+  "query": "SELECT DISTINCT ?item ?enLabel ?zhName ?ticker WHERE {\n  ?item p:P414 ?listing .\n  ?listing ps:P414 ?exchange .\n  VALUES ?exchange { wd:Q13677 wd:Q82059 }\n  ?item wdt:P17 wd:Q148 .\n  ?item rdfs:label ?enLabel FILTER(LANG(?enLabel) = \"en\") .\n  ?item (rdfs:label|skos:altLabel) ?zhName\n    FILTER(LANG(?zhName) IN (\"zh\", \"zh-hans\", \"zh-cn\")) .\n  OPTIONAL { ?item wdt:P249 ?ticker }\n}",
+  "issuer_count": 114,
+  "issuers": [
+    {
+      "wikidata_id": "Q104188375",
+      "english_names": [
+        "Legend Biotech"
+      ],
+      "chinese_names": [
+        "南京传奇生物科技有限公司"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q104868523",
+      "english_names": [
+        "Niu Technologies"
+      ],
+      "chinese_names": [
+        "小牛电动"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q105886736",
+      "english_names": [
+        "Beike"
+      ],
+      "chinese_names": [
+        "贝壳找房"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q106221884",
+      "english_names": [
+        "Zai Lab Limited"
+      ],
+      "chinese_names": [],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q1068485",
+      "english_names": [
+        "China Unicom"
+      ],
+      "chinese_names": [
+        "中国联通"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q1073306",
+      "english_names": [
+        "China Life Insurance Company"
+      ],
+      "chinese_names": [
+        "中国人寿保险"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q1073540",
+      "english_names": [
+        "China Telecommunications Corporation"
+      ],
+      "chinese_names": [
+        "中国电信"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q10846071",
+      "english_names": [
+        "36Kr"
+      ],
+      "chinese_names": [
+        "36氪"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q10876705",
+      "english_names": [
+        "ZTO Express"
+      ],
+      "chinese_names": [
+        "中通快递"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q10921659",
+      "english_names": [
+        "Hutchison China Meditech"
+      ],
+      "chinese_names": [
+        "和記中國醫藥科技"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q109412509",
+      "english_names": [
+        "Hesai Technology"
+      ],
+      "chinese_names": [
+        "禾赛科技"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q112892633",
+      "english_names": [
+        "WeRide"
+      ],
+      "chinese_names": [
+        "文远知行"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q113153195",
+      "english_names": [
+        "DiDi Global"
+      ],
+      "chinese_names": [],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q113510355",
+      "english_names": [
+        "Hutchison MediPharma Limited"
+      ],
+      "chinese_names": [],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q12010467",
+      "english_names": [
+        "Weibo Corporation"
+      ],
+      "chinese_names": [
+        "北京微梦创科网络技术有限公司"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q120755508",
+      "english_names": [
+        "eHi"
+      ],
+      "chinese_names": [
+        "一嗨租车"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q121001340",
+      "english_names": [
+        "Noah Holdings"
+      ],
+      "chinese_names": [
+        "诺亚控股"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q124461283",
+      "english_names": [
+        "MicroCloud Hologram Inc."
+      ],
+      "chinese_names": [],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q1359568",
+      "english_names": [
+        "Alibaba Group"
+      ],
+      "chinese_names": [
+        "阿里巴巴集团"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q13631921",
+      "english_names": [
+        "New Oriental"
+      ],
+      "chinese_names": [
+        "新东方学校"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q136452293",
+      "english_names": [
+        "Regencell Bioscience"
+      ],
+      "chinese_names": [],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q14772",
+      "english_names": [
+        "Baidu"
+      ],
+      "chinese_names": [
+        "百度"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q1507642",
+      "english_names": [
+        "Huaneng Power International"
+      ],
+      "chinese_names": [
+        "华能国际",
+        "华能国际电力股份有限公司"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q151135",
+      "english_names": [
+        "Youku"
+      ],
+      "chinese_names": [
+        "优酷"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q15138136",
+      "english_names": [
+        "Mindray"
+      ],
+      "chinese_names": [
+        "迈瑞医疗国际有限公司"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q1572831",
+      "english_names": [
+        "Yingli"
+      ],
+      "chinese_names": [
+        "英利"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q15898172",
+      "english_names": [
+        "Zhihu"
+      ],
+      "chinese_names": [
+        "知乎"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q15913890",
+      "english_names": [
+        "iQIYI"
+      ],
+      "chinese_names": [
+        "爱奇艺"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q15915960",
+      "english_names": [
+        "Xunlei Limited"
+      ],
+      "chinese_names": [
+        "迅雷公司",
+        "迅雷网络技术"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q15926208",
+      "english_names": [
+        "H World Group Limited"
+      ],
+      "chinese_names": [
+        "华住酒店集团"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q16510256",
+      "english_names": [
+        "Country Style Cooking"
+      ],
+      "chinese_names": [
+        "乡村基"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q16825098",
+      "english_names": [
+        "Andatee China Marine Fuel"
+      ],
+      "chinese_names": [],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q16829282",
+      "english_names": [
+        "Charm Communications"
+      ],
+      "chinese_names": [],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q16973267",
+      "english_names": [
+        "DAQO"
+      ],
+      "chinese_names": [
+        "大全新能源"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q17006727",
+      "english_names": [
+        "Kandi Technologies"
+      ],
+      "chinese_names": [
+        "康迪汽车"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q17499083",
+      "english_names": [
+        "58.com"
+      ],
+      "chinese_names": [
+        "58同城"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q18111091",
+      "english_names": [
+        "Cheetah Mobile"
+      ],
+      "chinese_names": [
+        "猎豹移动"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q18124524",
+      "english_names": [
+        "EHang"
+      ],
+      "chinese_names": [
+        "亿航智能"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q19572998",
+      "english_names": [
+        "Capri Holdings"
+      ],
+      "chinese_names": [],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q196259",
+      "english_names": [
+        "NetEase"
+      ],
+      "chinese_names": [
+        "网易"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q19840382",
+      "english_names": [
+        "Lufax"
+      ],
+      "chinese_names": [
+        "陆金所"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q19854317",
+      "english_names": [
+        "Vipshop"
+      ],
+      "chinese_names": [
+        "唯品会"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q20182011",
+      "english_names": [
+        "Jinko Solar"
+      ],
+      "chinese_names": [
+        "晶科能源控股有限公司"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q20732498",
+      "english_names": [
+        "Miniso"
+      ],
+      "chinese_names": [
+        "名创优品",
+        "名創優品"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q210780",
+      "english_names": [
+        "Focus Media Holding"
+      ],
+      "chinese_names": [
+        "分众传媒",
+        "分眾傳媒"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q2453426",
+      "english_names": [
+        "Trina Solar"
+      ],
+      "chinese_names": [
+        "天合光能"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q24834296",
+      "english_names": [
+        "China Telecom"
+      ],
+      "chinese_names": [
+        "中国电信股份有限公司",
+        "中國電信股份有限公司"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q25230554",
+      "english_names": [
+        "21Vianet"
+      ],
+      "chinese_names": [
+        "世纪互联"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q29921278",
+      "english_names": [
+        "Nio Inc."
+      ],
+      "chinese_names": [
+        "蔚来汽车"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q2997279",
+      "english_names": [
+        "Zindart International Limited"
+      ],
+      "chinese_names": [],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q30645592",
+      "english_names": [
+        "Yum China"
+      ],
+      "chinese_names": [
+        "百勝中國"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q3077586",
+      "english_names": [
+        "Bilibili"
+      ],
+      "chinese_names": [
+        "哔哩哔哩"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q32162422",
+      "english_names": [
+        "JOYY"
+      ],
+      "chinese_names": [
+        "欢聚时代",
+        "歡聚時代"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q3485048",
+      "english_names": [
+        "Sinovac Biotech"
+      ],
+      "chinese_names": [
+        "科兴生物"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q3598926",
+      "english_names": [
+        "JD.com"
+      ],
+      "chinese_names": [
+        "京东商城",
+        "京東商城"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q420597",
+      "english_names": [
+        "City Telecom"
+      ],
+      "chinese_names": [
+        "城市电讯",
+        "城市電訊"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q43452224",
+      "english_names": [
+        "RYB Education"
+      ],
+      "chinese_names": [
+        "红黄蓝教育"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q447855",
+      "english_names": [
+        "Aluminum Corporation of China"
+      ],
+      "chinese_names": [
+        "中国铝业",
+        "中國鋁業"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q4643844",
+      "english_names": [
+        "7 Days Inn"
+      ],
+      "chinese_names": [
+        "7天酒店"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q4677436",
+      "english_names": [
+        "Actions Technology"
+      ],
+      "chinese_names": [
+        "炬芯科技"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q4980954",
+      "english_names": [
+        "Home Inn"
+      ],
+      "chinese_names": [
+        "如家酒店"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q503182",
+      "english_names": [
+        "PetroChina Company Limited"
+      ],
+      "chinese_names": [
+        "中国石油"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q5072155",
+      "english_names": [
+        "Changyou"
+      ],
+      "chinese_names": [
+        "北京畅游时代数码技术有限公司"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q5099546",
+      "english_names": [
+        "ChinaCache"
+      ],
+      "chinese_names": [
+        "藍汛"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q5099579",
+      "english_names": [
+        "China Automotive Systems"
+      ],
+      "chinese_names": [
+        "中国汽车系统股份公司"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q5099601",
+      "english_names": [
+        "China Biologic Products, Inc."
+      ],
+      "chinese_names": [],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q5099702",
+      "english_names": [
+        "China Green Agriculture"
+      ],
+      "chinese_names": [
+        "中国绿色农业公司"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q5099719",
+      "english_names": [
+        "China Housing and Land Development"
+      ],
+      "chinese_names": [],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q5099817",
+      "english_names": [
+        "China Nepstar"
+      ],
+      "chinese_names": [
+        "海王星辰"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q5099924",
+      "english_names": [
+        "China Sunergy"
+      ],
+      "chinese_names": [],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q51744",
+      "english_names": [
+        "AutoNavi Holdings Limited"
+      ],
+      "chinese_names": [
+        "高德软件",
+        "高德软件有限公司"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q5191790",
+      "english_names": [
+        "Trip.com Group"
+      ],
+      "chinese_names": [
+        "携程集团"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q5323340",
+      "english_names": [
+        "eLong"
+      ],
+      "chinese_names": [
+        "艺龙"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q5570647",
+      "english_names": [
+        "Global Sources"
+      ],
+      "chinese_names": [
+        "環球資源"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q5575439",
+      "english_names": [
+        "Shanda"
+      ],
+      "chinese_names": [
+        "盛大网络"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q56011958",
+      "english_names": [
+        "Tencent Music"
+      ],
+      "chinese_names": [
+        "腾讯音乐娱乐集团"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q5651424",
+      "english_names": [
+        "Hanwha SolarOne"
+      ],
+      "chinese_names": [],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q56811344",
+      "english_names": [
+        "Luckin Coffee"
+      ],
+      "chinese_names": [
+        "瑞幸咖啡"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q59089890",
+      "english_names": [
+        "Qudian"
+      ],
+      "chinese_names": [
+        "趣店"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q5960624",
+      "english_names": [
+        "HiSoft"
+      ],
+      "chinese_names": [
+        "海辉软件国际集团"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q59961991",
+      "english_names": [
+        "New Energy Exchange Limited"
+      ],
+      "chinese_names": [
+        "新能源交易所"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q6107753",
+      "english_names": [
+        "JA Solar Holdings"
+      ],
+      "chinese_names": [
+        "晶澳太阳能",
+        "晶澳太陽能控股公司"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q63035278",
+      "english_names": [
+        "XPeng"
+      ],
+      "chinese_names": [
+        "小鹏汽车"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q6429285",
+      "english_names": [
+        "Kongzhong"
+      ],
+      "chinese_names": [
+        "空中网"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q648533",
+      "english_names": [
+        "Semiconductor Manufacturing International Corporation"
+      ],
+      "chinese_names": [
+        "中芯国际"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q6864857",
+      "english_names": [
+        "Mingyang Wind Power"
+      ],
+      "chinese_names": [
+        "明阳风电"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q6955096",
+      "english_names": [
+        "Link Motion Inc"
+      ],
+      "chinese_names": [
+        "凌动智行"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q7050535",
+      "english_names": [
+        "Nord Anglia Education"
+      ],
+      "chinese_names": [
+        "诺德安达教育"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q7123127",
+      "english_names": [
+        "Pactera"
+      ],
+      "chinese_names": [
+        "文思海辉"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q7226171",
+      "english_names": [
+        "Polybona Films"
+      ],
+      "chinese_names": [
+        "保利博纳电影发行公司"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q7267707",
+      "english_names": [
+        "Qihoo 360"
+      ],
+      "chinese_names": [
+        "奇虎360"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q7517459",
+      "english_names": [
+        "Simcere Pharmaceutical"
+      ],
+      "chinese_names": [
+        "先声药业"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q7554565",
+      "english_names": [
+        "Sogou"
+      ],
+      "chinese_names": [
+        "搜狗"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q7580289",
+      "english_names": [
+        "UNISOC"
+      ],
+      "chinese_names": [
+        "展讯"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q7639364",
+      "english_names": [
+        "Sunday Communications Limited"
+      ],
+      "chinese_names": [
+        "SUNDAY"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q7711620",
+      "english_names": [
+        "The9"
+      ],
+      "chinese_names": [
+        "第九城市"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q784022",
+      "english_names": [
+        "Renren"
+      ],
+      "chinese_names": [
+        "人人网"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q7914005",
+      "english_names": [
+        "VanceInfo"
+      ],
+      "chinese_names": [],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q7931283",
+      "english_names": [
+        "Vimicro"
+      ],
+      "chinese_names": [],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q795221",
+      "english_names": [
+        "CNOOC Limited"
+      ],
+      "chinese_names": [
+        "中国海洋石油有限公司"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q8038871",
+      "english_names": [
+        "WuXi AppTec"
+      ],
+      "chinese_names": [
+        "药明康德"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q8044589",
+      "english_names": [
+        "Xinhua Finance Media"
+      ],
+      "chinese_names": [],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q8044687",
+      "english_names": [
+        "Xinyuan Real Estate"
+      ],
+      "chinese_names": [
+        "鑫苑置業"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q820770",
+      "english_names": [
+        "Shanghai Petrochemical"
+      ],
+      "chinese_names": [
+        "上海石化"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q831445",
+      "english_names": [
+        "Sinopec"
+      ],
+      "chinese_names": [
+        "中国石化"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q837982",
+      "english_names": [
+        "Guangshen Railway"
+      ],
+      "chinese_names": [
+        "广深铁路股份有限公司"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q850451",
+      "english_names": [
+        "Yanzhou Coal Mining Company"
+      ],
+      "chinese_names": [
+        "兖州煤业"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q9013416",
+      "english_names": [
+        "HKTV"
+      ],
+      "chinese_names": [
+        "香港电视网络",
+        "香港電視網絡"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q938668",
+      "english_names": [
+        "Sina Corporation"
+      ],
+      "chinese_names": [
+        "新浪"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q96407440",
+      "english_names": [
+        "TAL Education Group"
+      ],
+      "chinese_names": [
+        "北京世纪好未来教育科技有限公司"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q965133",
+      "english_names": [
+        "Sohu"
+      ],
+      "chinese_names": [
+        "搜狐"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q98139925",
+      "english_names": [
+        "Li Auto"
+      ],
+      "chinese_names": [
+        "理想汽车"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q98704372",
+      "english_names": [
+        "GSX Techedu"
+      ],
+      "chinese_names": [
+        "跟谁学"
+      ],
+      "tickers": []
+    },
+    {
+      "wikidata_id": "Q99976763",
+      "english_names": [
+        "Nam Tai Property"
+      ],
+      "chinese_names": [
+        "南太地產"
+      ],
+      "tickers": []
+    }
+  ],
+  "not_an_evaluation_asset": true
+}

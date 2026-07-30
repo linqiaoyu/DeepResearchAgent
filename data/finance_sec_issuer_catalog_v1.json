@@ -1,0 +1,66 @@
+{
+  "source": "SEC filing dei:EntityRegistrantName",
+  "documents": 60,
+  "issuers": {
+    "baba": [
+      "Alibaba Group Holding Limited"
+    ],
+    "bidu": [
+      "Baidu, Inc."
+    ],
+    "bili": [
+      "Bilibili Inc."
+    ],
+    "finv": [
+      "FinVolution Group"
+    ],
+    "futu": [
+      "Futu Holdings Ltd"
+    ],
+    "iq": [
+      "iQIYI, Inc."
+    ],
+    "jd": [
+      "JD.com, Inc."
+    ],
+    "li": [
+      "Li Auto Inc."
+    ],
+    "lx": [
+      "LexinFintech Holdings Ltd."
+    ],
+    "nio": [
+      "NIO Inc."
+    ],
+    "ntes": [
+      "NETEASE, INC."
+    ],
+    "pdd": [
+      "PDD Holdings Inc."
+    ],
+    "qfin": [
+      "Qifu Technology, Inc."
+    ],
+    "sohu": [
+      "SOHU.COM LIMITED"
+    ],
+    "tigr": [
+      "UP FINTECH HOLDING LIMITED"
+    ],
+    "tme": [
+      "Tencent Music Entertainment Group"
+    ],
+    "wb": [
+      "WEIBO CORPORATION"
+    ],
+    "xpev": [
+      "XPeng Inc."
+    ],
+    "ymm": [
+      "Full Truck Alliance Co. Ltd."
+    ],
+    "zh": [
+      "Zhihu Inc."
+    ]
+  }
+}

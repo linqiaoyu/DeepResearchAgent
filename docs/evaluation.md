@@ -45,7 +45,7 @@ are frozen separately from the historic Golden Set v1 assets.
 | --- | --- | --- | --- | --- |
 | `Recall@20` | relevant chunks returned in the first 20 / all resolved relevant chunks | ranked `chunk_id`s and source-span labels resolved against one `index_version` | `[0, 1]` | Yes, test split: fail below `0.85` |
 | `nDCG@10` | DCG with gain `2^relevance - 1` and discount `log2(rank + 1)`, normalized by ideal DCG | ranked `chunk_id`s and relevance `{1, 2}` after source-span resolution | `[0, 1]` | Yes, test split: fail below `0.75` |
-| `nDCG@10` lift | `nDCG@10(hybrid+rerank) - nDCG@10(BM25-only)` | the same frozen test split, corpus version, `as_of`, and index version for both systems | `[-1, 1]` | Yes, test split: fail below `+0.10` |
+| `nDCG@10` lift | `nDCG@10(hybrid+rerank) - nDCG@10(BM25 + entity/period filtering)` | the same frozen test split, corpus version, `as_of`, and index version for both systems | `[-1, 1]` | Yes, test split: fail below `+0.10` |
 
 Labels are source spans, not `chunk_id`s: a chunk is relevant when its
 `(document_version_id, char_start, char_end)` overlaps a labelled span. Ties

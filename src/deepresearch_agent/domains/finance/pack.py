@@ -8,6 +8,7 @@ import re
 from typing import TYPE_CHECKING
 
 from deepresearch_agent.domains.protocols import RetrievalFilterValues
+from deepresearch_agent.domains.finance.issuer_aliases import issuer_aliases
 
 if TYPE_CHECKING:
     from deepresearch_agent.reporting import GroundedFactRenderer
@@ -24,30 +25,8 @@ from deepresearch_agent.domains.finance.vocabulary import (
 )
 
 
-# Public issuer aliases bridge Chinese finance requests to the English SEC
-# 20-F corpus. This vocabulary stays at the finance-domain boundary.
-SEC_20F_ISSUER_ALIASES = {
-    "阿里巴巴集团": ("baba", "Alibaba Group Holding Limited"),
-    "百度": ("bidu", "Baidu Inc."),
-    "哔哩哔哩": ("bili", "Bilibili Inc."),
-    "信也科技": ("finv", "FinVolution Group"),
-    "富途控股": ("futu", "Futu Holdings Limited"),
-    "爱奇艺": ("iq", "iQIYI Inc."),
-    "京东": ("jd", "JD.com Inc."),
-    "理想汽车": ("li", "Li Auto Inc."),
-    "乐信": ("lx", "LexinFintech Holdings Ltd."),
-    "蔚来": ("nio", "NIO Inc."),
-    "网易": ("ntes", "NetEase Inc."),
-    "拼多多": ("pdd", "PDD Holdings Inc."),
-    "奇富科技": ("qfin", "Qifu Technology Inc."),
-    "搜狐": ("sohu", "Sohu.com Limited"),
-    "老虎证券": ("tigr", "UP Fintech Holding Limited"),
-    "腾讯音乐": ("tme", "Tencent Music Entertainment Group"),
-    "微博": ("wb", "Weibo Corporation"),
-    "小鹏汽车": ("xpev", "XPeng Inc."),
-    "满帮集团": ("ymm", "Full Truck Alliance Co. Ltd."),
-    "知乎": ("zh", "Zhihu Inc."),
-}
+"""Issuer aliases are mechanically joined from SEC registrant names and a CC0 snapshot."""
+SEC_20F_ISSUER_ALIASES = issuer_aliases()
 
 
 class FinanceDomainPack:
