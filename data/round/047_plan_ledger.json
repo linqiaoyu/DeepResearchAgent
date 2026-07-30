@@ -309,8 +309,7 @@
   },
   {
     "plan_ref": "B5-16",
-    "status": "DEFERRED",
-    "reason": "No real trajectory has been replayed twice to prove deterministic retrieval-backed output."
+    "status": "PASS"
   },
   {
     "plan_ref": "B6-1",
