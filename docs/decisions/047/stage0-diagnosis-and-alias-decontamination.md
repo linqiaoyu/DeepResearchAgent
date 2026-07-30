@@ -30,3 +30,13 @@ Static aliases are not the B5-5 remedy. The future route is provider-bound
 query-side entity linking/translation; aliases are only an offline cache. Also,
 `_collab/047/prompt.md` is an insufficient historical task card; no history was
 fabricated to repair that debt.
+
+## Ledger reconciliation
+
+X-1 is PASS on existing evidence: `6d84823`, `e4dc665`, and `d05d8f1` copy the
+skill resource into the runtime image, include its runtime dependency, and
+exercise an executable guard. The older compose interpolation failure remains
+in the ignored execution evidence; it is not a reason to keep the delivered
+image-resource contract deferred. The other deferred rows have not been
+reclassified because their required measured artifacts or separately authorized
+provider executions do not yet exist.
