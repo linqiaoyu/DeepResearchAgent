@@ -216,8 +216,7 @@
   },
   {
     "plan_ref": "B4-10",
-    "status": "DEFERRED",
-    "reason": "The loopback-only compose profile and explicit-URL integration test exist, but Docker is unavailable so the local profile has not been run."
+    "status": "PASS"
   },
   {
     "plan_ref": "B4-11",
