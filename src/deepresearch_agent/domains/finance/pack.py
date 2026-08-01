@@ -4,7 +4,11 @@ from collections.abc import Mapping
 from decimal import Decimal
 from pathlib import Path
 
+import re
 from typing import TYPE_CHECKING
+
+from deepresearch_agent.domains.protocols import RetrievalFilterValues
+from deepresearch_agent.domains.finance.issuer_aliases import issuer_aliases
 
 if TYPE_CHECKING:
     from deepresearch_agent.reporting import GroundedFactRenderer
@@ -19,6 +23,10 @@ from deepresearch_agent.domains.finance.vocabulary import (
     canonical_metric,
     parse_period,
 )
+
+
+"""Issuer aliases are mechanically joined from SEC registrant names and a CC0 snapshot."""
+SEC_20F_ISSUER_ALIASES = issuer_aliases()
 
 
 class FinanceDomainPack:
@@ -231,3 +239,23 @@ class FinanceDomainPack:
         from deepresearch_agent.domains.finance.planning import FinancePlanning
 
         return FinancePlanning().valid_structured_request(request)
+
+    def retrieval_filter_values(self, query: str) -> RetrievalFilterValues:
+        """Emit the authority-backed issuer and fiscal-year retrieval facets."""
+
+        entity_ids = tuple(
+            entity_id
+            for chinese, (entity_id, _english) in SEC_20F_ISSUER_ALIASES.items()
+            if chinese in query
+        )
+        period_labels = tuple(sorted(set(re.findall(r"20\d{2}", query))))
+        return RetrievalFilterValues(
+            entity_ids=entity_ids,
+            period_labels=period_labels,
+        )
+
+    def expand_retrieval_query(self, query: str) -> str:
+        """Append a public issuer alias while preserving the original request."""
+
+        aliases = [english for chinese, (_entity_id, english) in SEC_20F_ISSUER_ALIASES.items() if chinese in query]
+        return " ".join((query, *aliases))

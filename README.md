@@ -9,7 +9,7 @@
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
-[静态演示站](https://deepresearch-agent.jacksonyu1109.workers.dev/) ·
+[Cloudflare Workers 静态演示站](https://deepresearch-agent.jacksonyu1109.workers.dev/) ·
 [快速开始](#快速开始) ·
 [系统架构](docs/architecture.md) ·
 [评测方法](docs/evaluation.md) ·

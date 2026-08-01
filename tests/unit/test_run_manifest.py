@@ -46,6 +46,15 @@ def manifest() -> RunManifest:
 
 
 class RunManifestTests(unittest.TestCase):
+    def test_retrieval_index_version_is_a_comparability_boundary(self) -> None:
+        left = manifest().model_copy(update={"retrieval_index_version": "finance-v1"})
+        right = manifest().model_copy(update={"retrieval_index_version": "finance-v2"})
+
+        comparison = compare_manifests(left, right)
+
+        self.assertFalse(comparison.comparable)
+        self.assertIn("retrieval_index_version", comparison.incomparable_reasons)
+
     def test_realness_requires_explicit_fidelity_for_every_provider(self) -> None:
         self.assertEqual(_realness({}), "unknown")
         self.assertEqual(

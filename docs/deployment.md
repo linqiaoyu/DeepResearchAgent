@@ -1,7 +1,7 @@
 # Deployment
 
 Current public shape: static demo site. PM cancelled the always-on public
-server; `site/dist/` is built locally and manually uploaded to Cloudflare Pages.
+server; `site/dist/` is built locally and manually uploaded as Cloudflare Workers static assets.
 This document is now a self-deployment guide for the retained API/UI assets.
 
 ## Demo Layers
@@ -57,6 +57,20 @@ Expected local smoke signals:
 ```bash
 docker compose up --build
 ```
+
+### Local Qdrant profile
+
+The optional local vector backend is bound to loopback only. It is intended for
+development and integration tests, not public exposure:
+
+```bash
+docker compose --profile qdrant up -d qdrant
+DEEPRESEARCH_QDRANT_URL=http://127.0.0.1:6333 \
+PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m unittest \
+  tests.integration.test_qdrant_integration
+```
+
+The integration test is skipped when `DEEPRESEARCH_QDRANT_URL` is absent.
 
 Expected services:
 
@@ -211,4 +225,4 @@ to the limit to disable paid layers while leaving the showcase online.
 
 ## Postgres Path
 
-The MVP uses SQLite so it can run in a bare local environment. The production schema is in `docs/postgres_schema.sql`; swap `SQLiteStore` for a Postgres adapter when `psycopg` or SQLAlchemy is available.
+The MVP uses SQLite so it can run in a bare local environment. `PostgresStore` is an optional adapter selected by `DEEPRESEARCH_POSTGRES_DSN`; it applies the versioned migrations in `migrations/` and its integration contract remains opt-in. `docs/postgres_schema.sql` is generated from those migrations rather than a second schema source.

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, Sequence
@@ -97,6 +98,23 @@ class SkillSelectionDomain(Protocol):
     def metric_skill_applicable(self, metadata: Any, context: str) -> bool: ...
 
 
+@dataclass(frozen=True)
+class RetrievalFilterValues:
+    """Domain-owned values for the generic retrieval filter contract."""
+
+    doc_types: tuple[str, ...] = ()
+    entity_ids: tuple[str, ...] = ()
+    period_labels: tuple[str, ...] = ()
+
+
+class RetrievalDomain(Protocol):
+    """Translate a domain query into neutral retrieval-filter values."""
+
+    def retrieval_filter_values(self, query: str) -> RetrievalFilterValues: ...
+
+    def expand_retrieval_query(self, query: str) -> str: ...
+
+
 class DomainPack(Protocol):
     """Explicit domain boundary used by generic orchestration code."""
 
@@ -179,3 +197,5 @@ class DomainPack(Protocol):
     def propagate_plan_identity(self, plan: Any, topic: str) -> Any: ...
 
     def valid_structured_request(self, request: Any) -> bool: ...
+
+    def retrieval_filter_values(self, query: str) -> RetrievalFilterValues: ...

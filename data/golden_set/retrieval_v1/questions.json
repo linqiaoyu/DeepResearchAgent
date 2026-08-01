@@ -1,0 +1,932 @@
+[
+  {
+    "id": "R001",
+    "question": "请在阿里巴巴集团 2024 财年 20-F 原文中找出“Total revenue”对应的表格或披露数值。",
+    "as_of": "2025-12-31",
+    "question_type": "numeric",
+    "split": "dev",
+    "labels": [
+      {
+        "document_version_id": "9086ba58-7e1f-584f-b919-1b2f8fe74be8",
+        "char_start": 797437,
+        "char_end": 797797,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R002",
+    "question": "请在百度 2024 财年 20-F 原文中找出“Total revenues”对应的表格或披露数值。",
+    "as_of": "2025-12-31",
+    "question_type": "numeric",
+    "split": "dev",
+    "labels": [
+      {
+        "document_version_id": "f98d5798-f1e6-5c65-8f2a-afc2edfa67b4",
+        "char_start": 101745,
+        "char_end": 102105,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R003",
+    "question": "请在哔哩哔哩 2024 财年 20-F 原文中找出“Total revenues”对应的表格或披露数值。",
+    "as_of": "2025-12-31",
+    "question_type": "numeric",
+    "split": "dev",
+    "labels": [
+      {
+        "document_version_id": "9d0820e9-a472-5e19-86ab-f9731005e644",
+        "char_start": 85431,
+        "char_end": 85791,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R004",
+    "question": "请在信也科技 2024 财年 20-F 原文中找出“Net revenues”对应的表格或披露数值。",
+    "as_of": "2025-12-31",
+    "question_type": "numeric",
+    "split": "dev",
+    "labels": [
+      {
+        "document_version_id": "e0e9206d-65a5-5991-b584-65abf8d3c658",
+        "char_start": 97574,
+        "char_end": 97934,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R005",
+    "question": "请在富途控股 2024 财年 20-F 原文中找出“Total revenues”对应的表格或披露数值。",
+    "as_of": "2025-12-31",
+    "question_type": "numeric",
+    "split": "dev",
+    "labels": [
+      {
+        "document_version_id": "8262e39f-48cd-5fb9-aa07-39013280d3ab",
+        "char_start": 781026,
+        "char_end": 781386,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R006",
+    "question": "请在爱奇艺 2024 财年 20-F 原文中找出“Total revenues”对应的表格或披露数值。",
+    "as_of": "2025-12-31",
+    "question_type": "numeric",
+    "split": "dev",
+    "labels": [
+      {
+        "document_version_id": "8187c40a-6832-55b7-8312-3511ba7c8cba",
+        "char_start": 101499,
+        "char_end": 101859,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R007",
+    "question": "请在京东 2024 财年 20-F 原文中找出“Net revenues”对应的表格或披露数值。",
+    "as_of": "2025-12-31",
+    "question_type": "numeric",
+    "split": "dev",
+    "labels": [
+      {
+        "document_version_id": "f488da0c-05e7-55bd-93c0-218eedc3d928",
+        "char_start": 149989,
+        "char_end": 150349,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R008",
+    "question": "请在理想汽车 2024 财年 20-F 原文中找出“Total revenues”对应的表格或披露数值。",
+    "as_of": "2025-12-31",
+    "question_type": "numeric",
+    "split": "dev",
+    "labels": [
+      {
+        "document_version_id": "abdab265-ca91-50d5-a90a-a9d2aa46672d",
+        "char_start": 99876,
+        "char_end": 100236,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R009",
+    "question": "请在乐信 2024 财年 20-F 原文中找出“Net income”对应的表格或披露数值。",
+    "as_of": "2025-12-31",
+    "question_type": "numeric",
+    "split": "dev",
+    "labels": [
+      {
+        "document_version_id": "330fe98e-a957-5846-a208-ebe3c2734f4f",
+        "char_start": 92285,
+        "char_end": 92645,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R010",
+    "question": "请在蔚来 2024 财年 20-F 原文中找出“Total revenues”对应的表格或披露数值。",
+    "as_of": "2025-12-31",
+    "question_type": "numeric",
+    "split": "dev",
+    "labels": [
+      {
+        "document_version_id": "42d791bc-e1e3-5840-a72e-7b41769ac2b0",
+        "char_start": 627221,
+        "char_end": 627581,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R011",
+    "question": "请在网易 2024 财年 20-F 原文中找出“Net revenues”对应的表格或披露数值。",
+    "as_of": "2025-12-31",
+    "question_type": "numeric",
+    "split": "dev",
+    "labels": [
+      {
+        "document_version_id": "02972d1c-e58c-5ea2-9824-480d0ff60af2",
+        "char_start": 569459,
+        "char_end": 569819,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R012",
+    "question": "请在拼多多 2024 财年 20-F 原文中找出“Total revenues”对应的表格或披露数值。",
+    "as_of": "2025-12-31",
+    "question_type": "numeric",
+    "split": "dev",
+    "labels": [
+      {
+        "document_version_id": "1e5c0cf0-e31e-593f-bb3e-abb0bb8f6373",
+        "char_start": 531159,
+        "char_end": 531519,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R013",
+    "question": "请在奇富科技 2024 财年 20-F 原文中找出“Total revenue”对应的表格或披露数值。",
+    "as_of": "2025-12-31",
+    "question_type": "numeric",
+    "split": "dev",
+    "labels": [
+      {
+        "document_version_id": "9f6bb442-b738-5ac1-9055-3d86579e0935",
+        "char_start": 1037667,
+        "char_end": 1038027,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R014",
+    "question": "请在搜狐 2024 财年 20-F 原文中找出“Total revenues”对应的表格或披露数值。",
+    "as_of": "2025-12-31",
+    "question_type": "numeric",
+    "split": "dev",
+    "labels": [
+      {
+        "document_version_id": "2b1651eb-924c-5f0c-a6e1-f25dd9a51889",
+        "char_start": 90778,
+        "char_end": 91138,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R015",
+    "question": "请在老虎证券 2024 财年 20-F 原文中找出“Total revenues”对应的表格或披露数值。",
+    "as_of": "2025-12-31",
+    "question_type": "numeric",
+    "split": "dev",
+    "labels": [
+      {
+        "document_version_id": "b32a210a-2fe1-551b-81fc-ce546257bda8",
+        "char_start": 226335,
+        "char_end": 226695,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R016",
+    "question": "请在腾讯音乐 2024 财年 20-F 原文中找出“Total revenues”对应的表格或披露数值。",
+    "as_of": "2025-12-31",
+    "question_type": "numeric",
+    "split": "dev",
+    "labels": [
+      {
+        "document_version_id": "3d6f4513-357f-5a53-8eb6-aa4942f8ae8d",
+        "char_start": 698333,
+        "char_end": 698693,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R017",
+    "question": "请在微博 2024 财年 20-F 原文中找出“Total revenues”对应的表格或披露数值。",
+    "as_of": "2025-12-31",
+    "question_type": "numeric",
+    "split": "dev",
+    "labels": [
+      {
+        "document_version_id": "f6f419ef-c30e-51ee-9a43-8f03fbf6412e",
+        "char_start": 95792,
+        "char_end": 96152,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R018",
+    "question": "请在小鹏汽车 2024 财年 20-F 原文中找出“Total revenues”对应的表格或披露数值。",
+    "as_of": "2025-12-31",
+    "question_type": "numeric",
+    "split": "dev",
+    "labels": [
+      {
+        "document_version_id": "675750db-abcf-59a0-a06e-c71825dcdfb9",
+        "char_start": 665874,
+        "char_end": 666234,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R019",
+    "question": "请在满帮集团 2024 财年 20-F 原文中找出“Net revenues”对应的表格或披露数值。",
+    "as_of": "2025-12-31",
+    "question_type": "numeric",
+    "split": "dev",
+    "labels": [
+      {
+        "document_version_id": "b4e22e81-40ae-5cb6-aeb1-7725205f2a95",
+        "char_start": 696937,
+        "char_end": 697297,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R020",
+    "question": "请在知乎 2024 财年 20-F 原文中找出“Total revenues”对应的表格或披露数值。",
+    "as_of": "2025-12-31",
+    "question_type": "numeric",
+    "split": "dev",
+    "labels": [
+      {
+        "document_version_id": "0d40d56e-2d72-5034-a3ae-79843f96ea59",
+        "char_start": 953245,
+        "char_end": 953605,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R021",
+    "question": "对比阿里巴巴集团 2023 与 2024 财年 20-F 中“Total revenue”的披露数值，各期分别列示了什么？",
+    "as_of": "2025-12-31",
+    "question_type": "cross_period",
+    "split": "dev",
+    "labels": [
+      {
+        "document_version_id": "3fdd4bac-a0d7-5c1f-ba16-a998607314ad",
+        "char_start": 813540,
+        "char_end": 813900,
+        "relevance": 2
+      },
+      {
+        "document_version_id": "9086ba58-7e1f-584f-b919-1b2f8fe74be8",
+        "char_start": 797437,
+        "char_end": 797797,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R022",
+    "question": "对比百度 2023 与 2024 财年 20-F 中“Total revenues”的披露数值，各期分别列示了什么？",
+    "as_of": "2025-12-31",
+    "question_type": "cross_period",
+    "split": "dev",
+    "labels": [
+      {
+        "document_version_id": "68dbb888-6d10-5a27-9097-31e2b5446d97",
+        "char_start": 102533,
+        "char_end": 102893,
+        "relevance": 2
+      },
+      {
+        "document_version_id": "f98d5798-f1e6-5c65-8f2a-afc2edfa67b4",
+        "char_start": 101745,
+        "char_end": 102105,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R023",
+    "question": "对比哔哩哔哩 2023 与 2024 财年 20-F 中“Total revenues”的披露数值，各期分别列示了什么？",
+    "as_of": "2025-12-31",
+    "question_type": "cross_period",
+    "split": "dev",
+    "labels": [
+      {
+        "document_version_id": "30902841-7ae5-59d0-9a40-78876d5211e8",
+        "char_start": 86499,
+        "char_end": 86859,
+        "relevance": 2
+      },
+      {
+        "document_version_id": "9d0820e9-a472-5e19-86ab-f9731005e644",
+        "char_start": 85431,
+        "char_end": 85791,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R024",
+    "question": "对比信也科技 2023 与 2024 财年 20-F 中“Net revenues”的披露数值，各期分别列示了什么？",
+    "as_of": "2025-12-31",
+    "question_type": "cross_period",
+    "split": "dev",
+    "labels": [
+      {
+        "document_version_id": "cfb93874-52d2-56fa-9b92-9b5a9376af0f",
+        "char_start": 98173,
+        "char_end": 98533,
+        "relevance": 2
+      },
+      {
+        "document_version_id": "e0e9206d-65a5-5991-b584-65abf8d3c658",
+        "char_start": 97574,
+        "char_end": 97934,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R025",
+    "question": "对比富途控股 2023 与 2024 财年 20-F 中“Total revenues”的披露数值，各期分别列示了什么？",
+    "as_of": "2025-12-31",
+    "question_type": "cross_period",
+    "split": "test",
+    "labels": [
+      {
+        "document_version_id": "e1643691-96dc-541d-a03e-d21879ea7ea6",
+        "char_start": 770937,
+        "char_end": 771297,
+        "relevance": 2
+      },
+      {
+        "document_version_id": "8262e39f-48cd-5fb9-aa07-39013280d3ab",
+        "char_start": 781026,
+        "char_end": 781386,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R026",
+    "question": "对比爱奇艺 2023 与 2024 财年 20-F 中“Total revenues”的披露数值，各期分别列示了什么？",
+    "as_of": "2025-12-31",
+    "question_type": "cross_period",
+    "split": "test",
+    "labels": [
+      {
+        "document_version_id": "91dfb2df-aee5-5b91-8bd3-574e0d752c25",
+        "char_start": 104167,
+        "char_end": 104527,
+        "relevance": 2
+      },
+      {
+        "document_version_id": "8187c40a-6832-55b7-8312-3511ba7c8cba",
+        "char_start": 101499,
+        "char_end": 101859,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R027",
+    "question": "对比京东 2023 与 2024 财年 20-F 中“Net revenues”的披露数值，各期分别列示了什么？",
+    "as_of": "2025-12-31",
+    "question_type": "cross_period",
+    "split": "test",
+    "labels": [
+      {
+        "document_version_id": "c0a1e156-6f32-50fa-a34f-9f71d5c52303",
+        "char_start": 155085,
+        "char_end": 155445,
+        "relevance": 2
+      },
+      {
+        "document_version_id": "f488da0c-05e7-55bd-93c0-218eedc3d928",
+        "char_start": 149989,
+        "char_end": 150349,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R028",
+    "question": "对比理想汽车 2023 与 2024 财年 20-F 中“Total revenues”的披露数值，各期分别列示了什么？",
+    "as_of": "2025-12-31",
+    "question_type": "cross_period",
+    "split": "test",
+    "labels": [
+      {
+        "document_version_id": "49616f2d-2ed7-5cda-81c9-3e20ec2ec60b",
+        "char_start": 101367,
+        "char_end": 101727,
+        "relevance": 2
+      },
+      {
+        "document_version_id": "abdab265-ca91-50d5-a90a-a9d2aa46672d",
+        "char_start": 99876,
+        "char_end": 100236,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R029",
+    "question": "对比乐信 2023 与 2024 财年 20-F 中“Net income”的披露数值，各期分别列示了什么？",
+    "as_of": "2025-12-31",
+    "question_type": "cross_period",
+    "split": "test",
+    "labels": [
+      {
+        "document_version_id": "c69711fb-e7c6-563e-a4f7-90e1efcaa91b",
+        "char_start": 93700,
+        "char_end": 94060,
+        "relevance": 2
+      },
+      {
+        "document_version_id": "330fe98e-a957-5846-a208-ebe3c2734f4f",
+        "char_start": 92285,
+        "char_end": 92645,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R030",
+    "question": "对比蔚来 2023 与 2024 财年 20-F 中“Total revenues”的披露数值，各期分别列示了什么？",
+    "as_of": "2025-12-31",
+    "question_type": "cross_period",
+    "split": "test",
+    "labels": [
+      {
+        "document_version_id": "e6c2fe1b-ece2-5b66-8b37-b69138a34b0f",
+        "char_start": 620722,
+        "char_end": 621082,
+        "relevance": 2
+      },
+      {
+        "document_version_id": "42d791bc-e1e3-5840-a72e-7b41769ac2b0",
+        "char_start": 627221,
+        "char_end": 627581,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R031",
+    "question": "对比网易 2023 与 2024 财年 20-F 中“Net revenues”的披露数值，各期分别列示了什么？",
+    "as_of": "2025-12-31",
+    "question_type": "cross_period",
+    "split": "test",
+    "labels": [
+      {
+        "document_version_id": "163abb71-6541-529d-b7ae-0b57fd8f6e01",
+        "char_start": 611869,
+        "char_end": 612229,
+        "relevance": 2
+      },
+      {
+        "document_version_id": "02972d1c-e58c-5ea2-9824-480d0ff60af2",
+        "char_start": 569459,
+        "char_end": 569819,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R032",
+    "question": "对比拼多多 2023 与 2024 财年 20-F 中“Total revenues”的披露数值，各期分别列示了什么？",
+    "as_of": "2025-12-31",
+    "question_type": "cross_period",
+    "split": "test",
+    "labels": [
+      {
+        "document_version_id": "34752f56-a56d-52f6-ae0e-71642c472b50",
+        "char_start": 491593,
+        "char_end": 491953,
+        "relevance": 2
+      },
+      {
+        "document_version_id": "1e5c0cf0-e31e-593f-bb3e-abb0bb8f6373",
+        "char_start": 531159,
+        "char_end": 531519,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R033",
+    "question": "对比奇富科技 2023 与 2024 财年 20-F 中“Total revenue”的披露数值，各期分别列示了什么？",
+    "as_of": "2025-12-31",
+    "question_type": "cross_period",
+    "split": "test",
+    "labels": [
+      {
+        "document_version_id": "59134e15-6ad1-584a-a2b1-04e571584d0f",
+        "char_start": 1014588,
+        "char_end": 1014948,
+        "relevance": 2
+      },
+      {
+        "document_version_id": "9f6bb442-b738-5ac1-9055-3d86579e0935",
+        "char_start": 1037667,
+        "char_end": 1038027,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R034",
+    "question": "对比搜狐 2023 与 2024 财年 20-F 中“Total revenues”的披露数值，各期分别列示了什么？",
+    "as_of": "2025-12-31",
+    "question_type": "cross_period",
+    "split": "test",
+    "labels": [
+      {
+        "document_version_id": "66c2ee75-55c0-5ba6-9d48-c889a922e525",
+        "char_start": 99590,
+        "char_end": 99950,
+        "relevance": 2
+      },
+      {
+        "document_version_id": "2b1651eb-924c-5f0c-a6e1-f25dd9a51889",
+        "char_start": 90778,
+        "char_end": 91138,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R035",
+    "question": "对比老虎证券 2023 与 2024 财年 20-F 中“Total revenues”的披露数值，各期分别列示了什么？",
+    "as_of": "2025-12-31",
+    "question_type": "cross_period",
+    "split": "test",
+    "labels": [
+      {
+        "document_version_id": "741c54f4-4c9b-54c1-9ae5-88c2337fcc3e",
+        "char_start": 212329,
+        "char_end": 212689,
+        "relevance": 2
+      },
+      {
+        "document_version_id": "b32a210a-2fe1-551b-81fc-ce546257bda8",
+        "char_start": 226335,
+        "char_end": 226695,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R036",
+    "question": "请提取爱奇艺 2024 财年 20-F 中“Total revenues”表格行的数值及相邻期间信息。",
+    "as_of": "2025-12-31",
+    "question_type": "table",
+    "split": "test",
+    "labels": [
+      {
+        "document_version_id": "8187c40a-6832-55b7-8312-3511ba7c8cba",
+        "char_start": 101499,
+        "char_end": 101859,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R037",
+    "question": "请提取京东 2024 财年 20-F 中“Net revenues”表格行的数值及相邻期间信息。",
+    "as_of": "2025-12-31",
+    "question_type": "table",
+    "split": "test",
+    "labels": [
+      {
+        "document_version_id": "f488da0c-05e7-55bd-93c0-218eedc3d928",
+        "char_start": 149989,
+        "char_end": 150349,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R038",
+    "question": "请提取理想汽车 2024 财年 20-F 中“Total revenues”表格行的数值及相邻期间信息。",
+    "as_of": "2025-12-31",
+    "question_type": "table",
+    "split": "test",
+    "labels": [
+      {
+        "document_version_id": "abdab265-ca91-50d5-a90a-a9d2aa46672d",
+        "char_start": 99876,
+        "char_end": 100236,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R039",
+    "question": "请提取乐信 2024 财年 20-F 中“Net income”表格行的数值及相邻期间信息。",
+    "as_of": "2025-12-31",
+    "question_type": "table",
+    "split": "test",
+    "labels": [
+      {
+        "document_version_id": "330fe98e-a957-5846-a208-ebe3c2734f4f",
+        "char_start": 92285,
+        "char_end": 92645,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R040",
+    "question": "请提取蔚来 2024 财年 20-F 中“Total revenues”表格行的数值及相邻期间信息。",
+    "as_of": "2025-12-31",
+    "question_type": "table",
+    "split": "test",
+    "labels": [
+      {
+        "document_version_id": "42d791bc-e1e3-5840-a72e-7b41769ac2b0",
+        "char_start": 627221,
+        "char_end": 627581,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R041",
+    "question": "请提取网易 2024 财年 20-F 中“Net revenues”表格行的数值及相邻期间信息。",
+    "as_of": "2025-12-31",
+    "question_type": "table",
+    "split": "test",
+    "labels": [
+      {
+        "document_version_id": "02972d1c-e58c-5ea2-9824-480d0ff60af2",
+        "char_start": 569459,
+        "char_end": 569819,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R042",
+    "question": "请提取拼多多 2024 财年 20-F 中“Total revenues”表格行的数值及相邻期间信息。",
+    "as_of": "2025-12-31",
+    "question_type": "table",
+    "split": "test",
+    "labels": [
+      {
+        "document_version_id": "1e5c0cf0-e31e-593f-bb3e-abb0bb8f6373",
+        "char_start": 531159,
+        "char_end": 531519,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R043",
+    "question": "请提取奇富科技 2024 财年 20-F 中“Total revenue”表格行的数值及相邻期间信息。",
+    "as_of": "2025-12-31",
+    "question_type": "table",
+    "split": "test",
+    "labels": [
+      {
+        "document_version_id": "9f6bb442-b738-5ac1-9055-3d86579e0935",
+        "char_start": 1037667,
+        "char_end": 1038027,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R044",
+    "question": "请提取搜狐 2024 财年 20-F 中“Total revenues”表格行的数值及相邻期间信息。",
+    "as_of": "2025-12-31",
+    "question_type": "table",
+    "split": "test",
+    "labels": [
+      {
+        "document_version_id": "2b1651eb-924c-5f0c-a6e1-f25dd9a51889",
+        "char_start": 90778,
+        "char_end": 91138,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R045",
+    "question": "请提取老虎证券 2024 财年 20-F 中“Total revenues”表格行的数值及相邻期间信息。",
+    "as_of": "2025-12-31",
+    "question_type": "table",
+    "split": "test",
+    "labels": [
+      {
+        "document_version_id": "b32a210a-2fe1-551b-81fc-ce546257bda8",
+        "char_start": 226335,
+        "char_end": 226695,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R046",
+    "question": "请提取腾讯音乐 2024 财年 20-F 中“Total revenues”表格行的数值及相邻期间信息。",
+    "as_of": "2025-12-31",
+    "question_type": "table",
+    "split": "test",
+    "labels": [
+      {
+        "document_version_id": "3d6f4513-357f-5a53-8eb6-aa4942f8ae8d",
+        "char_start": 698333,
+        "char_end": 698693,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R047",
+    "question": "请提取微博 2024 财年 20-F 中“Total revenues”表格行的数值及相邻期间信息。",
+    "as_of": "2025-12-31",
+    "question_type": "table",
+    "split": "test",
+    "labels": [
+      {
+        "document_version_id": "f6f419ef-c30e-51ee-9a43-8f03fbf6412e",
+        "char_start": 95792,
+        "char_end": 96152,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R048",
+    "question": "请提取小鹏汽车 2024 财年 20-F 中“Total revenues”表格行的数值及相邻期间信息。",
+    "as_of": "2025-12-31",
+    "question_type": "table",
+    "split": "test",
+    "labels": [
+      {
+        "document_version_id": "675750db-abcf-59a0-a06e-c71825dcdfb9",
+        "char_start": 665874,
+        "char_end": 666234,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R049",
+    "question": "请提取满帮集团 2024 财年 20-F 中“Net revenues”表格行的数值及相邻期间信息。",
+    "as_of": "2025-12-31",
+    "question_type": "table",
+    "split": "test",
+    "labels": [
+      {
+        "document_version_id": "b4e22e81-40ae-5cb6-aeb1-7725205f2a95",
+        "char_start": 696937,
+        "char_end": 697297,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R050",
+    "question": "请提取知乎 2024 财年 20-F 中“Total revenues”表格行的数值及相邻期间信息。",
+    "as_of": "2025-12-31",
+    "question_type": "table",
+    "split": "test",
+    "labels": [
+      {
+        "document_version_id": "0d40d56e-2d72-5034-a3ae-79843f96ea59",
+        "char_start": 953245,
+        "char_end": 953605,
+        "relevance": 2
+      }
+    ]
+  },
+  {
+    "id": "R051",
+    "question": "请给出阿里巴巴集团 2025 财年 20-F 中经审计的全年营业收入。",
+    "as_of": "2025-12-31",
+    "question_type": "refusal",
+    "split": "test",
+    "expected_behavior": "refuse_insufficient_evidence",
+    "labels": []
+  },
+  {
+    "id": "R052",
+    "question": "请给出百度 2025 财年 20-F 中经审计的全年营业收入。",
+    "as_of": "2025-12-31",
+    "question_type": "refusal",
+    "split": "test",
+    "expected_behavior": "refuse_insufficient_evidence",
+    "labels": []
+  },
+  {
+    "id": "R053",
+    "question": "请给出哔哩哔哩 2025 财年 20-F 中经审计的全年营业收入。",
+    "as_of": "2025-12-31",
+    "question_type": "refusal",
+    "split": "test",
+    "expected_behavior": "refuse_insufficient_evidence",
+    "labels": []
+  },
+  {
+    "id": "R054",
+    "question": "请给出信也科技 2025 财年 20-F 中经审计的全年营业收入。",
+    "as_of": "2025-12-31",
+    "question_type": "refusal",
+    "split": "test",
+    "expected_behavior": "refuse_insufficient_evidence",
+    "labels": []
+  },
+  {
+    "id": "R055",
+    "question": "请给出富途控股 2025 财年 20-F 中经审计的全年营业收入。",
+    "as_of": "2025-12-31",
+    "question_type": "refusal",
+    "split": "test",
+    "expected_behavior": "refuse_insufficient_evidence",
+    "labels": []
+  },
+  {
+    "id": "R056",
+    "question": "请给出爱奇艺 2025 财年 20-F 中经审计的全年营业收入。",
+    "as_of": "2025-12-31",
+    "question_type": "refusal",
+    "split": "test",
+    "expected_behavior": "refuse_insufficient_evidence",
+    "labels": []
+  },
+  {
+    "id": "R057",
+    "question": "请给出京东 2025 财年 20-F 中经审计的全年营业收入。",
+    "as_of": "2025-12-31",
+    "question_type": "refusal",
+    "split": "test",
+    "expected_behavior": "refuse_insufficient_evidence",
+    "labels": []
+  },
+  {
+    "id": "R058",
+    "question": "请给出理想汽车 2025 财年 20-F 中经审计的全年营业收入。",
+    "as_of": "2025-12-31",
+    "question_type": "refusal",
+    "split": "test",
+    "expected_behavior": "refuse_insufficient_evidence",
+    "labels": []
+  },
+  {
+    "id": "R059",
+    "question": "请给出乐信 2025 财年 20-F 中经审计的全年营业收入。",
+    "as_of": "2025-12-31",
+    "question_type": "refusal",
+    "split": "test",
+    "expected_behavior": "refuse_insufficient_evidence",
+    "labels": []
+  },
+  {
+    "id": "R060",
+    "question": "请给出蔚来 2025 财年 20-F 中经审计的全年营业收入。",
+    "as_of": "2025-12-31",
+    "question_type": "refusal",
+    "split": "test",
+    "expected_behavior": "refuse_insufficient_evidence",
+    "labels": []
+  }
+]

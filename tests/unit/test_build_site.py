@@ -4,10 +4,43 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.build_site import _assert_showcase_contract, _assert_site, _markdown_to_html
+from scripts.build_site import (
+    _assert_release_safety,
+    _assert_showcase_contract,
+    _assert_site,
+    _markdown_to_html,
+    _rag_page,
+    _release_build_log,
+)
 
 
 class StaticSiteBuildTests(unittest.TestCase):
+    def test_release_scan_rejects_sensitive_artifacts_and_local_build_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            dist = Path(tmp)
+            (dist / "index.html").write_text("published", encoding="utf-8")
+            _assert_release_safety(dist, _release_build_log(1))
+            self.assertEqual(_release_build_log(1), "built site/dist\nfiles 1\nvalidation ok\n")
+
+            (dist / "index.html").write_text(
+                "Authorization: Bearer forbidden-token", encoding="utf-8"
+            )
+            with self.assertRaisesRegex(SystemExit, "credential:index.html"):
+                _assert_release_safety(dist, _release_build_log(1))
+            (dist / "index.html").write_text("published", encoding="utf-8")
+            (dist / "manifest.json").write_text(
+                "https://cluster.cloud.qdrant.io", encoding="utf-8"
+            )
+            with self.assertRaisesRegex(SystemExit, "qdrant_endpoint:manifest.json"):
+                _assert_release_safety(dist, _release_build_log(2))
+            (dist / "manifest.json").write_text("{}", encoding="utf-8")
+            (dist / "index.html").write_text("data/corpus/report.pdf", encoding="utf-8")
+            with self.assertRaisesRegex(SystemExit, "raw_corpus_reference:index.html"):
+                _assert_release_safety(dist, _release_build_log(2))
+            (dist / "index.html").write_text("published", encoding="utf-8")
+            with self.assertRaisesRegex(SystemExit, "absolute_path:build.log"):
+                _assert_release_safety(dist, "built /Users/example/site/dist\n")
+
     def test_showcase_contract_requires_boundary_and_visual_system(self) -> None:
         home = " ".join(
             (
@@ -30,6 +63,19 @@ class StaticSiteBuildTests(unittest.TestCase):
         card = Path("site/social/og.png")
         self.assertTrue(card.is_file())
         self.assertEqual(card.read_bytes()[:8], b"\x89PNG\r\n\x1a\n")
+
+    def test_rag_page_keeps_the_negative_quality_result_and_rerank_limit(self) -> None:
+        page = _rag_page(
+            {
+                "corpus": {"version": "finance_v1", "documents": 60, "chunks": 22953, "fingerprint": "f" * 64},
+                "index": {"version": "idx-v1", "rebuild_seconds": 1.0, "cost_cny": 0.1},
+                "retrieval": {"bm25": {"recall_at_20": 0.0, "ndcg_at_10": 0.0}, "hybrid_rerank": {"recall_at_20": 0.1, "ndcg_at_10": 0.0}, "quality_gate": "FAIL", "decision": "No retuning."},
+                "trace": {"kind": "real probe", "lexical_candidates": 50, "dense_candidates": 50, "delivered_candidates": 8, "rerank_status": "ok", "cost_cny": 0.1},
+                "limitations": ["rerank 默认开启，其单项检索收益在本轮未经测量；展示的提升数字来自整条流水线，不可归因到 rerank。"],
+            }
+        )
+        self.assertIn("质量门槛：<strong>FAIL</strong>", page)
+        self.assertIn("不可归因到 rerank", page)
 
     def test_references_are_deduplicated_and_citations_are_remapped(self) -> None:
         rendered = _markdown_to_html(

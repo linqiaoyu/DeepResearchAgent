@@ -1,0 +1,259 @@
+from __future__ import annotations
+
+import inspect
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+from deepresearch_agent.llm import LLMClient
+from deepresearch_agent.llm_config import DASHSCOPE_EMBEDDING_ENDPOINT, DASHSCOPE_RERANK_ENDPOINT
+from deepresearch_agent.rag.retrieval import (
+    DashScopeEmbeddingProvider,
+    DashScopeRerankerProvider,
+    CachedEmbeddingProvider,
+    FixtureRerankerProvider,
+    ProviderPricing,
+    RecordedEmbeddingProvider,
+    RetrievalCandidate,
+    _estimated_tokens,
+    rrf_fuse,
+    rerank_or_degrade,
+)
+import deepresearch_agent.rag.retrieval as retrieval_module
+from deepresearch_agent.tools.contracts import ToolErrorKind
+from deepresearch_agent.tools.reliable_execution import ReliableToolExecutor, RunToolContext, ToolExecutionError
+from deepresearch_agent.trajectory import TrajectoryRecorder, trajectory_recording
+from scripts.probe_embedding import DEFAULT_EMBEDDING_ENDPOINT
+from scripts.probe_rerank import DEFAULT_RERANK_ENDPOINT
+
+
+class FailingReranker:
+    def rerank(self, *_args: object, **_kwargs: object) -> object:
+        raise ToolExecutionError(ToolErrorKind.TIMEOUT, "simulated timeout")
+
+
+class RagRetrievalTests(unittest.TestCase):
+    def test_provider_uses_no_custom_retrieval_instruction(self) -> None:
+        source = inspect.getsource(retrieval_module).lower()
+        self.assertNotIn("instruct", source)
+        self.assertNotIn("instruction", source)
+
+    def test_token_estimate_reserves_for_cjk_density(self) -> None:
+        self.assertEqual(_estimated_tokens("abcd"), 2)
+        self.assertEqual(_estimated_tokens("中文问题"), 8)
+        self.assertEqual(_estimated_tokens("中文abcd"), 6)
+
+    def test_probe_defaults_use_public_dashscope_compatible_endpoints(self) -> None:
+        self.assertEqual(DEFAULT_EMBEDDING_ENDPOINT, DASHSCOPE_EMBEDDING_ENDPOINT)
+        self.assertEqual(DEFAULT_RERANK_ENDPOINT, DASHSCOPE_RERANK_ENDPOINT)
+        self.assertEqual(
+            DEFAULT_EMBEDDING_ENDPOINT,
+            "https://dashscope.aliyuncs.com/compatible-mode/v1/embeddings",
+        )
+        self.assertEqual(
+            DEFAULT_RERANK_ENDPOINT,
+            "https://dashscope.aliyuncs.com/compatible-api/v1/reranks",
+        )
+
+    def test_dashscope_adapters_default_to_public_compatible_endpoints(self) -> None:
+        client = LLMClient(
+            ledger_path=Path("artifacts/default-endpoint-ledger.jsonl"),
+            global_ledger_path=Path("artifacts/default-endpoint-global.jsonl"),
+            budget_cny=1.0,
+            completion_func=lambda **_: {},
+        )
+        pricing = ProviderPricing(1.0, "operator-confirmed")
+        embedding = DashScopeEmbeddingProvider(
+            api_key="test-key",
+            ledger=client,
+            run_id="rag-run",
+            pricing=pricing,
+            dimensions=2,
+            max_batch_size=2,
+        )
+        reranker = DashScopeRerankerProvider(
+            api_key="test-key", ledger=client, run_id="rag-run", pricing=pricing
+        )
+        self.assertEqual(embedding.endpoint, DASHSCOPE_EMBEDDING_ENDPOINT)
+        self.assertEqual(reranker.endpoint, DASHSCOPE_RERANK_ENDPOINT)
+
+    def test_dashscope_adapters_record_shared_ledger_rows(self) -> None:
+        class Response:
+            def __init__(self, payload: dict[str, object]) -> None:
+                self.payload = payload
+
+            def raise_for_status(self) -> None:
+                return None
+
+            def json(self) -> dict[str, object]:
+                return self.payload
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "ledger.jsonl"
+            client = LLMClient(
+                ledger_path=ledger,
+                global_ledger_path=root / "global.jsonl",
+                budget_cny=1.0,
+                completion_func=lambda **_: {},
+            )
+            pricing = ProviderPricing(100.0, "operator-confirmed")
+            embedding = DashScopeEmbeddingProvider(
+                endpoint="https://provider.test/embeddings",
+                api_key="test-key",
+                ledger=client,
+                run_id="rag-run",
+                pricing=pricing,
+                dimensions=2,
+                max_batch_size=2,
+            )
+            reranker = DashScopeRerankerProvider(
+                endpoint="https://provider.test/reranks",
+                api_key="test-key",
+                ledger=client,
+                run_id="rag-run",
+                pricing=pricing,
+            )
+            responses = [
+                Response({"data": [{"embedding": [0.1, 0.2]}], "usage": {"prompt_tokens": 3}}),
+                Response({"results": [{"index": 0, "relevance_score": 0.9}], "usage": {"total_tokens": 4}}),
+            ]
+            with patch("deepresearch_agent.rag.retrieval.httpx.post", side_effect=responses):
+                self.assertEqual(embedding.embed(["这是一个用于稳定预算估算的中文文本"]), [[0.1, 0.2]])
+                result = reranker.rerank("问题", [RetrievalCandidate("a", "答案")], 1)
+
+            rows = [line for line in ledger.read_text(encoding="utf-8").splitlines() if line]
+        self.assertEqual(result.candidates[0].chunk_id, "a")
+        self.assertEqual(len(rows), 2)
+        self.assertIn('"call_kind": "embedding"', rows[0])
+        self.assertIn('"call_kind": "rerank"', rows[1])
+
+    def test_real_adapters_retry_rate_limits_with_bounded_tool_contracts(self) -> None:
+        class Response:
+            def __init__(self, payload: dict[str, object]) -> None:
+                self.payload = payload
+
+            def raise_for_status(self) -> None:
+                return None
+
+            def json(self) -> dict[str, object]:
+                return self.payload
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            client = LLMClient(
+                ledger_path=root / "ledger.jsonl", global_ledger_path=root / "global.jsonl",
+                budget_cny=1.0, completion_func=lambda **_: {},
+            )
+            executor = ReliableToolExecutor(sleep=lambda _: None, random_source=lambda: 0.5)
+            embedding_context = RunToolContext.for_run(max_retries=2)
+            rerank_context = RunToolContext.for_run(max_retries=2)
+            embedding = DashScopeEmbeddingProvider(
+                endpoint="https://provider.test/embeddings", api_key="test-key", ledger=client,
+                run_id="rag-run", pricing=ProviderPricing(100.0, "operator-confirmed"),
+                dimensions=2, max_batch_size=2, executor=executor, tool_context=embedding_context,
+            )
+            reranker = DashScopeRerankerProvider(
+                endpoint="https://provider.test/reranks", api_key="test-key", ledger=client,
+                run_id="rag-run", pricing=ProviderPricing(100.0, "operator-confirmed"),
+                executor=executor, tool_context=rerank_context,
+            )
+            responses = [
+                ToolExecutionError(ToolErrorKind.RATE_LIMITED, "429"),
+                Response({"data": [{"embedding": [0.1, 0.2]}], "usage": {"prompt_tokens": 3}}),
+                ToolExecutionError(ToolErrorKind.RATE_LIMITED, "429"),
+                Response({"results": [{"index": 0, "relevance_score": 0.9}], "usage": {"total_tokens": 4}}),
+            ]
+            with patch("deepresearch_agent.rag.retrieval.httpx.post", side_effect=responses) as post:
+                self.assertEqual(embedding.embed(["中文"]), [[0.1, 0.2]])
+                self.assertEqual(reranker.rerank("问题", [RetrievalCandidate("a", "答案")], 1).candidate_count, 1)
+
+        self.assertEqual(post.call_count, 4)
+        self.assertEqual(embedding_context.degradation_events[0].reason, ToolErrorKind.RATE_LIMITED)
+        self.assertEqual(rerank_context.degradation_events[0].reason, ToolErrorKind.RATE_LIMITED)
+
+    def test_content_hash_embedding_cache_is_persistent_and_deduplicates_inputs(self) -> None:
+        class CountingEmbedding:
+            def __init__(self) -> None:
+                self.calls: list[list[str]] = []
+
+            def embed(self, texts: list[str]) -> list[list[float]]:
+                self.calls.append(texts)
+                return [[float(len(text))] for text in texts]
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "embedding-cache.json"
+            delegate = CountingEmbedding()
+            cached = CachedEmbeddingProvider(delegate=delegate, path=path)
+            self.assertEqual(cached.embed(["同一文本", "同一文本", "另一个"]), [[4.0], [4.0], [3.0]])
+            self.assertEqual(delegate.calls, [["同一文本", "另一个"]])
+            reloaded = CachedEmbeddingProvider(delegate=delegate, path=path)
+            self.assertEqual(reloaded.embed(["另一个", "同一文本"]), [[3.0], [4.0]])
+            self.assertEqual(len(delegate.calls), 1)
+
+    def test_recorded_embedding_fixture_replays_without_network_and_fails_closed(self) -> None:
+        provider = RecordedEmbeddingProvider(Path("data/recordings/embeddings_v1/fixture_v1.json"))
+        vector = provider.embed(["DeepResearchAgent embedding recording fixture v1"])[0]
+        self.assertEqual(len(vector), 1024)
+        with self.assertRaisesRegex(ValueError, "cache_miss"):
+            provider.embed(["unrecorded embedding input"])
+
+    def test_real_provider_calls_are_written_to_v5_trajectory(self) -> None:
+        class Response:
+            def __init__(self, payload: dict[str, object]) -> None:
+                self.payload = payload
+
+            def raise_for_status(self) -> None:
+                return None
+
+            def json(self) -> dict[str, object]:
+                return self.payload
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            client = LLMClient(ledger_path=root / "ledger.jsonl", global_ledger_path=root / "global.jsonl", budget_cny=1.0, completion_func=lambda **_: {})
+            provider = DashScopeEmbeddingProvider(endpoint="https://provider.test/embeddings", api_key="test-key", ledger=client, run_id="rag-run", pricing=ProviderPricing(100.0, "operator-confirmed"), dimensions=2, max_batch_size=1)
+            reranker = DashScopeRerankerProvider(endpoint="https://provider.test/reranks", api_key="test-key", ledger=client, run_id="rag-run", pricing=ProviderPricing(100.0, "operator-confirmed"))
+            recorder = TrajectoryRecorder(run_id="rag-run", request={})
+            responses = [
+                Response({"data": [{"embedding": [0.1, 0.2]}], "usage": {"prompt_tokens": 3}}),
+                Response({"results": [{"index": 0, "relevance_score": 0.9}], "usage": {"total_tokens": 4}}),
+            ]
+            with trajectory_recording(recorder), patch("deepresearch_agent.rag.retrieval.httpx.post", side_effect=responses):
+                self.assertEqual(provider.embed(["中文"]), [[0.1, 0.2]])
+                reranker.rerank("问题", [RetrievalCandidate("a", "答案")], 1)
+
+        call = recorder.trajectory.embedding_calls[0]
+        self.assertEqual(recorder.trajectory.schema_version, 5)
+        self.assertEqual(call.model, "text-embedding-v4")
+        self.assertEqual(call.dimensions, 2)
+        self.assertEqual(call.token_count, 3)
+        self.assertFalse(call.cache_hit)
+        self.assertEqual(len(call.input_hash), 64)
+        rerank = recorder.trajectory.rerank_calls[0]
+        self.assertEqual(rerank.model, "qwen3-rerank")
+        self.assertIsNone(rerank.dimensions)
+        self.assertEqual(rerank.token_count, 4)
+
+    def test_rrf_is_deterministic_on_ties(self) -> None:
+        candidates = rrf_fuse(
+            lexical_ids=["b", "a"], dense_ids=["a", "b"], texts={"a": "alpha", "b": "beta"}, top_k=50
+        )
+        self.assertEqual([candidate.chunk_id for candidate in candidates], ["a", "b"])
+
+    def test_fail_open_emits_degradation_and_preserves_rrf_order(self) -> None:
+        candidates = rrf_fuse(lexical_ids=["a"], dense_ids=[], texts={"a": "alpha"}, top_k=50)
+        result, event = rerank_or_degrade(provider=FailingReranker(), query="q", candidates=candidates, top_n=8, fail_open=True)
+        self.assertEqual(result, candidates)
+        self.assertEqual(event.reason, ToolErrorKind.TIMEOUT)
+
+    def test_fixture_reranker_uses_chunk_id_tie_break(self) -> None:
+        candidates = rrf_fuse(lexical_ids=["b", "a"], dense_ids=[], texts={"a": "x", "b": "x"}, top_k=50)
+        result, event = rerank_or_degrade(provider=FixtureRerankerProvider(), query="missing", candidates=candidates, top_n=8, fail_open=True)
+        self.assertIsNone(event)
+        self.assertEqual([candidate.chunk_id for candidate in result], ["a", "b"])
+
+
+if __name__ == "__main__":
+    unittest.main()

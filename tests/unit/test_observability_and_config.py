@@ -145,6 +145,29 @@ class ObservabilityAndConfigTests(unittest.TestCase):
             },
         )
 
+    def test_rag_requires_injection_guard(self) -> None:
+        settings = Settings(storage_path=Path("test.db"), rag_enabled=True)
+
+        with self.assertRaises(ConfigurationError) as raised:
+            validate_required_configuration(
+                settings,
+                {"DEEPRESEARCH_SEARCH_PROVIDER": "fixture"},
+            )
+
+        self.assertEqual(
+            raised.exception.missing,
+            ["INJECTION_GUARD_ENABLED=true when RAG_ENABLED=true"],
+        )
+
+    def test_legacy_postgres_dsn_alias_is_accepted(self) -> None:
+        with patch.dict(
+            "os.environ",
+            {"DEEPRESEARCH_PG_DSN": "postgresql://example.test/db"},
+            clear=True,
+        ):
+            configured = load_settings()
+        self.assertEqual(configured.postgres_dsn, "postgresql://example.test/db")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import time
 from collections import defaultdict, deque
 from dataclasses import replace
@@ -25,6 +26,7 @@ from deepresearch_agent.schemas import (
     SymbolInfo,
 )
 from deepresearch_agent.settings import Settings
+from deepresearch_agent.storage import SQLiteStore
 from deepresearch_agent.semantic_judge import RuntimeSemanticJudge
 from deepresearch_agent.tools import (
     DegradationEvent,
@@ -262,6 +264,146 @@ class ReplayLLMClient:
             raise TrajectoryCacheMissError(
                 "trajectory cache_miss: replay run_id differs "
                 f"expected={self._expected_run_id!r} actual={run_id!r}"
+            )
+
+
+def replay_recorded_rag_search(call: ToolCallTrace) -> tuple[str, ...]:
+    """Replay a recorded RAG result without invoking a retrieval provider.
+
+    A degraded rerank replays the recorded RRF delivery order rather than
+    calling rerank again and accidentally taking a successful branch.
+    """
+
+    if call.tool_spec.get("name") != "rag_search":
+        raise TrajectoryCacheMissError("strict replay expected a rag_search trace")
+    if not isinstance(call.result, dict):
+        raise TrajectoryCacheMissError("rag_search trace lacks a result object")
+    identifiers = call.result.get("candidate_ids")
+    if not isinstance(identifiers, list) or not all(isinstance(item, str) for item in identifiers):
+        raise TrajectoryCacheMissError("rag_search trace lacks ordered candidate_ids")
+    status = call.result.get("rerank_status")
+    if status not in {"ok", "disabled", "degraded", "not_attempted"}:
+        raise TrajectoryCacheMissError("rag_search trace has an invalid rerank status")
+    if status == "degraded" and not isinstance(call.result.get("degradation_reason"), str):
+        raise TrajectoryCacheMissError("degraded rag_search trace lacks a degradation reason")
+    return tuple(identifiers)
+
+
+class ReplayRagSearch:
+    """Offline RAG boundary backed by a caller-supplied authoritative snapshot.
+
+    The trajectory intentionally records only candidate identities and never
+    embeds chunk content.  Strict replay therefore requires a local SQLite
+    snapshot to hydrate those identities, while preserving the recorded rerank
+    branch and avoiding all embedding/rerank provider calls.
+    """
+
+    fidelity = "replay"
+
+    def __init__(
+        self,
+        trajectory: AgentTrajectory,
+        *,
+        snapshot: Path,
+        index_version: str,
+    ) -> None:
+        if not snapshot.is_file():
+            raise TrajectoryCacheMissError(
+                "trajectory cache_miss: RAG replay snapshot does not exist"
+            )
+        self._store = SQLiteStore(snapshot)
+        self._index_version = index_version
+        self._calls = deque(
+            sorted(
+                (
+                    call
+                    for call in trajectory.tool_calls
+                    if call.tool_spec.get("name") == "rag_search"
+                    and not call.inputs.get("selection_only")
+                ),
+                key=lambda item: item.sequence or 0,
+            )
+        )
+        self.index_version = index_version
+
+    def search(
+        self,
+        *,
+        query: str,
+        as_of: str,
+        context: RunToolContext | None = None,
+    ) -> dict[str, object]:
+        if not self._calls:
+            raise TrajectoryCacheMissError(
+                "trajectory cache_miss: unexpected rag_search call"
+            )
+        call = self._calls.popleft()
+        actual_hash = hashlib.sha256(query.encode("utf-8")).hexdigest()
+        if (
+            call.inputs.get("query_hash") != actual_hash
+            or call.inputs.get("as_of") != as_of
+            or call.inputs.get("index_version") != self._index_version
+        ):
+            raise TrajectoryCacheMissError(
+                "trajectory cache_miss: rag_search request differs from recorded trace"
+            )
+        candidate_ids = replay_recorded_rag_search(call)
+        chunks = self._store.resolve_ready_chunks(list(candidate_ids), as_of=as_of)
+        if tuple(chunk.id for chunk in chunks) != candidate_ids:
+            raise TrajectoryCacheMissError(
+                "trajectory cache_miss: RAG replay snapshot cannot hydrate recorded candidates"
+            )
+        if call.error:
+            raise TrajectoryCacheMissError(
+                "trajectory cache_miss: recorded rag_search error is not replayable"
+            )
+        if (recorder := active_trajectory_recorder()) is not None:
+            recorder.record_tool_call(call.model_copy(deep=True))
+        result = call.result if isinstance(call.result, dict) else {}
+        if context is not None and result.get("rerank_status") == "degraded":
+            reason = result.get("degradation_reason")
+            if not isinstance(reason, str):
+                raise TrajectoryCacheMissError(
+                    "trajectory cache_miss: degraded rag_search trace lacks a reason"
+                )
+            context.degradation_events.append(
+                DegradationEvent(
+                    tool="rerank",
+                    reason=ToolErrorKind(reason),
+                    impact="rrf_top_n_used",
+                    attempts=1,
+                )
+            )
+        return {
+            "candidates": [
+                {
+                    "chunk_id": chunk.id,
+                    "text": chunk.content,
+                    "lexical_rank": None,
+                    "dense_rank": None,
+                    "lexical_score": None,
+                    "dense_score": None,
+                    "rrf_score": None,
+                    "rerank_score": None,
+                    "document_version_id": chunk.document_version_id,
+                    "source_url": chunk.canonical_url,
+                    "index_version": self._index_version,
+                    "char_start": chunk.char_start,
+                    "char_end": chunk.char_end,
+                }
+                for chunk in chunks
+            ],
+            "trace": {
+                "index_version": self._index_version,
+                "rerank_status": result.get("rerank_status"),
+                "degradation_reason": result.get("degradation_reason"),
+            },
+        }
+
+    def assert_exhausted(self) -> None:
+        if self._calls:
+            raise TrajectoryCacheMissError(
+                "trajectory cache_miss: unused rag_search trace"
             )
 
 
@@ -652,6 +794,7 @@ def replay_trajectory(
     *,
     mode: str,
     required_calls: list[str] | None = None,
+    rag_snapshot: Path | None = None,
 ) -> ReplayResult:
     if mode != "strict":
         raise ValueError(
@@ -701,6 +844,7 @@ def replay_trajectory(
         "web_fetch",
         "structured_data_provider",
         "disclosure_source",
+        "rag_search",
     }
     unsupported = sorted(
         {
@@ -731,6 +875,29 @@ def replay_trajectory(
         replay_search = ReplaySearchProvider(trajectory)
         replay_structured = ReplayStructuredDataProvider(trajectory)
         replay_disclosure = ReplayDisclosureSource(trajectory)
+        rag_calls_present = any(
+            call.tool_spec.get("name") == "rag_search"
+            and not call.inputs.get("selection_only")
+            for call in trajectory.tool_calls
+        )
+        strategy = request.get("strategy_config", {})
+        strategy = strategy if isinstance(strategy, dict) else {}
+        rag_index_version = strategy.get("rag_index_version")
+        if rag_calls_present and rag_snapshot is None:
+            return ReplayResult(
+                mode=mode,
+                status="cache_miss",
+                cache_miss="trajectory cache_miss: RAG replay snapshot is required",
+            )
+        replay_rag = (
+            ReplayRagSearch(
+                trajectory,
+                snapshot=rag_snapshot,
+                index_version=str(rag_index_version),
+            )
+            if rag_calls_present and rag_snapshot is not None
+            else None
+        )
         replay_llm = ReplayLLMClient(trajectory)
         has_disclosure_trace = any(
             call.tool_spec.get("name") == "disclosure_source"
@@ -746,6 +913,7 @@ def replay_trajectory(
                 if recorded_mode == "llm" or has_disclosure_trace
                 else None
             ),
+            rag_search=replay_rag,
         )
         if recorded_mode == "deterministic":
             engine.planner = ReplayPlanner(
@@ -803,6 +971,8 @@ def replay_trajectory(
                 replay_structured,
                 replay_disclosure,
             ]
+            if replay_rag is not None:
+                boundaries.append(replay_rag)
             if recorded_mode == "llm":
                 boundaries.append(replay_llm)
             for boundary in boundaries:
@@ -1002,6 +1172,8 @@ _STRATEGY_SETTING_KEYS = {
     "prior_memory_enabled",
     "prior_watch_confidence_threshold",
     "skill_packs_enabled",
+    "rag_enabled",
+    "rag_index_version",
 }
 
 

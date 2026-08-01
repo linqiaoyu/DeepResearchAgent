@@ -245,6 +245,21 @@ class ReaderFidelityTests(unittest.TestCase):
                         self._ref_map(),
                     )
 
+    def test_duplicate_metric_requests_have_distinct_grounded_batch_labels(self) -> None:
+        state = self._state()
+        duplicate = state.plan.sub_questions[0].model_copy(
+            update={"id": "finance-duplicate"}
+        )
+        state.plan = state.plan.model_copy(
+            update={"sub_questions": [*state.plan.sub_questions, duplicate]}
+        )
+
+        batch = FinanceGroundedFactRenderer().render(state)
+
+        self.assertEqual(len(batch.required_labels), len(set(batch.required_labels)))
+        self.assertIn("finance · 归母净利润", batch.required_labels)
+        self.assertIn("finance-duplicate · 归母净利润", batch.required_labels)
+
     def test_engine_wires_finance_fidelity_policy(self) -> None:
         with TemporaryDirectory() as directory:
             engine = DeepResearchEngine(

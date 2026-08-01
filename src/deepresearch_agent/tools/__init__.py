@@ -1,109 +1,38 @@
-from deepresearch_agent.tools.akshare_structured_data import (
-    AKShareStructuredDataError,
-    AKShareStructuredDataProvider,
-)
-from deepresearch_agent.tools.capability_registry import (
-    FETCH_TOOL_SPEC,
-    STRUCTURED_DATA_TOOL_SPEC,
-    CapabilityMetadata,
-    CapabilityRegistry,
-    build_capability_registry,
-)
-from deepresearch_agent.tools.capability_selector import (
-    DEFAULT_CAPABILITY_RULES,
-    FIXED_CAPABILITY_SET,
-    CapabilitySelection,
-    CapabilitySelector,
-    DeterministicCapabilitySelector,
-    LLMCapabilitySelector,
-    classify_subquestion,
-)
-from deepresearch_agent.tools.contract_adapter import ContractSearchProvider
-from deepresearch_agent.tools.contracts import (
-    ERROR_RETRY_POLICIES,
-    CircuitBreakerPolicy,
-    DegradationEvent,
-    RetryPolicy,
-    ToolError,
-    ToolErrorKind,
-    ToolResult,
-    ToolSpec,
-)
-from deepresearch_agent.tools.fixture_search import FixtureSearchTool
-from deepresearch_agent.tools.fixture_structured_data import FixtureStructuredDataProvider
-from deepresearch_agent.tools.provider import FetchProvider, SearchProvider, StructuredDataProvider
-from deepresearch_agent.tools.recording_search import (
-    RecordingSearchProvider,
-    normalize_query_key,
-    recording_corpus_fingerprint,
-)
-from deepresearch_agent.tools.reliable_execution import (
-    CircuitBreaker,
-    CircuitState,
-    ExternalRequestBudget,
-    ReliableToolExecutor,
-    RetryBudget,
-    RunToolContext,
-    ToolExecutionError,
-)
-from deepresearch_agent.tools.search_factory import ConfiguredSearchProvider, build_search_provider
-from deepresearch_agent.tools.structured_data_factory import build_structured_data_provider
-from deepresearch_agent.tools.structured_trace import (
-    TrajectoryStructuredDataProvider,
-)
-from deepresearch_agent.tools.tavily_search import TavilySearchError, TavilySearchProvider
-from deepresearch_agent.tools.disclosure_source import (
-    CninfoDisclosureSource,
-    DisclosureSourceError,
-    FixtureDisclosureSource,
-)
+"""Tool contracts and providers, loaded on demand by public symbol."""
 
-__all__ = [
-    "AKShareStructuredDataError",
-    "AKShareStructuredDataProvider",
-    "CapabilityMetadata",
-    "CapabilityRegistry",
-    "CapabilitySelection",
-    "CapabilitySelector",
-    "ConfiguredSearchProvider",
-    "ContractSearchProvider",
-    "CircuitBreaker",
-    "CircuitBreakerPolicy",
-    "CircuitState",
-    "DegradationEvent",
-    "DeterministicCapabilitySelector",
-    "LLMCapabilitySelector",
-    "DEFAULT_CAPABILITY_RULES",
-    "ERROR_RETRY_POLICIES",
-    "FetchProvider",
-    "FETCH_TOOL_SPEC",
-    "FIXED_CAPABILITY_SET",
-    "FixtureSearchTool",
-    "ExternalRequestBudget",
-    "FixtureStructuredDataProvider",
-    "RecordingSearchProvider",
-    "ReliableToolExecutor",
-    "RetryBudget",
-    "RetryPolicy",
-    "RunToolContext",
-    "SearchProvider",
-    "StructuredDataProvider",
-    "STRUCTURED_DATA_TOOL_SPEC",
-    "TavilySearchError",
-    "TavilySearchProvider",
-    "CninfoDisclosureSource",
-    "FixtureDisclosureSource",
-    "DisclosureSourceError",
-    "ToolError",
-    "ToolErrorKind",
-    "ToolExecutionError",
-    "ToolResult",
-    "ToolSpec",
-    "TrajectoryStructuredDataProvider",
-    "build_search_provider",
-    "build_capability_registry",
-    "build_structured_data_provider",
-    "classify_subquestion",
-    "normalize_query_key",
-    "recording_corpus_fingerprint",
-]
+from __future__ import annotations
+
+from importlib import import_module
+
+
+_EXPORTS = {
+    "akshare_structured_data": ("AKShareStructuredDataError", "AKShareStructuredDataProvider"),
+    "capability_registry": ("FETCH_TOOL_SPEC", "STRUCTURED_DATA_TOOL_SPEC", "CapabilityMetadata", "CapabilityRegistry", "build_capability_registry"),
+    "capability_selector": ("DEFAULT_CAPABILITY_RULES", "FIXED_CAPABILITY_SET", "CapabilitySelection", "CapabilitySelector", "DeterministicCapabilitySelector", "LLMCapabilitySelector", "classify_subquestion"),
+    "contract_adapter": ("ContractSearchProvider",),
+    "contracts": ("ERROR_RETRY_POLICIES", "CircuitBreakerPolicy", "DegradationEvent", "RetryPolicy", "ToolError", "ToolErrorKind", "ToolResult", "ToolSpec"),
+    "fixture_search": ("FixtureSearchTool",),
+    "fixture_structured_data": ("FixtureStructuredDataProvider",),
+    "provider": ("FetchProvider", "SearchProvider", "StructuredDataProvider"),
+    "recording_search": ("RecordingSearchProvider", "normalize_query_key", "recording_corpus_fingerprint"),
+    "reliable_execution": ("CircuitBreaker", "CircuitState", "ExternalRequestBudget", "ReliableToolExecutor", "RetryBudget", "RunToolContext", "ToolExecutionError"),
+    "search_factory": ("ConfiguredSearchProvider", "build_search_provider"),
+    "structured_data_factory": ("build_structured_data_provider",),
+    "structured_trace": ("TrajectoryStructuredDataProvider",),
+    "tavily_search": ("TavilySearchError", "TavilySearchProvider"),
+    "disclosure_source": ("CninfoDisclosureSource", "DisclosureSourceError", "FixtureDisclosureSource"),
+}
+
+_SYMBOL_TO_MODULE = {
+    symbol: module for module, symbols in _EXPORTS.items() for symbol in symbols
+}
+
+__all__ = list(_SYMBOL_TO_MODULE)
+
+
+def __getattr__(name: str) -> object:
+    """Resolve a provider only when a consumer asks for that public symbol."""
+    module = _SYMBOL_TO_MODULE.get(name)
+    if module is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    return getattr(import_module(f"{__name__}.{module}"), name)

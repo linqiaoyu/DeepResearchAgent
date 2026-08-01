@@ -34,6 +34,8 @@ def validate_required_configuration(
         and not env.get("DASHSCOPE_API_KEY", "").strip()
     ):
         missing.append("DASHSCOPE_API_KEY")
+    if settings.rag_enabled and not settings.injection_guard_enabled:
+        raise ConfigurationError(["INJECTION_GUARD_ENABLED=true when RAG_ENABLED=true"])
     search_provider = env.get("DEEPRESEARCH_SEARCH_PROVIDER", "fixture").strip().lower()
     if search_provider == "tavily" and not env.get("TAVILY_API_KEY", "").strip():
         missing.append("TAVILY_API_KEY")

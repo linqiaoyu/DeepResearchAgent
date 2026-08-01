@@ -12,7 +12,7 @@ from deepresearch_agent.evaluation import (
     load_metric_summary,
 )
 from deepresearch_agent.settings import Settings, load_settings, project_root
-from deepresearch_agent.storage import SQLiteStore
+from deepresearch_agent.storage import build_store
 from deepresearch_agent.workflow import DeepResearchEngine
 
 
@@ -86,7 +86,7 @@ def run_checkpoint_demo() -> None:
     storage_path = _project_path(args.storage)
     output_path = _project_path(args.output)
     settings = Settings(storage_path=storage_path)
-    store = SQLiteStore(settings.storage_path)
+    store = build_store(settings)
     engine = DeepResearchEngine(settings=settings, store=store)
 
     paused = engine.run(

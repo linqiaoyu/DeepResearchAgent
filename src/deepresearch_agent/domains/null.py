@@ -14,6 +14,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+from deepresearch_agent.domains.protocols import RetrievalFilterValues
 from deepresearch_agent.reporting.grounded_facts import GroundedFactBatch
 
 
@@ -160,3 +161,9 @@ class NullDomainPack:
 
     def valid_structured_request(self, _request: Any) -> bool:
         return False
+
+    def retrieval_filter_values(self, _query: str) -> RetrievalFilterValues:
+        return RetrievalFilterValues()
+
+    def expand_retrieval_query(self, query: str) -> str:
+        return query

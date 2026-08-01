@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Literal, get_type_hints
 
 from deepresearch_agent.capability_rules import DEFAULT_CAPABILITY_RULES
+from deepresearch_agent.llm_config import DASHSCOPE_RERANK_MODEL
 
 DEFAULT_CAPABILITY_RULES_JSON = json.dumps(DEFAULT_CAPABILITY_RULES, ensure_ascii=False)
 
@@ -15,6 +16,8 @@ DEFAULT_CAPABILITY_RULES_JSON = json.dumps(DEFAULT_CAPABILITY_RULES, ensure_asci
 @dataclass(frozen=True)
 class Settings:
     storage_path: Path
+    storage_backend: Literal["sqlite", "postgres"] = "sqlite"
+    postgres_dsn: str | None = None
     max_critic_iter: int = 3
     critic_enabled: bool = True
     extractor_enabled: bool = True
@@ -39,6 +42,9 @@ class Settings:
     max_authority_fetch_requests_per_run: int = 18
     tavily_raw_content_char_limit: int = 40_000
     pdf_max_pages: int = 100
+    # Corpus ingestion has a separate ceiling: public annual reports often
+    # exceed the tool-fetch safeguard, but local ingestion remains bounded.
+    rag_ingest_max_pages: int = 600
     demo_daily_llm_limit_cny: float = 5.0
     demo_guard_path: Path = Path("data/runtime/demo_guard.json")
     demo_job_path: Path = Path("data/runtime/demo_jobs.json")
@@ -84,6 +90,13 @@ class Settings:
     # cross-run preference can beat the control on a registered task.
     procedural_memory_enabled: bool = False
     skill_packs_enabled: bool = False
+    rag_enabled: bool = False
+    rerank_enabled: bool = True
+    rerank_fail_open: bool = True
+    rerank_provider: str = "dashscope"
+    rerank_model: str = DASHSCOPE_RERANK_MODEL
+    retrieval_top_k: int = 50
+    rerank_top_n: int = 8
 
     @property
     def research_loop_active(self) -> bool:
@@ -126,6 +139,9 @@ def load_settings() -> Settings:
     storage = Path(os.getenv("DEEPRESEARCH_STORAGE_PATH", "data/runtime/research.db"))
     if not storage.is_absolute():
         storage = root / storage
+    storage_backend = os.getenv("DEEPRESEARCH_STORAGE_BACKEND", "sqlite").strip().lower()
+    if storage_backend not in {"sqlite", "postgres"}:
+        raise ValueError("DEEPRESEARCH_STORAGE_BACKEND must be 'sqlite' or 'postgres'.")
     ledger = Path(os.getenv("DEEPRESEARCH_LLM_LEDGER_PATH", "data/runtime/llm_ledger.jsonl"))
     if not ledger.is_absolute():
         ledger = root / ledger
@@ -145,6 +161,12 @@ def load_settings() -> Settings:
     as_of = date.fromisoformat(as_of_value) if as_of_value else None
     return Settings(
         storage_path=storage,
+        storage_backend=storage_backend,
+        postgres_dsn=(
+            os.getenv("DEEPRESEARCH_POSTGRES_DSN")
+            or os.getenv("DEEPRESEARCH_PG_DSN")
+            or None
+        ),
         max_critic_iter=int(os.getenv("DEEPRESEARCH_MAX_CRITIC_ITER", "3")),
         critic_enabled=_env_flag("CRITIC_ENABLED", default=True),
         extractor_enabled=_env_flag("EXTRACTOR_ENABLED", default=True),
@@ -180,6 +202,7 @@ def load_settings() -> Settings:
         ),
         tavily_raw_content_char_limit=int(os.getenv("DEEPRESEARCH_TAVILY_RAW_CONTENT_CHAR_LIMIT", "40000")),
         pdf_max_pages=int(os.getenv("DEEPRESEARCH_PDF_MAX_PAGES", "100")),
+        rag_ingest_max_pages=int(os.getenv("RAG_INGEST_MAX_PAGES", "600")),
         demo_daily_llm_limit_cny=float(os.getenv("DEEPRESEARCH_DEMO_DAILY_LLM_LIMIT_CNY", "5.0")),
         demo_guard_path=demo_guard,
         demo_job_path=demo_jobs,
@@ -287,6 +310,13 @@ def load_settings() -> Settings:
             "PROCEDURAL_MEMORY_ENABLED",
         ),
         skill_packs_enabled=_env_flag("SKILL_PACKS_ENABLED"),
+        rag_enabled=_env_flag("RAG_ENABLED"),
+        rerank_enabled=_env_flag("RERANK_ENABLED", default=True),
+        rerank_fail_open=_env_flag("RERANK_FAIL_OPEN", default=True),
+        rerank_provider=os.getenv("RERANK_PROVIDER", "dashscope").strip(),
+        rerank_model=os.getenv("RERANK_MODEL", DASHSCOPE_RERANK_MODEL).strip(),
+        retrieval_top_k=int(os.getenv("RETRIEVAL_TOP_K", "50")),
+        rerank_top_n=int(os.getenv("RERANK_TOP_N", "8")),
     )
 
 

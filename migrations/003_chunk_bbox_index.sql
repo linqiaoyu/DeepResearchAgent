@@ -1,0 +1,1 @@
+ALTER TABLE chunk ADD COLUMN IF NOT EXISTS bbox_index_json JSONB NOT NULL DEFAULT '[]'::jsonb;

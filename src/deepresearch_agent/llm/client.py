@@ -301,6 +301,74 @@ class LLMClient:
                 self._run_costs_cny[run_id] = self._ledger_cost_for_run(run_id)
             return self._run_costs_cny[run_id]
 
+    def reserve_external_call(self, *, run_id: str, estimated_cost_cny: float) -> None:
+        """Reserve the existing run budget before a non-chat provider request.
+
+        Embedding and rerank use provider-specific HTTP APIs, but their spend is
+        deliberately governed by this same ledger and budget, not a parallel
+        counter.  Callers must either settle or release every reservation.
+        """
+        if estimated_cost_cny < 0:
+            raise ValueError("estimated_cost_cny must be non-negative")
+        with self._cost_lock:
+            if run_id not in self._run_costs_cny:
+                self._run_costs_cny[run_id] = self._ledger_cost_for_run(run_id)
+        self._reserve_budget(run_id, estimated_cost_cny)
+
+    def release_external_call(self, *, run_id: str, estimated_cost_cny: float) -> None:
+        self._release_reservation(run_id, estimated_cost_cny)
+
+    def settle_external_call(
+        self,
+        *,
+        run_id: str,
+        role: str,
+        call_kind: str,
+        model: str,
+        input_tokens: int,
+        cost_cny: float,
+        price_source: str,
+        latency_seconds: float,
+        estimated_cost_cny: float,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        """Append a non-chat provider call to the normal ledger and budget."""
+        if call_kind not in {"embedding", "rerank"}:
+            raise ValueError(f"unsupported external call_kind={call_kind}")
+        if min(input_tokens, cost_cny, latency_seconds, estimated_cost_cny) < 0:
+            raise ValueError("external call accounting values must be non-negative")
+        row = {
+            "run_id": run_id,
+            "role": role,
+            "call_kind": call_kind,
+            "model": model,
+            "prompt_tokens": input_tokens,
+            "input_tokens": input_tokens,
+            "prompt_cache_hit_tokens": 0,
+            "prompt_cache_miss_tokens": input_tokens,
+            "completion_tokens": 0,
+            "output_tokens": 0,
+            "total_tokens": input_tokens,
+            "cost_usd": round(cost_cny * self.config.display_cny_to_usd_rate, 8),
+            "cost_cny": round(cost_cny, 8),
+            "price_source": price_source,
+            "latency_seconds": round(latency_seconds, 3),
+            "cache_hit": None,
+            "structured": False,
+            "repair_attempts": 0,
+            "parse_error": False,
+            "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            **(metadata or {}),
+        }
+        try:
+            self._append_ledger_row(row)
+            self._add_run_cost(run_id, float(row["cost_cny"]))
+            self._enforce_cost_overrun(run_id, estimated_cost_cny, float(row["cost_cny"]))
+            if self.run_total_cny(run_id) > self.budget_cny:
+                raise BudgetExceededError(run_id, self.budget_cny, self.run_total_cny(run_id))
+        finally:
+            self._release_reservation(run_id, estimated_cost_cny)
+
     def _add_run_cost(self, run_id: str, cost_cny: float) -> None:
         with self._cost_lock:
             self._run_costs_cny[run_id] = self._run_costs_cny.get(run_id, 0.0) + cost_cny
@@ -696,6 +764,9 @@ class LLMClient:
             "parse_error": bool(parse_error),
             "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         }
+        self._append_ledger_row(row)
+
+    def _append_ledger_row(self, row: dict[str, Any]) -> None:
         encoded = json.dumps(row, ensure_ascii=False) + "\n"
         ledger_paths = [self.global_ledger_path]
         if self.ledger_path.resolve() != self.global_ledger_path.resolve():
@@ -704,7 +775,7 @@ class LLMClient:
             path.parent.mkdir(parents=True, exist_ok=True)
             with path.open("a", encoding="utf-8") as file:
                 file.write(encoded)
-        self._update_ledger_cost_index(run_id, float(row["cost_cny"]))
+        self._update_ledger_cost_index(str(row["run_id"]), float(row["cost_cny"]))
 
     def _ledger_cost_for_run(self, run_id: str) -> float:
         if not self._ledger_index_valid:

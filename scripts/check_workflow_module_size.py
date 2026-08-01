@@ -1,4 +1,4 @@
-"""Enforce the B2 upper bound for modules extracted from workflow.engine."""
+"""Enforce size bounds for workflow and RAG modules."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ MODULES = (
     ROOT / "src/deepresearch_agent/workflow/contracts.py",
     ROOT / "src/deepresearch_agent/workflow/graph_assembly.py",
     ROOT / "src/deepresearch_agent/workflow/helpers.py",
+    ROOT / "src/deepresearch_agent/workflow/capability_setup.py",
     ROOT / "src/deepresearch_agent/workflow/state.py",
     ROOT / "src/deepresearch_agent/workflow/nodes/research.py",
     ROOT / "src/deepresearch_agent/workflow/nodes/retry.py",
@@ -22,6 +23,14 @@ MODULES = (
     ROOT / "src/deepresearch_agent/workflow/nodes/planning.py",
     ROOT / "src/deepresearch_agent/workflow/nodes/quality.py",
     ROOT / "src/deepresearch_agent/reporting/report_assembly.py",
+    ROOT / "src/deepresearch_agent/rag/__main__.py",
+    ROOT / "src/deepresearch_agent/rag/backends.py",
+    ROOT / "src/deepresearch_agent/rag/chunking.py",
+    ROOT / "src/deepresearch_agent/rag/evaluation.py",
+    ROOT / "src/deepresearch_agent/rag/ingest.py",
+    ROOT / "src/deepresearch_agent/rag/qdrant_index.py",
+    ROOT / "src/deepresearch_agent/rag/retrieval.py",
+    ROOT / "src/deepresearch_agent/rag/search.py",
 )
 
 

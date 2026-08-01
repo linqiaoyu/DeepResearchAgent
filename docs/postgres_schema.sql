@@ -1,40 +1,100 @@
-CREATE TABLE research_session (
-    id UUID PRIMARY KEY,
+-- Generated from migrations/*.sql; do not edit by hand.
+
+-- 001_storage.sql
+CREATE TABLE IF NOT EXISTS research_session (
+    id TEXT PRIMARY KEY,
     topic TEXT NOT NULL,
     plan JSONB,
-    created_at TIMESTAMP NOT NULL DEFAULT now(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     status TEXT NOT NULL
 );
 
-CREATE TABLE evidence (
-    id UUID PRIMARY KEY,
-    research_id UUID REFERENCES research_session(id),
+CREATE TABLE IF NOT EXISTS evidence (
+    id TEXT PRIMARY KEY,
+    research_id TEXT NOT NULL,
+    position INTEGER NOT NULL,
     sub_question_id TEXT NOT NULL,
     claim TEXT NOT NULL,
     claim_type TEXT NOT NULL,
+    source_kind TEXT NOT NULL DEFAULT 'text',
     source_url TEXT NOT NULL,
     source_title TEXT NOT NULL,
     source_pub_date DATE,
     extract_text TEXT NOT NULL,
-    extract_offset_start INT DEFAULT 0,
-    confidence FLOAT,
-    extracted_at TIMESTAMP NOT NULL DEFAULT now()
+    structured_record_json JSONB,
+    numeric_fields_json JSONB,
+    numeric_fields_incomplete BOOLEAN NOT NULL DEFAULT false,
+    source_tier TEXT NOT NULL DEFAULT 'unknown',
+    content_truncated BOOLEAN NOT NULL DEFAULT false,
+    bbox_json JSONB,
+    confidence DOUBLE PRECISION NOT NULL
 );
 
-CREATE INDEX idx_claim_research ON evidence(research_id, claim_type);
-CREATE INDEX idx_claim_text ON evidence USING gin(to_tsvector('english', claim));
+CREATE INDEX IF NOT EXISTS idx_evidence_research_position
+    ON evidence(research_id, position, id);
 
-CREATE TABLE evaluation_result (
-    research_id UUID PRIMARY KEY REFERENCES research_session(id),
-    task_success_rate FLOAT NOT NULL,
-    citation_accuracy FLOAT NOT NULL,
-    critic_catch_rate FLOAT NOT NULL,
-    answer_relevance FLOAT NOT NULL,
-    faithfulness FLOAT NOT NULL,
-    latency_seconds FLOAT NOT NULL,
-    cost_usd FLOAT NOT NULL,
-    token_used INT NOT NULL,
-    bad_case_categories JSONB,
-    created_at TIMESTAMP NOT NULL DEFAULT now()
+CREATE TABLE IF NOT EXISTS evaluation_result (
+    research_id TEXT PRIMARY KEY,
+    result_json JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS document (
+    id TEXT PRIMARY KEY,
+    canonical_url TEXT NOT NULL UNIQUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS document_version (
+    id TEXT PRIMARY KEY,
+    document_id TEXT NOT NULL REFERENCES document(id) ON DELETE CASCADE,
+    file_sha256 TEXT NOT NULL,
+    effective_date DATE NOT NULL,
+    status TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE(document_id, file_sha256)
+);
+
+CREATE TABLE IF NOT EXISTS chunk (
+    id TEXT PRIMARY KEY,
+    document_version_id TEXT NOT NULL REFERENCES document_version(id) ON DELETE CASCADE,
+    char_start INTEGER NOT NULL,
+    char_end INTEGER NOT NULL,
+    page_number INTEGER,
+    effective_date DATE NOT NULL,
+    status TEXT NOT NULL,
+    content TEXT NOT NULL,
+    CHECK(char_end > char_start)
+);
+
+CREATE INDEX IF NOT EXISTS idx_chunk_document_span
+    ON chunk(document_version_id, char_start, char_end);
+CREATE INDEX IF NOT EXISTS idx_chunk_effective_date
+    ON chunk(effective_date);
+
+CREATE TABLE IF NOT EXISTS index_job (
+    id TEXT PRIMARY KEY,
+    index_version TEXT NOT NULL,
+    status TEXT NOT NULL,
+    checkpoint_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS retrieval_trace (
+    id TEXT PRIMARY KEY,
+    research_id TEXT NOT NULL,
+    index_version TEXT NOT NULL,
+    trace_json JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- 002_evidence_retrieval_ref.sql
+ALTER TABLE evidence ADD COLUMN IF NOT EXISTS retrieval_ref_json JSONB;
+
+-- 003_chunk_bbox_index.sql
+ALTER TABLE chunk ADD COLUMN IF NOT EXISTS bbox_index_json JSONB NOT NULL DEFAULT '[]'::jsonb;
+
+-- 004_chunk_entity_id.sql
+ALTER TABLE chunk ADD COLUMN IF NOT EXISTS entity_id TEXT NOT NULL DEFAULT '';
+CREATE INDEX IF NOT EXISTS idx_chunk_entity_id ON chunk(entity_id);
 

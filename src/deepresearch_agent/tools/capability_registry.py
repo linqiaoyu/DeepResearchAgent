@@ -17,6 +17,18 @@ from deepresearch_agent.tools.structured_trace import (
 
 CapabilityCostLevel = Literal["free", "low", "medium", "high"]
 
+RAG_SEARCH_TOOL_SPEC = ToolSpec(
+    name="rag_search",
+    version="1",
+    input_schema={"type": "object", "required": ["query", "as_of"]},
+    output_schema={"type": "object", "required": ["candidates", "trace"]},
+    timeout_s=10,
+    total_timeout_s=30,
+    cost_class="low",
+    idempotent=True,
+    has_side_effect=False,
+)
+
 
 class CapabilityMetadata(StrictModel):
     name: str
@@ -91,6 +103,7 @@ def build_capability_registry(
     search_provider: Any,
     structured_data_provider: Any,
     disclosure_source: Any | None = None,
+    rag_search: Any | None = None,
 ) -> CapabilityRegistry:
     registry = CapabilityRegistry()
     registry.register(
@@ -140,5 +153,16 @@ def build_capability_registry(
                 tool_spec=DISCLOSURE_TOOL_SPEC,
             ),
             disclosure_source,
+        )
+    if rag_search is not None:
+        registry.register(
+            CapabilityMetadata(
+                name="rag_search",
+                applicable_subquestion_types=("*",),
+                cost_level="low",
+                has_side_effect=False,
+                tool_spec=RAG_SEARCH_TOOL_SPEC,
+            ),
+            rag_search,
         )
     return registry

@@ -186,7 +186,10 @@ capability 默认翻为 `true`，旧 AGENTS 仍写 `false`。
 | `PRIOR_MEMORY_ENABLED` | `false` | `content_affecting` |
 | `PROCEDURAL_MEMORY_ENABLED` | `false` | `content_affecting` |
 | `PROGRESSIVE_DELIVERY_ENABLED` | `false` | `operational` |
+| `RAG_ENABLED` | `false` | `content_affecting` |
 | `REFLECTION_ENABLED` | `false` | `content_affecting` |
+| `RERANK_ENABLED` | `true` | `content_affecting` |
+| `RERANK_FAIL_OPEN` | `true` | `content_affecting` |
 | `RESEARCH_LOOP_ENABLED` | `false` | `content_affecting` |
 | `RUN_MANIFEST_ENABLED` | `true` | `operational` |
 | `SEMANTIC_JUDGE_ENABLED` | `false` | `content_affecting` |

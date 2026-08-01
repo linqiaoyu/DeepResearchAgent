@@ -1,0 +1,396 @@
+[
+  {
+    "plan_ref": "B0-1",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B0-2",
+    "status": "DEFERRED",
+    "reason": "A 200-chunk real-corpus probe succeeded and is preregistered, but the account-specific rate-limit threshold has not been verified."
+  },
+  {
+    "plan_ref": "B0-2b",
+    "status": "DEFERRED",
+    "reason": "A three-query, 50-candidate real-corpus probe succeeded and is preregistered, but the provider maximum candidate count is not yet verified."
+  },
+  {
+    "plan_ref": "B0-3",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B0-4",
+    "status": "DEFERRED",
+    "reason": "No real-Qdrant capacity probe has indexed the required corpus and recorded its result."
+  },
+  {
+    "plan_ref": "B0-5",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B0-6",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B1-1",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B1-2",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B1-3",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B1-4",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B1-5",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B1-6",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B1-7",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B1-8",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B1-9",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B1-10",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B2-1",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B2-2",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B2-3",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B2-4",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B2-5",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B2-6",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B2-7",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B2-8",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B2-9",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B2-10",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B2-11",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B3-1",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B3-2",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B3-3",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B3-4",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B3-5",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B3-6",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B3-7",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B3-8",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B3-9",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B3-10",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B4-1",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B4-2",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B4-2b",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B4-2c",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B4-2d",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B4-2e",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B4-3",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B4-4",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B4-5",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B4-6",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B4-7",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B4-8",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B4-9",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B4-9b",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B4-10",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B4-11",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B5-1",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B5-2",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B5-3",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B5-4",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B5-4a",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B5-4b",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B5-4c",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B5-4d",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B5-4e",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B5-5",
+    "status": "FAIL"
+  },
+  {
+    "plan_ref": "B5-6",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B5-7",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B5-8",
+    "status": "DEFERRED",
+    "reason": "scripts/sample_provider_latency.py was terminated during module import before its first provider call; artifacts/047/provider_latency_n50.log records zero settled calls/cost and artifacts/047/provider_latency_sample_stack.txt records the import hang."
+  },
+  {
+    "plan_ref": "B5-9",
+    "status": "DEFERRED",
+    "reason": "No full workflow integration test has bound real retrieval results to evidence and citations."
+  },
+  {
+    "plan_ref": "B5-10",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B5-11",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B5-12",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B5-13",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B5-14",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B5-16",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B6-1",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B6-1b",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B6-2",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B6-3",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B6-4",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B6-5",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B6-6",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B6-7",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B6-7b",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B6-8",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B6-9",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B6-10",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B6-11",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B6-12",
+    "status": "DEFERRED",
+    "reason": "The prior real attempt predates the final reporter repair. The required final-commit rerun directly depends on provider execution; scripts/sample_provider_latency.py was terminated during module import before its first provider call (artifacts/047/provider_latency_n50.log)."
+  },
+  {
+    "plan_ref": "B6-13",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B7-1",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B7-2",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B7-3",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B7-4",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B7-5",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B7-6",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "B7-7",
+    "status": "PASS"
+  },
+  {
+    "plan_ref": "X-1",
+    "status": "PASS"
+  }
+]

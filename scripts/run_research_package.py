@@ -9,12 +9,23 @@ from pathlib import Path
 
 from deepresearch_agent.audit_bundle import export_audit_bundle
 from deepresearch_agent.config_validation import ConfigurationError, validate_required_configuration
+from deepresearch_agent.domains.registry import load_domain_pack
+from deepresearch_agent.llm import LLMClient
 from deepresearch_agent.provenance import build_run_manifest
+from deepresearch_agent.rag.backends import QdrantDenseBackend, StorageLexicalBackend
+from deepresearch_agent.rag.qdrant_index import QdrantIndex
+from deepresearch_agent.rag.retrieval import (
+    DashScopeEmbeddingProvider,
+    DashScopeRerankerProvider,
+    ProviderPricing,
+)
+from deepresearch_agent.rag.search import RagSearchService
 from deepresearch_agent.research_snapshot import (
     build_research_snapshot,
     save_research_snapshot,
 )
 from deepresearch_agent.settings import load_settings
+from deepresearch_agent.storage import SQLiteStore
 from deepresearch_agent.structured_output import (
     render_structured_json,
     render_structured_markdown,
@@ -41,6 +52,15 @@ def main() -> None:
         action="store_true",
         help="Required explicit confirmation before live providers may be called.",
     )
+    parser.add_argument(
+        "--rag-database",
+        type=Path,
+        help="Authoritative SQLite corpus store for an explicitly enabled live RAG run.",
+    )
+    parser.add_argument(
+        "--rag-index-version",
+        help="Required Qdrant index version for an explicitly enabled live RAG run.",
+    )
     args = parser.parse_args()
 
     _load_env(Path(args.env_path))
@@ -58,6 +78,8 @@ def main() -> None:
                 "Provider billing remains authoritative."
             )
             raise SystemExit(2)
+    if (args.rag_database is None) != (args.rag_index_version is None):
+        raise SystemExit("--rag-database and --rag-index-version must be supplied together")
 
     output = Path(args.output)
     if output.exists():
@@ -70,6 +92,8 @@ def main() -> None:
         execution_mode="llm" if args.mode == "live" else "deterministic",
         as_of=as_of,
         structured_output_enabled=True,
+        rag_enabled=args.rag_database is not None,
+        injection_guard_enabled=True if args.rag_database is not None else load_settings().injection_guard_enabled,
     )
 
     output.mkdir(parents=True)
@@ -84,7 +108,23 @@ def main() -> None:
         },
     )
 
-    engine = DeepResearchEngine(settings=settings)
+    rag_search = (
+        _build_live_rag_search(
+            database=args.rag_database,
+            index_version=args.rag_index_version,
+            ledger_path=output / "runtime" / "rag_ledger.jsonl",
+            global_ledger_path=settings.llm_ledger_path,
+            # The live workflow LLM client is capped at CNY 3. Keep this
+            # separate RAG adapter inside the registered CNY 15 run ceiling.
+            budget_cny=12.0,
+            retrieval_top_k=settings.retrieval_top_k,
+            rerank_top_n=settings.rerank_top_n,
+            retrieval_domain=load_domain_pack(settings.domain_pack),
+        )
+        if args.rag_database is not None
+        else None
+    )
+    engine = DeepResearchEngine(settings=settings, rag_search=rag_search)
     try:
         state = engine.run(topic=args.topic, depth_level=args.depth)
         manifest = build_run_manifest(
@@ -140,6 +180,66 @@ def _live_preflight(*, allow_paid_api: bool) -> list[str]:
     if not allow_paid_api:
         missing.append("--allow-paid-api (explicit paid-provider confirmation)")
     return missing
+
+
+def _build_live_rag_search(
+    *,
+    database: Path,
+    index_version: str,
+    ledger_path: Path,
+    global_ledger_path: Path,
+    budget_cny: float,
+    retrieval_top_k: int,
+    rerank_top_n: int,
+    retrieval_domain: object | None = None,
+) -> RagSearchService:
+    """Compose an explicitly requested real RAG capability without changing defaults."""
+
+    required = ("DASHSCOPE_API_KEY", "DEEPRESEARCH_QDRANT_URL", "DEEPRESEARCH_QDRANT_COLLECTION")
+    missing = [name for name in required if not os.getenv(name, "").strip()]
+    if missing:
+        raise ConfigurationError(missing)
+    if not database.is_file():
+        raise ValueError(f"rag database does not exist: {database}")
+    ledger = LLMClient(
+        ledger_path=ledger_path,
+        global_ledger_path=global_ledger_path,
+        budget_cny=budget_cny,
+        completion_func=lambda **_: {},
+    )
+    run_id = f"rag-e2e-{index_version}"
+    ledger.start_run(run_id)
+    pricing = ProviderPricing(0.5, "aliyun_model_studio_public_20260729")
+    store = SQLiteStore(database)
+    qdrant = QdrantIndex(
+        url=os.environ["DEEPRESEARCH_QDRANT_URL"],
+        api_key=os.getenv("DEEPRESEARCH_QDRANT_API_KEY", ""),
+        collection=os.environ["DEEPRESEARCH_QDRANT_COLLECTION"],
+    )
+    return RagSearchService(
+        lexical=StorageLexicalBackend(store=store),
+        dense=QdrantDenseBackend(
+            store=store,
+            index=qdrant,
+            embedding=DashScopeEmbeddingProvider(
+                api_key=os.environ["DASHSCOPE_API_KEY"],
+                ledger=ledger,
+                run_id=run_id,
+                pricing=pricing,
+                dimensions=1024,
+                max_batch_size=10,
+            ),
+        ),
+        reranker=DashScopeRerankerProvider(
+            api_key=os.environ["DASHSCOPE_API_KEY"], ledger=ledger, run_id=run_id, pricing=pricing
+        ),
+        retrieval_top_k=retrieval_top_k,
+        rerank_top_n=rerank_top_n,
+        rerank_enabled=True,
+        rerank_fail_open=True,
+        retrieval_domain=retrieval_domain,
+        index_version=index_version,
+    )
 
 
 def _configure_mode(mode: str, *, as_of: str) -> None:
