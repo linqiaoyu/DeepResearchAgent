@@ -42,3 +42,11 @@ The retry at commit `7372acf50575191d671d08a1b1224faa678d8428` cost CNY
 `verdict=PASS`; both `65,731,559,000 CNY` revenue and `6,492,762,000 CNY`
 gross profit remain in the report.  The structured provider was
 `SecCompanyFactsProvider`.
+
+## Manifest and JSON verification result
+
+At commit `223d15e`, the authorized NIO verification cost CNY `0.02427312`.
+Its manifest recorded `primary_sources=10`; the audit bundle JSON parsed
+successfully and fidelity reported `sampled_numbers=2`, `footnote_misrefs=0`,
+`magnitude_mismatches=0`, `verdict=PASS`.  Retrieval reported
+`off_year_ratio=0.00` (29/29 target-year RAG evidence).

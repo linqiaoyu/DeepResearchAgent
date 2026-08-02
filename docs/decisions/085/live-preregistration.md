@@ -22,3 +22,15 @@ domain's target report year delivery preference while retaining the preceding
 year in the retrieval filter for YoY context.  Re-run only the NIO topic,
 using the same command, providers, as-of date, database, index, and circuit
 breakers as above.
+
+## Manifest verification retry
+
+User authorized one additional paid NIO run for commit
+`2ba21ef`, solely to verify that `primary_sources` is persisted in the live
+manifest.  Use the same configuration and CNY 15 single-run circuit breaker.
+
+## JSON validity retry
+
+User authorized one additional NIO live run at commit
+`223d15ef3bb6eb02956810e782a1a60d8d3dc2ef`, to verify valid audit-bundle JSON
+alongside the previously established manifest and reader-quality conditions.
