@@ -151,7 +151,10 @@ class NumericConsistencyTest(unittest.TestCase):
         issue = issues[0]
         self.assertEqual(issue.claimed_value, 25)
         self.assertEqual(issue.calculated_value, 20)
-        self.assertIn("(120.0-100.0)", issue.formula or "")
+        self.assertIn(
+            "(12000000000.0-10000000000.0)",
+            issue.formula or "",
+        )
         self.assertEqual(
             issue.evidence_ids,
             ["growth", "current", "prior"],

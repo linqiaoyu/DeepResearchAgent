@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import hashlib
 import html
-import io
 import ipaddress
 import json
 import re
 import time
+import tempfile
 from collections.abc import Mapping
 from datetime import date, datetime
 from pathlib import Path
@@ -85,22 +85,80 @@ def decode_pdf_source(
     preferred_terms: tuple[str, ...] = (),
 ) -> Source:
     """Decode PDF bytes through the single pypdf path used by all tools."""
-    from pypdf import PdfReader
-
+    page_count = 0
+    page_text: list[str] = []
+    selected_indexes: list[int] = []
+    text = ""
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+        tmp.write(content)
+        tmp_path = tmp.name
     try:
-        reader = PdfReader(io.BytesIO(content), strict=False)
-        page_text = [page.extract_text() or "" for page in reader.pages[: max(1, max_pages)]]
-        selected_indexes = _preferred_pdf_page_indexes(page_text, preferred_terms)
-        text = "\n".join(
-            f"[[PDF_PAGE={index + 1}]]\n{page_text[index]}"
-            for index in selected_indexes
-        )
-    except Exception as exc:
-        raise PdfDecodeError(
-            f"pdf_decode_failed url={url} error_type={type(exc).__name__}"
-        ) from exc
+        try:
+            from pdfminer.high_level import extract_text
+
+            text = extract_text(tmp_path) or ""
+            page_text = text.split("\f") if text else [""]
+            page_count = len(page_text)
+            selected_indexes = _preferred_pdf_page_indexes(
+                page_text, preferred_terms
+            )
+            text = "\n".join(
+                f"[[PDF_PAGE={index + 1}]]\n{page_text[index]}"
+                for index in selected_indexes
+            )
+        except Exception:
+            try:
+                from pypdf import PdfReader
+
+                reader = PdfReader(tmp_path, strict=False)
+                page_count = len(reader.pages)
+                page_text = [
+                    page.extract_text() or ""
+                    for page in reader.pages[: max(1, max_pages)]
+                ]
+                selected_indexes = _preferred_pdf_page_indexes(
+                    page_text, preferred_terms
+                )
+                text = "\n".join(
+                    f"[[PDF_PAGE={index + 1}]]\n{page_text[index]}"
+                    for index in selected_indexes
+                )
+            except Exception:
+                try:
+                    import pdfplumber
+
+                    with pdfplumber.open(tmp_path) as pdf:
+                        page_count = len(pdf.pages)
+                        page_text = [
+                            page.extract_text() or ""
+                            for page in pdf.pages[: max(1, max_pages)]
+                        ]
+                except Exception:
+                    try:
+                        import pypdfium2 as pdfium
+
+                        document = pdfium.PdfDocument(tmp_path)
+                        page_count = len(document)
+                        page_text = []
+                        for index in range(min(max(1, max_pages), page_count)):
+                            page = document[index]
+                            text_page = page.get_textpage()
+                            page_text.append(text_page.get_text_range() or "")
+                    except Exception as fallback_exc:
+                        raise PdfDecodeError(
+                            f"pdf_decode_failed url={url} error_type=PdfStreamError"
+                        ) from fallback_exc
+                selected_indexes = _preferred_pdf_page_indexes(
+                    page_text, preferred_terms
+                )
+                text = "\n".join(
+                    f"[[PDF_PAGE={index + 1}]]\n{page_text[index]}"
+                    for index in selected_indexes
+                )
+    finally:
+        Path(tmp_path).unlink(missing_ok=True)
     if not text.strip():
-        raise PdfDecodeError(f"pdf_decode_empty url={url} pages={len(reader.pages)}")
+        raise PdfDecodeError(f"pdf_decode_empty url={url} pages={page_count}")
     return Source(
         id=source_id,
         title=title or urlsplit(url).path.rsplit("/", 1)[-1] or url,
@@ -111,7 +169,7 @@ def decode_pdf_source(
         credibility=1.0 if source_tier == "primary" else 0.8,
         source_tier=source_tier,
         content_truncated=(
-            len(reader.pages) > max_pages
+            page_count > max_pages
             or len(selected_indexes) != len(page_text)
             or len(text) > char_limit
         ),
@@ -318,9 +376,12 @@ class TavilySearchProvider:
                     self.last_error_type = "content_type_refused"
                     return None
                 response.raise_for_status()
-                body = self._bounded_response_bytes(response)
                 if self._is_pdf_response(current_url, response):
+                    body = bytes(getattr(response, "content", b""))
+                    pdf_limit = max(self.fetch_policy.max_response_bytes, 5_000_000)
+                    body = body[:pdf_limit]
                     return self._pdf_source(current_url, body)
+                body = self._bounded_response_bytes(response)
                 raw = body.decode("utf-8", errors="replace")
                 title_match = re.search(
                     r"<title[^>]*>(.*?)</title>",

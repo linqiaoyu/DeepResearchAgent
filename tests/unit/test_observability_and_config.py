@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from deepresearch_agent.config_validation import (
+    ConfigurationError,
     ConfigurationInvariantError,
     validate_required_configuration,
 )
@@ -82,7 +83,7 @@ class ObservabilityAndConfigTests(unittest.TestCase):
             "DEEPRESEARCH_SEARCH_PROVIDER": "tavily",
             "DEEPRESEARCH_REQUIRE_DEMO_OWNER": "true",
         }
-        with self.assertRaises(ConfigurationInvariantError) as raised:
+        with self.assertRaises(ConfigurationError) as raised:
             validate_required_configuration(settings, environ)
         self.assertEqual(
             raised.exception.missing,
@@ -120,7 +121,7 @@ class ObservabilityAndConfigTests(unittest.TestCase):
             semantic_judge_enabled=True,
         )
 
-        with self.assertRaises(ConfigurationInvariantError) as raised:
+        with self.assertRaises(ConfigurationError) as raised:
             validate_required_configuration(
                 settings,
                 {

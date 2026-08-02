@@ -6,6 +6,7 @@ import traceback
 from collections.abc import Sequence
 from dataclasses import asdict
 from datetime import datetime
+from threading import RLock
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -285,6 +286,7 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
         self.episodic_memory = episodic_memory or EpisodicMemory()
         self.procedural_memory = procedural_memory or ProceduralMemory()
         self.research_as_of = self.settings.as_of or self.critic.today
+        self._graph_lock = RLock()
         self.sufficiency_thresholds = SufficiencyThresholds(
             min_evidence_count=self.settings.research_min_evidence_count,
             min_independent_domains=(
@@ -410,9 +412,6 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
             ),
             search_quota=SearchQuota(self.researcher.max_searches_per_run),
         )
-        set_run_context = getattr(self.structured_data_provider, "set_run_context", None)
-        if callable(set_run_context):
-            set_run_context(run_scope.tool_context)
         if resume:
             if not research_id:
                 raise ValueError("research_id is required when resume=True")
@@ -499,14 +498,15 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
                 else None
             )
             try:
-                with trajectory_recording(recorder):
-                    result = self.graph.invoke(
-                        graph_input,
-                        config=config,
-                        context=run_scope,
-                        interrupt_before=interrupt_before,
-                        interrupt_after=interrupt_after,
-                    )
+                with self._graph_lock:
+                    with trajectory_recording(recorder):
+                        result = self.graph.invoke(
+                            graph_input,
+                            config=config,
+                            context=run_scope,
+                            interrupt_before=interrupt_before,
+                            interrupt_after=interrupt_after,
+                        )
                 state = self._state_from_graph_values(result)
                 if state.status == "done" and not state.final_report:
                     state.status = "failed"
@@ -539,10 +539,11 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
                     else 0.0
                 )
                 self._capture_external_request_budget(state, run_scope=run_scope)
-                self.graph.update_state(
-                    config,
-                    self._state_output(state),
-                )
+                with self._graph_lock:
+                    self.graph.update_state(
+                        config,
+                        self._state_output(state),
+                    )
                 self._persist_run_sidecars(
                     state=state,
                     run_scope=run_scope,
@@ -619,10 +620,11 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
                     "信息，不能视为完整研究结论。\n\n"
                     f"耗尽原因：{exc}\n"
                 )
-                self.graph.update_state(
-                    config,
-                    self._state_output(state),
-                )
+                with self._graph_lock:
+                    self.graph.update_state(
+                        config,
+                        self._state_output(state),
+                    )
                 self._persist_run_sidecars(
                     state=state,
                     run_scope=run_scope,
@@ -650,10 +652,11 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
                 )
                 raise
             self._capture_external_request_budget(state, run_scope=run_scope)
-            self.graph.update_state(
-                config,
-                self._state_output(state),
-            )
+            with self._graph_lock:
+                self.graph.update_state(
+                    config,
+                    self._state_output(state),
+                )
             self._persist_run_sidecars(
                 state=state,
                 run_scope=run_scope,

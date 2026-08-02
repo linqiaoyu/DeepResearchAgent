@@ -122,7 +122,7 @@ class ExpandedTrajectoryTest(unittest.TestCase):
         recorder.finalize(manifest_ref=None, artifacts={"report.md": "synthetic"})
         valid = recorder.trajectory
         validate_strict_replay_trajectory(valid)
-        self.assertEqual(valid.schema_version, 5)
+        self.assertEqual(valid.schema_version, 6)
         self.assertEqual(valid.termination.status, "completed")
         missing_termination = valid.model_copy(
             update={"termination": None}
@@ -311,7 +311,7 @@ class ExpandedTrajectoryTest(unittest.TestCase):
             )
         )
 
-        self.assertEqual(recorder.trajectory.schema_version, 5)
+        self.assertEqual(recorder.trajectory.schema_version, 6)
         self.assertEqual(
             recorder.trajectory.signal_reads[0].signal_type,
             "repeated_critic_issue",

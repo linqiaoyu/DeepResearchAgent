@@ -1215,6 +1215,8 @@ def _offline_settings(
         for key, value in strategy.items()
         if key in _STRATEGY_SETTING_KEYS and key in known_fields
     }
+    if values.get("rag_enabled"):
+        values.setdefault("injection_guard_enabled", True)
     return replace(base, **values)
 
 
