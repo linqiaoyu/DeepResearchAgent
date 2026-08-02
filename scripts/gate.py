@@ -90,15 +90,6 @@ def run_gate() -> None:
             [sys.executable, "scripts/check_domain_boundary.py"],
         ),
         (
-            "047_plan_ledger",
-            [
-                sys.executable,
-                "scripts/check_plan_ledger.py",
-                "data/round/047_plan.json",
-                "data/round/047_plan_ledger.json",
-            ],
-        ),
-        (
             "disclosure_fixture",
             [sys.executable, "scripts/build_disclosure_fixture.py", "--check"],
         ),

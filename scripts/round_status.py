@@ -8,8 +8,8 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CRITERIA_PATH = ROOT / "data/round/043_criteria.json"
-BLOCKS_PATH = ROOT / "data/round/043_blocks.json"
+CRITERIA_PATH = ROOT / "docs/decisions/043/043_criteria.json"
+BLOCKS_PATH = ROOT / "docs/decisions/043/043_blocks.json"
 
 
 def _criteria() -> list[dict[str, object]]:

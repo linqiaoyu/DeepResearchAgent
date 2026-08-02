@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 from scripts.check_domain_boundary import _concrete_domain_import_sites
-from scripts.check_plan_ledger import validate as validate_plan_ledger
+from scripts.round.check_plan_ledger import validate as validate_plan_ledger
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -57,18 +57,18 @@ class DomainBoundaryTests(unittest.TestCase):
         self.assertEqual(residuals.count("| 移除条件 |"), 1)
 
     def test_criteria_commands_are_explicit_argument_vectors(self) -> None:
-        criteria = json.loads((ROOT / "data/round/043_criteria.json").read_text(encoding="utf-8"))
+        criteria = json.loads((ROOT / "docs/decisions/043/043_criteria.json").read_text(encoding="utf-8"))
         self.assertGreaterEqual(len(criteria), 4)
         self.assertTrue(all(isinstance(item["command"], list) for item in criteria))
 
     def test_progress_ledger_declares_the_whole_round(self) -> None:
-        blocks = json.loads((ROOT / "data/round/043_blocks.json").read_text(encoding="utf-8"))
+        blocks = json.loads((ROOT / "docs/decisions/043/043_blocks.json").read_text(encoding="utf-8"))
         self.assertEqual(blocks, [f"B{index}" for index in range(9)])
 
     def test_044_plan_ledger_has_one_justified_terminal_entry_per_plan_ref(self) -> None:
         validate_plan_ledger(
-            ROOT / "data/round/044_plan.json",
-            ROOT / "data/round/044_plan_ledger.json",
+            ROOT / "docs/decisions/044/044_plan.json",
+            ROOT / "docs/decisions/044/044_plan_ledger.json",
         )
 
     def test_plan_ledger_rejects_duplicate_and_unjustified_deferred_entries(self) -> None:
