@@ -99,6 +99,7 @@ class LLMConfig:
             "reporter": RoleModelConfig(
                 model="openai/deepseek-v4-flash",
                 api_base="https://api.deepseek.com",
+                max_completion_tokens=1024,
             ),
             "judge": RoleModelConfig(
                 model="openai/qwen3.7-plus",

@@ -1122,6 +1122,23 @@ class LLMIntegrationTests(unittest.TestCase):
         self.assertIn("- Advisor productivity improved 18% after AI triage.", report)
         self.assertNotIn("- Advisor productivity improved 18% after AI triage. [^1]", report)
 
+    def test_reporter_bounds_llm_evidence_without_mutating_canonical_evidence(self) -> None:
+        evidence = [
+            Evidence(
+                id=f"e{index}", research_id="run", sub_question_id="sq",
+                claim="x" * 900, claim_type="fact", source_url=f"https://{index}.example",
+                source_title="source", extract_text="x" * 900,
+            )
+            for index in range(20)
+        ]
+
+        prompt_evidence = ReporterAgent._llm_prompt_evidence(evidence)
+
+        self.assertEqual(len(prompt_evidence), 18)
+        self.assertTrue(all(len(item.claim) == 800 for item in prompt_evidence))
+        self.assertTrue(all(len(item.claim) == 900 for item in evidence))
+        self.assertEqual(DEFAULT_LLM_CONFIG.roles["reporter"].max_completion_tokens, 1024)
+
     def test_reporter_repairs_missing_evidence_ids_before_rendering(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             env_path = Path(tmp) / ".env"

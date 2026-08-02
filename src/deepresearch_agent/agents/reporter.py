@@ -40,6 +40,8 @@ _RMB_RE = re.compile(
     re.IGNORECASE,
 )
 _FOOTNOTE_RE = re.compile(r"\[\^(\d+)\]")
+REPORTER_LLM_MAX_EVIDENCE = 18
+REPORTER_LLM_MAX_CLAIM_CHARS = 800
 
 
 @dataclass(frozen=True)
@@ -431,6 +433,7 @@ class ReporterAgent:
             if context_evidence is not None
             else state.evidence_store
         )
+        prompt_evidence = self._llm_prompt_evidence(evidence)
         result = self.llm_client.complete(
             role="reporter",
             run_id=state.research_id,
@@ -453,12 +456,11 @@ class ReporterAgent:
                                     "source_title": item.source_title,
                                     "source_pub_date": item.source_pub_date.isoformat() if item.source_pub_date else "unknown",
                                     "source_page": item.source_page,
-                                    "extract_text": item.extract_text,
                                     "numeric_fields": item.numeric_fields.model_dump(mode="json")
                                     if item.numeric_fields
                                     else None,
                                 }
-                                for item in evidence
+                                for item in prompt_evidence
                             ],
                             "critic_report": state.critic_report.model_dump(mode="json")
                             if state.critic_report
@@ -495,6 +497,20 @@ class ReporterAgent:
             "repair_attempts": result.repair_attempts,
         }
         return report
+
+    @staticmethod
+    def _llm_prompt_evidence(evidence: list[Evidence]) -> list[Evidence]:
+        """Keep the reporter's provider payload bounded without mutating state."""
+
+        tier_rank = {"primary": 0, "secondary": 1, "unknown": 2}
+        ordered = sorted(
+            enumerate(evidence),
+            key=lambda item: (tier_rank[item[1].source_tier], -item[1].confidence, item[0]),
+        )
+        selected: list[Evidence] = []
+        for _, item in ordered[:REPORTER_LLM_MAX_EVIDENCE]:
+            selected.append(item.model_copy(update={"claim": item.claim[:REPORTER_LLM_MAX_CLAIM_CHARS]}))
+        return selected
 
     def _repair_missing_evidence_ids(
         self,
