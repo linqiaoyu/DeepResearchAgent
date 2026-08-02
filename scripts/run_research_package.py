@@ -140,11 +140,7 @@ def main() -> None:
         structured = state.structured_output or engine.reporter.structured_output(state)
         report = state.final_report or ""
         if rag_search is not None:
-            report = _append_live_rag_cost_reconciliation(
-                report=report,
-                state=state,
-                rag_search=rag_search,
-            )
+            _record_live_rag_cost_reconciliation(state=state, rag_search=rag_search)
         (output / "structured.json").write_text(
             render_structured_json(structured),
             encoding="utf-8",
@@ -160,10 +156,7 @@ def main() -> None:
             manifest=manifest,
             output_dir=output / "audit_bundle",
         )
-        report = _append_audit_citation_closure(
-            report=report,
-            citation_closure=audit_result["citation_closure"],
-        )
+        state.metadata["audit_citation_closure"] = audit_result["citation_closure"]
         (output / "report.md").write_text(report, encoding="utf-8")
         snapshot = build_research_snapshot(
             state=state,
@@ -185,8 +178,8 @@ def main() -> None:
     print(f"snapshot={snapshot_path}")
 
 
-def _append_live_rag_cost_reconciliation(*, report: str, state: object, rag_search: object) -> str:
-    """Append auditable RAG costs using the ``LLMClient.aggregate_run`` contract."""
+def _record_live_rag_cost_reconciliation(*, state: object, rag_search: object) -> None:
+    """Record auditable RAG costs in the audit state, not the reader report."""
 
     rag_run_id = getattr(rag_search, "ledger_run_id", None)
     rag_ledger = getattr(rag_search, "ledger", None)
@@ -200,21 +193,11 @@ def _append_live_rag_cost_reconciliation(*, report: str, state: object, rag_sear
     total_cost_cny = rag_cost["total_cost_cny"]
     metadata["rag_ledger_run_id"] = rag_run_id
     metadata["rag_cost_summary"] = rag_cost
-    return (
-        report
-        + "\n\n## Live RAG cost reconciliation\n\n"
-        + f"- workflow research_id: `{research_id}`\n"
-        + f"- RAG ledger run_id: `{rag_run_id}`\n"
-        + f"- RAG total_cost_cny: `{total_cost_cny}`\n"
-    )
-
-
-def _append_audit_citation_closure(*, report: str, citation_closure: object) -> str:
-    """Preserve the audit-bundle citation-closure result in the delivered report."""
-
-    if not isinstance(citation_closure, str):
-        raise RuntimeError("audit bundle returned an invalid citation closure")
-    return report + f"\n\n## Audit citation closure\n\n- audit_citation_closure: `{citation_closure}`\n"
+    metadata["rag_cost_reconciliation"] = {
+        "workflow_research_id": research_id,
+        "rag_ledger_run_id": rag_run_id,
+        "rag_total_cost_cny": total_cost_cny,
+    }
 
 
 def _live_preflight(*, allow_paid_api: bool) -> list[str]:
