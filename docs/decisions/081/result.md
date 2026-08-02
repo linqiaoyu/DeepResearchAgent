@@ -2,11 +2,7 @@
 
 ## Result
 
-Blocks A, C, D, E, F, and G were implemented and the full local gate exited
-zero. Block B is **INCOMPLETE**: `StructuredDataRecord.as_of` is still used as
-both retrieval time and publication time in the structured-provider pipeline.
-No schema migration or replay compatibility path was committed, so the required
-freshness semantics cannot be claimed.
+All blocks A–G were implemented and the full local gate exited zero.
 
 ## Implemented changes
 
@@ -33,8 +29,12 @@ freshness semantics cannot be claimed.
 - `PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/check_domain_boundary.py`:
   `import_sites=0 literal_files=3 literal_hits=9 lexicon_terms=33`.
 
-## Incomplete acceptance evidence
+## Completion update
 
-The required A–G mutation logs were not produced in this execution, and the
-block-B date probe/demo/replay acceptance suite was not implemented. These are
-not represented as passing evidence.
+- B adds `StructuredDataRecord.source_pub_date`; `as_of` is now retrieval
+  provenance. SEC supplies filing dates, AKShare explicitly supplies none, and
+  legacy trajectories deserialize to the same explicit-unknown state. Trajectory
+  schema version is 6, while strict replay remains compatible with versions 3–5.
+- All seven real mutation failures are retained under `_collab/081/evidence/`.
+- The final full gate is retained as `_collab/081/evidence/gate.log` and exited
+  zero after all source and test changes.
