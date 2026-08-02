@@ -25,6 +25,7 @@ _TOOL_CALL_EXECUTOR = ThreadPoolExecutor(
     max_workers=16,
     thread_name_prefix="deepresearch-tool",
 )
+_TOOL_CALL_SLOTS = threading.BoundedSemaphore(16)
 
 
 class ToolExecutionError(RuntimeError):
@@ -491,10 +492,10 @@ class ReliableToolExecutor:
     ) -> Any:
         """Return promptly on timeout without waiting for an uncooperative tool.
 
-        Python cannot safely kill an arbitrary synchronous thread.  The worker is
-        deliberately daemonized so an overdue provider cannot keep the run (or
-        process shutdown) hostage; providers should still use their own transport
-        timeout for cancellation at the I/O layer.
+        Python cannot safely kill an arbitrary synchronous thread. Executor
+        workers are non-daemon and Python joins them at interpreter shutdown, so
+        saturation is rejected instead of allowing indefinitely detached calls.
+        Providers should still use transport timeouts for I/O cancellation.
         """
         def invoke() -> Any:
             try:
@@ -502,7 +503,19 @@ class ReliableToolExecutor:
             finally:
                 scope.mark_finished()
 
-        future = _TOOL_CALL_EXECUTOR.submit(invoke)
+        if not _TOOL_CALL_SLOTS.acquire(blocking=False):
+            raise DetachedToolOperationError(
+                ToolErrorKind.TRANSIENT,
+                "tool worker capacity is saturated; call refused",
+            )
+
+        def invoke_with_slot() -> Any:
+            try:
+                return invoke()
+            finally:
+                _TOOL_CALL_SLOTS.release()
+
+        future = _TOOL_CALL_EXECUTOR.submit(invoke_with_slot)
         try:
             return future.result(timeout=timeout_s)
         except FutureTimeoutError as exc:
