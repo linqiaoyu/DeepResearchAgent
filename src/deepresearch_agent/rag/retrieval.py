@@ -358,12 +358,39 @@ def _record_retrieval_call(
 
 
 class EmptyRagSearchTool:
-    """Safe pre-index implementation: never fabricates retrieval candidates."""
+    """Safe pre-index implementation: never fabricates retrieval candidates.
+
+    Its trace is deliberately a compact mapping rather than ``RetrievalTrace``:
+    there is no configured index or backend count to report before an index
+    exists.  It still carries the same degradation event consumed by manifests.
+    """
 
     fidelity = "fixture"
 
-    def search(self, *, query: str, as_of: str) -> dict[str, object]:
-        return {"candidates": [], "trace": {"query": query, "as_of": as_of, "status": "empty_index"}}
+    def search(
+        self,
+        *,
+        query: str,
+        as_of: str,
+        context: RunToolContext | None = None,
+    ) -> dict[str, object]:
+        degradation = DegradationEvent(
+            tool="rag_search",
+            reason="not_found",
+            impact="empty_result",
+            attempts=0,
+        )
+        if context is not None:
+            context.degradation_events.append(degradation)
+        return {
+            "candidates": [],
+            "trace": {
+                "query": query,
+                "as_of": as_of,
+                "status": "empty_index",
+                "degradation": degradation.model_dump(mode="json"),
+            },
+        }
 
 
 class FixtureEmbeddingProvider:

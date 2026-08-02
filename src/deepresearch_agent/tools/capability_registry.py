@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 from typing import Any, Literal
 
 from pydantic import Field, model_validator
@@ -155,6 +156,7 @@ def build_capability_registry(
             disclosure_source,
         )
     if rag_search is not None:
+        _assert_rag_search_protocol(rag_search)
         registry.register(
             CapabilityMetadata(
                 name="rag_search",
@@ -166,3 +168,30 @@ def build_capability_registry(
             rag_search,
         )
     return registry
+
+
+def _assert_rag_search_protocol(implementation: Any) -> None:
+    """Fail fast when a registered RAG tool cannot serve production calls."""
+
+    search = getattr(implementation, "search", None)
+    implementation_name = type(implementation).__name__
+    if not callable(search):
+        raise TypeError(f"rag_search implementation {implementation_name} has no callable search")
+    try:
+        parameters = inspect.signature(search).parameters
+    except (TypeError, ValueError) as exc:
+        raise TypeError(
+            f"rag_search implementation {implementation_name} has no inspectable search signature"
+        ) from exc
+    required = ("query", "as_of", "context")
+    missing = [name for name in required if name not in parameters]
+    if missing:
+        raise TypeError(
+            f"rag_search implementation {implementation_name} violates the search protocol: "
+            f"missing {', '.join(missing)}"
+        )
+    if parameters["context"].default is inspect.Parameter.empty:
+        raise TypeError(
+            f"rag_search implementation {implementation_name} violates the search protocol: "
+            "context must default to None"
+        )

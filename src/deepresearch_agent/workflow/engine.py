@@ -828,7 +828,15 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
         manifest_started_at: datetime,
         error: Exception,
     ) -> None:
-        state = self.load_state(research_id) or state
+        try:
+            state = self.load_state(research_id) or state
+        except Exception as checkpoint_exc:
+            # A stale checkpoint schema must not mask the workflow failure that
+            # caused this terminal persistence attempt.
+            self.logger.event(
+                "terminal_checkpoint_load_failed",
+                error_type=type(checkpoint_exc).__name__,
+            )
         state.status = "failed"
         terminal = state.metadata.get("terminal_failure", {})
         if not isinstance(terminal, dict):

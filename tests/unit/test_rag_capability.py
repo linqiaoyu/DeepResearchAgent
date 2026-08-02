@@ -6,6 +6,8 @@ from pathlib import Path
 from deepresearch_agent.schemas import ResearchState, SubQuestion
 from deepresearch_agent.settings import Settings
 from deepresearch_agent.tools import DeterministicCapabilitySelector
+from deepresearch_agent.tools.capability_registry import build_capability_registry
+from deepresearch_agent.tools.reliable_execution import RunToolContext
 from deepresearch_agent.workflow import DeepResearchEngine
 
 
@@ -16,9 +18,14 @@ class RagCapabilityTests(unittest.TestCase):
         enabled = DeepResearchEngine(
             Settings(storage_path=Path("artifacts/rag-enabled.db"), rag_enabled=True, injection_guard_enabled=True)
         )
-        result = enabled.capability_registry.resolve("rag_search").search(query="q", as_of="2026-01-01")
+        context = RunToolContext.for_run()
+        result = enabled.capability_registry.resolve("rag_search").search(
+            query="q", as_of="2026-01-01", context=context
+        )
         self.assertEqual(result["candidates"], [])
         self.assertEqual(result["trace"]["status"], "empty_index")
+        self.assertEqual(context.degradation_events[-1].tool, "rag_search")
+        self.assertEqual(context.degradation_events[-1].impact, "empty_result")
         disabled.close()
         enabled.close()
 
@@ -66,6 +73,18 @@ class RagCapabilityTests(unittest.TestCase):
                 engine.close()
         self.assertEqual(selections[1], selections[0])
         self.assertNotIn("rag_search", selections[1]["selected_capabilities"])
+
+    def test_rag_registry_rejects_implementation_without_production_context(self) -> None:
+        class LegacyRag:
+            def search(self, *, query: str, as_of: str) -> dict[str, object]:
+                return {"candidates": [], "trace": {}}
+
+        with self.assertRaisesRegex(TypeError, "LegacyRag.*context"):
+            build_capability_registry(
+                search_provider=object(),
+                structured_data_provider=object(),
+                rag_search=LegacyRag(),
+            )
 
 
 if __name__ == "__main__":
