@@ -1044,9 +1044,10 @@ class LLMIntegrationTests(unittest.TestCase):
             user_message = next(message for message in messages if message["role"] == "user")
             payload = json.loads(user_message["content"])
             prompt_sources = payload["sources"]
-            self.assertEqual(len(prompt_sources), 6)
-            self.assertEqual(sum(len(item["content"]) for item in prompt_sources), 48_000)
-            self.assertEqual(extractor.last_stats["llm_context_omitted_source_count"], 14)
+            self.assertEqual(len(prompt_sources), 3)
+            self.assertEqual(sum(len(item["content"]) for item in prompt_sources), 12_000)
+            self.assertEqual(extractor.last_stats["llm_context_omitted_source_count"], 17)
+            self.assertEqual(DEFAULT_LLM_CONFIG.roles["extractor"].max_completion_tokens, 1024)
 
     def test_reporter_reference_validation_counts_invalid_ids(self) -> None:
         state = ResearchState(topic="wealth AI")

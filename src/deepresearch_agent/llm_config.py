@@ -90,6 +90,7 @@ class LLMConfig:
             "extractor": RoleModelConfig(
                 model="openai/deepseek-v4-flash",
                 api_base="https://api.deepseek.com",
+                max_completion_tokens=1024,
             ),
             "capability_selector": RoleModelConfig(
                 model="openai/deepseek-v4-flash",

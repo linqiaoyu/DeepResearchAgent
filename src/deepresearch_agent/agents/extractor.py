@@ -21,8 +21,8 @@ NUMBER_RE = re.compile(r"(\$?\d+(?:\.\d+)?%?|\d+(?:\.\d+)?)")
 PDF_PAGE_MARKER_RE = re.compile(r"\[\[PDF_PAGE=(\d+)\]\]")
 _CJK_RUN_RE = re.compile(r"[\u3400-\u9fff]+")
 _WORD_RE = re.compile(r"[A-Za-z0-9_]+")
-EXTRACTOR_LLM_MAX_CONTEXT_CHARS = 48_000
-EXTRACTOR_LLM_MAX_SOURCE_CHARS = 8_000
+EXTRACTOR_LLM_MAX_CONTEXT_CHARS = 12_000
+EXTRACTOR_LLM_MAX_SOURCE_CHARS = 4_000
 
 
 class ExtractorAgent:
