@@ -121,6 +121,14 @@ class FinancePlanning:
             for term, metric in _METRIC_TERMS.items()
             if term.casefold() in normalized
         ]
+        matched = [
+            (term, metric)
+            for term, metric in matched
+            if not any(
+                term != other_term and term.casefold() in other_term.casefold()
+                for other_term, _other_metric in matched
+            )
+        ]
         metrics = list(dict.fromkeys(metric for _term, metric in matched))
         if not metrics:
             return None

@@ -133,12 +133,21 @@ class LLMIntegrationTests(unittest.TestCase):
         plan = PlannerAgent().plan("贵州茅台（600519）2025 年营业收入和毛利率是多少", depth_level=1)
 
         self.assertEqual(len(plan.sub_questions), 1)
-        request = plan.sub_questions[0].structured_data_requests[0]
-        self.assertEqual(request.capability, "financial_indicators")
-        self.assertEqual(request.symbol, "600519")
-        self.assertEqual(request.company_name, "贵州茅台")
-        self.assertEqual(request.metrics, ["营业收入", "主营业务毛利率"])
-        self.assertEqual(request.periods, ["20251231"])
+        requests = plan.sub_questions[0].structured_data_requests
+        self.assertEqual(
+            [request.capability for request in requests],
+            ["financial_indicators", "financial_indicators"],
+        )
+        self.assertEqual([request.symbol for request in requests], ["600519", "600519"])
+        self.assertEqual(
+            [request.company_name for request in requests],
+            ["贵州茅台", "贵州茅台"],
+        )
+        self.assertEqual(
+            [request.metrics for request in requests],
+            [["营业收入"], ["主营业务毛利率"]],
+        )
+        self.assertEqual([request.periods for request in requests], [["20251231"]] * 2)
 
     def test_budget_reservation_rejects_before_provider_call(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -721,14 +730,18 @@ class LLMIntegrationTests(unittest.TestCase):
             depth_level=1,
         )
 
-        request = plan.sub_questions[0].structured_data_requests[0]
-        self.assertEqual(request.periods, ["20251231", "20241231"])
+        requests = plan.sub_questions[0].structured_data_requests
         self.assertEqual(
-            request.metrics,
-            ["营业收入", "主营业务毛利率", "归母净利润"],
+            [request.periods for request in requests],
+            [["20251231", "20241231"]] * 3,
         )
-        self.assertNotIn("净利润", request.metrics)
-        self.assertNotIn("毛利率", request.metrics)
+        self.assertEqual(
+            [request.metrics for request in requests],
+            [["营业收入"], ["主营业务毛利率"], ["归母净利润"]],
+        )
+        metrics = [metric for request in requests for metric in request.metrics]
+        self.assertNotIn("净利润", metrics)
+        self.assertNotIn("毛利率", metrics)
 
     def test_llm_planner_discards_invalid_structured_requests(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -801,14 +814,22 @@ class LLMIntegrationTests(unittest.TestCase):
                 research_id="run-planner",
             )
 
-        request = plan.sub_questions[0].structured_data_requests[0]
-        self.assertEqual(request.symbol, "600519")
-        self.assertEqual(request.company_name, "贵州茅台")
-        self.assertIn("归母净利润", request.metrics)
-        self.assertNotIn("净利润", request.metrics)
-        self.assertIn("主营业务毛利率", request.metrics)
-        self.assertNotIn("毛利率", request.metrics)
-        self.assertEqual(request.periods, ["20251231"])
+        requests = plan.sub_questions[0].structured_data_requests
+        self.assertEqual([request.symbol for request in requests], ["600519"] * 3)
+        self.assertEqual(
+            [request.company_name for request in requests],
+            ["贵州茅台"] * 3,
+        )
+        self.assertEqual(
+            [request.metrics for request in requests],
+            [["营业收入"], ["主营业务毛利率"], ["归母净利润"]],
+        )
+        metrics = [metric for request in requests for metric in request.metrics]
+        self.assertIn("归母净利润", metrics)
+        self.assertNotIn("净利润", metrics)
+        self.assertIn("主营业务毛利率", metrics)
+        self.assertNotIn("毛利率", metrics)
+        self.assertEqual([request.periods for request in requests], [["20251231"]] * 3)
         self.assertEqual(plan.sub_questions[0].search_queries[0], "600519 年度报告")
 
     def test_llm_planner_consolidates_explicit_financial_lookup_branch(
