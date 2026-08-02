@@ -12,11 +12,12 @@ from unittest import mock
 
 import httpx
 
-from deepresearch_agent.agents import ResearcherAgent
+from deepresearch_agent.agents import CriticAgent, ResearcherAgent
 from deepresearch_agent.schemas import (
     BoundingBox,
     Evidence,
     NumericFields,
+    ResearchState,
     StructuredDataRecord,
     StructuredDataRequest,
     SubQuestion,
@@ -123,6 +124,21 @@ class StructuredDataProviderTests(unittest.TestCase):
         evidence = ResearcherAgent()._evidence_from_record("run", "question", record)
 
         self.assertIsNone(evidence.source_pub_date)
+
+    def test_historical_structured_publication_date_is_flagged_as_stale(self) -> None:
+        record = StructuredDataRecord(
+            entity="Example", symbol="EX", metric_name="revenue", period="2019",
+            dimension="annual", value=Decimal("1"), unit="USD", data_source="provider",
+            as_of=date(2026, 8, 2), source_pub_date=date(2019, 1, 1),
+        )
+        evidence = ResearcherAgent()._evidence_from_record("run", "question", record)
+        state = ResearchState(topic="Example revenue")
+        state.evidence_store = [evidence]
+
+        issues = CriticAgent(today=date(2026, 8, 2))._outdated_sources(state.evidence_store)
+
+        self.assertGreater((date(2026, 8, 2) - evidence.source_pub_date).days, 2000)
+        self.assertGreaterEqual(len(issues), 1)
 
     def test_sec_companyfacts_retries_bounded_http_failure(self) -> None:
         attempts = 0
