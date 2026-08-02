@@ -43,24 +43,26 @@ class DeliveryNodes:
             state,
             context_evidence=list(report_context.evidence),
         )
-        if self.settings.decision_weaving_enabled:
-            state.final_report = append_decision_chain(
-                state.final_report,
-                state.agent_decisions,
-            )
         if self.settings.structured_output_enabled:
             state.structured_output = self.reporter.structured_output(state)
-        state.final_report = append_degradation_notice(state.final_report, state)
-        state.final_report = append_research_process(
-            state.final_report,
-            state,
-            enabled=self.settings.research_loop_active,
-        )
-        state.final_report = append_prior_differences(
-            state.final_report,
-            state,
-            enabled=self.settings.prior_memory_enabled,
-        )
+        if self.domain_pack.name != "finance":
+            if self.settings.decision_weaving_enabled:
+                state.final_report = append_decision_chain(
+                    state.final_report, state.agent_decisions
+                )
+            state.final_report = append_degradation_notice(state.final_report, state)
+            state.final_report = append_research_process(
+                state.final_report,
+                state,
+                enabled=self.settings.research_loop_active,
+            )
+            state.final_report = append_prior_differences(
+                state.final_report,
+                state,
+                enabled=self.settings.prior_memory_enabled,
+            )
+        # Finance execution traces belong to the audit bundle, not its short
+        # reader report. They remain in ResearchState and are exported there.
         state.draft_report = state.final_report
         if self.settings.execution_mode == "llm":
             state.metadata.setdefault("llm_stats", {})["reporter"] = self.reporter.last_stats

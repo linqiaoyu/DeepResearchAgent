@@ -119,6 +119,13 @@ class FinanceDomainPack:
 
         return METRIC_CLAIM_PATTERN
 
+    def reader_derived_metrics(self, evidence: list[object]) -> list[dict[str, object]]:
+        from deepresearch_agent.domains.finance.derived_metrics import (
+            reader_derived_metrics,
+        )
+
+        return reader_derived_metrics(evidence)
+
     def comparison_observed(self, evidence: object) -> bool:
         from deepresearch_agent.domains.finance.metric_coverage import (
             comparison_observed,

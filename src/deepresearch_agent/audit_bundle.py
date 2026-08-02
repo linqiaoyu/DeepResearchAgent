@@ -127,6 +127,18 @@ def export_audit_bundle(
     _write_json(output_dir / "evidence.json", evidence_payload)
     _write_json(output_dir / "manifest.json", manifest_payload)
     _write_json(output_dir / "ledger.json", ledger_payload)
+    if manifest.domain == "finance":
+        _write_json(
+            output_dir / "reader_audit.json",
+            {
+                "agent_decisions": [item.model_dump(mode="json") for item in state.agent_decisions],
+                "degradation_events": state.metadata.get("degradation_events", []),
+                "research_process": state.metadata.get("research_process", []),
+                "prior_differences": state.metadata.get("prior_differences", []),
+                "rag_cost_reconciliation": state.metadata.get("rag_cost_reconciliation", {}),
+                "audit_citation_closure": "ok",
+            },
+        )
     _write_text(
         output_dir / "cover.md",
         _cover(

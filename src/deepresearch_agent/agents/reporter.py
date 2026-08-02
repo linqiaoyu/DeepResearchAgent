@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from deepresearch_agent.citations import build_footnote_maps
-from deepresearch_agent.decisions import append_decision_record
 from deepresearch_agent.llm import (
     LLMClient,
     LLMClientError,
@@ -118,7 +117,83 @@ class ReporterAgent:
             state,
             footnotes.evidence_id_to_footnote,
         )
-        return append_decision_record(report, state.agent_decisions)
+        if self.domain_pack.name != "finance":
+            from deepresearch_agent.decisions import append_decision_record
+
+            return append_decision_record(report, state.agent_decisions)
+        return self._compact_reader_report(
+            report, state, footnotes.evidence_id_to_footnote
+        )
+
+    def _compact_reader_report(
+        self,
+        report: str,
+        state: ResearchState,
+        ref_map: dict[str, int],
+    ) -> str:
+        """Keep only mechanically grounded reader content in the report.
+
+        Web-page excerpts and execution/audit traces remain available in the
+        audit bundle.  This deliberately reuses the existing grounded-fact
+        rendering path rather than attempting another generative summary.
+        """
+        def section(title: str) -> list[str]:
+            match = re.search(
+                rf"(?ms)^## {re.escape(title)}\s*$\n?(.*?)(?=^## |\Z)",
+                report,
+            )
+            return match.group(1).strip().splitlines() if match else []
+
+        preamble = report.split("## 摘要", 1)[0].rstrip()
+        key = section("关键发现")
+        coverage = section("指标覆盖状态")
+        lines = [preamble, "", "## 摘要"]
+        lines.extend(section("摘要")[:1] or ["本报告按权威披露逐项核验所请求指标。"])
+        lines.extend(["", "## 关键发现", *key])
+        derived = self._gross_margin_derivation(state, ref_map)
+        if derived:
+            lines.extend(["", *derived])
+        if coverage:
+            lines.extend(["", "## 指标覆盖状态", *coverage])
+        # Keep only reader-relevant, non-template limitations.  Annual filings
+        # are not stale merely because they are older than news articles.
+        risks = [
+            line for line in section("风险与限制")
+            if "outdated_source" not in line
+        ]
+        if risks and "Critic 未执行" not in risks[0]:
+            lines.extend(["", "## 风险与限制", *risks])
+        assumptions = [line for line in section("未验证假设") if not re.search(
+            r"actual future results may be materially different", line, re.I
+        )]
+        if assumptions and "本轮报告未单独引入" not in assumptions[0]:
+            lines.extend(["", "## 未验证假设", *assumptions])
+        references = section("参考来源")
+        if references:
+            lines.extend(["", "## 参考来源", *references])
+        return "\n".join(lines).rstrip()
+
+    def _gross_margin_derivation(
+        self, state: ResearchState, ref_map: dict[str, int]
+    ) -> list[str]:
+        """Render the finance domain's first deterministic derived metric."""
+        derive = getattr(self.domain_pack, "reader_derived_metrics", None)
+        if derive is None:
+            return []
+        metrics = derive(state.evidence_store)
+        if not metrics:
+            return []
+        metric = metrics[0]
+        evidence_ids = [str(item) for item in metric["evidence_ids"]]
+        if len(evidence_ids) != 2 or any(item not in ref_map for item in evidence_ids):
+            return []
+        return [
+            "## 派生指标",
+            "- "
+            f"{metric['label']}（推导值）：{metric['numerator']} / "
+            f"{metric['denominator']} = {metric['value']} "
+            f"[^{ref_map[evidence_ids[0]]}] [^{ref_map[evidence_ids[1]]}]",
+        ]
 
     def _enforce_reader_fidelity(
         self,

@@ -102,9 +102,11 @@ class EvidenceChainGuardTests(unittest.TestCase):
         unrelated = self._evidence("unrelated", metric="匈牙利工厂")
         state = self._state([*key_rows, unrelated])
         report = ReporterAgent().report(state)
-        supplemental = report.split("## 补充事实", 1)[1].split("## 风险与限制", 1)[0]
         self.assertNotIn("## 详细分析", report)
-        self.assertIn(unrelated.claim, supplemental)
+        # Reader reports contain only mechanically grounded, requested facts;
+        # unrelated evidence remains available in the audit bundle.
+        self.assertNotIn("## 补充事实", report)
+        self.assertNotIn(unrelated.claim, report)
 
     def _state(self, evidence: list[Evidence]) -> ResearchState:
         state = ResearchState(topic="宁德时代证据链测试")

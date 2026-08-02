@@ -99,6 +99,7 @@ class AuditBundleTests(unittest.TestCase):
                 "manifest.json",
                 "report.json",
                 "report.md",
+                "reader_audit.json",
                 "structured.json",
                 "structured.md",
                 "structured.xlsx",
