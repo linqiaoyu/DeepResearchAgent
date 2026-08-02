@@ -126,7 +126,7 @@ def evaluate(
     if any(not (env.get(name) or "").strip() for name in required):
         raise ValueError("DashScope and Qdrant configuration are required")
     store = SQLiteStore(database)
-    run_id = f"047-hybrid-{split}-{index_version}"
+    run_id = f"054-hybrid-{split}-{index_version}"
     ledger = LLMClient(
         ledger_path=output.with_name(f"hybrid_{split}_ledger.jsonl"),
         global_ledger_path=Path("data/runtime/llm_ledger.jsonl"),
