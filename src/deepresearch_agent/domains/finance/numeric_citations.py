@@ -14,7 +14,7 @@ NUMBER_PATTERN = (
 )
 MEASURE_RE = re.compile(
     rf"(?P<number>{NUMBER_PATTERN})\s*"
-    r"(?P<unit>百万元|千元|亿元|万元|亿元|亿|个百分点|个百\s*分点|元|%|％|pct)",
+    r"(?P<unit>百万元|千元|亿元|万元|亿元|亿|个百分点|个百\s*分点|元|CNY|RMB|%|％|pct)",
     re.IGNORECASE,
 )
 BARE_COMMA_AMOUNT_RE = re.compile(
@@ -36,6 +36,7 @@ BASE_METRIC_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
         re.compile(r"主营业务毛利率"),
     ),
     ("gross_margin", re.compile(r"(?<!主营业务)毛利率")),
+    ("gross_profit", re.compile(r"毛利(?!率)")),
     ("total_revenue", re.compile(r"营业总收入")),
     ("revenue", re.compile(r"(?<!总)营业收入|营收")),
     ("net_profit", re.compile(r"净利润|净利")),
@@ -49,6 +50,7 @@ AMOUNT_MULTIPLIERS = {
     "千元": Decimal("1000"),
     "百万元": Decimal("1000000"),
     "亿": Decimal("100000000"),
+    "cny": Decimal("1"),
 }
 
 
@@ -620,6 +622,8 @@ def _normalize_unit(unit_text: str) -> str | None:
         return "亿"
     if normalized == "元" or normalized.endswith("人民币元"):
         return "元"
+    if normalized in {"cny", "rmb"}:
+        return "cny"
     if "百分点" in normalized:
         return "个百分点"
     if normalized in {"%", "％"}:

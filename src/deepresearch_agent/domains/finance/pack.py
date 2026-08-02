@@ -286,3 +286,14 @@ class FinanceDomainPack:
             if chinese in query
         ]
         return " ".join((query, *aliases))
+
+    def web_source_rejection_reason(
+        self,
+        source: object,
+        target_periods: tuple[str, ...],
+    ) -> str | None:
+        from deepresearch_agent.domains.finance.web_sources import (
+            web_source_rejection_reason,
+        )
+
+        return web_source_rejection_reason(source, target_periods)

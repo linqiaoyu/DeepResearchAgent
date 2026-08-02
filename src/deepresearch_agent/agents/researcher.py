@@ -37,6 +37,7 @@ from deepresearch_agent.tools.source_ranking import (
     rerank_sources,
     source_rerank_decision,
 )
+from deepresearch_agent.tools.contracts import DegradationEvent
 
 
 def _accepts_keyword(callable_: Any, keyword: str) -> bool:
@@ -249,6 +250,26 @@ class ResearcherAgent:
             )
             if source:
                 classified = rerank_sources([source])[0]
+                rejection = self._web_source_rejection_reason(
+                    sub_question,
+                    classified,
+                )
+                if rejection:
+                    self._record_web_rejection(
+                        classified,
+                        rejection,
+                        run_scope=run_scope,
+                    )
+                    records.append(
+                        SearchRecord(
+                            query=(
+                                f"[web_source_rejected:{rejection}] "
+                                f"{classified.url}"
+                            ),
+                            source_ids=[],
+                        )
+                    )
+                    continue
                 seen[classified.url] = classified
                 original_candidates.append(classified)
                 ranked_candidates.append(classified)
@@ -307,8 +328,20 @@ class ResearcherAgent:
                     )
                 )
                 break
+            results, rejected = self._govern_web_sources(
+                sub_question,
+                results,
+                run_scope=run_scope,
+            )
             latency_ms = int((time.perf_counter() - started) * 1000)
             records.append(SearchRecord(query=query, source_ids=[source.id for source in results], latency_ms=latency_ms))
+            records.extend(
+                SearchRecord(
+                    query=f"[web_source_rejected:{reason}] {source.url}",
+                    source_ids=[],
+                )
+                for source, reason in rejected
+            )
             ranking_enabled = enable_web_fetch or source_decision_enabled
             ranked = rerank_sources(results) if ranking_enabled else results
             if ranking_enabled:
@@ -363,6 +396,27 @@ class ResearcherAgent:
                     fetched = fetched.model_copy(
                         update={"source_tier": source.source_tier}
                     )
+                    rejection = self._web_source_rejection_reason(
+                        sub_question,
+                        fetched,
+                    )
+                    if rejection:
+                        seen.pop(source.url, None)
+                        self._record_web_rejection(
+                            fetched,
+                            rejection,
+                            run_scope=run_scope,
+                        )
+                        records.append(
+                            SearchRecord(
+                                query=(
+                                    f"[web_source_rejected:{rejection}] "
+                                    f"{fetched.url}"
+                                ),
+                                source_ids=[],
+                            )
+                        )
+                        continue
                     seen[fetched.url] = fetched
                     if fetched.source_tier == "primary":
                         primary_hydrated = True
@@ -383,6 +437,61 @@ class ResearcherAgent:
             else []
         )
         return list(seen.values()), records, branch_calls, branch_exhausted, decisions
+
+    def _govern_web_sources(
+        self,
+        sub_question: SubQuestion,
+        sources: list[Source],
+        *,
+        run_scope: RunScope,
+    ) -> tuple[list[Source], list[tuple[Source, str]]]:
+        accepted: list[Source] = []
+        rejected: list[tuple[Source, str]] = []
+        for source in sources:
+            reason = self._web_source_rejection_reason(sub_question, source)
+            if reason:
+                rejected.append((source, reason))
+                self._record_web_rejection(
+                    source,
+                    reason,
+                    run_scope=run_scope,
+                )
+            else:
+                accepted.append(source)
+        return accepted, rejected
+
+    def _web_source_rejection_reason(
+        self,
+        sub_question: SubQuestion,
+        source: Source,
+    ) -> str | None:
+        assessor = getattr(self.domain_pack, "web_source_rejection_reason", None)
+        if not callable(assessor):
+            return None
+        values = self.domain_pack.retrieval_filter_values(
+            self._rag_filter_query(sub_question)
+        )
+        periods = values.preferred_period_labels or values.period_labels
+        return assessor(source, periods)
+
+    @staticmethod
+    def _record_web_rejection(
+        source: Source,
+        reason: str,
+        *,
+        run_scope: RunScope,
+    ) -> None:
+        run_scope.tool_context.degradation_events.append(
+            DegradationEvent(
+                tool="web_source_governance",
+                reason=ToolErrorKind.PERMANENT,
+                impact=(
+                    f"rejected source reason={reason}; omitted from reader report; "
+                    f"url={source.url}"
+                ),
+                attempts=1,
+            )
+        )
 
     @staticmethod
     def _rag_filter_query(sub_question: SubQuestion) -> str:
@@ -634,6 +743,7 @@ class ResearcherAgent:
             source_pub_date=record.source_pub_date,
             extract_text=extract_text,
             confidence=0.98,
+            source_tier=classify_source_tier_url(source_url),
             structured_record=record,
             numeric_fields=NumericFields(
                 entity=record.entity,

@@ -179,3 +179,10 @@ class NullDomainPack:
 
     def expand_retrieval_query(self, query: str) -> str:
         return query
+
+    def web_source_rejection_reason(
+        self,
+        _source: Any,
+        _target_periods: tuple[str, ...],
+    ) -> None:
+        return None

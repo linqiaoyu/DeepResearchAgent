@@ -120,6 +120,16 @@ class RetrievalDomain(Protocol):
     def expand_retrieval_query(self, query: str) -> str: ...
 
 
+class WebSourceGovernanceDomain(Protocol):
+    """Domain-owned rejection policy for reader-visible web sources."""
+
+    def web_source_rejection_reason(
+        self,
+        source: Any,
+        target_periods: tuple[str, ...],
+    ) -> str | None: ...
+
+
 class DomainPack(Protocol):
     """Explicit domain boundary used by generic orchestration code."""
 
@@ -212,3 +222,11 @@ class DomainPack(Protocol):
     def valid_structured_request(self, request: Any) -> bool: ...
 
     def retrieval_filter_values(self, query: str) -> RetrievalFilterValues: ...
+
+    def expand_retrieval_query(self, query: str) -> str: ...
+
+    def web_source_rejection_reason(
+        self,
+        source: Any,
+        target_periods: tuple[str, ...],
+    ) -> str | None: ...

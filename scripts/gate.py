@@ -97,6 +97,10 @@ def run_gate() -> None:
         ("settings_documentation", [sys.executable, "scripts/sync_agents_settings.py", "--check"]),
         ("agent_guidance", [sys.executable, "scripts/check_agent_guidance.py"]),
         ("prompt_drift", [sys.executable, "scripts/check_prompt_drift.py"]),
+        (
+            "reader_visible_contract",
+            [sys.executable, "scripts/check_reader_visible_contract.py", "--self-test"],
+        ),
         ("unittest", [sys.executable, "-m", "unittest", "discover", "-s", "tests"]),
         ("demo_smoke", [sys.executable, "scripts/run_demo.py", "--output", "artifacts/ci_demo/report.md"]),
         (
