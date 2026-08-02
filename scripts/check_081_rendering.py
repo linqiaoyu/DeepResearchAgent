@@ -6,7 +6,6 @@ from datetime import date
 from decimal import Decimal
 
 from deepresearch_agent.agents.reporter import ReporterAgent
-from deepresearch_agent.domains.finance import FinanceGroundedFactRenderer
 from deepresearch_agent.schemas import Evidence, StructuredDataRecord
 
 UNITS = ("元", "CNY", "USD", "%", "万元", "亿元", "千元", "百万元")
@@ -35,7 +34,7 @@ def _evidence(value: Decimal, unit: str) -> Evidence:
 
 def main() -> int:
     reporter = ReporterAgent()
-    facts = FinanceGroundedFactRenderer()
+    facts = reporter.domain_pack.grounded_fact_renderer()
     mismatches = 0
     for raw in VALUES:
         value = Decimal(raw)
