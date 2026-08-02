@@ -8,12 +8,12 @@ from deepresearch_agent.schemas import Evidence
 
 
 class CitationTests(unittest.TestCase):
-    def test_duplicate_source_and_claim_share_first_footnote(self) -> None:
+    def test_duplicate_source_shares_first_footnote_even_for_distinct_claims(self) -> None:
         first = Evidence(
             id="evidence-a",
             research_id="research-1",
             sub_question_id="a",
-            claim="Advisor productivity improved 18%.",
+            claim="The source also confirms the reporting period.",
             claim_type="data",
             source_url="https://a.example",
             source_title="A",

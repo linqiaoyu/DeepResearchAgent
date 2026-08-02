@@ -30,7 +30,7 @@ def _as_search_chunk(chunk: ResolvedChunk, *, score: float) -> SearchChunk:
         chunk_id=chunk.id,
         text=chunk.content,
         effective_date=date.fromisoformat(chunk.effective_date),
-        published_at=date.fromisoformat(chunk.published_at or chunk.effective_date),
+        published_at=(date.fromisoformat(chunk.filing_date) if chunk.filing_date else None),
         document_version_id=chunk.document_version_id,
         char_start=chunk.char_start,
         char_end=chunk.char_end,

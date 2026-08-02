@@ -34,6 +34,7 @@ class ResolvedChunk:
     bbox_index: tuple[TextBoundingBox, ...] = ()
     entity_id: str = ""
     published_at: str = ""
+    filing_date: str = ""
 
 
 @dataclass(frozen=True)

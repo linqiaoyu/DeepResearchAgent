@@ -267,7 +267,10 @@ class FinanceDomainPack:
             for chinese, (entity_id, _english) in _issuer_aliases().items()
             if chinese in query
         )
-        period_labels = tuple(sorted(set(re.findall(r"20\d{2}", query))))
+        years = {int(year) for year in re.findall(r"20\d{2}", query)}
+        if years and re.search(r"同比|上年|YoY|year[- ]over[- ]year", query, re.IGNORECASE):
+            years.add(max(years) - 1)
+        period_labels = tuple(str(year) for year in sorted(years))
         return RetrievalFilterValues(
             entity_ids=entity_ids,
             period_labels=period_labels,

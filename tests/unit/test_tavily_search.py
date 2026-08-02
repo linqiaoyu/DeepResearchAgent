@@ -215,10 +215,11 @@ class TavilySearchProviderTests(unittest.TestCase):
         )
         state.final_report = ReporterAgent().report(state)
         self.assertTrue(state.report_footnote_evidence)
-        self.assertEqual(
-            set(state.report_footnote_evidence.values()),
-            {item.id for item in state.evidence_store},
+        self.assertTrue(
+            set(state.report_footnote_evidence.values())
+            <= {item.id for item in state.evidence_store}
         )
+        self.assertEqual(len(state.report_footnote_evidence), 1)
         self.assertIn("[^1]", state.final_report)
 
     def test_fetch_hydrates_publisher_html_body(self) -> None:
@@ -257,6 +258,27 @@ class TavilySearchProviderTests(unittest.TestCase):
         self.assertIn("实现营业总收入661.43亿元，同比增长17.64%", text)
         self.assertNotIn("友情链接", text)
         self.assertNotIn("点赞", text)
+
+    def test_fetch_rejects_semantic_error_page_returned_as_http_success(self) -> None:
+        response = FakeResponse(
+            {},
+            text=("<title>403 - Operations too frequent</title>"
+                  "Page not found, please try again later. Take me home "
+                  "Services by Moomoo Technologies Inc."),
+            headers={"content-type": "text/html"},
+        )
+        provider = TavilySearchProvider("test-key", client=FakeHttpClient(response), max_retries=0)
+        self.assertIsNone(provider.fetch("https://www.moomoo.com/403"))
+        self.assertEqual(provider.last_error_type, "error_page_refused")
+
+    def test_fetch_preserves_numeric_financial_page(self) -> None:
+        response = FakeResponse(
+            {},
+            text="<title>业绩公告</title><article>实现营业总收入661.43亿元，同比增长17.64%</article>",
+            headers={"content-type": "text/html"},
+        )
+        provider = TavilySearchProvider("test-key", client=FakeHttpClient(response), max_retries=0)
+        self.assertIsNotNone(provider.fetch("https://issuer.example/earnings"))
 
     def test_relative_redirect_result_is_discarded_and_absolute_target_is_resolved(self) -> None:
         provider = TavilySearchProvider("test-key", client=FakeHttpClient(FakeResponse({})))

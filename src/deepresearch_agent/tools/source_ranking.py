@@ -5,6 +5,11 @@ from urllib.parse import urlsplit
 from deepresearch_agent.schemas import AgentDecision, Source, SubQuestion
 
 DISCLOSURE_DOMAIN_SUFFIXES = ("cninfo.com.cn", "sse.com.cn", "szse.cn")
+PRIMARY_DOMAIN_SUFFIXES = ("sec.gov", "hkexnews.hk")
+SECONDARY_DOMAIN_SUFFIXES = (
+    "reuters.com", "bloomberg.com", "wsj.com", "ft.com", "yicai.com", "caixin.com",
+    "moomoo.com", "autohome.com.cn", "guokr.com",
+)
 REGULATOR_DOMAIN_SUFFIXES = (
     "gov.cn", "csrc.gov.cn", "pbc.gov.cn", "stats.gov.cn", "samr.gov.cn",
 )
@@ -27,6 +32,9 @@ def classify_source_tier(source: Source) -> str:
     host = urlsplit(source.url).hostname or ""
     host = host.lower().removeprefix("www.")
     path = urlsplit(source.url).path.lower()
+    explicit_tier = classify_source_tier_url(source.url)
+    if explicit_tier != "unknown":
+        return explicit_tier
     if _matches_suffix(host, DISCLOSURE_DOMAIN_SUFFIXES):
         return "primary"
     if _matches_suffix(host, REGULATOR_DOMAIN_SUFFIXES):
@@ -44,6 +52,16 @@ def classify_source_tier(source: Source) -> str:
     if any(marker in visible_text for marker in OFFICIAL_TEXT_MARKERS):
         return "primary"
     if source.source_type in SECONDARY_SOURCE_TYPES:
+        return "secondary"
+    return "unknown"
+
+
+def classify_source_tier_url(url: str) -> str:
+    """Apply the explicit source-governance list to a URL without ranking it."""
+    host = (urlsplit(url).hostname or "").lower().removeprefix("www.")
+    if _matches_suffix(host, PRIMARY_DOMAIN_SUFFIXES):
+        return "primary"
+    if _matches_suffix(host, SECONDARY_DOMAIN_SUFFIXES):
         return "secondary"
     return "unknown"
 

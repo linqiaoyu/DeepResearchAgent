@@ -80,6 +80,10 @@ class PrimarySourceRankingTests(unittest.TestCase):
         self.assertEqual(classify_source_tier(self.secondary), "secondary")
         self.assertEqual(classify_source_tier(self.unknown), "unknown")
 
+    def test_explicit_sec_and_news_domains_are_classified(self) -> None:
+        self.assertEqual(classify_source_tier(source("https://www.sec.gov/Archives/edgar/data/1/x.htm")), "primary")
+        self.assertEqual(classify_source_tier(source("https://www.reuters.com/world/story", source_type="web")), "secondary")
+
     def test_primary_html_ranks_before_primary_pdf_and_other_tiers(self) -> None:
         ranked = rerank_sources(
             [

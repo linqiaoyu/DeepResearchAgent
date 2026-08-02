@@ -33,6 +33,7 @@ from deepresearch_agent.tools import (
     RunToolContext,
 )
 from deepresearch_agent.tools.source_ranking import (
+    classify_source_tier_url,
     rerank_sources,
     source_rerank_decision,
 )
@@ -114,10 +115,12 @@ class ResearcherAgent:
 
         if enable_rag_search and self.rag_search is not None:
             rag_query = next(iter(sub_question.search_queries), sub_question.question)
+            filter_query = self._rag_filter_query(sub_question)
             started = time.perf_counter()
             retrieval = self.rag_search.search(
                 query=rag_query,
                 as_of=self.as_of.isoformat(),
+                filter_query=filter_query,
                 context=run_scope.tool_context,
             )
             candidates = retrieval.get("candidates", []) if isinstance(retrieval, dict) else []
@@ -382,6 +385,25 @@ class ResearcherAgent:
         return list(seen.values()), records, branch_calls, branch_exhausted, decisions
 
     @staticmethod
+    def _rag_filter_query(sub_question: SubQuestion) -> str:
+        """Build retrieval facets from the full question without changing embeddings."""
+        periods = [
+            period
+            for request in sub_question.structured_data_requests
+            for period in getattr(request, "periods", [])
+            if isinstance(period, str)
+        ]
+        return " ".join(
+            part
+            for part in (
+                sub_question.question,
+                *sub_question.search_queries,
+                *periods,
+            )
+            if part
+        )
+
+    @staticmethod
     def _rag_source(candidate: dict[str, object]) -> Source:
         chunk_id = candidate.get("chunk_id")
         source_url = candidate.get("source_url")
@@ -392,6 +414,7 @@ class ResearcherAgent:
         char_end = candidate.get("char_end")
         bbox_index = candidate.get("bbox_index", [])
         report_period_end = candidate.get("report_period_end")
+        published_at = candidate.get("published_at")
         if not all(isinstance(value, str) and value for value in (chunk_id, source_url, text, version_id, index_version)):
             raise ValueError("rag candidate lacks authoritative source identity")
         if not isinstance(char_start, int) or not isinstance(char_end, int) or char_start < 0 or char_end <= char_start:
@@ -400,15 +423,18 @@ class ResearcherAgent:
             raise ValueError("rag candidate bbox_index must be a list when present")
         if report_period_end is not None and not isinstance(report_period_end, str):
             raise ValueError("rag candidate has an invalid reporting-period end")
+        if published_at is not None and not isinstance(published_at, str):
+            raise ValueError("rag candidate has an invalid publication date")
         return Source(
             id=f"rag:{chunk_id}",
-            title=f"retrieval chunk {version_id}",
+            title=source_url.rsplit("/", 1)[-1] or source_url,
             url=f"{source_url}#chunk={chunk_id}",
             source_type="rag_chunk",
             report_period_end=(date.fromisoformat(report_period_end) if report_period_end else None),
-            source_date_unknown_reason=("corpus_lacks_publication_date" if report_period_end else None),
+            published_at=(date.fromisoformat(published_at) if published_at else None),
+            source_date_unknown_reason=("corpus_lacks_publication_date" if report_period_end and not published_at else None),
             content=text,
-            source_tier="unknown",
+            source_tier=classify_source_tier_url(source_url),
             bbox_index=bbox_index,
             retrieval_ref=RetrievalReference(
                 chunk_id=chunk_id,

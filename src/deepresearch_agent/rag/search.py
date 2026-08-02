@@ -110,6 +110,7 @@ class RagSearchService:
         query: str,
         as_of: str,
         filters: RetrievalFilter | None = None,
+        filter_query: str | None = None,
         context: RunToolContext | None = None,
     ) -> dict[str, object]:
         if not as_of:
@@ -118,7 +119,7 @@ class RagSearchService:
         if effective_filters.as_of is not None and effective_filters.as_of.isoformat() != as_of:
             raise ValueError("as_of must match RetrievalFilter.as_of when both are supplied")
         domain_values = (
-            self.retrieval_domain.retrieval_filter_values(query)
+            self.retrieval_domain.retrieval_filter_values(filter_query or query)
             if self.retrieval_domain is not None
             else None
         )
@@ -278,12 +279,12 @@ class RagSearchService:
                     "rerank_score": candidate.rerank_score,
                     "document_version_id": permitted[candidate.chunk_id].document_version_id,
                     "source_url": permitted[candidate.chunk_id].source_url,
-                    # Corpus values called published_at are known reporting-period
-                    # ends in this corpus, not document publication dates.
-                    "report_period_end": (
-                        permitted[candidate.chunk_id].published_at
-                        or permitted[candidate.chunk_id].effective_date
-                    ).isoformat(),
+                    "published_at": (
+                        permitted[candidate.chunk_id].published_at.isoformat()
+                        if permitted[candidate.chunk_id].published_at
+                        else None
+                    ),
+                    "report_period_end": permitted[candidate.chunk_id].effective_date.isoformat(),
                     "index_version": effective_filters.index_version or "unspecified",
                     "char_start": permitted[candidate.chunk_id].char_start,
                     "char_end": permitted[candidate.chunk_id].char_end,

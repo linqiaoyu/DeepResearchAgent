@@ -20,6 +20,7 @@ from deepresearch_agent.security import FetchPolicy
 from deepresearch_agent.settings import project_root
 from deepresearch_agent.tools.contracts import ToolErrorKind
 from deepresearch_agent.tools.reliable_execution import RunToolContext, ToolExecutionError
+from deepresearch_agent.tools.source_ranking import classify_source_tier
 
 TAVILY_SEARCH_ENDPOINT = "https://api.tavily.com/search"
 # `None` is intentionally propagated and rendered as `unknown`; epoch dates
@@ -394,9 +395,10 @@ class TavilySearchProvider:
                     else current_url
                 )
                 content = self._article_text(raw)[: self.raw_content_char_limit]
-                if not content:
+                if not content or self._is_error_page(current_url, title, content):
+                    self.last_error_type = "error_page_refused"
                     return None
-                return Source(
+                source = Source(
                     id=self._source_id(current_url, title),
                     title=title or current_url,
                     url=current_url,
@@ -404,6 +406,9 @@ class TavilySearchProvider:
                     published_at=self._publication_date_from_html(raw, current_url),
                     content=content,
                     credibility=0.8,
+                )
+                return source.model_copy(
+                    update={"source_tier": classify_source_tier(source)}
                 )
             except PdfDecodeError:
                 self.last_error_type = "PdfDecodeError"
@@ -507,7 +512,7 @@ class TavilySearchProvider:
 
         title = self._text(result.get("title")) or url
         content = self._content(result, title)
-        return Source(
+        source = Source(
             id=self._source_id(url, title),
             title=title,
             url=url,
@@ -516,6 +521,7 @@ class TavilySearchProvider:
             content=content,
             credibility=self._credibility(result.get("score")),
         )
+        return source.model_copy(update={"source_tier": classify_source_tier(source)})
 
     @staticmethod
     def _normalise_source_url(value: str) -> str | None:
@@ -642,6 +648,23 @@ class TavilySearchProvider:
                 continue
             lines.append(line)
         return "\n".join(lines)
+
+    @staticmethod
+    def _is_error_page(url: str, title: str, content: str) -> bool:
+        """Reject semantic error pages even when an intermediary returns HTTP 200."""
+        path = urlsplit(url).path.lower().rstrip("/")
+        text = f"{title}\n{content[:4000]}".lower()
+        url_error = path in {"/403", "/404", "/error", "/errors"}
+        error_markers = (
+            "operations too frequent",
+            "page not found, please try again later",
+            "take me home",
+            "services by moomoo technologies inc",
+            "access denied",
+            "too many requests",
+            "404 not found",
+        )
+        return url_error or sum(marker in text for marker in error_markers) >= 2
 
     def _record_ledger(
         self,

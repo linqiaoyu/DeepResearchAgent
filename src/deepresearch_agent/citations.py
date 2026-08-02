@@ -15,10 +15,10 @@ def build_footnote_maps(evidence_store: list[Evidence]) -> FootnoteMaps:
     evidence_id_to_footnote: dict[str, int] = {}
     footnote_to_evidence: dict[int, Evidence] = {}
     unique_refs: list[Evidence] = []
-    key_to_footnote: dict[tuple[str, str], int] = {}
+    key_to_footnote: dict[str, int] = {}
 
     for item in evidence_store:
-        key = (item.source_url, item.claim)
+        key = item.source_url
         if key not in key_to_footnote:
             footnote_number = len(unique_refs) + 1
             key_to_footnote[key] = footnote_number
