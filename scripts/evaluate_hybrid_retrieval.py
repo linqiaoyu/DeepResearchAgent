@@ -118,6 +118,7 @@ def evaluate(
     output: Path,
     budget_cny: float,
     env: dict[str, str | None],
+    production_filters: bool = False,
 ) -> dict[str, Any]:
     if split not in {"dev", "test"}:
         raise ValueError("split must be dev or test")
@@ -154,6 +155,7 @@ def evaluate(
     )
     lexical = StorageLexicalBackend(store=store)
     dense = QdrantDenseBackend(store=store, index=qdrant, embedding=embedding)
+    domain = load_domain_pack(load_settings().domain_pack)
     all_questions = json.loads(questions.read_text(encoding="utf-8"))
     selected = [item for item in all_questions if item["split"] == split and item["question_type"] != "refusal"]
     spans_cache: dict[str, list[ChunkSpan]] = {}
@@ -178,9 +180,16 @@ def evaluate(
                 ChunkSpan(chunk.id, chunk.document_version_id, chunk.char_start, chunk.char_end)
                 for chunk in store.list_ready_chunks(as_of=as_of)
             ]
-        filters = RetrievalFilter(as_of=date.fromisoformat(as_of), index_version=index_version)
-        sparse = lexical.search(query=item["question"], filters=filters, limit=TOP_K)
-        dense_hits = dense.search(query=item["question"], filters=filters, limit=TOP_K)
+        query = str(item["question"])
+        values = domain.retrieval_filter_values(query) if production_filters else None
+        query = domain.expand_retrieval_query(query) if production_filters else query
+        filters = RetrievalFilter(
+            as_of=date.fromisoformat(as_of), index_version=index_version,
+            entity_ids=values.entity_ids if values else (),
+            period_labels=values.period_labels if values else (),
+        )
+        sparse = lexical.search(query=query, filters=filters, limit=TOP_K)
+        dense_hits = dense.search(query=query, filters=filters, limit=TOP_K)
         sources = {chunk.chunk_id: chunk for chunk in [*sparse, *dense_hits]}
         fused = rrf_fuse(
             lexical_ids=[chunk.chunk_id for chunk in sparse],
@@ -190,7 +199,7 @@ def evaluate(
             lexical_scores={chunk.chunk_id: chunk.score for chunk in sparse if chunk.score is not None},
             dense_scores={chunk.chunk_id: chunk.score for chunk in dense_hits if chunk.score is not None},
         )
-        reranked = reranker.rerank(item["question"], fused, RERANK_TOP_N)
+        reranked = reranker.rerank(query, fused, RERANK_TOP_N)
         relevant = resolve_labels_to_chunks(
             [SpanLabel(**label) for label in item["labels"]], spans_cache[as_of]
         )
@@ -265,6 +274,7 @@ def main() -> None:
         output=args.output,
         budget_cny=args.budget_cny,
         env=dotenv_values(args.env_file),
+        production_filters=args.production_filters,
     )
     print(json.dumps(result.get("metrics", result), ensure_ascii=False))
 
