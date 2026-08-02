@@ -38,3 +38,15 @@ All blocks A–G were implemented and the full local gate exited zero.
 - All seven real mutation failures are retained under `_collab/081/evidence/`.
 - The final full gate is retained as `_collab/081/evidence/gate.log` and exited
   zero after all source and test changes.
+
+## Acceptance highlights
+
+- The repository-repeatable block-A Cartesian probe prints
+  `render_mismatches=0` across 64 unit/value combinations for both renderers.
+- The structured-date probe reports an age of 2770 days and one outdated-source
+  issue for a 2019 record; its fixture demo renders `数据截至：2026-06-12` on a
+  2026-08-02 run, while an unknown provider date renders `未标注`.
+- Accounting outputs are `provider_calls=2`, `ledger_rows=2`,
+  `run_total_cny=0.00006000`, `returned_bytes=300000`, and `timed_out=True`.
+- Fetch outputs reject all five private/file URLs without client calls, bound
+  streaming reads to 25 bytes, and retain redirect/content-type limits.
