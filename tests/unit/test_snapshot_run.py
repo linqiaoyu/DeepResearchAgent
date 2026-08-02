@@ -38,6 +38,11 @@ class SnapshotNormalizationTest(unittest.TestCase):
 
         self.assertEqual(snapshot_run.normalize(value), "<normalized-id>")
 
+    def test_normalizes_uuid_with_phone_redaction_before_final_hex(self) -> None:
+        value = "1ed40a69-f1a3-5901-b68e-f[REDACTED_PHONE]f"
+
+        self.assertEqual(snapshot_run.normalize(value), "<normalized-id>")
+
 
 class WorkflowCharacterizationTest(unittest.TestCase):
     maxDiff = None

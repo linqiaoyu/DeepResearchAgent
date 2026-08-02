@@ -69,7 +69,7 @@ UUID_RE = re.compile(
 )
 REDACTED_UUID_RE = re.compile(
     r"\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}"
-    r"-[0-9a-f]{1,12}\[REDACTED_PHONE\]",
+    r"-[0-9a-f]*\[REDACTED_PHONE\][0-9a-f]*(?=$|\W)",
     re.IGNORECASE,
 )
 ABSOLUTE_PATH_RE = re.compile(r"(?<![\w:/])/(?:[^/\s]+/)+[^/\s]+")
