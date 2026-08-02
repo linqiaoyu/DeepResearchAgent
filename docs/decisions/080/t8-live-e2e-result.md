@@ -31,3 +31,11 @@ run id 的歧义。`scripts/run_research_package.py` 已在本次运行前使用
 embedding/rerank 账本记录为 6。完整门禁命令
 `PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/gate.py` 在本次运行后退出 0，
 原始输出保存在 `_collab/080-t8-live-e2e/evidence/gate_080.log`。
+
+## 更正（081）
+
+该次 PASS 运行交付的报告将 `71332000000 CNY` 错误渲染为 `71332CNY`。根因是
+读者层把整个无小数点的格式化字符串执行 `rstrip("0")`，将有效的整数末尾零误作
+小数尾零删除；审计包的结构化证据原值正确。原验收覆盖了引用闭合和 strict replay，
+但 fixture 仅覆盖 `元`，没有覆盖 CNY 等非 `元` 单位的整数渲染，因此未能拦截此
+读者可见的数量级错误。081 已改为只在字符串含小数点时去除小数尾零。

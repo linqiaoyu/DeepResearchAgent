@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 from datetime import date
+from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -43,6 +44,19 @@ class ReaderFidelityTests(unittest.TestCase):
         self.assertIn("7,711,054,811.98元", guarded)
         self.assertIn("同比增长21.69%", guarded)
         self.assertIn("mechanical_grounded_fact", str(reporter.last_stats))
+
+    def test_typed_rendering_preserves_integer_trailing_zeroes_for_cny(self) -> None:
+        evidence = self._evidence(self._state(), "cny-integer", "2024", 1.0)
+        evidence.structured_record.value = 71332000000
+        evidence.structured_record.unit = "CNY"
+
+        rendered = ReporterAgent()._typed_evidence_claim(evidence)
+
+        self.assertIn("71332000000CNY", rendered)
+        self.assertEqual(
+            FinanceGroundedFactRenderer()._format_value(Decimal("10.50"), "CNY"),
+            "10.5CNY",
+        )
 
     def test_digit_magnitude_and_decimal_injections_never_reach_reader(
         self,

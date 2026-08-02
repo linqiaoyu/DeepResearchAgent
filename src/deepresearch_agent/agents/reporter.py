@@ -1046,11 +1046,10 @@ class ReporterAgent:
         if value is None or not unit:
             return "该 Evidence 的 typed 数值字段不完整，未展示生成式数值。"
         decimal = Decimal(str(value))
-        rendered_value = (
-            f"{format(decimal, 'f')}元"
-            if unit == "元"
-            else f"{format(decimal, 'f').rstrip('0').rstrip('.')}{unit}"
-        )
+        rendered = format(decimal, "f")
+        if "." in rendered:
+            rendered = rendered.rstrip("0").rstrip(".")
+        rendered_value = f"{rendered}{unit}"
         context = "; ".join(
             part
             for part in (

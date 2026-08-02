@@ -249,7 +249,9 @@ class FinanceGroundedFactRenderer:
         decimal = Decimal(str(value))
         if unit == "元":
             return f"{decimal:,f}元"
-        normalized = format(decimal, "f").rstrip("0").rstrip(".")
+        normalized = format(decimal, "f")
+        if "." in normalized:
+            normalized = normalized.rstrip("0").rstrip(".")
         return f"{normalized}{unit}"
 
     def _exact_currency_values_supported(
