@@ -2,7 +2,12 @@
 
 ## Hypothesis and decision rule
 
-On execution commit `bc966e0`, two real-provider runs will retain distinct SEC
+The initial NIO run on `14acc82` completed workflow execution but failed while
+exporting the audit bundle because serialised JSON was redacted as raw text.
+Commit `a6f24b0` redacts JSON leaves instead; this is a bounded export repair,
+not a change to providers, topics, model, retrieval, or evidence semantics.
+The allowed single retry for NIO and the fixed PDD run therefore execute on
+`a6f24b0` plus this preregistration amendment. Two real-provider runs will retain distinct SEC
 revenue and gross-profit facts from a shared filing, will export RAG reporting
 period ends without inventing publication dates, and will not emit relative web
 URLs. The NIO report must cite both structured facts and the package probes must
