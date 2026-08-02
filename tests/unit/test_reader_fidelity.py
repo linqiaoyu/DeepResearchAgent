@@ -40,8 +40,8 @@ class ReaderFidelityTests(unittest.TestCase):
         )
 
         self.assertNotIn("6,336,527,14.75", guarded)
-        self.assertIn("6,336,527,014.75元", guarded)
-        self.assertIn("7,711,054,811.98元", guarded)
+        self.assertIn("6,336,527,014.75 元", guarded)
+        self.assertIn("7,711,054,811.98 元", guarded)
         self.assertIn("同比增长21.69%", guarded)
         self.assertIn("mechanical_grounded_fact", str(reporter.last_stats))
 
@@ -55,7 +55,7 @@ class ReaderFidelityTests(unittest.TestCase):
         self.assertIn("71,332,000,000 CNY", rendered)
         self.assertEqual(
             FinanceGroundedFactRenderer()._format_value(Decimal("10.50"), "CNY"),
-            "10.5CNY",
+            "10.5 CNY",
         )
 
     def test_digit_magnitude_and_decimal_injections_never_reach_reader(
@@ -75,7 +75,7 @@ class ReaderFidelityTests(unittest.TestCase):
                     self._ref_map(),
                 )
                 self.assertNotIn(mutation, guarded)
-                self.assertIn("6,336,527,014.75元", guarded)
+                self.assertIn("6,336,527,014.75 元", guarded)
                 self.assertIn("未通过 Evidence 保真守卫", guarded)
 
     def test_grounded_fact_fidelity_failure_degrades_without_raising(
@@ -92,7 +92,7 @@ class ReaderFidelityTests(unittest.TestCase):
             self._ref_map(),
         )
 
-        self.assertNotIn("2025年归母净利润7,711,054,811.98元", guarded)
+        self.assertNotIn("2025年归母净利润7,711,054,811.98 元", guarded)
         self.assertIn("归母净利润：未取得满足", guarded)
         self.assertIn(
             {
@@ -160,7 +160,7 @@ class ReaderFidelityTests(unittest.TestCase):
         report = reporter.report(state)
 
         self.assertNotIn("6,336,527,14.75", report)
-        self.assertIn("6,336,527,014.75元", report)
+        self.assertIn("6,336,527,014.75 元", report)
 
     def test_metric_coverage_never_reuses_generated_numeric_claim(
         self,
@@ -218,9 +218,9 @@ class ReaderFidelityTests(unittest.TestCase):
     def test_reader_text_never_matches_inside_grouped_decimal(self) -> None:
         reporter = self._reporter()
         for value in (
-            "27,984,605,342.06元",
-            "6,336,527,014.75元",
-            "168,838,102,514.79元",
+            "27,984,605,342.06 元",
+            "6,336,527,014.75 元",
+            "168,838,102,514.79 元",
         ):
             with self.subTest(value=value):
                 self.assertEqual(reporter._reader_text(value), value)
@@ -242,8 +242,8 @@ class ReaderFidelityTests(unittest.TestCase):
             self._ref_map(),
         )
 
-        self.assertIn("7,711,054,811.98元", guarded)
-        self.assertIn("6,336,527,014.75元", guarded)
+        self.assertIn("7,711,054,811.98 元", guarded)
+        self.assertIn("6,336,527,014.75 元", guarded)
 
     def test_partial_and_unbound_renderer_batches_fail_closed(self) -> None:
         for renderer, message in (
