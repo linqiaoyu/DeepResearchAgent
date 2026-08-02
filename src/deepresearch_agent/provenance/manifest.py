@@ -341,7 +341,7 @@ def _actual_realness(
         for provider, value in actual.items()
         if not (provider == "disclosure" and value == "unused")
     }
-    if active and all(value == "unused" for value in active.values()):
+    if any(value == "unused" for value in active.values()):
         return "mixed"
     if not active:
         return "unknown"
