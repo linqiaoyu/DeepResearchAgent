@@ -43,6 +43,7 @@ class SearchChunk:
     score: float | None = None
     source_url: str = ""
     bbox_index: tuple[TextBoundingBox, ...] = ()
+    published_at: date | None = None
 
 
 @dataclass(frozen=True)
@@ -205,7 +206,7 @@ class RagSearchService:
         permitted = {
             chunk.chunk_id: chunk
             for chunk in [*lexical, *dense]
-            if chunk.effective_date <= effective_filters.as_of
+            if (chunk.published_at or chunk.effective_date) <= effective_filters.as_of
         }
         fused = rrf_fuse(
             lexical_ids=[chunk.chunk_id for chunk in lexical if chunk.chunk_id in permitted],

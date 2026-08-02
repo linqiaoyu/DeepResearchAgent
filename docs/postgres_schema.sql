@@ -98,3 +98,8 @@ ALTER TABLE chunk ADD COLUMN IF NOT EXISTS bbox_index_json JSONB NOT NULL DEFAUL
 ALTER TABLE chunk ADD COLUMN IF NOT EXISTS entity_id TEXT NOT NULL DEFAULT '';
 CREATE INDEX IF NOT EXISTS idx_chunk_entity_id ON chunk(entity_id);
 
+-- 005_chunk_published_at.sql
+ALTER TABLE chunk ADD COLUMN IF NOT EXISTS published_at TEXT NOT NULL DEFAULT '';
+UPDATE chunk SET published_at = effective_date WHERE published_at = '';
+CREATE INDEX IF NOT EXISTS idx_chunk_published_at ON chunk(published_at);
+

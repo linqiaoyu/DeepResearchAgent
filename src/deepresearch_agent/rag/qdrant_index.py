@@ -15,6 +15,7 @@ class IndexedChunk:
     char_end: int
     vector: list[float]
     entity_id: str = ""
+    published_at: str = ""
 
 
 @dataclass(frozen=True)
@@ -88,7 +89,7 @@ class QdrantIndex:
                 if existing != index_version:
                     raise ValueError("Qdrant collection index_version does not match index configuration")
         for field_name, field_schema in (
-            ("effective_date", "datetime"),
+            ("published_at", "datetime"),
             ("index_version", "keyword"),
             ("entity_id", "keyword"),
             ("period_label", "keyword"),
@@ -119,6 +120,7 @@ class QdrantIndex:
                     "chunk_id": chunk.chunk_id,
                     "document_version_id": chunk.document_version_id,
                     "effective_date": chunk.effective_date,
+                    "published_at": chunk.published_at or chunk.effective_date,
                     "char_start": chunk.char_start,
                     "char_end": chunk.char_end,
                     "index_version": index_version,
@@ -155,7 +157,7 @@ class QdrantIndex:
         if index_version is None:
             raise ValueError("Qdrant queries require an index_version")
         self.ensure_collection(dimensions=len(vector), index_version=index_version)
-        must = [{"key": "effective_date", "range": {"lte": as_of}}]
+        must = [{"key": "published_at", "range": {"lte": as_of}}]
         must.append({"key": "index_version", "match": {"value": index_version}})
         if entity_ids:
             must.append({"key": "entity_id", "match": {"any": sorted(set(entity_ids))}})

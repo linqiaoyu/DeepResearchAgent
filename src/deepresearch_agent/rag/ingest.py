@@ -23,6 +23,7 @@ class CorpusEntry:
     retrieved_at: str
     public_accessibility: str
     effective_date: str
+    published_at: str = ""
 
 
 @dataclass(frozen=True)
@@ -44,8 +45,12 @@ def load_corpus(path: Path) -> dict[str, CorpusEntry]:
     for value in entries:
         if not isinstance(value, dict) or required - value.keys():
             raise ValueError(f"invalid corpus entry; required={sorted(required)}")
-        entry = CorpusEntry(**{name: value[name] for name in required})
+        entry = CorpusEntry(**{name: value[name] for name in required}, published_at=str(value.get("published_at", "")))
         date.fromisoformat(entry.effective_date)
+        if entry.published_at:
+            date.fromisoformat(entry.published_at)
+        if entry.published_at and entry.published_at < entry.effective_date:
+            raise ValueError(f"published_at precedes effective_date: {entry.path}")
         if entry.path in result:
             raise ValueError(f"duplicate corpus path: {entry.path}")
         result[entry.path] = entry
@@ -103,6 +108,7 @@ def ingest_and_persist(
             canonical_url=entry.url,
             file_sha256=actual_hash,
             effective_date=entry.effective_date,
+            published_at=entry.published_at or entry.effective_date,
             chunks=[
                 StoredChunk(
                     id=chunk.id,
@@ -111,6 +117,7 @@ def ingest_and_persist(
                     page_number=chunk.page,
                     effective_date=chunk.effective_date,
                     content=chunk.text,
+                    published_at=entry.published_at,
                     bbox_index=chunk.bbox_index,
                     entity_id=_source_entity_id(relative_path),
                 )

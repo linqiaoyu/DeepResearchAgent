@@ -57,8 +57,8 @@ def _load_audit(questions_path: Path) -> list[dict[str, object]]:
 
 def validate_assets(*, input_dir: Path, corpus_path: Path, questions_path: Path, meta_path: Path) -> dict[str, int | str]:
     raw_manifest = json.loads(corpus_path.read_text(encoding="utf-8"))
-    if not isinstance(raw_manifest, dict) or raw_manifest.get("schema_version") != 1:
-        _fail("corpus schema_version must be 1")
+    if not isinstance(raw_manifest, dict) or raw_manifest.get("schema_version") not in {1, 2}:
+        _fail("corpus schema_version must be 1 or 2")
     documents = raw_manifest.get("documents")
     if not isinstance(documents, list) or len(documents) < 60:
         _fail("documents must contain at least 60 entries")
@@ -82,6 +82,25 @@ def validate_assets(*, input_dir: Path, corpus_path: Path, questions_path: Path,
         raw = target.read_bytes()
         if len(raw) != entry.get("bytes") or hashlib.sha256(raw).hexdigest() != entry.get("sha256"):
             _fail(f"manifest integrity mismatch: {path}")
+        if raw_manifest.get("schema_version") == 2:
+            published_at = entry.get("published_at")
+            if not isinstance(published_at, str):
+                _fail("v2 corpus entry lacks published_at")
+            try:
+                from datetime import date
+                date.fromisoformat(published_at)
+            except ValueError:
+                _fail("v2 published_at must be an ISO date")
+            if published_at < str(entry.get("effective_date", "")):
+                _fail("v2 published_at precedes effective_date")
+    if raw_manifest.get("schema_version") == 2:
+        return {
+            "documents": len(documents),
+            "published_at_missing": sum(
+                not isinstance(entry.get("published_at"), str) for entry in documents if isinstance(entry, dict)
+            ),
+            "corpus_fingerprint": corpus_fingerprint(raw_manifest),
+        }
     manifest = load_corpus(corpus_path)
     texts = {path: _global_text(input_dir / path) for path in manifest}
     version_to_entry = {
@@ -212,10 +231,10 @@ def document_version_id_for_hash(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", required=True, type=Path)
+    parser.add_argument("--input", type=Path, default=Path("data/raw/finance_v1"))
     parser.add_argument("--corpus", required=True, type=Path)
-    parser.add_argument("--questions", required=True, type=Path)
-    parser.add_argument("--meta", required=True, type=Path)
+    parser.add_argument("--questions", type=Path, default=Path("data/golden_set/retrieval_v1/questions.json"))
+    parser.add_argument("--meta", type=Path, default=Path("data/golden_set/retrieval_v1/meta.json"))
     args = parser.parse_args()
     result = validate_assets(
         input_dir=args.input, corpus_path=args.corpus, questions_path=args.questions, meta_path=args.meta

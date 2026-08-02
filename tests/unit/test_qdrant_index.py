@@ -56,12 +56,12 @@ class QdrantIndexTests(unittest.TestCase):
                 1,
             )
 
-        self.assertEqual(put.call_args_list[1].kwargs["json"], {"field_name": "effective_date", "field_schema": "datetime"})
+        self.assertEqual(put.call_args_list[1].kwargs["json"], {"field_name": "published_at", "field_schema": "datetime"})
         self.assertEqual(put.call_args_list[2].kwargs["json"], {"field_name": "index_version", "field_schema": "keyword"})
         self.assertEqual(put.call_args_list[3].kwargs["json"], {"field_name": "entity_id", "field_schema": "keyword"})
         self.assertEqual(put.call_args_list[4].kwargs["json"], {"field_name": "period_label", "field_schema": "keyword"})
         payload = put.call_args_list[5].kwargs["json"]["points"][0]["payload"]
-        self.assertEqual(set(payload), {"chunk_id", "document_version_id", "effective_date", "char_start", "char_end", "index_version", "entity_id", "period_label"})
+        self.assertEqual(set(payload), {"chunk_id", "document_version_id", "effective_date", "published_at", "char_start", "char_end", "index_version", "entity_id", "period_label"})
         self.assertNotIn("text", payload)
         self.assertNotIn("content", payload)
 
@@ -128,7 +128,7 @@ class QdrantIndexTests(unittest.TestCase):
         payload = post.call_args_list[1].kwargs["json"]
         self.assertEqual(payload["with_payload"], ["chunk_id"])
         self.assertNotIn("text", str(payload))
-        self.assertEqual(payload["filter"]["must"][0]["key"], "effective_date")
+        self.assertEqual(payload["filter"]["must"][0]["key"], "published_at")
 
     def test_query_adds_entity_filter_when_requested(self) -> None:
         index = QdrantIndex(url="https://qdrant.test", api_key="test", collection="collection")

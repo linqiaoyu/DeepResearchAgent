@@ -37,15 +37,15 @@ def backfill(
         collection=str(env["DEEPRESEARCH_QDRANT_COLLECTION"]),
     )
     index.ensure_collection(dimensions=1024, index_version=index_version)
-    grouped: dict[tuple[str, str], list[str]] = defaultdict(list)
+    grouped: dict[tuple[str, str, str], list[str]] = defaultdict(list)
     for chunk in chunks:
-        grouped[(chunk.entity_id, chunk.effective_date[:4])].append(chunk.id)
+        grouped[(chunk.entity_id, chunk.effective_date[:4], chunk.published_at)].append(chunk.id)
     updated = 0
-    for (entity_id, period_label), chunk_ids in sorted(grouped.items()):
+    for (entity_id, period_label, published_at), chunk_ids in sorted(grouped.items()):
         for offset in range(0, len(chunk_ids), batch_size):
             updated += index.set_filter_payload(
                 chunk_ids=chunk_ids[offset : offset + batch_size],
-                payload={"entity_id": entity_id, "period_label": period_label},
+                payload={"entity_id": entity_id, "period_label": period_label, "published_at": published_at},
                 model=DASHSCOPE_EMBEDDING_MODEL,
                 chunker_version=CHUNKER_VERSION,
             )

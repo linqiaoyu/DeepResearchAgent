@@ -54,6 +54,22 @@ class RagIngestTests(unittest.TestCase):
         self.assertTrue(all(item.char_end > item.char_start for item in first))
         self.assertTrue(all(item.effective_date == "2025-12-31" for item in first))
 
+    def test_as_of_filters_on_published_at_not_report_period(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            store = SQLiteStore(Path(directory) / "research.db")
+            chunk = StoredChunk(
+                id="published-late", char_start=0, char_end=4, page_number=None,
+                effective_date="2024-03-31", content="late", published_at="2024-06-21",
+            )
+            store.record_document_version(
+                canonical_url="https://example.test/late", file_sha256="b" * 64,
+                effective_date="2024-03-31", published_at="2024-06-21", chunks=[chunk],
+            )
+            before = store.list_ready_chunks(as_of="2024-04-01")
+            after = store.list_ready_chunks(as_of="2024-07-01")
+        self.assertEqual(before, [])
+        self.assertEqual([item.id for item in after], ["published-late"])
+
     def test_ingest_rejects_manifest_hash_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

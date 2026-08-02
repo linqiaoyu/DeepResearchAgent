@@ -120,6 +120,9 @@ class SQLiteStore:
             self._ensure_column(conn, "evidence", "retrieval_ref_json", "TEXT")
             self._ensure_column(conn, "chunk", "bbox_index_json", "TEXT NOT NULL DEFAULT '[]'")
             self._ensure_column(conn, "chunk", "entity_id", "TEXT NOT NULL DEFAULT ''")
+            self._ensure_column(conn, "chunk", "published_at", "TEXT NOT NULL DEFAULT ''")
+            conn.execute("UPDATE chunk SET published_at = effective_date WHERE published_at = ''")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_chunk_published_at ON chunk(published_at)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_chunk_entity_id ON chunk(entity_id)")
 
     def _ensure_column(self, conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:
@@ -258,6 +261,7 @@ class SQLiteStore:
         file_sha256: str,
         effective_date: str,
         chunks: list[StoredChunk],
+        published_at: str | None = None,
     ) -> DocumentIngestResult:
         if not chunks:
             raise ValueError("document version must contain at least one located chunk")
@@ -269,6 +273,9 @@ class SQLiteStore:
             raise ValueError("chunk page numbers must be positive when present")
         if any(chunk.effective_date != effective_date for chunk in chunks):
             raise ValueError("every chunk must use the document effective_date")
+        published_at = published_at or effective_date
+        if any((chunk.published_at or effective_date) != published_at for chunk in chunks):
+            raise ValueError("every chunk must use the document published_at")
         document_id = str(uuid5(NAMESPACE_URL, canonical_url))
         version_id = str(uuid5(NAMESPACE_URL, f"{document_id}:{file_sha256}"))
         with self._connection() as conn:
@@ -310,7 +317,7 @@ class SQLiteStore:
                 conn.execute("DELETE FROM chunk WHERE document_version_id = ?", (version_id,))
             conn.executemany(
                 "INSERT INTO chunk (id, document_version_id, char_start, char_end, page_number, "
-                "effective_date, status, content, bbox_index_json, entity_id) VALUES (?, ?, ?, ?, ?, ?, 'ready', ?, ?, ?)",
+                "effective_date, published_at, status, content, bbox_index_json, entity_id) VALUES (?, ?, ?, ?, ?, ?, ?, 'ready', ?, ?, ?)",
                 [
                     (
                         chunk.id,
@@ -319,6 +326,7 @@ class SQLiteStore:
                         chunk.char_end,
                         chunk.page_number,
                         chunk.effective_date,
+                        chunk.published_at or effective_date,
                         chunk.content,
                         json.dumps([item.model_dump(mode="json") for item in chunk.bbox_index]),
                         chunk.entity_id,
@@ -351,10 +359,10 @@ class SQLiteStore:
         with self._connection() as conn:
             rows = conn.execute(
                 "SELECT chunk.id, chunk.document_version_id, document.canonical_url, chunk.char_start, "
-                "chunk.char_end, chunk.page_number, chunk.effective_date, chunk.content, chunk.bbox_index_json, chunk.entity_id "
+                "chunk.char_end, chunk.page_number, chunk.effective_date, chunk.published_at, chunk.content, chunk.bbox_index_json, chunk.entity_id "
                 "FROM chunk JOIN document_version ON document_version.id = chunk.document_version_id "
                 "JOIN document ON document.id = document_version.document_id "
-                "WHERE chunk.status = 'ready' AND chunk.effective_date <= ? "
+                "WHERE chunk.status = 'ready' AND chunk.published_at <= ? "
                 "ORDER BY chunk.id",
                 (as_of,),
             ).fetchall()
@@ -367,10 +375,10 @@ class SQLiteStore:
         with self._connection() as conn:
             rows = conn.execute(
                 "SELECT chunk.id, chunk.document_version_id, document.canonical_url, chunk.char_start, "
-                "chunk.char_end, chunk.page_number, chunk.effective_date, chunk.content, chunk.bbox_index_json, chunk.entity_id "
+                "chunk.char_end, chunk.page_number, chunk.effective_date, chunk.published_at, chunk.content, chunk.bbox_index_json, chunk.entity_id "
                 "FROM chunk JOIN document_version ON document_version.id = chunk.document_version_id "
                 "JOIN document ON document.id = document_version.document_id "
-                f"WHERE chunk.status = 'ready' AND chunk.effective_date <= ? AND chunk.id IN ({placeholders})",
+                f"WHERE chunk.status = 'ready' AND chunk.published_at <= ? AND chunk.id IN ({placeholders})",
                 (as_of, *chunk_ids),
             ).fetchall()
         resolved = {str(row["id"]): self._resolved_chunk_from_row(row) for row in rows}
@@ -386,6 +394,7 @@ class SQLiteStore:
             char_end=int(row["char_end"]),
             page_number=None if row["page_number"] is None else int(row["page_number"]),
             effective_date=str(row["effective_date"]),
+            published_at=str(row["published_at"]),
             content=str(row["content"]),
             bbox_index=tuple(TextBoundingBox.model_validate(item) for item in json.loads(str(row["bbox_index_json"]))),
             entity_id=str(row["entity_id"]),

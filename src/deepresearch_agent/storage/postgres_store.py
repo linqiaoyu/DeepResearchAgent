@@ -139,6 +139,7 @@ class PostgresStore(SQLiteStore):
         file_sha256: str,
         effective_date: str,
         chunks: list[StoredChunk],
+        published_at: str | None = None,
     ) -> DocumentIngestResult:
         if not chunks:
             raise ValueError("document version must contain at least one located chunk")
@@ -148,6 +149,9 @@ class PostgresStore(SQLiteStore):
             raise ValueError("chunk page numbers must be positive when present")
         if any(chunk.effective_date != effective_date for chunk in chunks):
             raise ValueError("every chunk must use the document effective_date")
+        published_at = published_at or effective_date
+        if any((chunk.published_at or effective_date) != published_at for chunk in chunks):
+            raise ValueError("every chunk must use the document published_at")
         document_id = str(uuid5(NAMESPACE_URL, canonical_url))
         version_id = str(uuid5(NAMESPACE_URL, f"{document_id}:{file_sha256}"))
         with self._connection() as conn, conn.cursor() as cursor:
@@ -186,7 +190,7 @@ class PostgresStore(SQLiteStore):
             cursor.execute("DELETE FROM chunk WHERE document_version_id = %s", (version_id,))
             cursor.executemany(
                 "INSERT INTO chunk (id, document_version_id, char_start, char_end, page_number, "
-                "effective_date, status, content, bbox_index_json, entity_id) VALUES (%s, %s, %s, %s, %s, %s, 'ready', %s, %s::jsonb, %s)",
+                "effective_date, published_at, status, content, bbox_index_json, entity_id) VALUES (%s, %s, %s, %s, %s, %s, %s, 'ready', %s, %s::jsonb, %s)",
                 [
                     (
                         chunk.id,
@@ -195,6 +199,7 @@ class PostgresStore(SQLiteStore):
                         chunk.char_end,
                         chunk.page_number,
                         chunk.effective_date,
+                        chunk.published_at or effective_date,
                         chunk.content,
                         json.dumps([item.model_dump(mode="json") for item in chunk.bbox_index]),
                         chunk.entity_id,
@@ -229,10 +234,10 @@ class PostgresStore(SQLiteStore):
         with self._connection() as conn, conn.cursor(row_factory=self._psycopg.rows.dict_row) as cursor:
             rows = cursor.execute(
                 "SELECT chunk.id, chunk.document_version_id, document.canonical_url, chunk.char_start, "
-                "chunk.char_end, chunk.page_number, chunk.effective_date, chunk.content, chunk.bbox_index_json, chunk.entity_id "
+                "chunk.char_end, chunk.page_number, chunk.effective_date, chunk.published_at, chunk.content, chunk.bbox_index_json, chunk.entity_id "
                 "FROM chunk JOIN document_version ON document_version.id = chunk.document_version_id "
                 "JOIN document ON document.id = document_version.document_id "
-                "WHERE chunk.status = 'ready' AND chunk.effective_date <= %s ORDER BY chunk.id",
+                "WHERE chunk.status = 'ready' AND chunk.published_at <= %s ORDER BY chunk.id",
                 (as_of,),
             ).fetchall()
         return [self._resolved_chunk_from_row(row) for row in rows]
@@ -243,10 +248,10 @@ class PostgresStore(SQLiteStore):
         with self._connection() as conn, conn.cursor(row_factory=self._psycopg.rows.dict_row) as cursor:
             rows = cursor.execute(
                 "SELECT chunk.id, chunk.document_version_id, document.canonical_url, chunk.char_start, "
-                "chunk.char_end, chunk.page_number, chunk.effective_date, chunk.content, chunk.bbox_index_json, chunk.entity_id "
+                "chunk.char_end, chunk.page_number, chunk.effective_date, chunk.published_at, chunk.content, chunk.bbox_index_json, chunk.entity_id "
                 "FROM chunk JOIN document_version ON document_version.id = chunk.document_version_id "
                 "JOIN document ON document.id = document_version.document_id "
-                "WHERE chunk.status = 'ready' AND chunk.effective_date <= %s AND chunk.id = ANY(%s)",
+                "WHERE chunk.status = 'ready' AND chunk.published_at <= %s AND chunk.id = ANY(%s)",
                 (as_of, chunk_ids),
             ).fetchall()
         resolved = {str(row["id"]): self._resolved_chunk_from_row(row) for row in rows}
@@ -269,6 +274,7 @@ class PostgresStore(SQLiteStore):
             char_end=int(row["char_end"]),
             page_number=None if row["page_number"] is None else int(row["page_number"]),
             effective_date=str(row["effective_date"]),
+            published_at=str(row["published_at"]),
             content=str(row["content"]),
             bbox_index=tuple(TextBoundingBox.model_validate(item) for item in bbox_items),
             entity_id=str(row["entity_id"]),
