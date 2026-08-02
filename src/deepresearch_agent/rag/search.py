@@ -209,6 +209,15 @@ class RagSearchService:
             for chunk in [*lexical, *dense]
             if (chunk.published_at or chunk.effective_date) <= effective_filters.as_of
         }
+        preferred_periods = domain_values.preferred_period_labels if domain_values else ()
+        if preferred_periods:
+            preferred = {
+                chunk_id: chunk
+                for chunk_id, chunk in permitted.items()
+                if str(chunk.effective_date.year) in preferred_periods
+            }
+            if preferred:
+                permitted = preferred
         fused = rrf_fuse(
             lexical_ids=[chunk.chunk_id for chunk in lexical if chunk.chunk_id in permitted],
             dense_ids=[chunk.chunk_id for chunk in dense if chunk.chunk_id in permitted],

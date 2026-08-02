@@ -109,6 +109,7 @@ class RetrievalFilterValues:
     doc_types: tuple[str, ...] = ()
     entity_ids: tuple[str, ...] = ()
     period_labels: tuple[str, ...] = ()
+    preferred_period_labels: tuple[str, ...] = ()
 
 
 class RetrievalDomain(Protocol):

@@ -106,7 +106,14 @@ class RetrievalDomainTests(unittest.TestCase):
     def test_finance_retrieval_values_are_domain_owned(self) -> None:
         values = load_domain_pack("finance").retrieval_filter_values("阿里巴巴集团 2024年年度报告")
 
-        self.assertEqual(values, RetrievalFilterValues(entity_ids=("baba",), period_labels=("2024",)))
+        self.assertEqual(
+            values,
+            RetrievalFilterValues(
+                entity_ids=("baba",),
+                period_labels=("2024",),
+                preferred_period_labels=("2024",),
+            ),
+        )
 
     def test_null_domain_does_not_invent_retrieval_values(self) -> None:
         self.assertEqual(NullDomainPack().retrieval_filter_values("anything").doc_types, ())

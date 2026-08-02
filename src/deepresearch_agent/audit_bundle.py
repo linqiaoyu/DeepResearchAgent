@@ -167,6 +167,9 @@ def extract_report_claims(state: ResearchState) -> list[dict[str, Any]]:
         for number, evidence_id in state.report_footnote_evidence.items()
         if evidence_id in evidence_by_id
     }
+    evidence_ids_by_source_url: dict[str, list[str]] = {}
+    for item in state.evidence_store:
+        evidence_ids_by_source_url.setdefault(item.source_url, []).append(item.id)
     claims: list[dict[str, Any]] = []
     section = ""
     for line in (state.final_report or "").splitlines():
@@ -179,12 +182,18 @@ def extract_report_claims(state: ResearchState) -> list[dict[str, Any]]:
         for match in _CITATION_RE.findall(line):
             number = int(match)
             evidence = footnotes.get(number)
-            evidence_ids.append(evidence.id if evidence else f"footnote:{number}")
+            if evidence:
+                # A footnote is source-deduplicated, but its source can support
+                # several distinct structured facts.  Preserve every such ID
+                # for audit coverage without reconstructing footnotes by order.
+                evidence_ids.extend(evidence_ids_by_source_url[evidence.source_url])
+            else:
+                evidence_ids.append(f"footnote:{number}")
         claims.append(
             {
                 "section": section,
                 "text": _CITATION_RE.sub("", line.removeprefix("- ")).strip(),
-                "evidence_ids": evidence_ids,
+                "evidence_ids": list(dict.fromkeys(evidence_ids)),
             }
         )
     return claims

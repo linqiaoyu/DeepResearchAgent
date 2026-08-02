@@ -274,6 +274,7 @@ class FinanceDomainPack:
         return RetrievalFilterValues(
             entity_ids=entity_ids,
             period_labels=period_labels,
+            preferred_period_labels=(str(max(years)),) if years else (),
         )
 
     def expand_retrieval_query(self, query: str) -> str:
