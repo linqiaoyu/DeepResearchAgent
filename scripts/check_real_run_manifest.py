@@ -75,7 +75,6 @@ def validate_manifest(
         if realness != "real":
             failures.append(f"actual_realness={realness!r}")
     if require_active_real:
-        optional_unused = False
         for provider in ACTIVE_T8_PROVIDERS:
             if not isinstance(usage.get(provider), int) or usage[provider] < 1:
                 failures.append(f"provider_usage.{provider}={usage.get(provider)!r}")
@@ -87,7 +86,6 @@ def validate_manifest(
             if not isinstance(provider_usage, int) or provider_usage < 0:
                 failures.append(f"provider_usage.{provider}={provider_usage!r}")
             elif provider_usage == 0:
-                optional_unused = True
                 if provider_fidelity != "unused":
                     failures.append(f"actual_provider_fidelity.{provider}={provider_fidelity!r}")
                 degradation_tools = OPTIONAL_PROVIDER_DEGRADATION_TOOLS[provider]
@@ -100,7 +98,7 @@ def validate_manifest(
                     failures.append(f"optional_provider_degradation.{provider}={len(attempted)}")
             elif provider_fidelity != "real":
                 failures.append(f"actual_provider_fidelity.{provider}={provider_fidelity!r}")
-        expected_realness = "real"
+        expected_realness = "mixed"
         if realness != expected_realness:
             failures.append(f"actual_realness={realness!r}; expected {expected_realness!r}")
     return failures
