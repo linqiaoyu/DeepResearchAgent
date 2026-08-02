@@ -304,11 +304,11 @@ class ReporterAgent:
             ):
                 continue
             prefix = "- " if line.lstrip().startswith("-") else ""
-            lines[index] = (
-                prefix
-                + "该数值表述未通过 Evidence 保真守卫，已从读者报告移除；"
-                "精确值仅以“关键发现”和“指标覆盖状态”的机械渲染为准。"
-            )
+            notice = "该数值表述未通过 Evidence 保真守卫，无法由引用证据核验，已移除；请参阅关键发现中的可核验数值。"
+            if notice in lines:
+                lines[index] = ""
+            else:
+                lines[index] = prefix + notice
             downgraded += 1
         return downgraded
 
@@ -349,12 +349,13 @@ class ReporterAgent:
             by_subq[item.sub_question_id].append(item)
 
         supplemental: list[Evidence] = []
-        lines.extend(["", "## 详细分析"])
+        analysis_lines: list[str] = []
         for sub_question in state.plan.sub_questions:
-            lines.append(f"### {sub_question.question}")
+            section_lines = [f"### {sub_question.question}"]
             items = by_subq.get(sub_question.id, [])
             if not items:
-                lines.append("当前没有足够证据，需要二次检索补齐。")
+                section_lines.append("当前没有足够证据，需要二次检索补齐。")
+                analysis_lines.extend(section_lines)
                 continue
             rendered = 0
             for item in items:
@@ -364,10 +365,13 @@ class ReporterAgent:
                 if item.id not in key_evidence_ids and not (fact_keys & key_fact_keys):
                     supplemental.append(item)
                     continue
-                lines.append(f"- {self._evidence_claim_text(item)} [^{ref_map[item.id]}]")
+                section_lines.append(f"- {self._evidence_claim_text(item)} [^{ref_map[item.id]}]")
                 rendered += 1
-            if not rendered:
-                lines.append("本节没有可追溯到关键发现的新增分析项。")
+            if rendered:
+                analysis_lines.extend(section_lines)
+
+        if analysis_lines:
+            lines.extend(["", "## 详细分析", *analysis_lines])
 
         if supplemental:
             lines.extend(["", "## 补充事实"])
@@ -692,15 +696,14 @@ class ReporterAgent:
             )
 
         by_section = {section.sub_question_id: section for section in draft.detailed_analysis}
-        lines.extend(["", "## 详细分析"])
+        detailed_lines: list[str] = []
         if not state.plan:
             raise ValueError("Cannot render detailed analysis without a plan.")
         for sub_question in state.plan.sub_questions:
             section = by_section.get(sub_question.id)
-            lines.append(f"### {self._reader_text(sub_question.question)}")
             if not section or not section.claims:
-                lines.append("本节没有可追溯到关键发现的分析项。")
                 continue
+            section_lines = [f"### {self._reader_text(sub_question.question)}"]
             rendered_count = 0
             for index, claim in enumerate(section.claims[:3]):
                 fact_keys = self._claim_fact_keys(
@@ -741,11 +744,14 @@ class ReporterAgent:
                 invalid_references += invalid
                 missing_reference_backfills += backfilled
                 claim_provenance.append(provenance)
-                lines.append(f"- {rendered}")
+                section_lines.append(f"- {rendered}")
                 seen_fact_keys.update(fact_keys)
                 rendered_count += 1
-            if not rendered_count:
-                lines.append("本节没有可追溯到关键发现的新增分析项。")
+            if rendered_count:
+                detailed_lines.extend(section_lines)
+
+        if detailed_lines:
+            lines.extend(["", "## 详细分析", *detailed_lines])
 
         if supplemental:
             lines.extend(["", "## 补充事实"])
@@ -924,7 +930,6 @@ class ReporterAgent:
 
         if normalize_currency:
             text = _RMB_RE.sub(readable_rmb, text)
-        text = re.sub(r"(?<=\d)\s+元", "元", text)
         return _RAW_PERIOD_RE.sub(
             lambda match: (
                 f"{match.group(1)}年{int(match.group(2))}月"
@@ -1043,10 +1048,10 @@ class ReporterAgent:
         if value is None or not unit:
             return "该 Evidence 的 typed 数值字段不完整，未展示生成式数值。"
         decimal = Decimal(str(value))
-        rendered = format(decimal, "f")
+        rendered = format(decimal, ",f")
         if "." in rendered:
             rendered = rendered.rstrip("0").rstrip(".")
-        rendered_value = f"{rendered}{unit}"
+        rendered_value = f"{rendered} {unit}"
         context = "; ".join(
             part
             for part in (

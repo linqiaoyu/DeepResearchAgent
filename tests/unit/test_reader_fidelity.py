@@ -52,7 +52,7 @@ class ReaderFidelityTests(unittest.TestCase):
 
         rendered = ReporterAgent()._typed_evidence_claim(evidence)
 
-        self.assertIn("71332000000CNY", rendered)
+        self.assertIn("71,332,000,000 CNY", rendered)
         self.assertEqual(
             FinanceGroundedFactRenderer()._format_value(Decimal("10.50"), "CNY"),
             "10.5CNY",
@@ -212,8 +212,8 @@ class ReaderFidelityTests(unittest.TestCase):
         report = self._reporter().report(state)
         coverage = report.rsplit("## 指标覆盖状态", 1)[1]
 
-        self.assertIn("27984605342.06元", coverage)
-        self.assertNotIn("27,984,605,342.6元", coverage)
+        self.assertIn("27,984,605,342.06 元", coverage)
+        self.assertNotIn("27,984,605,342.6 元", coverage)
 
     def test_reader_text_never_matches_inside_grouped_decimal(self) -> None:
         reporter = self._reporter()

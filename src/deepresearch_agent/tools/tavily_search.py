@@ -11,7 +11,7 @@ from collections.abc import Mapping
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Protocol
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import parse_qs, unquote, urljoin, urlsplit
 
 import httpx
 
@@ -393,7 +393,7 @@ class TavilySearchProvider:
                     if title_match
                     else current_url
                 )
-                content = self._html_text(raw)[: self.raw_content_char_limit]
+                content = self._article_text(raw)[: self.raw_content_char_limit]
                 if not content:
                     return None
                 return Source(
@@ -501,8 +501,8 @@ class TavilySearchProvider:
         result: Mapping[str, Any],
         source_type: str | None,
     ) -> Source | None:
-        url = self._text(result.get("url"))
-        if not url:
+        url = self._normalise_source_url(self._text(result.get("url")))
+        if url is None:
             return None
 
         title = self._text(result.get("title")) or url
@@ -516,6 +516,27 @@ class TavilySearchProvider:
             content=content,
             credibility=self._credibility(result.get("score")),
         )
+
+    @staticmethod
+    def _normalise_source_url(value: str) -> str | None:
+        """Keep only reader-verifiable absolute publisher URLs.
+
+        Search pages occasionally expose an internal `/goto?url=...` link.
+        Its destination is usable only when the query contains a complete
+        absolute URL; retaining the hop itself would make a citation unusable.
+        """
+        if not value:
+            return None
+        parsed = urlsplit(value)
+        if parsed.scheme in {"http", "https"} and parsed.hostname:
+            return value
+        params = parse_qs(parsed.query)
+        for target in params.get("url", []):
+            resolved = unquote(target)
+            candidate = urlsplit(resolved)
+            if candidate.scheme in {"http", "https"} and candidate.hostname:
+                return resolved
+        return None
 
     def _topic_for_source_type(self, source_type: str | None) -> str:
         return "news" if source_type == "news" else "general"
@@ -595,6 +616,32 @@ class TavilySearchProvider:
         )
         without_tags = re.sub(r"<[^>]+>", " ", without_scripts)
         return " ".join(html.unescape(without_tags).split())
+
+    def _article_text(self, value: str) -> str:
+        """Extract conservative reader-facing text from a fetched HTML page.
+
+        We only discard recognizable chrome without digits.  Financial prose is
+        deliberately retained even if it appears beside page furniture.
+        """
+        cleaned = re.sub(
+            r"<(?:script|style|noscript|svg|header|nav|footer|aside)[^>]*>.*?</(?:script|style|noscript|svg|header|nav|footer|aside)>",
+            "\n", value, flags=re.IGNORECASE | re.DOTALL,
+        )
+        cleaned = re.sub(r"<(?:br|/p|/div|/li|/article|/section|/h[1-6])[^>]*>", "\n", cleaned, flags=re.I)
+        cleaned = re.sub(r"<[^>]+>", " ", cleaned)
+        boilerplate = re.compile(
+            r"(?:友情链接|ICP备|备案|举报(?:纠错|电话)?|点赞|评论|收藏|分享|移动App|触屏版|小程序|汽车之家|隐私政策|版权所有)",
+            re.IGNORECASE,
+        )
+        lines: list[str] = []
+        for raw_line in html.unescape(cleaned).splitlines():
+            line = " ".join(raw_line.split())
+            if not line:
+                continue
+            if boilerplate.search(line) and not re.search(r"\d", line):
+                continue
+            lines.append(line)
+        return "\n".join(lines)
 
     def _record_ledger(
         self,

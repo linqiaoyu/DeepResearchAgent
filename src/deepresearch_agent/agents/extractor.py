@@ -182,6 +182,8 @@ class ExtractorAgent:
                         source_url=source.url,
                         source_title=source.title,
                         source_pub_date=source.published_at,
+                        report_period_end=source.report_period_end,
+                        source_date_unknown_reason=source.source_date_unknown_reason,
                         source_page=self._source_page(
                             source.content,
                             extract_offset_start,
@@ -262,6 +264,8 @@ class ExtractorAgent:
                     source_url=source.url,
                     source_title=source.title,
                     source_pub_date=source.published_at,
+                    report_period_end=source.report_period_end,
+                    source_date_unknown_reason=source.source_date_unknown_reason,
                     source_page=self._source_page(
                         source.content,
                         source.content.find(claim.extract_text),

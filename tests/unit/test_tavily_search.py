@@ -243,9 +243,28 @@ class TavilySearchProviderTests(unittest.TestCase):
         self.assertIsNotNone(source)
         assert source is not None
         self.assertEqual(source.title, "年度报告")
-        self.assertEqual(source.content, "年度报告 营业收入 100 亿元")
+        self.assertEqual(source.content, "年度报告\n营业收入 100 亿元")
         self.assertEqual(source.source_type, "web_fetch")
         self.assertEqual(len(client.get_calls), 1)
+
+    def test_article_extraction_removes_navigation_without_dropping_numeric_financial_text(self) -> None:
+        provider = TavilySearchProvider("test-key", client=FakeHttpClient(FakeResponse({})))
+        text = provider._article_text(
+            "<header>中华网 首页 友情链接 ICP备案</header><article>"
+            "实现营业总收入661.43亿元，同比增长17.64%</article>"
+            "<footer>点赞 评论 收藏 分享 举报纠错</footer>"
+        )
+        self.assertIn("实现营业总收入661.43亿元，同比增长17.64%", text)
+        self.assertNotIn("友情链接", text)
+        self.assertNotIn("点赞", text)
+
+    def test_relative_redirect_result_is_discarded_and_absolute_target_is_resolved(self) -> None:
+        provider = TavilySearchProvider("test-key", client=FakeHttpClient(FakeResponse({})))
+        self.assertIsNone(provider._normalise_source_url("/goto?opaque=1"))
+        self.assertEqual(
+            provider._normalise_source_url("/goto?url=https%3A%2F%2Fissuer.example%2Freport"),
+            "https://issuer.example/report",
+        )
 
     def test_search_posts_expected_request_and_normalizes_sources(self) -> None:
         response = FakeResponse(

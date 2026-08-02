@@ -21,6 +21,7 @@ class _RagSearch:
                     "source_url": "https://example.test/annual-report.pdf",
                     "text": "权威原文片段",
                     "index_version": "finance-v1",
+                    "report_period_end": "2024-12-31",
                     "char_start": 10,
                     "char_end": 20,
                     "bbox_index": [
@@ -51,6 +52,9 @@ class RagResearcherTests(unittest.TestCase):
         self.assertEqual(sources[0].content, "权威原文片段")
         self.assertEqual(sources[0].retrieval_ref.chunk_id, "chunk-1")
         self.assertEqual(sources[0].bbox_index[0].bbox.page, 1)
+        self.assertEqual(sources[0].report_period_end, date(2024, 12, 31))
+        self.assertIsNone(sources[0].published_at)
+        self.assertEqual(sources[0].source_date_unknown_reason, "corpus_lacks_publication_date")
         self.assertEqual(records[0].query, "[rag_search] 检索问题")
 
     def test_invalid_rag_candidate_is_rejected_instead_of_becoming_a_source(self) -> None:
@@ -87,6 +91,8 @@ class RagResearcherTests(unittest.TestCase):
             url="https://example.test/report#chunk=chunk-1",
             source_type="rag_chunk",
             content="这是足够长的权威问题原文片段，用于验证检索引用可以进入既有证据存储并保持完整可追溯性。",
+            report_period_end=date(2024, 12, 31),
+            source_date_unknown_reason="corpus_lacks_publication_date",
             retrieval_ref=RetrievalReference(
                 chunk_id="chunk-1",
                 document_version_id="version-1",
@@ -99,6 +105,9 @@ class RagResearcherTests(unittest.TestCase):
             "run", SubQuestion(id="q", question="问题", search_queries=[]), [source]
         )
         self.assertEqual(evidence[0].retrieval_ref, source.retrieval_ref)
+        self.assertIsNone(evidence[0].source_pub_date)
+        self.assertEqual(evidence[0].report_period_end, date(2024, 12, 31))
+        self.assertEqual(evidence[0].source_date_unknown_reason, "corpus_lacks_publication_date")
 
 
 if __name__ == "__main__":

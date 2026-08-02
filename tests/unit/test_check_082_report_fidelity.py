@@ -45,6 +45,12 @@ class Check082ReportFidelityTests(unittest.TestCase):
         self.assertEqual(metrics.footnote_misrefs, 0)
         self.assertEqual(metrics.magnitude_mismatches, 0)
 
+    def test_grouped_number_is_checked_for_magnitude(self) -> None:
+        metrics = MODULE.measure(package(rendered="71,332,000,000 CNY"))
+        self.assertEqual(metrics.magnitude_mismatches, 0)
+        truncated = MODULE.measure(package(rendered="71,332,000 CNY"))
+        self.assertEqual(truncated.magnitude_mismatches, 1)
+
     def test_zero_sampled_numbers_are_vacuous(self) -> None:
         root = package()
         audit = root / "audit_bundle"

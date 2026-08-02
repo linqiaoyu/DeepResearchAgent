@@ -415,7 +415,7 @@ class ReporterFinanceTemplateTests(unittest.TestCase):
         )
         self.assertIn("[^1]", assumptions)
         self.assertIn(
-            "168,838,102,514.79元。 [^1]",
+            "168,838,102,514.79 元。 [^1]",
             report,
         )
 
@@ -551,7 +551,7 @@ class ReporterFinanceTemplateTests(unittest.TestCase):
         result = Evaluator().evaluate(state)
 
         self.assertNotIn("e+", state.final_report.lower())
-        self.assertIn("168838102514.79元", state.final_report)
+        self.assertIn("168,838,102,514.79 元", state.final_report)
         self.assertEqual(result.task_success_rate, 1.0)
         self.assertNotIn(
             "numeric_citation_mismatch",

@@ -391,17 +391,22 @@ class ResearcherAgent:
         char_start = candidate.get("char_start")
         char_end = candidate.get("char_end")
         bbox_index = candidate.get("bbox_index", [])
+        report_period_end = candidate.get("report_period_end")
         if not all(isinstance(value, str) and value for value in (chunk_id, source_url, text, version_id, index_version)):
             raise ValueError("rag candidate lacks authoritative source identity")
         if not isinstance(char_start, int) or not isinstance(char_end, int) or char_start < 0 or char_end <= char_start:
             raise ValueError("rag candidate lacks a valid authoritative character range")
         if not isinstance(bbox_index, list):
             raise ValueError("rag candidate bbox_index must be a list when present")
+        if report_period_end is not None and not isinstance(report_period_end, str):
+            raise ValueError("rag candidate has an invalid reporting-period end")
         return Source(
             id=f"rag:{chunk_id}",
             title=f"retrieval chunk {version_id}",
             url=f"{source_url}#chunk={chunk_id}",
             source_type="rag_chunk",
+            report_period_end=(date.fromisoformat(report_period_end) if report_period_end else None),
+            source_date_unknown_reason=("corpus_lacks_publication_date" if report_period_end else None),
             content=text,
             source_tier="unknown",
             bbox_index=bbox_index,
@@ -589,7 +594,8 @@ class ResearcherAgent:
             f"akshare://{record.metric_name}/{record.symbol}/{record.period}/"
             f"{hashlib.sha1(extract_text.encode('utf-8')).hexdigest()[:10]}"
         )
-        evidence_id = f"structured-{hashlib.sha1(source_url.encode('utf-8')).hexdigest()[:16]}"
+        evidence_identity = f"{source_url}|{extract_text}"
+        evidence_id = f"structured-{hashlib.sha1(evidence_identity.encode('utf-8')).hexdigest()[:16]}"
         return Evidence(
             id=evidence_id,
             research_id=research_id,

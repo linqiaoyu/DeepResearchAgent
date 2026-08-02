@@ -101,6 +101,10 @@ class Source(StrictModel):
     url: str
     source_type: str
     published_at: date | None = None
+    # RAG corpus metadata stores a reporting-period end, not a disclosure date.
+    # Keep the two concepts separate so as-of evidence never invents a filing date.
+    report_period_end: date | None = None
+    source_date_unknown_reason: str | None = None
     content: str
     credibility: float = Field(default=0.8, ge=0, le=1)
     source_tier: Literal["primary", "secondary", "unknown"] = Field(
@@ -185,6 +189,8 @@ class Evidence(StrictModel):
     source_url: str
     source_title: str
     source_pub_date: date | None = None
+    report_period_end: date | None = None
+    source_date_unknown_reason: str | None = None
     source_page: int | None = Field(default=None, ge=1)
     bbox: BoundingBox | None = None
     extract_text: str

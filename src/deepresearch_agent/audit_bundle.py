@@ -65,6 +65,15 @@ def export_audit_bundle(
             "source_pub_date": (
                 item.source_pub_date.isoformat() if item.source_pub_date else None
             ),
+            "report_period_end": (
+                item.report_period_end.isoformat() if item.report_period_end else None
+            ),
+            "source_date_unknown_reason": item.source_date_unknown_reason,
+            "retrieval_ref": (
+                item.retrieval_ref.model_dump(mode="json")
+                if item.retrieval_ref is not None
+                else None
+            ),
             "captured_at": item.extracted_at.isoformat(),
             "extract_text": item.extract_text[
                 :PUBLIC_EXCERPT_CHAR_LIMIT

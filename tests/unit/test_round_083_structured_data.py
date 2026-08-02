@@ -99,6 +99,16 @@ class Round083StructuredDataTests(unittest.TestCase):
         self.assertEqual(outcomes["unsupported"]["failure_type_StructuredDataUnsupportedMetric"], 1)
         self.assertEqual(outcomes["empty"]["failure_type_StructuredDataEmptyResult"], 1)
 
+    def test_structured_evidence_ids_are_distinct_for_facts_from_one_filing(self) -> None:
+        records = _nio_provider().financial_indicators(
+            "CIK0001736541", periods=["20241231"], metrics=["营业收入", "毛利"]
+        )
+        researcher = ResearcherAgent(structured_data_provider=_nio_provider())
+        first = [researcher._evidence_from_record("run", "q", item) for item in records]
+        second = [researcher._evidence_from_record("run", "q", item) for item in records]
+        self.assertEqual(len({item.id for item in first}), 2)
+        self.assertEqual([item.id for item in first], [item.id for item in second])
+
     def test_finance_plan_injects_isolated_sec_requests_for_nio_and_pdd(self) -> None:
         nio = PlannerAgent().plan("蔚来 2024 年年报的营收与毛利情况", 1)
         pdd = PlannerAgent().plan("PDD 2024 annual report revenue and gross margin", 1)

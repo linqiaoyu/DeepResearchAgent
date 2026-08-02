@@ -278,6 +278,12 @@ class RagSearchService:
                     "rerank_score": candidate.rerank_score,
                     "document_version_id": permitted[candidate.chunk_id].document_version_id,
                     "source_url": permitted[candidate.chunk_id].source_url,
+                    # Corpus values called published_at are known reporting-period
+                    # ends in this corpus, not document publication dates.
+                    "report_period_end": (
+                        permitted[candidate.chunk_id].published_at
+                        or permitted[candidate.chunk_id].effective_date
+                    ).isoformat(),
                     "index_version": effective_filters.index_version or "unspecified",
                     "char_start": permitted[candidate.chunk_id].char_start,
                     "char_end": permitted[candidate.chunk_id].char_end,
