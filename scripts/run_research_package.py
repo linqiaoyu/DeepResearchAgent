@@ -137,7 +137,22 @@ def main() -> None:
             llm_config=getattr(engine.llm_client, "config", None),
         )
         structured = state.structured_output or engine.reporter.structured_output(state)
-        (output / "report.md").write_text(state.final_report or "", encoding="utf-8")
+        report = state.final_report or ""
+        if rag_search is not None:
+            rag_run_id = getattr(rag_search, "ledger_run_id", None)
+            rag_ledger = getattr(rag_search, "ledger", None)
+            if not isinstance(rag_run_id, str) or not isinstance(rag_ledger, LLMClient):
+                raise RuntimeError("live RAG service lacks an auditable ledger run id")
+            rag_cost = rag_ledger.aggregate_run(rag_run_id)
+            state.metadata["rag_ledger_run_id"] = rag_run_id
+            state.metadata["rag_cost_summary"] = rag_cost
+            report += (
+                "\n\n## Live RAG cost reconciliation\n\n"
+                f"- workflow research_id: `{state.research_id}`\n"
+                f"- RAG ledger run_id: `{rag_run_id}`\n"
+                f"- RAG cost_cny_total: `{rag_cost['cost_cny_total']}`\n"
+            )
+        (output / "report.md").write_text(report, encoding="utf-8")
         (output / "structured.json").write_text(
             render_structured_json(structured),
             encoding="utf-8",
@@ -219,7 +234,7 @@ def _build_live_rag_search(
         collection=os.environ["DEEPRESEARCH_QDRANT_COLLECTION"],
     )
     _warn_if_rerank_endpoint_domain_differs()
-    return RagSearchService(
+    service = RagSearchService(
         lexical=StorageLexicalBackend(store=store),
         dense=QdrantDenseBackend(
             store=store,
@@ -243,6 +258,9 @@ def _build_live_rag_search(
         retrieval_domain=retrieval_domain,
         index_version=index_version,
     )
+    service.ledger = ledger
+    service.ledger_run_id = run_id
+    return service
 
 
 def _warn_if_rerank_endpoint_domain_differs() -> None:

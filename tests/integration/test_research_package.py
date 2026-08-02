@@ -146,6 +146,10 @@ class ResearchPackageTests(unittest.TestCase):
                     rerank_top_n=8,
                 )
 
+    def test_live_rag_cost_reconciliation_requires_the_service_ledger_identity(self) -> None:
+        self.assertIn("rag_ledger_run_id", SCRIPT.read_text(encoding="utf-8"))
+        self.assertIn("Live RAG cost reconciliation", SCRIPT.read_text(encoding="utf-8"))
+
     def _offline_env(self) -> dict[str, str]:
         env = {
             key: value
