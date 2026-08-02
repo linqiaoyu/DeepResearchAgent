@@ -59,6 +59,10 @@ class ResearchPackageTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn("audit_citation_closure=ok", result.stdout)
+            self.assertIn(
+                "audit_citation_closure: `ok`",
+                (output / "report.md").read_text(encoding="utf-8"),
+            )
             for relative in (
                 "request.json",
                 "report.md",
@@ -180,6 +184,15 @@ class ResearchPackageTests(unittest.TestCase):
             self.assertIn("RAG total_cost_cny: `0.125`", report)
             self.assertEqual(state.metadata["rag_ledger_run_id"], "rag-run")
             self.assertEqual(state.metadata["rag_cost_summary"]["total_cost_cny"], 0.125)
+
+    def test_audit_citation_closure_is_preserved_in_delivered_report(self) -> None:
+        report = run_research_package._append_audit_citation_closure(
+            report="# report\n",
+            citation_closure="ok",
+        )
+
+        self.assertIn("## Audit citation closure", report)
+        self.assertIn("audit_citation_closure: `ok`", report)
 
     def _offline_env(self) -> dict[str, str]:
         env = {

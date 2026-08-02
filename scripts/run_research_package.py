@@ -144,7 +144,6 @@ def main() -> None:
                 state=state,
                 rag_search=rag_search,
             )
-        (output / "report.md").write_text(report, encoding="utf-8")
         (output / "structured.json").write_text(
             render_structured_json(structured),
             encoding="utf-8",
@@ -160,6 +159,11 @@ def main() -> None:
             manifest=manifest,
             output_dir=output / "audit_bundle",
         )
+        report = _append_audit_citation_closure(
+            report=report,
+            citation_closure=audit_result["citation_closure"],
+        )
+        (output / "report.md").write_text(report, encoding="utf-8")
         snapshot = build_research_snapshot(
             state=state,
             settings=settings,
@@ -202,6 +206,14 @@ def _append_live_rag_cost_reconciliation(*, report: str, state: object, rag_sear
         + f"- RAG ledger run_id: `{rag_run_id}`\n"
         + f"- RAG total_cost_cny: `{total_cost_cny}`\n"
     )
+
+
+def _append_audit_citation_closure(*, report: str, citation_closure: object) -> str:
+    """Preserve the audit-bundle citation-closure result in the delivered report."""
+
+    if not isinstance(citation_closure, str):
+        raise RuntimeError("audit bundle returned an invalid citation closure")
+    return report + f"\n\n## Audit citation closure\n\n- audit_citation_closure: `{citation_closure}`\n"
 
 
 def _live_preflight(*, allow_paid_api: bool) -> list[str]:
