@@ -18,6 +18,7 @@ from deepresearch_agent.llm import (
     LLMClient,
     LLMClientError,
     LLMRetryExhaustedError,
+    StructuredOutputError,
 )
 from deepresearch_agent.llm_config import DEFAULT_LLM_CONFIG, RoleModelConfig
 from deepresearch_agent.schemas import (
@@ -671,6 +672,27 @@ class LLMIntegrationTests(unittest.TestCase):
 
             self.assertEqual(completion.calls, 2)
             self.assertEqual(result.repair_attempts, 1)
+            self.assertEqual(len(ledger_path.read_text(encoding="utf-8").splitlines()), 2)
+
+    def test_failed_repair_is_still_recorded_in_the_ledger(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            env_path = Path(tmp) / ".env"
+            env_path.write_text("DEEPSEEK_API_KEY=test-key\n", encoding="utf-8")
+            ledger_path = Path(tmp) / "ledger.jsonl"
+            client = LLMClient(
+                ledger_path=ledger_path, budget_cny=3.0,
+                completion_func=MockCompletion(["not-json", "still-not-json"]),
+                sleep_func=lambda _: None, env_path=env_path,
+                global_ledger_path=Path(tmp) / "global_ledger.jsonl",
+            )
+            from deepresearch_agent.schemas import ExtractedClaims
+
+            with self.assertRaises(StructuredOutputError):
+                client.complete(
+                    role="extractor", run_id="failed-repair", schema=ExtractedClaims,
+                    messages=[{"role": "user", "content": "extract"}],
+                )
+
             self.assertEqual(len(ledger_path.read_text(encoding="utf-8").splitlines()), 2)
 
     def test_mode_switch_defaults_to_deterministic_and_accepts_llm_env(self) -> None:
