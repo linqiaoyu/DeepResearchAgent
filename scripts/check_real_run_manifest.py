@@ -100,7 +100,7 @@ def validate_manifest(
                     failures.append(f"optional_provider_degradation.{provider}={len(attempted)}")
             elif provider_fidelity != "real":
                 failures.append(f"actual_provider_fidelity.{provider}={provider_fidelity!r}")
-        expected_realness = "mixed" if optional_unused else "real"
+        expected_realness = "real"
         if realness != expected_realness:
             failures.append(f"actual_realness={realness!r}; expected {expected_realness!r}")
     return failures
