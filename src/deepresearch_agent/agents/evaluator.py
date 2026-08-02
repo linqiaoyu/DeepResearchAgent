@@ -376,12 +376,9 @@ class Evaluator:
         report_footnote_evidence: dict[int, str] | None = None,
         required_metrics: set[str] | None = None,
     ) -> tuple[int, int, int, int]:
-        evidence_by_id = {item.id: item for item in evidence_store}
-        footnote_to_evidence = {
-            number: evidence_by_id[evidence_id]
-            for number, evidence_id in (report_footnote_evidence or {}).items()
-            if evidence_id in evidence_by_id
-        }
+        footnote_to_evidence = self._footnote_evidence_groups(
+            evidence_store, report_footnote_evidence
+        )
         citation_total = 0
         supported_citations = 0
         unresolved_citations = 0
@@ -394,9 +391,9 @@ class Evaluator:
 
             claim_text = self._claim_text(line)
             cited_evidence = [
-                footnote_to_evidence[citation_number]
+                evidence
                 for citation_number in citation_numbers
-                if citation_number in footnote_to_evidence
+                for evidence in footnote_to_evidence.get(citation_number, [])
             ]
             numeric_mismatch = (
                 bool(cited_evidence)
@@ -410,11 +407,14 @@ class Evaluator:
                 numeric_citation_mismatches += 1
             for citation_number in citation_numbers:
                 citation_total += 1
-                evidence = footnote_to_evidence.get(citation_number)
-                if not evidence:
+                cited_group = footnote_to_evidence.get(citation_number, [])
+                if not cited_group:
                     unresolved_citations += 1
                     continue
-                if not numeric_mismatch and self._is_supported(claim_text, evidence):
+                if not numeric_mismatch and any(
+                    self._is_supported(claim_text, evidence)
+                    for evidence in cited_group
+                ):
                     supported_citations += 1
 
         return (
@@ -432,14 +432,9 @@ class Evaluator:
         required_metrics: set[str] | None = None,
     ) -> int:
         """Audit every reader-visible financial number, including the summary."""
-        evidence_by_id = {item.id: item for item in evidence_store}
-        footnote_to_evidence = {
-            number: evidence_by_id[evidence_id]
-            for number, evidence_id in (
-                report_footnote_evidence or {}
-            ).items()
-            if evidence_id in evidence_by_id
-        }
+        footnote_to_evidence = self._footnote_evidence_groups(
+            evidence_store, report_footnote_evidence
+        )
         mismatches = 0
         for raw_line in report.splitlines():
             line = raw_line.strip()
@@ -454,9 +449,9 @@ class Evaluator:
                 for match in CITATION_RE.findall(line)
             ]
             cited_evidence = [
-                footnote_to_evidence[number]
+                evidence
                 for number in citation_numbers
-                if number in footnote_to_evidence
+                for evidence in footnote_to_evidence.get(number, [])
             ]
             claim_text = CITATION_RE.sub("", line.removeprefix("- ")).strip()
             if self.numeric_citation_policy.has_numeric_mismatch(
@@ -466,6 +461,25 @@ class Evaluator:
             ):
                 mismatches += 1
         return mismatches
+
+    def _footnote_evidence_groups(
+        self,
+        evidence_store: list[Evidence],
+        report_footnote_evidence: dict[int, str] | None,
+    ) -> dict[int, list[Evidence]]:
+        """Resolve a source-deduplicated footnote to all matching evidence."""
+        evidence_by_id = {item.id: item for item in evidence_store}
+        groups: dict[int, list[Evidence]] = {}
+        for number, evidence_id in (report_footnote_evidence or {}).items():
+            representative = evidence_by_id.get(evidence_id)
+            if representative is None:
+                continue
+            groups[number] = [
+                item
+                for item in evidence_store
+                if item.source_url == representative.source_url
+            ]
+        return groups
 
     def _claim_text(self, line: str) -> str:
         text = line.removeprefix("- ").strip()

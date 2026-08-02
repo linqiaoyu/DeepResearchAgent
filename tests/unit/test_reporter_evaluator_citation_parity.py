@@ -12,6 +12,53 @@ REFERENCE_RE = re.compile(r"^\[\^(\d+)\]:", re.MULTILINE)
 
 
 class ReporterEvaluatorCitationParityTests(unittest.TestCase):
+    def test_source_deduplicated_footnote_supports_distinct_claims(self) -> None:
+        state = ResearchState(
+            research_id="research-distinct-claims",
+            topic="source-level citation support",
+            plan=ResearchPlan(
+                topic="source-level citation support",
+                depth_level=1,
+                sub_questions=[
+                    SubQuestion(
+                        id="sq",
+                        question="What does the source establish?",
+                        search_queries=["source citation"],
+                    )
+                ],
+            ),
+            evidence_store=[
+                Evidence(
+                    id="evidence-period",
+                    research_id="research-distinct-claims",
+                    sub_question_id="sq",
+                    claim="The study covers the 2026 reporting period.",
+                    claim_type="fact",
+                    source_url="https://example.com/study",
+                    source_title="Study",
+                    source_pub_date=date(2026, 1, 1),
+                    extract_text="The study covers the 2026 reporting period.",
+                ),
+                Evidence(
+                    id="evidence-productivity",
+                    research_id="research-distinct-claims",
+                    sub_question_id="sq",
+                    claim="Advisor productivity improved after AI triage.",
+                    claim_type="fact",
+                    source_url="https://example.com/study",
+                    source_title="Study",
+                    source_pub_date=date(2026, 1, 1),
+                    extract_text="Advisor productivity improved after AI triage.",
+                ),
+            ],
+        )
+
+        state.final_report = ReporterAgent().report(state)
+        result = Evaluator().evaluate(state)
+
+        self.assertEqual(result.citation_accuracy, 1.0)
+        self.assertNotIn("citation_error", result.bad_case_categories)
+
     def test_duplicate_evidence_citations_share_reporter_footnote_and_evaluator_score(self) -> None:
         duplicate_claim = "Advisor productivity improved 18% after AI triage."
         duplicate_url = "https://example.com/advisor-ai"

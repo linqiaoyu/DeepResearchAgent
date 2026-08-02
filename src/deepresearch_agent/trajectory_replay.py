@@ -331,8 +331,10 @@ class ReplayRagSearch:
         *,
         query: str,
         as_of: str,
+        filter_query: str | None = None,
         context: RunToolContext | None = None,
     ) -> dict[str, object]:
+        del filter_query
         if not self._calls:
             raise TrajectoryCacheMissError(
                 "trajectory cache_miss: unexpected rag_search call"
