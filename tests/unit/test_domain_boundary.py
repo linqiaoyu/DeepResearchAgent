@@ -22,6 +22,7 @@ class DomainBoundaryTests(unittest.TestCase):
             text=True,
             capture_output=True,
             check=False,
+            stdin=subprocess.DEVNULL,
         )
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertIn("import_sites=0 literal_files=3 literal_hits=9", completed.stdout)

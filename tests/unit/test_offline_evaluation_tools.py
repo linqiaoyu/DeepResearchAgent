@@ -75,6 +75,7 @@ class OfflineEvaluationToolTests(unittest.TestCase):
             capture_output=True,
             text=True,
             check=True,
+            stdin=subprocess.DEVNULL,
         )
         after = _tree_fingerprint(GOLDEN)
         self.assertEqual(issues, [])

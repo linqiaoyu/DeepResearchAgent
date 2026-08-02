@@ -97,6 +97,7 @@ class Settings:
     rerank_model: str = DASHSCOPE_RERANK_MODEL
     retrieval_top_k: int = 50
     rerank_top_n: int = 8
+    rag_budget_cny: float = 12.0
 
     @property
     def research_loop_active(self) -> bool:
@@ -317,6 +318,7 @@ def load_settings() -> Settings:
         rerank_model=os.getenv("RERANK_MODEL", DASHSCOPE_RERANK_MODEL).strip(),
         retrieval_top_k=int(os.getenv("RETRIEVAL_TOP_K", "50")),
         rerank_top_n=int(os.getenv("RERANK_TOP_N", "8")),
+        rag_budget_cny=float(os.getenv("DEEPRESEARCH_RAG_BUDGET_CNY", "12.0")),
     )
 
 

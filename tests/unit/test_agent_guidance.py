@@ -19,6 +19,7 @@ class AgentGuidanceTests(unittest.TestCase):
             capture_output=True,
             text=True,
             check=False,
+            stdin=subprocess.DEVNULL,
         )
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertIn("agent_guidance_check=true", completed.stdout)
@@ -42,6 +43,7 @@ class AgentGuidanceTests(unittest.TestCase):
                 capture_output=True,
                 text=True,
                 check=False,
+                stdin=subprocess.DEVNULL,
             )
         self.assertEqual(completed.returncode, 1)
         self.assertIn("must import AGENTS.md", completed.stderr)
@@ -61,6 +63,7 @@ class AgentGuidanceTests(unittest.TestCase):
                 capture_output=True,
                 text=True,
                 check=False,
+                stdin=subprocess.DEVNULL,
             )
         self.assertEqual(completed.returncode, 1)
         self.assertIn("must not hard-code a test count", completed.stderr)

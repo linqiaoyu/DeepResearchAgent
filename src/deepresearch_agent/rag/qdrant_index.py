@@ -5,6 +5,8 @@ from uuid import NAMESPACE_URL, uuid5
 
 import httpx
 
+from deepresearch_agent.tools import ToolErrorKind, ToolExecutionError
+
 
 @dataclass(frozen=True)
 class IndexedChunk:
@@ -156,7 +158,7 @@ class QdrantIndex:
             return []
         if index_version is None:
             raise ValueError("Qdrant queries require an index_version")
-        self.ensure_collection(dimensions=len(vector), index_version=index_version)
+        self._verify_query_collection(dimensions=len(vector), index_version=index_version)
         must = [{"key": "published_at", "range": {"lte": as_of}}]
         must.append({"key": "index_version", "match": {"value": index_version}})
         if entity_ids:
@@ -184,6 +186,36 @@ class QdrantIndex:
             if isinstance(chunk_id, str):
                 hits.append(QdrantQueryHit(chunk_id=chunk_id, score=float(point["score"])))
         return hits
+
+    def _verify_query_collection(self, *, dimensions: int, index_version: str) -> None:
+        """Validate a prebuilt collection without creating indexes or collections."""
+
+        response = httpx.get(self._collection_url, headers=self.headers, timeout=self.timeout_seconds)
+        if response.status_code == 404:
+            raise ToolExecutionError(
+                ToolErrorKind.NOT_FOUND,
+                f"Qdrant collection is missing: {self.collection}",
+            )
+        response.raise_for_status()
+        config = response.json().get("result", {}).get("config", {}).get("params", {}).get("vectors", {})
+        if int(config.get("size", -1)) != dimensions:
+            raise ToolExecutionError(
+                ToolErrorKind.PERMANENT,
+                "Qdrant collection dimensions do not match query vector dimensions",
+            )
+        sample = httpx.post(
+            f"{self._collection_url}/points/scroll",
+            headers=self.headers,
+            timeout=self.timeout_seconds,
+            json={"limit": 1, "with_payload": ["index_version"], "with_vector": False},
+        )
+        sample.raise_for_status()
+        points = sample.json().get("result", {}).get("points", [])
+        if points and points[0].get("payload", {}).get("index_version") != index_version:
+            raise ToolExecutionError(
+                ToolErrorKind.PERMANENT,
+                "Qdrant collection index_version does not match query configuration",
+            )
 
     def set_filter_payload(
         self,

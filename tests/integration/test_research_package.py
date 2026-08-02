@@ -52,6 +52,7 @@ class ResearchPackageTests(unittest.TestCase):
                 capture_output=True,
                 text=True,
                 check=False,
+                stdin=subprocess.DEVNULL,
             )
 
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -92,6 +93,7 @@ class ResearchPackageTests(unittest.TestCase):
                 capture_output=True,
                 text=True,
                 check=False,
+                stdin=subprocess.DEVNULL,
             )
 
             self.assertEqual(result.returncode, 2)
@@ -122,6 +124,7 @@ class ResearchPackageTests(unittest.TestCase):
                 capture_output=True,
                 text=True,
                 check=False,
+                stdin=subprocess.DEVNULL,
             )
 
             self.assertNotEqual(result.returncode, 0)

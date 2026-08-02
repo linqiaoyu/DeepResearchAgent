@@ -2,18 +2,17 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from importlib import import_module
 
-if TYPE_CHECKING:
-    from deepresearch_agent.rag.ingest import ingest_corpus
 
-__all__ = ["ingest_corpus"]
+_EXPORTS = {"ingest": ("ingest_corpus",)}
+_SYMBOL_TO_MODULE = {symbol: module for module, symbols in _EXPORTS.items() for symbol in symbols}
+__all__ = list(_SYMBOL_TO_MODULE)
 
 
 def __getattr__(name: str) -> object:
     """Avoid loading PDF ingestion for consumers of retrieval-only modules."""
-    if name == "ingest_corpus":
-        from deepresearch_agent.rag.ingest import ingest_corpus
-
-        return ingest_corpus
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module = _SYMBOL_TO_MODULE.get(name)
+    if module is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    return getattr(import_module(f"{__name__}.{module}"), name)

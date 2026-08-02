@@ -57,7 +57,7 @@ def check_ci_environment() -> bool:
 
 def _run(step: str, command: Sequence[str], env: dict[str, str]) -> None:
     print(f"[{step}] $ {' '.join(command)}")
-    completed = subprocess.run(command, check=False, env=env)
+    completed = subprocess.run(command, check=False, env=env, stdin=subprocess.DEVNULL)
     if completed.returncode:
         print(f"failed_step={step} returncode={completed.returncode}", file=sys.stderr)
         raise SystemExit(completed.returncode)
@@ -68,6 +68,7 @@ def _tracked_diff() -> bytes:
         ["git", "diff", "--binary"],
         check=False,
         stdout=subprocess.PIPE,
+        stdin=subprocess.DEVNULL,
     )
     if completed.returncode:
         raise SystemExit(completed.returncode)

@@ -35,6 +35,7 @@ class DemoArtifactParityTest(unittest.TestCase):
                     check=True,
                     capture_output=True,
                     text=True,
+                    stdin=subprocess.DEVNULL,
                 )
 
             self.assertEqual(first.read_bytes(), second.read_bytes())

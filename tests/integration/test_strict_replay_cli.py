@@ -38,6 +38,7 @@ class StrictReplayCliTests(unittest.TestCase):
                 capture_output=True,
                 check=False,
                 text=True,
+                stdin=subprocess.DEVNULL,
             )
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

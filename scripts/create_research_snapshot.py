@@ -69,7 +69,7 @@ def main() -> None:
         as_of=as_of,
     )
     save_research_snapshot(snapshot, output)
-    engine._checkpoint_conn.close()
+    engine.close()
     print(f"snapshot={output}")
     print(f"demo_constructed={snapshot.demo_constructed}")
     print(f"claims={len(snapshot.claims)}")

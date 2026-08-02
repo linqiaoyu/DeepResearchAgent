@@ -163,7 +163,7 @@ def build_snapshot(
             settings,
             settings_overrides=settings_overrides,
         )
-        engine._checkpoint_conn.close()
+        engine.close()
         return normalize(snapshot)
 
 

@@ -229,7 +229,7 @@ def _run_case(
         )
         return result
     finally:
-        engine._checkpoint_conn.close()
+        engine.close()
 
 
 def _assert_live_purity(engine: DeepResearchEngine) -> dict[str, str]:

@@ -127,7 +127,7 @@ def main() -> None:
         )
         print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
     finally:
-        engine._checkpoint_conn.close()
+        engine.close()
 
 
 def _resolve(value: str) -> Path:

@@ -40,12 +40,13 @@ def _tokens(value: str) -> frozenset[str]:
 @lru_cache(maxsize=1)
 def _assets() -> tuple[dict[str, list[str]], list[dict[str, object]]]:
     root = project_root()
-    catalog = json.loads(
-        (root / "data/finance_sec_issuer_catalog_v1.json").read_text(encoding="utf-8")
-    )
-    snapshot = json.loads(
-        (root / "data/finance_wikidata_issuers_v1.json").read_text(encoding="utf-8")
-    )
+    catalog_path = root / "data/finance_sec_issuer_catalog_v1.json"
+    snapshot_path = root / "data/finance_wikidata_issuers_v1.json"
+    try:
+        catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+        snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise ValueError(f"finance issuer alias asset is missing: {exc.filename}") from exc
     return catalog["issuers"], snapshot["issuers"]
 
 

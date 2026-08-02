@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from importlib import import_module
 
-if TYPE_CHECKING:
-    from deepresearch_agent.workflow.engine import DeepResearchEngine
 
-__all__ = ["DeepResearchEngine"]
+_EXPORTS = {"workflow.engine": ("DeepResearchEngine",)}
+_SYMBOL_TO_MODULE = {symbol: module for module, symbols in _EXPORTS.items() for symbol in symbols}
+__all__ = list(_SYMBOL_TO_MODULE)
 
 
 def __getattr__(name: str) -> object:
@@ -18,8 +18,7 @@ def __getattr__(name: str) -> object:
     on every optional integration and can make an otherwise local probe hang
     before it reaches its own bounded operation.
     """
-    if name == "DeepResearchEngine":
-        from deepresearch_agent.workflow.engine import DeepResearchEngine
-
-        return DeepResearchEngine
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module = _SYMBOL_TO_MODULE.get(name)
+    if module is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    return getattr(import_module(f"{__name__}.{module}"), name)

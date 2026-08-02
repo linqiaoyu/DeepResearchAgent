@@ -53,7 +53,7 @@ def main() -> None:
         manifest=manifest,
         output_dir=output_dir,
     )
-    engine._checkpoint_conn.close()
+    engine.close()
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 

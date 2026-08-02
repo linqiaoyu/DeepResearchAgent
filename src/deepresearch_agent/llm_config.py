@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 DASHSCOPE_EMBEDDING_MODEL = "text-embedding-v4"
 DASHSCOPE_RERANK_MODEL = "qwen3-rerank"
 DASHSCOPE_EMBEDDING_ENDPOINT = "https://dashscope.aliyuncs.com/compatible-mode/v1/embeddings"
+# DashScope rerank endpoint documented at https://help.aliyun.com/zh/model-studio/rerank-api-reference .
 DASHSCOPE_RERANK_ENDPOINT = "https://dashscope.aliyuncs.com/compatible-api/v1/reranks"
 
 

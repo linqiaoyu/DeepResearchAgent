@@ -4,6 +4,7 @@ import sqlite3
 import time
 import traceback
 from collections.abc import Sequence
+from dataclasses import asdict
 from datetime import datetime
 from typing import Any
 from urllib.parse import urlsplit
@@ -100,6 +101,49 @@ def _research_progress_metric(state: ResearchState) -> float:
         components["unique_evidence"] + components["independent_domains"]
         + components["primary_sources"] - components["unresolved_issues"]
     )
+
+
+_STRATEGY_NON_BOOLEAN_FIELDS = frozenset(
+    {
+        "max_critic_iter",
+        "reporter_context_token_budget",
+        "max_external_search_requests_per_run",
+        "max_external_fetch_requests_per_run",
+        "max_authority_search_requests_per_run",
+        "max_authority_fetch_requests_per_run",
+        "branch_total_budget",
+        "branch_single_cap",
+        "research_loop_max_iterations",
+        "research_loop_budget_ceiling",
+        "research_loop_no_progress_window",
+        "research_min_evidence_count",
+        "research_min_independent_domains",
+        "research_min_average_confidence",
+        "research_max_freshness_age_days",
+        "research_max_unresolved_critic_issues",
+        "decision_weaving_budget_remaining_ratio",
+        "decision_weaving_verify_min_allocation",
+        "numeric_check_relative_tolerance",
+        "numeric_check_absolute_tolerance",
+        "dynamic_capability_rules_json",
+        "prior_watch_confidence_threshold",
+        "retrieval_top_k",
+        "rerank_top_n",
+    }
+)
+
+
+def _strategy_config(settings: Settings, *, rag_index_version: str | None) -> dict[str, object]:
+    """Serialize replay-relevant settings without hand-maintained boolean drift."""
+
+    values = asdict(settings)
+    strategy = {
+        name: value
+        for name, value in values.items()
+        if isinstance(value, bool) or name in _STRATEGY_NON_BOOLEAN_FIELDS
+    }
+    strategy["rag_index_version"] = rag_index_version
+    return strategy
 
 
 class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryNodes, PlanningNodes, QualityNodes, WorkflowHelpers, GraphAssembly):
@@ -429,121 +473,14 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
                             else None
                         ),
                         "mode": self.settings.execution_mode,
-                        "strategy_config": {
-                            "max_critic_iter": (
-                                self.settings.max_critic_iter
-                            ),
-                            "critic_enabled": (
-                                self.settings.critic_enabled
-                            ),
-                            "extractor_enabled": (
-                                self.settings.extractor_enabled
-                            ),
-                            "semantic_judge_enabled": (
-                                self.settings.semantic_judge_enabled
-                            ),
-                            "context_packer_enabled": (
-                                self.settings.context_packer_enabled
-                            ),
-                            "reporter_context_token_budget": (
-                                self.settings.reporter_context_token_budget
-                            ),
-                            "branch_budget_enabled": (
-                                self.settings.branch_budget_enabled
-                            ),
-                            "branch_total_budget": (
-                                self.settings.branch_total_budget
-                            ),
-                            "branch_single_cap": (
-                                self.settings.branch_single_cap
-                            ),
-                            "max_external_search_requests_per_run": (
-                                self.settings.max_external_search_requests_per_run
-                            ),
-                            "max_external_fetch_requests_per_run": (
-                                self.settings.max_external_fetch_requests_per_run
-                            ),
-                            "max_authority_search_requests_per_run": (
-                                self.settings.max_authority_search_requests_per_run
-                            ),
-                            "max_authority_fetch_requests_per_run": (
-                                self.settings.max_authority_fetch_requests_per_run
-                            ),
-                            "research_loop_enabled": (
-                                self.settings.research_loop_enabled
-                            ),
-                            "research_loop_max_iterations": (
-                                self.settings.research_loop_max_iterations
-                            ),
-                            "research_loop_budget_ceiling": (
-                                self.settings.research_loop_budget_ceiling
-                            ),
-                            "research_loop_no_progress_window": (
-                                self.settings.research_loop_no_progress_window
-                            ),
-                            "research_min_evidence_count": (
-                                self.settings.research_min_evidence_count
-                            ),
-                            "research_min_independent_domains": (
-                                self.settings.research_min_independent_domains
-                            ),
-                            "research_min_average_confidence": (
-                                self.settings.research_min_average_confidence
-                            ),
-                            "research_max_freshness_age_days": (
-                                self.settings.research_max_freshness_age_days
-                            ),
-                            "research_max_unresolved_critic_issues": (
-                                self.settings.research_max_unresolved_critic_issues
-                            ),
-                            "decision_weaving_enabled": (
-                                self.settings.decision_weaving_enabled
-                            ),
-                            "decision_weaving_budget_remaining_ratio": (
-                                self.settings.decision_weaving_budget_remaining_ratio
-                            ),
-                            "decision_weaving_verify_min_allocation": (
-                                self.settings.decision_weaving_verify_min_allocation
-                            ),
-                            "numeric_check_enabled": (
-                                self.settings.numeric_check_enabled
-                            ),
-                            "numeric_check_relative_tolerance": (
-                                self.settings.numeric_check_relative_tolerance
-                            ),
-                            "numeric_check_absolute_tolerance": (
-                                self.settings.numeric_check_absolute_tolerance
-                            ),
-                            "dynamic_capability_enabled": (
-                                self.settings.dynamic_capability_enabled
-                            ),
-                            "dynamic_capability_rules_json": (
-                                self.settings.dynamic_capability_rules_json
-                            ),
-                            "reflection_enabled": (
-                                self.settings.reflection_enabled
-                            ),
-                            "procedural_memory_enabled": (
-                                self.settings.procedural_memory_enabled
-                            ),
-                            "prior_memory_enabled": (
-                                self.settings.prior_memory_enabled
-                            ),
-                            "prior_watch_confidence_threshold": (
-                                self.settings.prior_watch_confidence_threshold
-                            ),
-                            "skill_packs_enabled": (
-                                self.settings.skill_packs_enabled
-                            ),
-                            "rag_enabled": self.settings.rag_enabled,
-                            "rag_index_version": (
+                        "strategy_config": _strategy_config(
+                            self.settings,
+                            rag_index_version=(
                                 self.researcher.rag_search.index_version
-                                if isinstance(
-                                    getattr(self.researcher.rag_search, "index_version", None), str
-                                )
+                                if isinstance(getattr(self.researcher.rag_search, "index_version", None), str)
                                 else None
                             ),
-                        },
+                        ),
                     },
                 )
                 if (

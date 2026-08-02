@@ -6,11 +6,13 @@ import os
 from dataclasses import replace
 from datetime import date
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from deepresearch_agent.audit_bundle import export_audit_bundle
 from deepresearch_agent.config_validation import ConfigurationError, validate_required_configuration
 from deepresearch_agent.domains.registry import load_domain_pack
 from deepresearch_agent.llm import LLMClient
+from deepresearch_agent.llm_config import DASHSCOPE_EMBEDDING_ENDPOINT, DASHSCOPE_RERANK_ENDPOINT
 from deepresearch_agent.provenance import build_run_manifest
 from deepresearch_agent.rag.backends import QdrantDenseBackend, StorageLexicalBackend
 from deepresearch_agent.rag.qdrant_index import QdrantIndex
@@ -116,7 +118,7 @@ def main() -> None:
             global_ledger_path=settings.llm_ledger_path,
             # The live workflow LLM client is capped at CNY 3. Keep this
             # separate RAG adapter inside the registered CNY 15 run ceiling.
-            budget_cny=12.0,
+            budget_cny=settings.rag_budget_cny,
             retrieval_top_k=settings.retrieval_top_k,
             rerank_top_n=settings.rerank_top_n,
             retrieval_domain=load_domain_pack(settings.domain_pack),
@@ -160,7 +162,7 @@ def main() -> None:
         snapshot_path = output / "research_snapshot.json"
         save_research_snapshot(snapshot, snapshot_path)
     finally:
-        engine._checkpoint_conn.close()
+        engine.close()
 
     print(f"request={output / 'request.json'}")
     print(f"report={output / 'report.md'}")
@@ -216,6 +218,7 @@ def _build_live_rag_search(
         api_key=os.getenv("DEEPRESEARCH_QDRANT_API_KEY", ""),
         collection=os.environ["DEEPRESEARCH_QDRANT_COLLECTION"],
     )
+    _warn_if_rerank_endpoint_domain_differs()
     return RagSearchService(
         lexical=StorageLexicalBackend(store=store),
         dense=QdrantDenseBackend(
@@ -240,6 +243,18 @@ def _build_live_rag_search(
         retrieval_domain=retrieval_domain,
         index_version=index_version,
     )
+
+
+def _warn_if_rerank_endpoint_domain_differs() -> None:
+    """Warn on endpoint-domain drift while preserving the configured endpoints."""
+
+    embedding_domain = urlsplit(DASHSCOPE_EMBEDDING_ENDPOINT).netloc
+    rerank_domain = urlsplit(DASHSCOPE_RERANK_ENDPOINT).netloc
+    if embedding_domain != rerank_domain:
+        print(
+            "warning=rerank_endpoint_domain_mismatch "
+            f"embedding={embedding_domain} rerank={rerank_domain}"
+        )
 
 
 def _configure_mode(mode: str, *, as_of: str) -> None:

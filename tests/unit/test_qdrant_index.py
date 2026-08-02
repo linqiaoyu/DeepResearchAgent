@@ -4,6 +4,7 @@ import unittest
 from unittest.mock import patch
 
 from deepresearch_agent.rag.qdrant_index import IndexedChunk, QdrantIndex
+from deepresearch_agent.tools import ToolExecutionError
 
 
 class Response:
@@ -124,11 +125,21 @@ class QdrantIndexTests(unittest.TestCase):
             hits = index.query(vector=[0.1, 0.2], as_of="2026-01-01", index_version="idx-v1", limit=3)
 
         self.assertEqual([(hit.chunk_id, hit.score) for hit in hits], [("chunk-a", 0.8)])
-        self.assertEqual(put.call_count, 4)
+        self.assertEqual(put.call_count, 0)
         payload = post.call_args_list[1].kwargs["json"]
         self.assertEqual(payload["with_payload"], ["chunk_id"])
         self.assertNotIn("text", str(payload))
         self.assertEqual(payload["filter"]["must"][0]["key"], "published_at")
+
+    def test_query_missing_collection_raises_without_put(self) -> None:
+        index = QdrantIndex(url="https://qdrant.test", api_key="test", collection="collection")
+        with patch(
+            "deepresearch_agent.rag.qdrant_index.httpx.get",
+            return_value=Response(status_code=404),
+        ), patch("deepresearch_agent.rag.qdrant_index.httpx.put") as put:
+            with self.assertRaisesRegex(ToolExecutionError, "collection is missing"):
+                index.query(vector=[0.1, 0.2], as_of="2026-01-01", index_version="idx-v1", limit=3)
+        self.assertEqual(put.call_count, 0)
 
     def test_query_adds_entity_filter_when_requested(self) -> None:
         index = QdrantIndex(url="https://qdrant.test", api_key="test", collection="collection")
