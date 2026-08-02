@@ -4,6 +4,7 @@ import json
 import os
 import tempfile
 import threading
+import time
 import unittest
 from datetime import date
 from pathlib import Path
@@ -12,7 +13,7 @@ from unittest import mock
 
 from deepresearch_agent.agents import ExtractorAgent, PlannerAgent, ReporterAgent
 from deepresearch_agent.agents.researcher import ResearcherAgent
-from deepresearch_agent.llm import BudgetExceededError, LLMClient
+from deepresearch_agent.llm import BudgetExceededError, LLMClient, LLMClientError
 from deepresearch_agent.llm_config import DEFAULT_LLM_CONFIG, RoleModelConfig
 from deepresearch_agent.schemas import (
     Evidence,
@@ -221,6 +222,47 @@ class LLMIntegrationTests(unittest.TestCase):
                 )
 
             self.assertNotIn("failed-run", client._pending_costs_cny)
+
+    def test_hard_timeout_returns_while_provider_thread_is_quarantined(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            env_path = Path(tmp) / ".env"
+            env_path.write_text("DEEPSEEK_API_KEY=test-key\n", encoding="utf-8")
+            entered = threading.Event()
+            release = threading.Event()
+
+            def blocking_completion(**_: object) -> dict:
+                entered.set()
+                release.wait(timeout=2)
+                return {
+                    "choices": [{"message": {"content": "late"}}],
+                    "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+                }
+
+            client = LLMClient(
+                ledger_path=Path(tmp) / "ledger.jsonl",
+                global_ledger_path=Path(tmp) / "global.jsonl",
+                budget_cny=1.0,
+                config=DEFAULT_LLM_CONFIG.__class__(
+                    timeout_seconds=0.03,
+                    max_retries=0,
+                ),
+                completion_func=blocking_completion,
+                env_path=env_path,
+            )
+
+            started = time.perf_counter()
+            with self.assertRaisesRegex(LLMClientError, "detached worker quarantined"):
+                client.complete(
+                    role="planner",
+                    run_id="timeout-run",
+                    messages=[{"role": "user", "content": "hello"}],
+                    expected_cost_cny=0.1,
+                )
+
+            self.assertTrue(entered.is_set())
+            self.assertLess(time.perf_counter() - started, 0.5)
+            self.assertNotIn("timeout-run", client._pending_costs_cny)
+            release.set()
 
     def test_start_run_uses_valid_ledger_index_without_rescanning_large_ledger(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

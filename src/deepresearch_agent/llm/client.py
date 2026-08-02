@@ -20,6 +20,14 @@ from deepresearch_agent.trajectory import LLMCallTrace, active_trajectory_record
 SchemaT = TypeVar("SchemaT", bound=BaseModel)
 
 
+# A transport timeout is necessary but insufficient: a provider SDK can still
+# block while consuming a response.  Keep at most this many overdue calls
+# quarantined, and make their workers daemonic so they cannot hold a workflow
+# (or interpreter shutdown) hostage.
+_MAX_DETACHED_LLM_CALLS = 16
+_LLM_CALL_SLOTS = threading.BoundedSemaphore(_MAX_DETACHED_LLM_CALLS)
+
+
 class LLMClientError(RuntimeError):
     pass
 
@@ -486,7 +494,10 @@ class LLMClient:
                     )
                     if tools is not None:
                         kwargs["tools"] = tools
-                    response = self._completion(**kwargs)
+                    response = self._call_with_hard_timeout(
+                        kwargs=kwargs,
+                        timeout_seconds=timeout_seconds,
+                    )
                     latency = time.perf_counter() - started
                     content = self._message_content(response)
                     usage = self._usage(response)
@@ -559,6 +570,50 @@ class LLMClient:
         raise LLMClientError(
             redact(f"LLM call failed for role={role}: {last_error}")
         )
+
+    def _call_with_hard_timeout(
+        self,
+        *,
+        kwargs: dict[str, Any],
+        timeout_seconds: int,
+    ) -> Any:
+        """Bound an SDK call even when its transport timeout is ineffective.
+
+        Python cannot safely kill a synchronous provider call.  An overdue call
+        is therefore quarantined in a daemon thread, while this workflow call
+        fails at its declared deadline.  The semaphore caps quarantined calls
+        process-wide and is released when the provider thread eventually exits.
+        """
+        if not _LLM_CALL_SLOTS.acquire(blocking=False):
+            raise TimeoutError(
+                "LLM detached-call capacity exhausted; refusing another provider call"
+            )
+        done = threading.Event()
+        outcome: dict[str, Any] = {}
+
+        def invoke() -> None:
+            try:
+                outcome["response"] = self._completion(**kwargs)
+            except BaseException as exc:
+                outcome["error"] = exc
+            finally:
+                _LLM_CALL_SLOTS.release()
+                done.set()
+
+        worker = threading.Thread(
+            target=invoke,
+            name="deepresearch-llm-call",
+            daemon=True,
+        )
+        worker.start()
+        if not done.wait(timeout_seconds):
+            raise TimeoutError(
+                f"LLM operation timed out after {timeout_seconds:g}s; "
+                "detached worker quarantined"
+            )
+        if "error" in outcome:
+            raise outcome["error"]
+        return outcome["response"]
 
     def _api_key(self, key_name: str) -> str:
         env_value = os.getenv(key_name, "").strip()
