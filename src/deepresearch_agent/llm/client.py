@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import multiprocessing
 import os
 import signal
 import threading
@@ -8,7 +9,7 @@ import time
 from dataclasses import dataclass
 from importlib import import_module
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any, Callable, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
@@ -27,6 +28,27 @@ SchemaT = TypeVar("SchemaT", bound=BaseModel)
 # (or interpreter shutdown) hostage.
 _MAX_DETACHED_LLM_CALLS = 16
 _LLM_CALL_SLOTS = threading.BoundedSemaphore(_MAX_DETACHED_LLM_CALLS)
+
+
+def _litellm_subprocess_worker(
+    kwargs: dict[str, Any],
+    result_queue: Any,
+) -> None:
+    """Run one production LiteLLM request in a killable child process."""
+    try:
+        litellm = import_module("litellm")
+        response = litellm.completion(**kwargs)
+        if isinstance(response, dict):
+            payload = response
+        elif callable(model_dump := getattr(response, "model_dump", None)):
+            payload = model_dump()
+        elif callable(to_dict := getattr(response, "dict", None)):
+            payload = to_dict()
+        else:
+            payload = json.loads(response.json())
+        result_queue.put(("ok", payload))
+    except BaseException as exc:
+        result_queue.put(("error", f"{type(exc).__name__}: {exc}"))
 
 
 class LLMClientError(RuntimeError):
@@ -585,6 +607,11 @@ class LLMClient:
         alive after the deadline.  Python cannot safely interrupt an arbitrary
         non-main thread, so those callers use a bounded daemon-worker fallback.
         """
+        if self._litellm is not None:
+            return self._call_litellm_in_subprocess(
+                kwargs=kwargs,
+                timeout_seconds=timeout_seconds,
+            )
         if (
             threading.current_thread() is threading.main_thread()
             and hasattr(signal, "setitimer")
@@ -597,6 +624,48 @@ class LLMClient:
             kwargs=kwargs,
             timeout_seconds=timeout_seconds,
         )
+
+    @staticmethod
+    def _call_litellm_in_subprocess(
+        *,
+        kwargs: dict[str, Any],
+        timeout_seconds: float,
+        worker_target: Callable[[dict[str, Any], Any], None] = _litellm_subprocess_worker,
+    ) -> dict[str, Any]:
+        """Terminate a stuck production SDK transport at its hard deadline."""
+        context = multiprocessing.get_context("spawn")
+        result_queue = context.Queue(maxsize=1)
+        process = context.Process(
+            target=worker_target,
+            args=(kwargs, result_queue),
+            daemon=True,
+        )
+        try:
+            process.start()
+            process.join(timeout_seconds)
+            if process.is_alive():
+                process.terminate()
+                process.join(timeout=5)
+                raise TimeoutError(
+                    f"LLM operation timed out after {timeout_seconds:g}s; "
+                    "provider subprocess terminated"
+                )
+            if result_queue.empty():
+                raise RuntimeError(
+                    f"LiteLLM subprocess exited without a result (exitcode={process.exitcode})"
+                )
+            status, payload = result_queue.get()
+            if status == "error":
+                raise RuntimeError(str(payload))
+            if not isinstance(payload, dict):
+                raise RuntimeError("LiteLLM subprocess returned a non-object response")
+            return payload
+        finally:
+            if process.is_alive():
+                process.terminate()
+                process.join(timeout=5)
+            result_queue.close()
+            result_queue.join_thread()
 
     def _call_with_main_thread_deadline(
         self,

@@ -63,7 +63,26 @@ class MockCompletion:
         }
 
 
+def blocking_subprocess_worker(kwargs: dict[str, object], _result_queue: object) -> None:
+    Path(str(kwargs["pid_path"])).write_text(str(os.getpid()), encoding="utf-8")
+    time.sleep(5)
+
+
 class LLMIntegrationTests(unittest.TestCase):
+    def test_production_subprocess_timeout_terminates_worker(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            pid_path = Path(tmp) / "child.pid"
+            started = time.perf_counter()
+            with self.assertRaisesRegex(TimeoutError, "provider subprocess terminated"):
+                LLMClient._call_litellm_in_subprocess(
+                    kwargs={"pid_path": str(pid_path)},
+                    timeout_seconds=1.0,
+                    worker_target=blocking_subprocess_worker,
+                )
+            self.assertLess(time.perf_counter() - started, 2.5)
+            child_pid = int(pid_path.read_text(encoding="utf-8"))
+            with self.assertRaises(ProcessLookupError):
+                os.kill(child_pid, 0)
     def test_external_call_uses_the_existing_budget_and_ledger(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             client = LLMClient(
