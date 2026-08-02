@@ -1439,7 +1439,7 @@
         "disclosure": "FixtureDisclosureSource",
         "llm": "deterministic",
         "search": "ContractSearchProvider",
-        "structured_data": "TrajectoryStructuredDataProvider"
+        "structured_data": "FixtureStructuredDataProvider"
       },
       "provider_usage": {
         "disclosure": 0,
