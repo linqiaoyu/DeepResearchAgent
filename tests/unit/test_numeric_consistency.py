@@ -123,6 +123,17 @@ class NumericConsistencyTest(unittest.TestCase):
         )
         self.assertEqual(scan.inputs["check_count"], 1)
 
+    def test_growth_normalizes_10000_million_to_100_billion(self) -> None:
+        state = _state(
+            _evidence("growth", "营业收入同比增长率", 20, unit="%"),
+            _evidence("current", "营业收入", 120, unit="亿元"),
+            _evidence("prior", "营业收入", 10000, period="2023", unit="百万元"),
+        )
+
+        issues, _ = _numeric_issues(state)
+
+        self.assertEqual(issues, [])
+
     def test_detects_wrong_growth_rate_from_two_absolute_periods(self) -> None:
         state = _state(
             _evidence(
