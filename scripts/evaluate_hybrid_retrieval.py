@@ -23,6 +23,8 @@ from deepresearch_agent.rag.retrieval import (
 )
 from deepresearch_agent.rag.search import RetrievalFilter
 from deepresearch_agent.storage import SQLiteStore
+from deepresearch_agent.domains.registry import load_domain_pack
+from deepresearch_agent.settings import load_settings
 
 TOP_K = 50
 RERANK_TOP_N = 8
@@ -31,6 +33,58 @@ PRICE_SOURCE = "aliyun_model_studio_public_20260729"
 
 def _mean(values: list[float]) -> float:
     return sum(values) / len(values) if values else 0.0
+
+
+def evaluate_lexical(
+    *, database: Path, questions: Path, split: str, output: Path, production_filters: bool
+) -> dict[str, Any]:
+    """Offline lexical evaluation, optionally matching the production domain path."""
+    store = SQLiteStore(database)
+    lexical = StorageLexicalBackend(store=store)
+    domain = load_domain_pack(load_settings().domain_pack)
+    rows: list[dict[str, Any]] = []
+    for item in json.loads(questions.read_text(encoding="utf-8")):
+        if item["split"] != split or item["question_type"] == "refusal":
+            continue
+        as_of = str(item["as_of"])
+        query = str(item["question"])
+        values = domain.retrieval_filter_values(query) if production_filters else None
+        expanded = domain.expand_retrieval_query(query) if production_filters else query
+        filters = RetrievalFilter(
+            as_of=date.fromisoformat(as_of),
+            entity_ids=values.entity_ids if values else (),
+            period_labels=values.period_labels if values else (),
+        )
+        available = store.list_ready_chunks(as_of=as_of)
+        filtered = [
+            chunk for chunk in available
+            if (not filters.entity_ids or chunk.entity_id in filters.entity_ids)
+            and (not filters.period_labels or chunk.effective_date[:4] in filters.period_labels)
+        ]
+        hits = lexical.search(query=expanded, filters=filters, limit=20)
+        relevant = resolve_labels_to_chunks(
+            [SpanLabel(**label) for label in item["labels"]],
+            [ChunkSpan(chunk.id, chunk.document_version_id, chunk.char_start, chunk.char_end) for chunk in available],
+        )
+        hit_ids = [hit.chunk_id for hit in hits]
+        rows.append({
+            "id": item["id"], "question_type": item["question_type"],
+            "entity_filter_applied": bool(filters.entity_ids),
+            "entity_filter_candidate_count": len(filtered),
+            "labeled_in_filtered_pool": bool(set(relevant) & {chunk.id for chunk in filtered}),
+            "labeled_lexical_rank": next((index + 1 for index, identifier in enumerate(hit_ids) if identifier in relevant), None),
+            "recall_at_20": recall_at_k(hit_ids, relevant, 20),
+            "ndcg_at_10": ndcg_at_k(hit_ids, relevant, 10),
+        })
+    result = {
+        "schema_version": 1, "status": "complete", "arm": "lexical", "split": split,
+        "production_filters": production_filters, "questions": len(rows),
+        "recall_at_20": _mean([row["recall_at_20"] for row in rows]),
+        "ndcg_at_10": _mean([row["ndcg_at_10"] for row in rows]), "per_question": rows,
+    }
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return result
 
 
 def _save_checkpoint(
@@ -190,15 +244,20 @@ def evaluate(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--database", required=True, type=Path)
-    parser.add_argument("--questions", required=True, type=Path)
+    parser.add_argument("--database", type=Path, default=Path("data/runtime/047-assets.db"))
+    parser.add_argument("--questions", type=Path, default=Path("data/golden_set/retrieval_v1/questions.json"))
     parser.add_argument("--split", required=True)
-    parser.add_argument("--index-version", required=True)
+    parser.add_argument("--index-version", default="offline")
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--budget-cny", type=float, default=10.0)
     parser.add_argument("--env-file", type=Path, default=Path(".env"))
+    parser.add_argument("--arm", choices=("hybrid", "lexical"), default="hybrid")
+    parser.add_argument("--production-filters", action="store_true")
     args = parser.parse_args()
-    result = evaluate(
+    result = evaluate_lexical(
+        database=args.database, questions=args.questions, split=args.split,
+        output=args.output, production_filters=args.production_filters,
+    ) if args.arm == "lexical" else evaluate(
         database=args.database,
         questions=args.questions,
         split=args.split,
@@ -207,7 +266,7 @@ def main() -> None:
         budget_cny=args.budget_cny,
         env=dotenv_values(args.env_file),
     )
-    print(json.dumps(result["metrics"], ensure_ascii=False))
+    print(json.dumps(result.get("metrics", result), ensure_ascii=False))
 
 
 if __name__ == "__main__":
