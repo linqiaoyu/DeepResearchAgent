@@ -7,9 +7,11 @@ import tempfile
 import unittest
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from deepresearch_agent.config_validation import ConfigurationError
+from deepresearch_agent.llm import LLMClient
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -149,6 +151,35 @@ class ResearchPackageTests(unittest.TestCase):
     def test_live_rag_cost_reconciliation_requires_the_service_ledger_identity(self) -> None:
         self.assertIn("rag_ledger_run_id", SCRIPT.read_text(encoding="utf-8"))
         self.assertIn("Live RAG cost reconciliation", SCRIPT.read_text(encoding="utf-8"))
+
+    def test_live_rag_cost_reconciliation_uses_aggregate_total_cost_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            global_ledger = root / "global.jsonl"
+            global_ledger.write_text(
+                '{"run_id":"rag-run","cost_cny":0.125,"role":"embedding"}\n',
+                encoding="utf-8",
+            )
+            ledger = LLMClient(
+                ledger_path=root / "rag.jsonl",
+                global_ledger_path=global_ledger,
+                budget_cny=1.0,
+                completion_func=lambda **_: {},
+            )
+            state = SimpleNamespace(research_id="workflow-run", metadata={})
+            rag_search = SimpleNamespace(ledger_run_id="rag-run", ledger=ledger)
+
+            report = run_research_package._append_live_rag_cost_reconciliation(
+                report="# report\n",
+                state=state,
+                rag_search=rag_search,
+            )
+
+            self.assertIn("workflow research_id: `workflow-run`", report)
+            self.assertIn("RAG ledger run_id: `rag-run`", report)
+            self.assertIn("RAG total_cost_cny: `0.125`", report)
+            self.assertEqual(state.metadata["rag_ledger_run_id"], "rag-run")
+            self.assertEqual(state.metadata["rag_cost_summary"]["total_cost_cny"], 0.125)
 
     def _offline_env(self) -> dict[str, str]:
         env = {
