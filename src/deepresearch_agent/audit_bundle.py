@@ -137,8 +137,8 @@ def export_audit_bundle(
         ),
     )
     if state.structured_output is not None:
-        structured_output = type(state.structured_output).model_validate_json(
-            redact(state.structured_output.model_dump_json())
+        structured_output = type(state.structured_output).model_validate(
+            _redact_json_values(state.structured_output.model_dump(mode="json"))
         )
         _write_text(
             output_dir / "structured.json",
@@ -303,6 +303,17 @@ def _write_json(path: Path, payload: Any) -> None:
 
 def _write_text(path: Path, content: str) -> None:
     path.write_text(redact(content).rstrip() + "\n", encoding="utf-8")
+
+
+def _redact_json_values(value: Any) -> Any:
+    """Redact string leaves without mutating JSON escape syntax."""
+    if isinstance(value, str):
+        return redact(value)
+    if isinstance(value, list):
+        return [_redact_json_values(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _redact_json_values(item) for key, item in value.items()}
+    return value
 
 
 def _directory_sha256(directory: Path) -> str:
