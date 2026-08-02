@@ -17,6 +17,7 @@ from deepresearch_agent.schemas import (
     BoundingBox,
     Evidence,
     NumericFields,
+    StructuredDataRecord,
     StructuredDataRequest,
     SubQuestion,
 )
@@ -108,8 +109,20 @@ class StructuredDataProviderTests(unittest.TestCase):
             },
         )
         self.assertTrue(all(item.unit == "CNY" for item in records))
+        self.assertTrue(all(item.source_pub_date == date(2024, 5, 23) for item in records))
         self.assertTrue(all(item.source_url and "000095017024063767" in item.source_url for item in records))
         self.assertEqual(len(requested_urls), 2)
+
+    def test_researcher_never_uses_structured_retrieval_time_as_publication_date(self) -> None:
+        record = StructuredDataRecord(
+            entity="Example", symbol="EX", metric_name="revenue", period="2019",
+            dimension="annual", value=Decimal("1"), unit="USD",
+            data_source="provider", as_of=date(2026, 8, 2), source_pub_date=None,
+        )
+
+        evidence = ResearcherAgent()._evidence_from_record("run", "question", record)
+
+        self.assertIsNone(evidence.source_pub_date)
 
     def test_sec_companyfacts_retries_bounded_http_failure(self) -> None:
         attempts = 0

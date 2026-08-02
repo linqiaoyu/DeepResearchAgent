@@ -599,7 +599,7 @@ class ResearcherAgent:
             source_kind="structured",
             source_url=source_url,
             source_title=f"{record.data_source} {record.symbol} {record.metric_name}",
-            source_pub_date=record.as_of,
+            source_pub_date=record.source_pub_date,
             extract_text=extract_text,
             confidence=0.98,
             structured_record=record,

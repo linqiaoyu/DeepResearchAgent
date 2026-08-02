@@ -964,9 +964,6 @@ class ReporterAgent:
 
     def _data_as_of(self, evidence: list[Evidence]) -> str:
         dates = [item.source_pub_date for item in evidence if item.source_pub_date]
-        for item in evidence:
-            if item.structured_record:
-                dates.append(item.structured_record.as_of)
         return max(dates).isoformat() if dates else "未标注"
 
     def _evidence_claim_text(

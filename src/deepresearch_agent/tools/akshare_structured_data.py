@@ -146,6 +146,7 @@ class AKShareStructuredDataProvider:
                         unit=unit,
                         data_source="AKShare: stock_financial_abstract",
                         as_of=date.today(),
+                        source_pub_date=None,
                     )
                 )
         return records
@@ -188,6 +189,7 @@ class AKShareStructuredDataProvider:
                         unit="元/股",
                         data_source="AKShare: stock_zh_a_hist",
                         as_of=date.today(),
+                        source_pub_date=None,
                     )
                 )
         return records

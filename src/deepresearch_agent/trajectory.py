@@ -138,7 +138,7 @@ class TrajectoryTermination(StrictModel):
 
 
 class AgentTrajectory(StrictModel):
-    schema_version: int = 5
+    schema_version: int = 6
     run_id: str
     recorded_at: datetime = Field(default_factory=utc_now)
     request: dict[str, Any]
@@ -351,9 +351,9 @@ def _rekey_redacted_llm_calls(payload: Any) -> None:
 
 def validate_strict_replay_trajectory(trajectory: AgentTrajectory) -> None:
     """Reject incomplete or internally inconsistent strict-replay input."""
-    if trajectory.schema_version not in {3, 4, 5}:
+    if trajectory.schema_version not in {3, 4, 5, 6}:
         raise ValueError(
-            "trajectory schema_version mismatch: expected 3, 4 or 5, "
+            "trajectory schema_version mismatch: expected 3, 4, 5 or 6, "
             f"actual {trajectory.schema_version}"
         )
     if trajectory.schema_version == 3:

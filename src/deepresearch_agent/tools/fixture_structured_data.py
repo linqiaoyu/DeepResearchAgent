@@ -29,11 +29,11 @@ class FixtureStructuredDataProvider:
             for alias in aliases
         }
         self._financial_indicators = [
-            StructuredDataRecord.model_validate(item)
+            self._record(item)
             for item in self._payload.get("financial_indicators", [])
         ]
         self._price_history = [
-            StructuredDataRecord.model_validate(item)
+            self._record(item)
             for item in self._payload.get("price_history", [])
         ]
         self._domain_pack = resolve_domain_capability(
@@ -83,3 +83,11 @@ class FixtureStructuredDataProvider:
             normalized,
             normalized,
         )
+
+    @staticmethod
+    def _record(item: object) -> StructuredDataRecord:
+        payload = dict(item)  # type: ignore[arg-type]
+        # Fixture ``as_of`` is a recorded source timestamp, not a live fetch
+        # timestamp. Preserve it explicitly when loading old fixture rows.
+        payload.setdefault("source_pub_date", payload.get("as_of"))
+        return StructuredDataRecord.model_validate(payload)

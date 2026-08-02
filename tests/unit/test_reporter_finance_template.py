@@ -57,6 +57,20 @@ class ReporterFinanceTemplateTests(unittest.TestCase):
         self.assertIn("口径: 累计", report)
         self.assertIn("单位: 元", report)
 
+    def test_unknown_structured_publication_date_is_rendered_as_unknown(self) -> None:
+        record = StructuredDataRecord(
+            entity="Example", symbol="EX", metric_name="revenue", period="2019",
+            dimension="annual", value=1, unit="USD", data_source="provider",
+            as_of=date(2026, 8, 2), source_pub_date=None,
+        )
+        evidence = Evidence(
+            research_id="run", sub_question_id="question", claim="Example revenue",
+            claim_type="data", source_url="https://example.test", source_title="Example",
+            source_pub_date=None, extract_text="example", structured_record=record,
+        )
+
+        self.assertEqual(ReporterAgent()._data_as_of([evidence]), "未标注")
+
     def test_three_requested_metrics_with_two_covered_names_the_gap(self) -> None:
         state = ResearchState(topic="贵州茅台 2025 年财务指标")
         state.plan = ResearchPlan(

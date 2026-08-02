@@ -137,7 +137,13 @@ class StructuredDataRecord(StrictModel):
     value: Decimal
     unit: str
     data_source: str
+    # Retrieval time is operational provenance only. It must never be rendered
+    # as the publication date of the underlying financial observation.
     as_of: date
+    # ``None`` explicitly means that the provider cannot establish a source
+    # publication date. Older recorded trajectories deserialize to this state
+    # and downstream readers must render the resulting uncertainty.
+    source_pub_date: date | None = None
     # A provider-origin URL keeps structured facts independently auditable.
     # Legacy fixtures predate this field and intentionally fall back to their
     # provider-specific synthetic URI in ResearcherAgent.

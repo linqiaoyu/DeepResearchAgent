@@ -174,7 +174,8 @@ class SecCompanyFactsProvider:
                         value=Decimal(str(fact["val"])),
                         unit=unit,
                         data_source="SEC EDGAR Company Facts",
-                        as_of=date.fromisoformat(str(fact["filed"])),
+                        as_of=date.today(),
+                        source_pub_date=date.fromisoformat(str(fact["filed"])),
                         source_url=_ARCHIVE_URL.format(cik=cik, accession=accession),
                     )
                 )
