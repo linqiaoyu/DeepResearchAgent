@@ -9,8 +9,8 @@
 
 - 时间：2026-08-02 14:27:23–14:30:31 UTC（约 188 秒）。
 - 代码 commit：`caa2ffe`（运行前预注册）。
-- workflow research/run id：`0f2c7994-d31a-4833-86e7-90f51455c6d4`。
-- RAG ledger run id：`rag-e2e-6c8cd28f-a298-435c-b0fc-4cbb27592375`。
+- workflow research/run id：已按脱敏规则移入本地 `_collab/080-t8-live-e2e/report.md`。
+- RAG ledger run id：已按脱敏规则移入本地 `_collab/080-t8-live-e2e/report.md`。
 - 配置：Alibaba 2024 annual report；`as_of=2026-07-01`；depth 1；live LLM、
   Tavily search、SEC Company Facts structured data、DashScope embedding/rerank；
   `data/runtime/047-assets.db`；
