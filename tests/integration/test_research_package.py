@@ -9,6 +9,7 @@ from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
+from uuid import UUID
 
 from deepresearch_agent.config_validation import ConfigurationError
 from deepresearch_agent.llm import LLMClient
@@ -184,6 +185,19 @@ class ResearchPackageTests(unittest.TestCase):
             self.assertIn("RAG total_cost_cny: `0.125`", report)
             self.assertEqual(state.metadata["rag_ledger_run_id"], "rag-run")
             self.assertEqual(state.metadata["rag_cost_summary"]["total_cost_cny"], 0.125)
+
+    def test_live_rag_ledger_run_ids_are_unique_per_invocation(self) -> None:
+        with patch.object(
+            run_research_package,
+            "uuid4",
+            side_effect=(UUID(int=1), UUID(int=2)),
+        ):
+            first = run_research_package._new_rag_ledger_run_id()
+            second = run_research_package._new_rag_ledger_run_id()
+
+        self.assertEqual(first, "rag-e2e-00000000-0000-0000-0000-000000000001")
+        self.assertEqual(second, "rag-e2e-00000000-0000-0000-0000-000000000002")
+        self.assertNotEqual(first, second)
 
     def test_audit_citation_closure_is_preserved_in_delivered_report(self) -> None:
         report = run_research_package._append_audit_citation_closure(

@@ -7,6 +7,7 @@ from dataclasses import replace
 from datetime import date
 from pathlib import Path
 from urllib.parse import urlsplit
+from uuid import uuid4
 
 from deepresearch_agent.audit_bundle import export_audit_bundle
 from deepresearch_agent.config_validation import ConfigurationError, validate_required_configuration
@@ -252,7 +253,7 @@ def _build_live_rag_search(
         budget_cny=budget_cny,
         completion_func=lambda **_: {},
     )
-    run_id = f"rag-e2e-{index_version}"
+    run_id = _new_rag_ledger_run_id()
     ledger.start_run(run_id)
     pricing = ProviderPricing(0.5, "aliyun_model_studio_public_20260729")
     store = SQLiteStore(database)
@@ -289,6 +290,12 @@ def _build_live_rag_search(
     service.ledger = ledger
     service.ledger_run_id = run_id
     return service
+
+
+def _new_rag_ledger_run_id() -> str:
+    """Isolate one live RAG cost aggregate from all earlier index users."""
+
+    return f"rag-e2e-{uuid4()}"
 
 
 def _warn_if_rerank_endpoint_domain_differs() -> None:
