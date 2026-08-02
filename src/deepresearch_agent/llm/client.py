@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import signal
 import threading
 import time
 from dataclasses import dataclass
@@ -575,15 +576,61 @@ class LLMClient:
         self,
         *,
         kwargs: dict[str, Any],
-        timeout_seconds: int,
+        timeout_seconds: float,
     ) -> Any:
         """Bound an SDK call even when its transport timeout is ineffective.
 
-        Python cannot safely kill a synchronous provider call.  An overdue call
-        is therefore quarantined in a daemon thread, while this workflow call
-        fails at its declared deadline.  The semaphore caps quarantined calls
-        process-wide and is released when the provider thread eventually exits.
+        On the main POSIX thread, an interval timer interrupts the synchronous
+        SDK operation itself, so an SSL read cannot leave a provider worker
+        alive after the deadline.  Python cannot safely interrupt an arbitrary
+        non-main thread, so those callers use a bounded daemon-worker fallback.
         """
+        if (
+            threading.current_thread() is threading.main_thread()
+            and hasattr(signal, "setitimer")
+        ):
+            return self._call_with_main_thread_deadline(
+                kwargs=kwargs,
+                timeout_seconds=timeout_seconds,
+            )
+        return self._call_with_daemon_deadline(
+            kwargs=kwargs,
+            timeout_seconds=timeout_seconds,
+        )
+
+    def _call_with_main_thread_deadline(
+        self,
+        *,
+        kwargs: dict[str, Any],
+        timeout_seconds: float,
+    ) -> Any:
+        def deadline_expired(_signum: int, _frame: Any) -> None:
+            raise TimeoutError(f"LLM operation timed out after {timeout_seconds:g}s")
+
+        previous_handler = signal.signal(signal.SIGALRM, deadline_expired)
+        previous_delay, previous_interval = signal.setitimer(
+            signal.ITIMER_REAL,
+            timeout_seconds,
+        )
+        started = time.monotonic()
+        try:
+            return self._completion(**kwargs)
+        finally:
+            elapsed = time.monotonic() - started
+            signal.setitimer(signal.ITIMER_REAL, 0.0)
+            signal.signal(signal.SIGALRM, previous_handler)
+            signal.setitimer(
+                signal.ITIMER_REAL,
+                max(0.0, previous_delay - elapsed),
+                previous_interval,
+            )
+
+    def _call_with_daemon_deadline(
+        self,
+        *,
+        kwargs: dict[str, Any],
+        timeout_seconds: float,
+    ) -> Any:
         if not _LLM_CALL_SLOTS.acquire(blocking=False):
             raise TimeoutError(
                 "LLM detached-call capacity exhausted; refusing another provider call"
