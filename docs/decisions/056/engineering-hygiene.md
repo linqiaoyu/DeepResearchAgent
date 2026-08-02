@@ -26,7 +26,7 @@
 - Qdrant mutation restoring `ensure_collection()` made the read-only test fail
   (`put.call_count` became 4); strategy and gate-stdin mutations also failed.
 - `yes | scripts/gate.py` and the ordinary complete gate both passed.
-- The direct combined `unittest discover` open-pipe host remains recorded as a
-  host-level non-exit after all output; unit, integration, and chaos discovery
-  invocations separately pass under the same pipe. This does not affect the CI
-  contract because gate supplies `DEVNULL` to its unittest subprocess.
+- Both direct combined hosts pass: continuous open pipe completed 719 tests in
+  38.584 seconds and `/dev/null` completed them in 37.961 seconds. The earlier
+  interrupted observations were insufficiently bounded waits, not a retained
+  stdin dependency.
