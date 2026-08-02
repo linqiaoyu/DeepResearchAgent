@@ -1,5 +1,10 @@
 # ADR 047: RAG MVP storage and retrieval boundary
 
+## Correction (048 审计)
+
+`pdfplumber` 已在提交 `e4dc665` 后成为运行时依赖。其许可证为 MIT，未发现许可证兼容性
+问题。本勘误仅更新这一依赖事实；下方原始 ADR 文字保持不变。
+
 ## Status
 
 INCOMPLETE. This decision records the implemented boundaries. It does not turn
