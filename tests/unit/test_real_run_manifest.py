@@ -32,6 +32,35 @@ def _manifest(*, records: int = 1) -> dict[str, object]:
     }
 
 
+def _active_t8_manifest() -> dict[str, object]:
+    return {
+        "provider_usage": {
+            "llm": 1,
+            "search": 1,
+            "rag_search": 1,
+            "disclosure": 0,
+            "structured_data": 0,
+        },
+        "structured_data_stats": {
+            "finance": {
+                "requests": 0,
+                "executed_requests": 0,
+                "records": 0,
+                "symbol_resolution_failures": 0,
+                "execution_failures": 0,
+            }
+        },
+        "actual_provider_fidelity": {
+            "llm": "real",
+            "search": "real",
+            "rag_search": "real",
+            "disclosure": "unused",
+            "structured_data": "unused",
+        },
+        "actual_realness": "mixed",
+    }
+
+
 class RealRunManifestCheckTests(unittest.TestCase):
     def test_missing_fields_fail_closed(self) -> None:
         payload = _manifest()
@@ -44,6 +73,22 @@ class RealRunManifestCheckTests(unittest.TestCase):
 
     def test_all_real_manifest_passes(self) -> None:
         self.assertEqual(validate_manifest(_manifest(), require_all_real=True), [])
+
+    def test_active_t8_manifest_allows_explicitly_unused_optional_providers(self) -> None:
+        self.assertEqual(
+            validate_manifest(
+                _active_t8_manifest(), require_all_real=False, require_active_real=True
+            ),
+            [],
+        )
+
+    def test_active_t8_manifest_rejects_fixture_active_provider(self) -> None:
+        payload = _active_t8_manifest()
+        payload["actual_provider_fidelity"]["rag_search"] = "fixture"  # type: ignore[index]
+
+        failures = validate_manifest(payload, require_all_real=False, require_active_real=True)
+
+        self.assertIn("actual_provider_fidelity.rag_search='fixture'", failures)
 
 
 if __name__ == "__main__":
