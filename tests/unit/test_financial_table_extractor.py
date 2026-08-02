@@ -360,6 +360,48 @@ class FinancialTableExtractorTests(unittest.TestCase):
             5,
         )
 
+    def test_null_llm_period_does_not_crash_authoritative_backfill(self) -> None:
+        source = self._annual_report()
+        incomplete = ExtractedClaim(
+            claim="营业收入为168,838,102,514.79元。",
+            claim_type="data",
+            source_url=source.url,
+            extract_text="营业收入 168,838,102,514.79",
+            confidence=0.9,
+            numeric_fields=NumericFields(
+                entity="贵州茅台",
+                metric_name="营业收入",
+                period=None,
+                value=168_838_102_514.79,
+                unit="元",
+            ),
+        )
+
+        evidence = ExtractorAgent(
+            llm_client=_ExtractorLLM([incomplete]),  # type: ignore[arg-type]
+        ).extract(
+            "null-period-backfill",
+            self._sub_question(["营业收入"]),
+            [source],
+        )
+
+        self.assertTrue(
+            any(
+                item.numeric_fields is not None
+                and item.numeric_fields.period is None
+                for item in evidence
+            )
+        )
+        self.assertEqual(
+            {
+                item.numeric_fields.period
+                for item in evidence
+                if item.numeric_fields is not None
+                and item.numeric_fields.period is not None
+            },
+            {"2024年", "2025年"},
+        )
+
     def test_statement_rows_backfill_both_requested_periods(
         self,
     ) -> None:

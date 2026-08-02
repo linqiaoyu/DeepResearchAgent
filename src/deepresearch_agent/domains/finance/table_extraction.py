@@ -879,8 +879,10 @@ def _evidence_slot(
     return metric, period
 
 
-def _period_year(value: str) -> str:
-    rendered = value.strip()
+def _period_year(value: str | None) -> str:
+    """Return a year only for a present, parseable evidence period."""
+
+    rendered = str(value or "").strip()
     if re.fullmatch(r"(?:19|20)\d{6}", rendered):
         return rendered[:4]
     match = _PERIOD_RE.search(rendered)
