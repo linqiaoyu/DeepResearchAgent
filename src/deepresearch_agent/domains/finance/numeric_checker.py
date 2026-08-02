@@ -150,14 +150,16 @@ class NumericConsistencyChecker:
                 periods=(claim.period, previous_period),
                 relationship="growth_rate",
             )
-        if previous.value == 0:
+        current_value = self._common_value(current)
+        previous_value = self._common_value(previous)
+        if current_value is None or previous_value is None or previous_value == 0:
             return []
         calculated = (
-            (current.value - previous.value) / abs(previous.value) * 100
+            (current_value - previous_value) / abs(previous_value) * 100
         )
         formula = (
-            f"({current.value}-{previous.value})/"
-            f"abs({previous.value})*100"
+            f"({current_value}-{previous_value})/"
+            f"abs({previous_value})*100"
         )
         return self._finish(
             state,
@@ -544,6 +546,8 @@ class NumericConsistencyChecker:
     def _common_value(self, item: NumericObservation) -> float | None:
         if item.unit in _CURRENCY_FACTORS:
             return item.value * _CURRENCY_FACTORS[item.unit]
+        if item.unit.lower() in _PERCENT_FACTORS:
+            return None
         return item.value
 
     def _convert_to_unit(
