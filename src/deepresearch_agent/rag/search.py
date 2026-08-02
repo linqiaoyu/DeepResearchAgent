@@ -64,8 +64,6 @@ class RetrievalBackend(Protocol):
 class RagSearchService:
     """Backend-neutral hybrid retrieval with an explicit as-of boundary."""
 
-    fidelity = "fixture"
-
     def __init__(
         self,
         *,
@@ -92,6 +90,18 @@ class RagSearchService:
         self.retrieval_domain = retrieval_domain
         self.index_version = index_version
         self.executor = executor or ReliableToolExecutor()
+
+    @property
+    def fidelity(self) -> str:
+        backends = [self.lexical, self.dense]
+        if self.rerank_enabled:
+            backends.append(self.reranker)
+        values = [getattr(backend, "fidelity", None) for backend in backends]
+        allowed = {"real", "fixture", "replay"}
+        if any(value not in allowed for value in values):
+            return "unknown"
+        unique = set(values)
+        return unique.pop() if len(unique) == 1 else "mixed"
 
     def search(
         self,

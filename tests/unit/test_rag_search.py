@@ -18,6 +18,7 @@ from deepresearch_agent.trajectory_replay import replay_recorded_rag_search
 
 
 class StaticBackend:
+    fidelity = "real"
     def __init__(self, chunks: list[SearchChunk]) -> None:
         self.chunks = chunks
 
@@ -43,6 +44,10 @@ class FailingBackend:
         raise ToolExecutionError(ToolErrorKind.TIMEOUT, "simulated timeout")
 
 
+class FixtureBackend(StaticBackend):
+    fidelity = "fixture"
+
+
 class FinanceLikeRetrievalDomain:
     def retrieval_filter_values(self, query: str) -> RetrievalFilterValues:
         self.query = query
@@ -53,6 +58,18 @@ class FinanceLikeRetrievalDomain:
 
 
 class RagSearchTests(unittest.TestCase):
+    def test_fidelity_aggregates_backends(self) -> None:
+        real = StaticBackend([])
+        all_real = RagSearchService(
+            lexical=real, dense=real, reranker=FixtureRerankerProvider(),
+            retrieval_top_k=1, rerank_top_n=1, rerank_enabled=False, rerank_fail_open=True,
+        )
+        mixed = RagSearchService(
+            lexical=real, dense=FixtureBackend([]), reranker=None,
+            retrieval_top_k=1, rerank_top_n=1, rerank_enabled=False, rerank_fail_open=True,
+        )
+        self.assertEqual(all_real.fidelity, "real")
+        self.assertEqual(mixed.fidelity, "mixed")
     def test_requires_as_of_and_filters_future_chunks(self) -> None:
         old = SearchChunk("old", "答案", date(2025, 1, 1), "v1", 0, 2)
         future = SearchChunk("future", "未来答案", date(2027, 1, 1), "v2", 0, 4)

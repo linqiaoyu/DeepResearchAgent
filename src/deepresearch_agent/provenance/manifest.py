@@ -280,10 +280,15 @@ def _provider_usage(state: ResearchState) -> dict[str, int]:
     """Count provider calls evidenced by the completed run, not configuration."""
     search = 0
     disclosure = 0
+    rag_search = 0
     for record in state.search_records:
         query = record.query
         if query.startswith("[disclosure]"):
             disclosure += 1
+        elif query.startswith("[rag_search]"):
+            rag_search += 1
+        elif query.startswith(("[web_fetch]", "[priority_url]", "[fetch_budget_exceeded]", "[external_fetch_budget_exceeded]")):
+            continue
         elif not query.startswith("[branch_budget_exceeded]") and not query.startswith(
             "[search_limit_exceeded]"
         ) and not query.startswith("[external_search_budget_exceeded]"):
@@ -299,6 +304,7 @@ def _provider_usage(state: ResearchState) -> dict[str, int]:
         "search": search,
         "structured_data": structured,
         "disclosure": disclosure,
+        "rag_search": rag_search,
         "llm": llm,
     }
 
@@ -385,6 +391,12 @@ def settings_flag_snapshot(
         flags["SKILL_PACKS_ENABLED"] = settings.skill_packs_enabled
     if settings.semantic_judge_enabled or include_disabled_experimental:
         flags["SEMANTIC_JUDGE_ENABLED"] = settings.semantic_judge_enabled
+    if settings.rag_enabled or include_disabled_experimental:
+        flags["RAG_ENABLED"] = settings.rag_enabled
+    if settings.rerank_enabled or include_disabled_experimental:
+        flags["RERANK_ENABLED"] = settings.rerank_enabled
+    if settings.rerank_fail_open or include_disabled_experimental:
+        flags["RERANK_FAIL_OPEN"] = settings.rerank_fail_open
     return flags
 
 

@@ -399,6 +399,12 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
                 if self.llm_client
                 else "fixture",
             }
+            rag_search = self.researcher.rag_search
+            if rag_search is not None:
+                if isinstance(getattr(rag_search, "index_version", None), str):
+                    state.metadata["retrieval_index_version"] = rag_search.index_version
+                state.metadata["provider_identity"]["rag_search"] = type(rag_search).__name__
+                state.metadata["provider_fidelity"]["rag_search"] = _provider_fidelity(rag_search)
             research_id = state.research_id
             config = self._config(research_id)
             graph_input = {

@@ -90,6 +90,8 @@ class RunManifestTests(unittest.TestCase):
                 "STRUCTURED_OUTPUT_ENABLED": settings.structured_output_enabled,
                 "BRANCH_BUDGET_ENABLED": settings.branch_budget_enabled,
                 "DYNAMIC_CAPABILITY_ENABLED": settings.dynamic_capability_enabled,
+                "RERANK_ENABLED": settings.rerank_enabled,
+                "RERANK_FAIL_OPEN": settings.rerank_fail_open,
             },
         )
         self.assertEqual(
@@ -200,10 +202,67 @@ class RunManifestTests(unittest.TestCase):
         )
 
         self.assertEqual(built.provider_usage, {
-            "search": 1, "structured_data": 1, "disclosure": 0, "llm": 1,
+            "search": 1, "structured_data": 1, "disclosure": 0, "rag_search": 0, "llm": 1,
         })
         self.assertEqual(built.actual_provider_fidelity["disclosure"], "unused")
         self.assertEqual(built.actual_realness, "mixed")
+
+    def test_flag_snapshot_exactly_matches_classifications_when_expanded(self) -> None:
+        flags = settings_flag_snapshot(
+            Settings(storage_path=Path("test.db")),
+            include_disabled_experimental=True,
+        )
+        self.assertEqual(set(flags), set(FLAG_CLASSIFICATIONS))
+
+    def test_retrieval_records_do_not_inflate_web_search_usage(self) -> None:
+        state = ResearchState(
+            topic="test",
+            search_records=[
+                SearchRecord(query="ordinary query", source_ids=[]),
+                SearchRecord(query="[rag_search] q", source_ids=[]),
+                SearchRecord(query="[web_fetch] u", source_ids=[]),
+                SearchRecord(query="[priority_url] u", source_ids=[]),
+            ],
+            metadata={
+                "provider_fidelity": {
+                    "search": "fixture", "structured_data": "fixture",
+                    "disclosure": "fixture", "rag_search": "fixture", "llm": "fixture",
+                }
+            },
+        )
+        built = build_run_manifest(
+            state, Settings(storage_path=Path("test.db")),
+            started_at=datetime(2026, 7, 24, tzinfo=timezone.utc),
+        )
+        self.assertEqual(built.provider_usage["search"], 1)
+        self.assertEqual(built.provider_usage["rag_search"], 1)
+        self.assertEqual(built.actual_provider_fidelity["rag_search"], "fixture")
+
+    def test_engine_records_rag_index_version_in_the_manifest_state(self) -> None:
+        class IndexedRag:
+            fidelity = "fixture"
+            index_version = "vT2"
+
+            def search(
+                self, *, query: str, as_of: str, context: object | None = None
+            ) -> dict[str, object]:
+                del query, as_of, context
+                return {"candidates": [], "trace": {"status": "empty_index"}}
+
+        with tempfile.TemporaryDirectory() as tmp:
+            engine = DeepResearchEngine(
+                Settings(
+                    storage_path=Path(tmp) / "state.db",
+                    rag_enabled=True,
+                    injection_guard_enabled=True,
+                ),
+                rag_search=IndexedRag(),
+            )
+            try:
+                state = engine.run(topic="index version", stop_after_phase="planning")
+            finally:
+                engine.close()
+        self.assertEqual(state.metadata["retrieval_index_version"], "vT2")
 
     def test_zero_record_structured_call_is_not_real(self) -> None:
         settings = Settings(storage_path=Path("test.db"), execution_mode="llm")
