@@ -146,6 +146,17 @@ class ReaderVisibleContractTests(unittest.TestCase):
         self.assertIsNone(
             self.pack.web_source_rejection_reason(target, ("2024",))
         )
+        target_published_next_year = self._source(
+            "年報",
+            "https://www.hkexnews.hk/listedco/listconews/sehk/2025/0409/2025040900012_c.pdf",
+            "2024年营业收入 65,731,559,000 CNY",
+        )
+        self.assertIsNone(
+            self.pack.web_source_rejection_reason(
+                target_published_next_year,
+                ("2024",),
+            )
+        )
 
     def test_d2_researcher_omits_rejected_web_candidates_and_records_degradation(
         self,

@@ -14,6 +14,11 @@ _REPORT_RE = re.compile(
     re.IGNORECASE,
 )
 _FILING_YEAR_RE = re.compile(r"(?<!\d)(20\d{2})(?:1231)?x?20f", re.IGNORECASE)
+_URL_REPORT_YEAR_RE = re.compile(
+    r"(?:annual[-_]?report|full[-_]?year|fy|financial[-_]?results)[-_/]?(20\d{2})|"
+    r"(20\d{2})[-_/]?(?:annual[-_]?report|full[-_]?year|financial[-_]?results)",
+    re.IGNORECASE,
+)
 
 
 def web_source_rejection_reason(
@@ -34,8 +39,17 @@ def web_source_rejection_reason(
     }
     if not targets:
         return None
-    years = set(_YEAR_RE.findall(identity))
+    # A dated publication URL (for example HKEX /2025/0409/) is not a report
+    # period.  Only title years and URL patterns that explicitly bind a year
+    # to annual/FY/results identity may drive rejection.
+    years = set(_YEAR_RE.findall(title))
     years.update(_FILING_YEAR_RE.findall(identity))
+    years.update(
+        year
+        for match in _URL_REPORT_YEAR_RE.findall(url)
+        for year in match
+        if year
+    )
     if years and years.isdisjoint(targets) and _REPORT_RE.search(identity):
         return "off_target_reporting_period"
     return None
