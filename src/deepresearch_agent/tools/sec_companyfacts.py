@@ -27,6 +27,10 @@ class SecCompanyFactsError(RuntimeError):
     """Raised when SEC EDGAR cannot return a bounded normalized payload."""
 
 
+class StructuredDataUnsupportedMetric(SecCompanyFactsError):
+    """Raised when SEC Company Facts has no domain mapping for a metric."""
+
+
 _COMPANY_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 _COMPANY_FACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik:010d}.json"
 _ARCHIVE_URL = "https://www.sec.gov/Archives/edgar/data/{cik}/{accession}/"
@@ -150,14 +154,32 @@ class SecCompanyFactsProvider:
         requested_periods.discard(None)
         records: list[StructuredDataRecord] = []
         seen: set[tuple[str, str, str]] = set()
-        for metric in wanted_metrics:
+        for requested_metric in wanted_metrics:
+            canonical_metric = getattr(self._domain_pack, "canonical_metric", None)
+            metric = (
+                canonical_metric(requested_metric)
+                if callable(canonical_metric)
+                else requested_metric
+            )
             tags = metric_tags.get(metric)
             if tags is None:
+                unsupported = getattr(self._domain_pack, "unsupported_xbrl_metrics", None)
+                if callable(unsupported) and metric in unsupported():
+                    raise StructuredDataUnsupportedMetric(
+                        f"SEC Company Facts does not support metric {requested_metric!r}"
+                    )
                 continue
-            concept = next((us_gaap.get(tag) for tag in tags if isinstance(us_gaap.get(tag), dict)), None)
-            if concept is None:
+            annual_facts: list[tuple[str, Mapping[str, Any]]] = []
+            for tag in tags:
+                candidate = us_gaap.get(tag)
+                if not isinstance(candidate, dict):
+                    continue
+                annual_facts = _annual_facts(candidate, requested_periods)
+                if annual_facts:
+                    break
+            if not annual_facts:
                 continue
-            for unit, fact in _annual_facts(concept, requested_periods):
+            for unit, fact in annual_facts:
                 end = str(fact["end"])
                 key = (metric, end, unit)
                 if key in seen:

@@ -19,6 +19,8 @@ from deepresearch_agent.domains.finance.vocabulary import (
     STRUCTURED_METRIC_ALIASES,
     STRUCTURED_METRIC_UNITS,
     SEC_COMPANYFACTS_CONCEPTS,
+    SEC_COMPANYFACTS_UNSUPPORTED_METRICS,
+    FINANCIAL_INTENT_TERMS,
     canonical_metric,
     parse_period,
 )
@@ -66,6 +68,12 @@ class FinanceDomainPack:
 
     def structured_xbrl_concepts(self) -> Mapping[str, tuple[str, ...]]:
         return SEC_COMPANYFACTS_CONCEPTS
+
+    def unsupported_xbrl_metrics(self) -> tuple[str, ...]:
+        return SEC_COMPANYFACTS_UNSUPPORTED_METRICS
+
+    def financial_intent_terms(self) -> tuple[str, ...]:
+        return FINANCIAL_INTENT_TERMS
 
     def primary_source_keyword(self, *, financial_intent: bool) -> str:
         return "年度报告" if financial_intent else "公告"

@@ -10,6 +10,7 @@ METRIC_ALIASES = {
     "归母净利润": "归母净利润",
     "归属于母公司股东的净利润": "归母净利润",
     "归属于上市公司股东的净利润": "归母净利润",
+    "毛利": "毛利",
     "毛利率": "主营业务毛利率",
     "主营业务毛利率": "主营业务毛利率",
 }
@@ -50,10 +51,25 @@ STRUCTURED_METRIC_UNITS = {
 # not a generic harness decision.
 SEC_COMPANYFACTS_CONCEPTS = {
     "营业收入": ("Revenues", "RevenueFromContractWithCustomerExcludingAssessedTax"),
+    "毛利": ("GrossProfit",),
     "归母净利润": ("NetIncomeLoss",),
     "净利润": ("ProfitLoss", "NetIncomeLoss"),
     "每股收益": ("EarningsPerShareDiluted",),
 }
+SEC_COMPANYFACTS_UNSUPPORTED_METRICS = ("主营业务毛利率", "市盈率")
+FINANCIAL_INTENT_TERMS = (
+    "annual report",
+    "revenue",
+    "gross profit",
+    "gross margin",
+    "financial results",
+    "年报",
+    "营收",
+    "营业收入",
+    "毛利",
+    "毛利率",
+    "净利润",
+)
 MAINLAND_EQUITY_EXCHANGE = "A股"
 _YEAR_RE = re.compile(r"(?<!\d)(20\d{2})(?!\d)")
 

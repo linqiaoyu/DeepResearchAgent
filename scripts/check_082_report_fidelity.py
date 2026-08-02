@@ -116,7 +116,14 @@ def main() -> int:
     print(f"footnote_misrefs={metrics.footnote_misrefs}")
     print(f"magnitude_mismatches={metrics.magnitude_mismatches}")
     print(f"missing_source_dates={metrics.missing_source_dates}")
-    return 0 if metrics.footnote_misrefs == metrics.magnitude_mismatches == 0 else 1
+    if metrics.sampled_numbers == 0:
+        print("verdict=VACUOUS")
+        return 1
+    if metrics.footnote_misrefs == metrics.magnitude_mismatches == 0:
+        print("verdict=PASS")
+        return 0
+    print("verdict=FAIL")
+    return 1
 
 
 if __name__ == "__main__":

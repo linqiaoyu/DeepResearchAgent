@@ -92,6 +92,13 @@ def _provider_fidelity(provider: object) -> str:
     return fidelity if fidelity in {"real", "fixture", "replay"} else "unknown"
 
 
+def _provider_identity(provider: object) -> str:
+    """Record the concrete provider when an observational wrapper is present."""
+
+    identity = getattr(provider, "provider_identity", None)
+    return identity if isinstance(identity, str) and identity else type(provider).__name__
+
+
 def _research_progress_metric(state: ResearchState) -> float:
     evidence = {item.id: item for item in state.evidence_store}.values()
     components = {
@@ -437,7 +444,7 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
             state.metadata["execution_mode"] = self.settings.execution_mode
             state.metadata["provider_identity"] = {
                 "search": type(self.search_tool).__name__,
-                "structured_data": type(self.structured_data_provider).__name__,
+                "structured_data": _provider_identity(self.structured_data_provider),
                 "disclosure": type(self.capability_registry.resolve("disclosure_source")).__name__,
                 "llm": type(self.llm_client).__name__ if self.llm_client else "deterministic",
             }

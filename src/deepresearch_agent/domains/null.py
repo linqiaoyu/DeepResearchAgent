@@ -86,6 +86,12 @@ class NullDomainPack:
     def structured_xbrl_concepts(self) -> Mapping[str, tuple[str, ...]]:
         return {}
 
+    def unsupported_xbrl_metrics(self) -> tuple[str, ...]:
+        return ()
+
+    def financial_intent_terms(self) -> tuple[str, ...]:
+        return ()
+
     def primary_source_keyword(self, *, financial_intent: bool) -> str:
         return "notice" if financial_intent else "source"
 

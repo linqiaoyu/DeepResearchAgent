@@ -59,6 +59,12 @@ class TrajectoryStructuredDataProvider:
     def fidelity(self) -> str:
         return str(getattr(self.provider, "fidelity", "unknown"))
 
+    @property
+    def provider_identity(self) -> str:
+        """Expose the wrapped provider rather than this recording decorator."""
+
+        return type(self.provider).__name__
+
     def set_run_context(self, context: RunToolContext) -> None:
         """Forward workflow-scoped budget state to a real provider when used."""
 

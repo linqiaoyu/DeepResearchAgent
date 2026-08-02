@@ -83,25 +83,40 @@ def validate_manifest(
         for provider in OPTIONAL_T8_PROVIDERS:
             provider_usage = usage.get(provider)
             provider_fidelity = fidelity.get(provider)
-            if not isinstance(provider_usage, int) or provider_usage < 0:
+            state = optional_provider_state(
+                provider=provider,
+                usage=provider_usage,
+                fidelity=provider_fidelity,
+                degradation_events=degradation_events,
+            )
+            if state == "invalid":
                 failures.append(f"provider_usage.{provider}={provider_usage!r}")
-            elif provider_usage == 0:
-                if provider_fidelity != "unused":
-                    failures.append(f"actual_provider_fidelity.{provider}={provider_fidelity!r}")
-                degradation_tools = OPTIONAL_PROVIDER_DEGRADATION_TOOLS[provider]
-                attempted = [
-                    event
-                    for event in degradation_events
-                    if isinstance(event, dict) and event.get("tool") in degradation_tools
-                ]
-                if attempted:
-                    failures.append(f"optional_provider_degradation.{provider}={len(attempted)}")
-            elif provider_fidelity != "real":
-                failures.append(f"actual_provider_fidelity.{provider}={provider_fidelity!r}")
-        expected_realness = "mixed"
-        if realness != expected_realness:
-            failures.append(f"actual_realness={realness!r}; expected {expected_realness!r}")
+            elif state == "not_attempted":
+                failures.append(f"optional_provider_not_attempted.{provider}")
+            elif state == "attempted_degraded":
+                failures.append(f"optional_provider_attempted_degraded.{provider}")
     return failures
+
+
+def optional_provider_state(
+    *,
+    provider: str,
+    usage: object,
+    fidelity: object,
+    degradation_events: list[object],
+) -> str:
+    """Classify optional-provider evidence without rewarding non-attempts."""
+
+    if not isinstance(usage, int) or usage < 0:
+        return "invalid"
+    degradation_tools = OPTIONAL_PROVIDER_DEGRADATION_TOOLS[provider]
+    attempted = any(
+        isinstance(event, dict) and event.get("tool") in degradation_tools
+        for event in degradation_events
+    )
+    if usage == 0:
+        return "attempted_degraded" if attempted else "not_attempted"
+    return "real" if fidelity == "real" else "attempted_degraded"
 
 
 def main() -> None:

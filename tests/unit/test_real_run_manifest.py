@@ -57,7 +57,7 @@ def _active_t8_manifest() -> dict[str, object]:
             "disclosure": "unused",
             "structured_data": "unused",
         },
-        "actual_realness": "mixed",
+        "actual_realness": "real",
         "degradation_events": [],
     }
 
@@ -75,13 +75,11 @@ class RealRunManifestCheckTests(unittest.TestCase):
     def test_all_real_manifest_passes(self) -> None:
         self.assertEqual(validate_manifest(_manifest(), require_all_real=True), [])
 
-    def test_active_t8_manifest_allows_explicitly_unused_optional_providers(self) -> None:
-        self.assertEqual(
-            validate_manifest(
-                _active_t8_manifest(), require_all_real=False, require_active_real=True
-            ),
-            [],
+    def test_active_t8_manifest_rejects_not_attempted_optional_providers(self) -> None:
+        failures = validate_manifest(
+            _active_t8_manifest(), require_all_real=False, require_active_real=True
         )
+        self.assertIn("optional_provider_not_attempted.structured_data", failures)
 
     def test_active_t8_manifest_rejects_fixture_active_provider(self) -> None:
         payload = _active_t8_manifest()
@@ -97,7 +95,7 @@ class RealRunManifestCheckTests(unittest.TestCase):
 
         failures = validate_manifest(payload, require_all_real=False, require_active_real=True)
 
-        self.assertIn("optional_provider_degradation.structured_data=1", failures)
+        self.assertIn("optional_provider_attempted_degraded.structured_data", failures)
 
 
 if __name__ == "__main__":

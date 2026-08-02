@@ -7,6 +7,7 @@ from typing import Any, Protocol
 
 from deepresearch_agent.capability_rules import DEFAULT_CAPABILITY_RULES
 from deepresearch_agent.decisions import record_agent_decision
+from deepresearch_agent.domains.requirements import legacy_configured_domain_capability
 from deepresearch_agent.schemas import (
     AgentDecision,
     ResearchState,
@@ -282,6 +283,14 @@ def classify_subquestion(sub_question: SubQuestion) -> str:
             *sub_question.search_queries,
         ]
     ).lower()
+    domain_pack = legacy_configured_domain_capability(
+        consumer="capability selector financial intent fallback"
+    )
+    financial_intent_terms = getattr(domain_pack, "financial_intent_terms", None)
+    if callable(financial_intent_terms) and any(
+        term.casefold() in joined for term in financial_intent_terms()
+    ):
+        return "financial_metric"
     if any(term in joined for term in ("verify", "核实", "验证")):
         return "verify"
     if any(

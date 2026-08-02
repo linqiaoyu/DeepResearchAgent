@@ -44,3 +44,11 @@ class Check082ReportFidelityTests(unittest.TestCase):
         metrics = MODULE.measure(package())
         self.assertEqual(metrics.footnote_misrefs, 0)
         self.assertEqual(metrics.magnitude_mismatches, 0)
+
+    def test_zero_sampled_numbers_are_vacuous(self) -> None:
+        root = package()
+        audit = root / "audit_bundle"
+        (audit / "evidence.json").write_text(json.dumps([{
+            "evidence_id": "evidence-1", "source_pub_date": "2025-03-01",
+        }]), encoding="utf-8")
+        self.assertEqual(MODULE.measure(root).sampled_numbers, 0)

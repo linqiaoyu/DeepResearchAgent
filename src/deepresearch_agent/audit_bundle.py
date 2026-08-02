@@ -62,6 +62,9 @@ def export_audit_bundle(
         {
             "evidence_id": item.id,
             "source_url": item.source_url,
+            "source_pub_date": (
+                item.source_pub_date.isoformat() if item.source_pub_date else None
+            ),
             "captured_at": item.extracted_at.isoformat(),
             "extract_text": item.extract_text[
                 :PUBLIC_EXCERPT_CHAR_LIMIT
@@ -75,6 +78,11 @@ def export_audit_bundle(
             "source_tier": item.source_tier,
             "source_content_truncated": item.content_truncated,
             "credibility": source_credibility.get(item.source_url, item.confidence),
+            "structured_record": (
+                item.structured_record.model_dump(mode="json")
+                if item.structured_record is not None
+                else None
+            ),
         }
         for item in sorted(state.evidence_store, key=lambda item: item.id)
         if item.id in referenced_ids
