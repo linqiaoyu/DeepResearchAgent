@@ -13,7 +13,12 @@ from unittest import mock
 
 from deepresearch_agent.agents import ExtractorAgent, PlannerAgent, ReporterAgent
 from deepresearch_agent.agents.researcher import ResearcherAgent
-from deepresearch_agent.llm import BudgetExceededError, LLMClient, LLMClientError
+from deepresearch_agent.llm import (
+    BudgetExceededError,
+    LLMClient,
+    LLMClientError,
+    LLMRetryExhaustedError,
+)
 from deepresearch_agent.llm_config import DEFAULT_LLM_CONFIG, RoleModelConfig
 from deepresearch_agent.schemas import (
     Evidence,
@@ -232,7 +237,7 @@ class LLMIntegrationTests(unittest.TestCase):
                 env_path=env_path,
             )
 
-            with self.assertRaisesRegex(Exception, "LLM call failed"):
+            with self.assertRaisesRegex(LLMRetryExhaustedError, "LLM call failed"):
                 client.complete(
                     role="extractor",
                     run_id="failed-run",
@@ -241,6 +246,43 @@ class LLMIntegrationTests(unittest.TestCase):
                 )
 
             self.assertNotIn("failed-run", client._pending_costs_cny)
+
+    def test_strict_retry_exhaustion_stops_extractor_without_fallback(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            env_path = Path(tmp) / ".env"
+            env_path.write_text("DEEPSEEK_API_KEY=test-key\n", encoding="utf-8")
+
+            def completion(**_: object) -> dict:
+                raise RuntimeError("provider unavailable")
+
+            client = LLMClient(
+                ledger_path=Path(tmp) / "ledger.jsonl",
+                global_ledger_path=Path(tmp) / "global.jsonl",
+                budget_cny=1.0,
+                completion_func=completion,
+                sleep_func=lambda _: None,
+                env_path=env_path,
+                fail_on_retry_exhaustion=True,
+            )
+            extractor = ExtractorAgent(llm_client=client)
+            sub_question = SubQuestion(
+                id="strict-stop",
+                question="What happened?",
+                search_queries=["strict stop"],
+                expected_source_types=["official"],
+            )
+            source = Source(
+                id="strict-source",
+                title="Source",
+                url="https://example.test/source",
+                source_type="official",
+                content="A source that would yield deterministic fallback evidence.",
+            )
+
+            with self.assertRaises(LLMRetryExhaustedError):
+                extractor.extract("strict-stop-run", sub_question, [source])
+
+            self.assertEqual(extractor.last_stats, {})
 
     def test_main_thread_hard_timeout_interrupts_event_wait(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

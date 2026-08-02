@@ -8,7 +8,12 @@ from decimal import Decimal
 
 from deepresearch_agent.citations import build_footnote_maps
 from deepresearch_agent.decisions import append_decision_record
-from deepresearch_agent.llm import LLMClient, LLMClientError, StructuredOutputError
+from deepresearch_agent.llm import (
+    LLMClient,
+    LLMClientError,
+    LLMRetryExhaustedError,
+    StructuredOutputError,
+)
 from deepresearch_agent.metric_coverage import (
     evaluate_metric_coverage,
     metric_requirements,
@@ -92,6 +97,11 @@ class ReporterAgent:
                     )
                 )
             except (LLMClientError, StructuredOutputError, ValueError) as exc:
+                if (
+                    isinstance(exc, LLMRetryExhaustedError)
+                    and self.llm_client.fail_on_retry_exhaustion
+                ):
+                    raise
                 self.last_stats = {"fallback": True, "error_type": type(exc).__name__}
                 report = self._deterministic_report(state)
         else:
@@ -554,7 +564,13 @@ class ReporterAgent:
                     },
                 ],
             )
-        except (LLMClientError, StructuredOutputError, ValueError):
+        except (LLMClientError, StructuredOutputError, ValueError) as exc:
+            if (
+                isinstance(exc, LLMRetryExhaustedError)
+                and self.llm_client is not None
+                and self.llm_client.fail_on_retry_exhaustion
+            ):
+                raise
             return original_draft, stats
 
         if not isinstance(repair_result.parsed, ReportDraft):

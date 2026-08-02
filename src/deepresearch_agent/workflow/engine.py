@@ -193,6 +193,7 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
                 ledger_path=self.settings.llm_ledger_path,
                 budget_cny=self.settings.llm_budget_cny,
                 logger=self.logger,
+                fail_on_retry_exhaustion=True,
             )
             if self.settings.execution_mode == "llm"
             else None

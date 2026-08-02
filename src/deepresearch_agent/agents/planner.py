@@ -7,7 +7,12 @@ from pydantic import ValidationError
 
 from deepresearch_agent.domains.protocols import PlanningDomain
 from deepresearch_agent.domains.requirements import resolve_domain_capability
-from deepresearch_agent.llm import LLMClient, LLMClientError, StructuredOutputError
+from deepresearch_agent.llm import (
+    LLMClient,
+    LLMClientError,
+    LLMRetryExhaustedError,
+    StructuredOutputError,
+)
 from deepresearch_agent.schemas import ResearchPlan, StructuredDataRequest, SubQuestion
 from deepresearch_agent.settings import Settings, project_root
 
@@ -32,6 +37,11 @@ class PlannerAgent:
             try:
                 return self._llm_plan(topic, depth_level, research_id)
             except (LLMClientError, StructuredOutputError, ValueError) as exc:
+                if (
+                    isinstance(exc, LLMRetryExhaustedError)
+                    and self.llm_client.fail_on_retry_exhaustion
+                ):
+                    raise
                 self.last_stats = {"fallback": True, "error_type": type(exc).__name__}
                 if isinstance(exc, ValidationError):
                     rejections = [

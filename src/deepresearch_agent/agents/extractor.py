@@ -6,7 +6,12 @@ from uuid import uuid5, NAMESPACE_URL
 
 from deepresearch_agent.domains.protocols import TableExtractionDomain
 from deepresearch_agent.domains.requirements import resolve_domain_capability
-from deepresearch_agent.llm import LLMClient, LLMClientError, StructuredOutputError
+from deepresearch_agent.llm import (
+    LLMClient,
+    LLMClientError,
+    LLMRetryExhaustedError,
+    StructuredOutputError,
+)
 from deepresearch_agent.schemas import Evidence, ExtractedClaim, ExtractedClaims, Source, SubQuestion
 from deepresearch_agent.security import detect_injection, wrap_untrusted
 from deepresearch_agent.settings import project_root
@@ -53,6 +58,11 @@ class ExtractorAgent:
                 self.last_stats = {**self.last_stats, **admission_stats}
                 return result
             except (LLMClientError, StructuredOutputError, ValueError) as exc:
+                if (
+                    isinstance(exc, LLMRetryExhaustedError)
+                    and self.llm_client.fail_on_retry_exhaustion
+                ):
+                    raise
                 self.last_stats = {"fallback": True, "error_type": type(exc).__name__}
         evidence = self._deterministic_extract(
             research_id,

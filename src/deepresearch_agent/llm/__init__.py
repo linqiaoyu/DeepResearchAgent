@@ -3,6 +3,7 @@ from deepresearch_agent.llm.client import (
     LLMCallResult,
     LLMClient,
     LLMClientError,
+    LLMRetryExhaustedError,
     StructuredOutputError,
 )
 
@@ -11,5 +12,6 @@ __all__ = [
     "LLMCallResult",
     "LLMClient",
     "LLMClientError",
+    "LLMRetryExhaustedError",
     "StructuredOutputError",
 ]

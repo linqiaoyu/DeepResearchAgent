@@ -55,6 +55,10 @@ class LLMClientError(RuntimeError):
     pass
 
 
+class LLMRetryExhaustedError(LLMClientError):
+    """A provider call exhausted its configured retry budget."""
+
+
 class StructuredOutputError(LLMClientError):
     pass
 
@@ -118,6 +122,7 @@ class LLMClient:
         env_path: Path | None = None,
         global_ledger_path: Path | None = None,
         logger: JsonLogger | None = None,
+        fail_on_retry_exhaustion: bool = False,
     ) -> None:
         self._litellm = None if completion_func is not None else self._load_litellm()
         self.ledger_path = ledger_path
@@ -135,6 +140,7 @@ class LLMClient:
         )
         self._ledger_cost_index, self._ledger_index_valid = self._load_ledger_cost_index()
         self.logger = logger or JsonLogger()
+        self.fail_on_retry_exhaustion = fail_on_retry_exhaustion
         self.ledger_path.parent.mkdir(parents=True, exist_ok=True)
         self.global_ledger_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -590,7 +596,7 @@ class LLMClient:
                     if attempt >= self.config.max_retries:
                         break
                     self._sleep(2**attempt)
-        raise LLMClientError(
+        raise LLMRetryExhaustedError(
             redact(f"LLM call failed for role={role}: {last_error}")
         )
 
