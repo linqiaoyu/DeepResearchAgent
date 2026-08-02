@@ -38,6 +38,7 @@ class RunManifest(StrictModel):
     actual_provider_fidelity: dict[str, str] = Field(default_factory=dict)
     actual_realness: Literal["real", "mixed", "fixture", "replay", "unknown"] = "unknown"
     structured_data_stats: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    primary_sources: int = Field(default=0, ge=0)
     degradation_events: list[dict[str, Any]] = Field(default_factory=list)
     context_events: list[dict[str, Any]] = Field(default_factory=list)
     tool_error_summary: dict[str, int] = Field(default_factory=dict)
@@ -233,6 +234,9 @@ def build_run_manifest(
         actual_provider_fidelity=_actual_provider_fidelity(state),
         actual_realness=_actual_realness(state),
         structured_data_stats=_structured_data_stats(state),
+        primary_sources=len(
+            {item.source_url for item in state.evidence_store if item.source_tier == "primary"}
+        ),
         degradation_events=degradation_events,
         context_events=context_events,
         tool_error_summary={str(key): int(value) for key, value in tool_errors.items()},
