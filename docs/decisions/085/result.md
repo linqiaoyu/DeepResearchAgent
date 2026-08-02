@@ -33,3 +33,12 @@ topics sampled only 1 required numeric datum.  HTML entity pollution remains
 only about CNY 0.34.  If 086 proceeds, require both topics to reach
 `off_year_ratio <= 0.20`, `sampled_numbers >= 2`, zero error-page citations,
 and source-URL footnote deduplication before comparing re-embedding quality.
+
+## Authorized retry result
+
+The retry at commit `7372acf50575191d671d08a1b1224faa678d8428` cost CNY
+`0.02543256`.  It produced NIO `sampled_numbers=2`, `off_year_ratio=0.00`,
+`footnote_count=13`, `distinct_source_urls=13`, `duplicate_footnotes=0`, and
+`verdict=PASS`; both `65,731,559,000 CNY` revenue and `6,492,762,000 CNY`
+gross profit remain in the report.  The structured provider was
+`SecCompanyFactsProvider`.
