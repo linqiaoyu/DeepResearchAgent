@@ -1001,6 +1001,53 @@ class LLMIntegrationTests(unittest.TestCase):
             self.assertTrue(evidence[0].numeric_fields_incomplete)
             self.assertEqual(extractor.last_stats["incomplete_numeric_fields"], 1)
 
+    def test_extractor_bounds_llm_context_without_dropping_source_provenance(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            env_path = Path(tmp) / ".env"
+            env_path.write_text("DEEPSEEK_API_KEY=test-key\n", encoding="utf-8")
+            captured: dict[str, object] = {}
+
+            def completion(**kwargs: object) -> dict[str, object]:
+                captured.update(kwargs)
+                return {
+                    "choices": [{"message": {"content": '{"claims":[]}'}}],
+                    "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+                }
+
+            client = LLMClient(
+                ledger_path=Path(tmp) / "ledger.jsonl",
+                global_ledger_path=Path(tmp) / "global_ledger.jsonl",
+                budget_cny=3.0,
+                completion_func=completion,
+                env_path=env_path,
+            )
+            sources = [
+                Source(
+                    title=f"Source {index}",
+                    url=f"https://{index}.example",
+                    source_type="official",
+                    content="x" * 8_000,
+                    credibility=0.8,
+                )
+                for index in range(20)
+            ]
+
+            extractor = ExtractorAgent(llm_client=client)
+            extractor.extract(
+                "bounded-context",
+                SubQuestion(id="sq", question="q", search_queries=["q"]),
+                sources,
+            )
+
+            messages = captured["messages"]
+            assert isinstance(messages, list)
+            user_message = next(message for message in messages if message["role"] == "user")
+            payload = json.loads(user_message["content"])
+            prompt_sources = payload["sources"]
+            self.assertEqual(len(prompt_sources), 6)
+            self.assertEqual(sum(len(item["content"]) for item in prompt_sources), 48_000)
+            self.assertEqual(extractor.last_stats["llm_context_omitted_source_count"], 14)
+
     def test_reporter_reference_validation_counts_invalid_ids(self) -> None:
         state = ResearchState(topic="wealth AI")
         state.plan = ResearchPlan(

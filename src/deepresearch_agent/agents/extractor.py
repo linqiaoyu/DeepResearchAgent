@@ -21,6 +21,8 @@ NUMBER_RE = re.compile(r"(\$?\d+(?:\.\d+)?%?|\d+(?:\.\d+)?)")
 PDF_PAGE_MARKER_RE = re.compile(r"\[\[PDF_PAGE=(\d+)\]\]")
 _CJK_RUN_RE = re.compile(r"[\u3400-\u9fff]+")
 _WORD_RE = re.compile(r"[A-Za-z0-9_]+")
+EXTRACTOR_LLM_MAX_CONTEXT_CHARS = 48_000
+EXTRACTOR_LLM_MAX_SOURCE_CHARS = 8_000
 
 
 class ExtractorAgent:
@@ -210,6 +212,7 @@ class ExtractorAgent:
             return []
         assert self.llm_client is not None
         source_by_url = {source.url: source for source in sources}
+        prompt_sources, context_stats = self._llm_prompt_sources(sources)
         prompt = (project_root() / "prompts" / "extractor.md").read_text(encoding="utf-8")
         result = self.llm_client.complete(
             role="extractor",
@@ -222,20 +225,7 @@ class ExtractorAgent:
                     "content": json.dumps(
                         {
                             "sub_question": sub_question.model_dump(mode="json"),
-                            "sources": [
-                                {
-                                    "title": source.title,
-                                    "url": source.url,
-                                    "source_type": source.source_type,
-                                    "published_at": source.published_at.isoformat() if source.published_at else "unknown",
-                                    "content": (
-                                        wrap_untrusted(source.content, source_url=source.url)
-                                        if self.injection_guard_enabled
-                                        else source.content
-                                    ),
-                                }
-                                for source in sources
-                            ],
+                            "sources": prompt_sources,
                         },
                         ensure_ascii=False,
                     ),
@@ -297,8 +287,58 @@ class ExtractorAgent:
             "incomplete_numeric_fields": incomplete_numeric_fields,
             "claims": len(evidence),
             "repair_attempts": result.repair_attempts,
+            **context_stats,
         }
         return evidence
+
+    def _llm_prompt_sources(
+        self,
+        sources: list[Source],
+    ) -> tuple[list[dict[str, str]], dict[str, int]]:
+        """Bound one extractor request without changing the source evidence set.
+
+        The full ``sources`` list remains available for provenance, claim
+        validation, deterministic extraction, and authoritative backfills. This
+        method only bounds the untrusted text sent in one provider request.
+        """
+
+        tier_rank = {"primary": 0, "secondary": 1, "unknown": 2}
+        ordered = sorted(
+            enumerate(sources),
+            key=lambda item: (
+                tier_rank[item[1].source_tier],
+                -item[1].credibility,
+                item[0],
+            ),
+        )
+        used_chars = 0
+        prompt_sources: list[dict[str, str]] = []
+        for _, source in ordered:
+            remaining_chars = EXTRACTOR_LLM_MAX_CONTEXT_CHARS - used_chars
+            if remaining_chars <= 0:
+                break
+            excerpt = source.content[: min(EXTRACTOR_LLM_MAX_SOURCE_CHARS, remaining_chars)]
+            if not excerpt:
+                continue
+            prompt_sources.append(
+                {
+                    "title": source.title,
+                    "url": source.url,
+                    "source_type": source.source_type,
+                    "published_at": source.published_at.isoformat() if source.published_at else "unknown",
+                    "content": (
+                        wrap_untrusted(excerpt, source_url=source.url)
+                        if self.injection_guard_enabled
+                        else excerpt
+                    ),
+                }
+            )
+            used_chars += len(excerpt)
+        return prompt_sources, {
+            "llm_context_source_count": len(prompt_sources),
+            "llm_context_omitted_source_count": len(sources) - len(prompt_sources),
+            "llm_context_content_chars": used_chars,
+        }
 
     def _source_page(self, content: str, extract_offset_start: int) -> int | None:
         """Resolve the nearest preceding decoder page marker for one extract."""
