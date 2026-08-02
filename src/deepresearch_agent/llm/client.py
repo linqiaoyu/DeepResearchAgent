@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import multiprocessing
 import os
+import queue
 import signal
 import threading
 import time
@@ -266,7 +267,19 @@ class LLMClient:
                 try:
                     parsed = self._parse_schema(content, schema)
                 except BaseException:
-                    self._release_reservation(run_id, reservation_cny)
+                    # The repair request reached the provider and must be
+                    # accounted for even when its response is invalid too.
+                    try:
+                        self._record_ledger(
+                            run_id=run_id,
+                            role=role,
+                            result=raw_result,
+                            structured=True,
+                            parse_error=first_error,
+                        )
+                    finally:
+                        self._release_reservation(run_id, reservation_cny)
+                    self._add_run_cost(run_id, raw_result.cost_cny)
                     raise
 
         result = LLMCallResult(
@@ -648,19 +661,20 @@ class LLMClient:
         )
         try:
             process.start()
-            process.join(timeout_seconds)
-            if process.is_alive():
+            # Consume before joining: a large result can otherwise block the
+            # child's queue feeder and make a successful request look timed out.
+            try:
+                status, payload = result_queue.get(timeout=timeout_seconds)
+            except queue.Empty:
+                status = payload = None
+            if status is None:
                 process.terminate()
                 process.join(timeout=5)
                 raise TimeoutError(
                     f"LLM operation timed out after {timeout_seconds:g}s; "
                     "provider subprocess terminated"
                 )
-            if result_queue.empty():
-                raise RuntimeError(
-                    f"LiteLLM subprocess exited without a result (exitcode={process.exitcode})"
-                )
-            status, payload = result_queue.get()
+            process.join(timeout=5)
             if status == "error":
                 raise RuntimeError(str(payload))
             if not isinstance(payload, dict):
