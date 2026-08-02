@@ -2,7 +2,7 @@
 
 ## Execution commitment
 
-- Execution code commit: `cb1441db404fc01eddfcf5a53a95ba9917eb7eb3`.
+- Execution code commit: `cb1441d7b7c11ac2913223a54b18a515b306e0d4`.
 - Both runs use that exact commit, with no parameter changes or reruns selected
   for outcome quality.
 - As-of: `2026-07-01`; depth: `1`; structured provider:
