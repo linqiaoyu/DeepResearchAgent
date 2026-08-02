@@ -10,7 +10,10 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from deepresearch_agent.agents import CriticAgent, Evaluator, ExtractorAgent, PlannerAgent, ReporterAgent, ResearcherAgent
-from deepresearch_agent.config_validation import validate_required_configuration
+from deepresearch_agent.config_validation import (
+    validate_required_configuration,
+    validate_security_invariants,
+)
 from deepresearch_agent.decisions import record_agent_decision
 from deepresearch_agent.domains.protocols import DomainPack
 from deepresearch_agent.domains.registry import load_domain_pack
@@ -162,6 +165,8 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
     ) -> None:
         self.settings = settings or load_settings()
         self.domain_pack = domain_pack or load_domain_pack(self.settings.domain_pack)
+        # This is a security/content invariant, not a fail-fast convenience.
+        validate_security_invariants(self.settings)
         if self.settings.config_fail_fast_enabled:
             validate_required_configuration(self.settings)
         self.logger = JsonLogger(enabled=self.settings.structured_logging_enabled)

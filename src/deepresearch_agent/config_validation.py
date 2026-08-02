@@ -13,6 +13,18 @@ class ConfigurationError(ValueError):
         super().__init__("Missing required configuration: " + ", ".join(self.missing))
 
 
+class ConfigurationInvariantError(ValueError):
+    """Raised when enabled features violate a required safety invariant."""
+
+
+def validate_security_invariants(settings: Settings) -> None:
+    """Validate safety properties that operational flags must not bypass."""
+    if settings.rag_enabled and not settings.injection_guard_enabled:
+        raise ConfigurationInvariantError(
+            "INJECTION_GUARD_ENABLED must be true when RAG_ENABLED is true"
+        )
+
+
 def validate_required_configuration(
     settings: Settings,
     environ: Mapping[str, str] | None = None,
@@ -34,8 +46,7 @@ def validate_required_configuration(
         and not env.get("DASHSCOPE_API_KEY", "").strip()
     ):
         missing.append("DASHSCOPE_API_KEY")
-    if settings.rag_enabled and not settings.injection_guard_enabled:
-        raise ConfigurationError(["INJECTION_GUARD_ENABLED=true when RAG_ENABLED=true"])
+    validate_security_invariants(settings)
     search_provider = env.get("DEEPRESEARCH_SEARCH_PROVIDER", "fixture").strip().lower()
     if search_provider == "tavily" and not env.get("TAVILY_API_KEY", "").strip():
         missing.append("TAVILY_API_KEY")

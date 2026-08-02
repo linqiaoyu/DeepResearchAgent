@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from deepresearch_agent.config_validation import (
-    ConfigurationError,
+    ConfigurationInvariantError,
     validate_required_configuration,
 )
 from deepresearch_agent.observability import JsonLogger, correlation_context
@@ -82,7 +82,7 @@ class ObservabilityAndConfigTests(unittest.TestCase):
             "DEEPRESEARCH_SEARCH_PROVIDER": "tavily",
             "DEEPRESEARCH_REQUIRE_DEMO_OWNER": "true",
         }
-        with self.assertRaises(ConfigurationError) as raised:
+        with self.assertRaises(ConfigurationInvariantError) as raised:
             validate_required_configuration(settings, environ)
         self.assertEqual(
             raised.exception.missing,
@@ -120,7 +120,7 @@ class ObservabilityAndConfigTests(unittest.TestCase):
             semantic_judge_enabled=True,
         )
 
-        with self.assertRaises(ConfigurationError) as raised:
+        with self.assertRaises(ConfigurationInvariantError) as raised:
             validate_required_configuration(
                 settings,
                 {
@@ -148,15 +148,15 @@ class ObservabilityAndConfigTests(unittest.TestCase):
     def test_rag_requires_injection_guard(self) -> None:
         settings = Settings(storage_path=Path("test.db"), rag_enabled=True)
 
-        with self.assertRaises(ConfigurationError) as raised:
+        with self.assertRaises(ConfigurationInvariantError) as raised:
             validate_required_configuration(
                 settings,
                 {"DEEPRESEARCH_SEARCH_PROVIDER": "fixture"},
             )
 
         self.assertEqual(
-            raised.exception.missing,
-            ["INJECTION_GUARD_ENABLED=true when RAG_ENABLED=true"],
+            str(raised.exception),
+            "INJECTION_GUARD_ENABLED must be true when RAG_ENABLED is true",
         )
 
     def test_legacy_postgres_dsn_alias_is_accepted(self) -> None:
