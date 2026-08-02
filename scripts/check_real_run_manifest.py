@@ -11,6 +11,10 @@ from typing import Any
 PROVIDERS = ("llm", "search", "disclosure", "structured_data")
 ACTIVE_T8_PROVIDERS = ("llm", "search", "rag_search")
 OPTIONAL_T8_PROVIDERS = ("disclosure", "structured_data")
+OPTIONAL_PROVIDER_DEGRADATION_TOOLS = {
+    "disclosure": frozenset({"disclosure"}),
+    "structured_data": frozenset({"structured_data_provider"}),
+}
 STAT_FIELDS = (
     "requests",
     "executed_requests",
@@ -36,6 +40,7 @@ def validate_manifest(
     stats = payload.get("structured_data_stats")
     fidelity = payload.get("actual_provider_fidelity")
     realness = payload.get("actual_realness")
+    degradation_events = payload.get("degradation_events", [])
     if not isinstance(usage, dict):
         return ["missing or invalid provider_usage"]
     if not isinstance(stats, dict):
@@ -44,6 +49,8 @@ def validate_manifest(
         return ["missing or invalid actual_provider_fidelity"]
     if not isinstance(realness, str):
         return ["missing or invalid actual_realness"]
+    if not isinstance(degradation_events, list):
+        return ["missing or invalid degradation_events"]
     records = 0
     for sub_question_id, item in stats.items():
         if not isinstance(item, dict):
@@ -83,6 +90,14 @@ def validate_manifest(
                 optional_unused = True
                 if provider_fidelity != "unused":
                     failures.append(f"actual_provider_fidelity.{provider}={provider_fidelity!r}")
+                degradation_tools = OPTIONAL_PROVIDER_DEGRADATION_TOOLS[provider]
+                attempted = [
+                    event
+                    for event in degradation_events
+                    if isinstance(event, dict) and event.get("tool") in degradation_tools
+                ]
+                if attempted:
+                    failures.append(f"optional_provider_degradation.{provider}={len(attempted)}")
             elif provider_fidelity != "real":
                 failures.append(f"actual_provider_fidelity.{provider}={provider_fidelity!r}")
         expected_realness = "mixed" if optional_unused else "real"
