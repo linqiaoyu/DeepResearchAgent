@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import json
 import subprocess
 import sys
 import tempfile
@@ -74,10 +75,12 @@ class ResearchPackageTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn("audit_citation_closure=ok", result.stdout)
-            self.assertIn(
-                "audit_citation_closure: `ok`",
-                (output / "report.md").read_text(encoding="utf-8"),
+            report = (output / "report.md").read_text(encoding="utf-8")
+            self.assertNotIn("## Audit citation closure", report)
+            reader_audit = json.loads(
+                (output / "audit_bundle" / "reader_audit.json").read_text(encoding="utf-8")
             )
+            self.assertEqual(reader_audit["audit_citation_closure"], "ok")
             for relative in (
                 "request.json",
                 "report.md",
@@ -88,6 +91,7 @@ class ResearchPackageTests(unittest.TestCase):
                 "audit_bundle/report.json",
                 "audit_bundle/evidence.json",
                 "audit_bundle/manifest.json",
+                "audit_bundle/reader_audit.json",
             ):
                 self.assertTrue((output / relative).is_file(), relative)
 
@@ -169,7 +173,7 @@ class ResearchPackageTests(unittest.TestCase):
 
     def test_live_rag_cost_reconciliation_requires_the_service_ledger_identity(self) -> None:
         self.assertIn("rag_ledger_run_id", SCRIPT.read_text(encoding="utf-8"))
-        self.assertIn("Live RAG cost reconciliation", SCRIPT.read_text(encoding="utf-8"))
+        self.assertIn("audit state, not the reader report", SCRIPT.read_text(encoding="utf-8"))
 
     def test_live_rag_cost_reconciliation_uses_aggregate_total_cost_contract(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -188,17 +192,21 @@ class ResearchPackageTests(unittest.TestCase):
             state = SimpleNamespace(research_id="workflow-run", metadata={})
             rag_search = SimpleNamespace(ledger_run_id="rag-run", ledger=ledger)
 
-            report = run_research_package._append_live_rag_cost_reconciliation(
-                report="# report\n",
+            run_research_package._record_live_rag_cost_reconciliation(
                 state=state,
                 rag_search=rag_search,
             )
 
-            self.assertIn("workflow research_id: `workflow-run`", report)
-            self.assertIn("RAG ledger run_id: `rag-run`", report)
-            self.assertIn("RAG total_cost_cny: `0.125`", report)
             self.assertEqual(state.metadata["rag_ledger_run_id"], "rag-run")
             self.assertEqual(state.metadata["rag_cost_summary"]["total_cost_cny"], 0.125)
+            self.assertEqual(
+                state.metadata["rag_cost_reconciliation"],
+                {
+                    "workflow_research_id": "workflow-run",
+                    "rag_ledger_run_id": "rag-run",
+                    "rag_total_cost_cny": 0.125,
+                },
+            )
 
     def test_live_rag_ledger_run_ids_are_unique_per_invocation(self) -> None:
         with patch.object(
@@ -213,14 +221,11 @@ class ResearchPackageTests(unittest.TestCase):
         self.assertEqual(second, "rag-e2e-00000000-0000-0000-0000-000000000002")
         self.assertNotEqual(first, second)
 
-    def test_audit_citation_closure_is_preserved_in_delivered_report(self) -> None:
-        report = run_research_package._append_audit_citation_closure(
-            report="# report\n",
-            citation_closure="ok",
-        )
+    def test_audit_citation_closure_is_emitted_by_the_audit_bundle(self) -> None:
+        source = Path("src/deepresearch_agent/audit_bundle.py").read_text(encoding="utf-8")
 
-        self.assertIn("## Audit citation closure", report)
-        self.assertIn("audit_citation_closure: `ok`", report)
+        self.assertIn('"audit_citation_closure": "ok"', source)
+        self.assertNotIn("_append_audit_citation_closure", SCRIPT.read_text(encoding="utf-8"))
 
     def _offline_env(self) -> dict[str, str]:
         env = {
