@@ -116,6 +116,34 @@ class RaisingHttpClient:
 
 
 class TavilySearchProviderTests(unittest.TestCase):
+    def test_fetch_stops_reading_at_policy_payload_limit(self) -> None:
+        class StreamingResponse(FakeResponse):
+            def __init__(self) -> None:
+                super().__init__({}, headers={"content-type": "text/html"})
+                self.read = 0
+
+            @property
+            def content(self) -> bytes:
+                raise AssertionError("fetch must not materialize response.content")
+
+            @content.setter
+            def content(self, _value: bytes) -> None:
+                pass
+
+            def iter_bytes(self):
+                for _ in range(100):
+                    self.read += 1
+                    yield b"x"
+
+        response = StreamingResponse()
+        provider = TavilySearchProvider(
+            "test-key", client=FakeHttpClient(response), max_retries=0,
+            raw_content_char_limit=25,
+        )
+
+        provider.fetch("https://example.test/page")
+
+        self.assertLessEqual(response.read, 25)
     def _pdf_source(self, *, max_pages: int = 100):
         response = FakeResponse(
             {},

@@ -318,7 +318,7 @@ class TavilySearchProvider:
                     self.last_error_type = "content_type_refused"
                     return None
                 response.raise_for_status()
-                body = bytes(response.content)[: self.fetch_policy.max_response_bytes]
+                body = self._bounded_response_bytes(response)
                 if self._is_pdf_response(current_url, response):
                     return self._pdf_source(current_url, body)
                 raw = body.decode("utf-8", errors="replace")
@@ -359,6 +359,22 @@ class TavilySearchProvider:
             type(last_error).__name__ if last_error else "unknown"
         )
         return None
+
+    def _bounded_response_bytes(self, response: Any) -> bytes:
+        """Read no more than the configured payload ceiling from a response."""
+        limit = self.fetch_policy.max_response_bytes
+        iter_bytes = getattr(response, "iter_bytes", None)
+        if not callable(iter_bytes):
+            return bytes(response.content)[:limit]
+        collected = bytearray()
+        for chunk in iter_bytes():
+            remaining = limit - len(collected)
+            if remaining <= 0:
+                break
+            collected.extend(chunk[:remaining])
+            if len(collected) >= limit:
+                break
+        return bytes(collected)
 
     def _safe_fetch_url(self, url: str) -> bool:
         parsed = urlsplit(url)
