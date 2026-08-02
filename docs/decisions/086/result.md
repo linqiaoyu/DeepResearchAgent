@@ -39,4 +39,19 @@
 
 ## Live 验证
 
-待预登记后在同一实现 commit 上执行；结果与成本将在本文件收尾时用数字补齐。
+三次额度全部使用；第 1/3 次揭示“HKEX URL 发布年被误当报告期”的分层缺陷，验收 FAIL，
+同轮修复后，两个最终主包都在 commit
+`4cdab3b76cd0f81942771752a50158f49081ef87` 上执行。
+
+- NIO：关键发现 `2/2`，非目标期脚注 0，`off_year_ratio=0.00`，错误页脚注 0，
+  `footnote/URL=17/17`，`primary_sources=10`，`sampled_numbers=2`，
+  `footnote_misrefs=0`，`magnitude_mismatches=0`，`verdict=PASS`，
+  `audit_citation_closure=ok`。成本为 `0.02421656 workflow + 0.019101 RAG =
+  0.04331756 CNY`。
+- PDD：非目标期脚注 0，`off_year_ratio=0.00`，错误页脚注 0，
+  `footnote/URL=18/18`，`primary_sources=10`，`sampled_numbers=1`，
+  `footnote_misrefs=0`，`magnitude_mismatches=0`，`verdict=PASS`，
+  `audit_citation_closure=ok`。成本为 `0.02777992 workflow + 0.03766950 RAG =
+  0.06544942 CNY`。SEC Company Facts 对“主营业务毛利率”返回 unsupported，报告显式 gap。
+- 第 1/3 次失败包成本为 `0.026904 workflow + 0.019101 RAG = 0.046005 CNY`。
+- 本轮三次 live 总成本：`0.07890048 workflow + 0.07587150 RAG = 0.15477198 CNY`。
