@@ -14,7 +14,7 @@ This document is now a self-deployment guide for the retained API/UI assets.
   over Golden Set frozen-corpus replay plus recorded structured-data fixtures.
   It uses `DEEPRESEARCH_AS_OF=2026-07-09` and consumes no Tavily credit.
 - Owner live: `POST /demo/live` requires `X-Demo-Owner-Token` matching
-  `DEMO_OWNER_TOKEN`, then runs free-form LLM mode with live Tavily search.
+  `DEEPRESEARCH_DEMO_OWNER_TOKEN`, then runs free-form LLM mode with live Tavily search.
 
 The paid layers share `DailyCostGuard`, persisted at
 `DEEPRESEARCH_DEMO_GUARD_PATH` and capped by

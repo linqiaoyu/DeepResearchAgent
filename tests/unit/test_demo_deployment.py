@@ -140,7 +140,7 @@ class DemoAPITests(unittest.TestCase):
 
                 live = client.post("/demo/live", json={"topic": "demo", "depth_level": 1})
                 self.assertEqual(live.status_code, 403)
-                self.assertNotIn("DEMO_OWNER_TOKEN", live.text)
+                self.assertIn("Owner token is required", live.text)
 
 
 class DemoAsyncJobTests(unittest.TestCase):

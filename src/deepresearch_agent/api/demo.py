@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 import threading
 import time
 from uuid import uuid4
@@ -483,8 +484,8 @@ class DemoService:
         )
 
     def run_live(self, *, topic: str, depth_level: int, owner_token: str | None) -> DemoRunResult:
-        expected = os.getenv("DEMO_OWNER_TOKEN", "").strip()
-        if not expected or owner_token != expected:
+        expected = os.getenv("DEEPRESEARCH_DEMO_OWNER_TOKEN", "").strip()
+        if not expected or not owner_token or not secrets.compare_digest(owner_token, expected):
             raise DemoNotAuthorized("Owner token is required for live search.")
         return self._run_llm_pipeline(
             topic=topic,

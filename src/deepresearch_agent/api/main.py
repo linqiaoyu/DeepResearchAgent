@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import secrets
 import threading
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -105,8 +106,8 @@ def run_research(
 
 
 def _require_owner_token(token: str | None) -> None:
-    expected = os.getenv("DEMO_OWNER_TOKEN", "").strip()
-    if not expected or token != expected:
+    expected = os.getenv("DEEPRESEARCH_DEMO_OWNER_TOKEN", "").strip()
+    if not expected or not token or not secrets.compare_digest(token, expected):
         raise HTTPException(status_code=403, detail="Owner token is required.")
 
 

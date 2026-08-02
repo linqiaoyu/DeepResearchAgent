@@ -42,7 +42,7 @@ class FastAPIContractTests(unittest.TestCase):
                 from fastapi.testclient import TestClient
 
                 app = api_main.create_app(engine_factory=lambda: engine)
-            token_patch = patch.dict("os.environ", {"DEMO_OWNER_TOKEN": "test-owner"})
+            token_patch = patch.dict("os.environ", {"DEEPRESEARCH_DEMO_OWNER_TOKEN": "test-owner"})
             token_patch.start()
             try:
                 with TestClient(app) as client:

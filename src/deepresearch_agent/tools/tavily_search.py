@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import html
 import io
+import ipaddress
 import json
 import re
 import time
@@ -10,11 +11,12 @@ from collections.abc import Mapping
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Protocol
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit
 
 import httpx
 
 from deepresearch_agent.schemas import Source
+from deepresearch_agent.security import FetchPolicy
 from deepresearch_agent.settings import project_root
 from deepresearch_agent.tools.contracts import ToolErrorKind
 from deepresearch_agent.tools.reliable_execution import RunToolContext, ToolExecutionError
@@ -158,6 +160,7 @@ class TavilySearchProvider:
         credit_hard_threshold: int = 520,
         sleep_func: Any = time.sleep,
         context: RunToolContext | None = None,
+        fetch_policy: FetchPolicy | None = None,
     ) -> None:
         api_key = api_key.strip()
         if not api_key:
@@ -178,6 +181,9 @@ class TavilySearchProvider:
         self.last_error_type: str | None = None
         self.search_counts_toward_budget = True
         self._run_context = context
+        self.fetch_policy = fetch_policy or FetchPolicy(
+            max_response_bytes=raw_content_char_limit
+        )
         self.ledger_path.parent.mkdir(parents=True, exist_ok=True)
 
     def _consume_egress(
@@ -280,19 +286,42 @@ class TavilySearchProvider:
     ) -> Source | None:
         """Hydrate a search result with the publisher's response body."""
 
+        if not self._safe_fetch_url(url):
+            self.last_error_type = "unsafe_fetch_url"
+            return None
         last_error: Exception | None = None
+        current_url = url
+        redirects = 0
         for attempt in range(self.max_retries + 1):
             try:
                 self._consume_egress("fetch", context)
                 response = self.client.get(
-                    url,
+                    current_url,
                     timeout=self.timeout_seconds,
-                    follow_redirects=True,
+                    follow_redirects=False,
                 )
+                status_code = getattr(response, "status_code", 200)
+                headers = getattr(response, "headers", {})
+                if 300 <= status_code < 400:
+                    location = headers.get("location") or headers.get("Location")
+                    redirects += 1
+                    if not location or redirects > self.fetch_policy.max_redirects:
+                        self.last_error_type = "redirect_refused"
+                        return None
+                    current_url = urljoin(current_url, str(location))
+                    if not self._safe_fetch_url(current_url):
+                        self.last_error_type = "redirect_refused"
+                        return None
+                    continue
+                content_type = str(headers.get("content-type", "")).split(";", 1)[0]
+                if content_type and content_type not in self.fetch_policy.allowed_content_types:
+                    self.last_error_type = "content_type_refused"
+                    return None
                 response.raise_for_status()
-                if self._is_pdf_response(url, response):
-                    return self._pdf_source(url, bytes(response.content))
-                raw = str(response.text)
+                body = bytes(response.content)[: self.fetch_policy.max_response_bytes]
+                if self._is_pdf_response(current_url, response):
+                    return self._pdf_source(current_url, body)
+                raw = body.decode("utf-8", errors="replace")
                 title_match = re.search(
                     r"<title[^>]*>(.*?)</title>",
                     raw,
@@ -301,17 +330,17 @@ class TavilySearchProvider:
                 title = (
                     self._html_text(title_match.group(1))
                     if title_match
-                    else url
+                    else current_url
                 )
                 content = self._html_text(raw)[: self.raw_content_char_limit]
                 if not content:
                     return None
                 return Source(
-                    id=self._source_id(url, title),
-                    title=title or url,
-                    url=url,
+                    id=self._source_id(current_url, title),
+                    title=title or current_url,
+                    url=current_url,
                     source_type="web_fetch",
-                    published_at=self._publication_date_from_html(raw, url),
+                    published_at=self._publication_date_from_html(raw, current_url),
                     content=content,
                     credibility=0.8,
                 )
@@ -330,6 +359,25 @@ class TavilySearchProvider:
             type(last_error).__name__ if last_error else "unknown"
         )
         return None
+
+    def _safe_fetch_url(self, url: str) -> bool:
+        parsed = urlsplit(url)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            return False
+        hostname = parsed.hostname.rstrip(".").lower()
+        if hostname in {name.lower() for name in self.fetch_policy.domain_blacklist}:
+            return False
+        try:
+            address = ipaddress.ip_address(hostname)
+        except ValueError:
+            return hostname != "localhost"
+        return not (
+            address.is_private
+            or address.is_loopback
+            or address.is_link_local
+            or address.is_reserved
+            or address.is_unspecified
+        )
 
     def _is_pdf_response(self, url: str, response: Any) -> bool:
         headers = getattr(response, "headers", {})
