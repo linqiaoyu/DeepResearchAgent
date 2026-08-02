@@ -315,7 +315,10 @@ def _configure_mode(mode: str, *, as_of: str) -> None:
     if mode == "live":
         os.environ["DEEPRESEARCH_MODE"] = "llm"
         os.environ["DEEPRESEARCH_SEARCH_PROVIDER"] = "tavily"
-        os.environ["DEEPRESEARCH_STRUCTURED_DATA_PROVIDER"] = "akshare"
+        # A caller may select the market-compatible real structured provider
+        # (for example SEC Company Facts for a 20-F) without changing the
+        # historical A-share default.
+        os.environ.setdefault("DEEPRESEARCH_STRUCTURED_DATA_PROVIDER", "akshare")
     else:
         os.environ["DEEPRESEARCH_MODE"] = "deterministic"
         os.environ["DEEPRESEARCH_SEARCH_PROVIDER"] = "fixture"

@@ -45,6 +45,15 @@ STRUCTURED_METRIC_UNITS = {
     "市盈率": "倍",
     "存货周转率": "次",
 }
+# Standard US-GAAP concepts used when the finance pack routes a 20-F issuer to
+# the SEC Company Facts provider.  This remains a finance-domain vocabulary,
+# not a generic harness decision.
+SEC_COMPANYFACTS_CONCEPTS = {
+    "营业收入": ("Revenues", "RevenueFromContractWithCustomerExcludingAssessedTax"),
+    "归母净利润": ("NetIncomeLoss",),
+    "净利润": ("ProfitLoss", "NetIncomeLoss"),
+    "每股收益": ("EarningsPerShareDiluted",),
+}
 MAINLAND_EQUITY_EXCHANGE = "A股"
 _YEAR_RE = re.compile(r"(?<!\d)(20\d{2})(?!\d)")
 

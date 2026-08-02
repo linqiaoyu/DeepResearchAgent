@@ -404,6 +404,9 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
             ),
             search_quota=SearchQuota(self.researcher.max_searches_per_run),
         )
+        set_run_context = getattr(self.structured_data_provider, "set_run_context", None)
+        if callable(set_run_context):
+            set_run_context(run_scope.tool_context)
         if resume:
             if not research_id:
                 raise ValueError("research_id is required when resume=True")

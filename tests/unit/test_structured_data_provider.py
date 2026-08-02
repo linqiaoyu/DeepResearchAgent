@@ -10,6 +10,8 @@ from pathlib import Path
 from pydantic import ValidationError
 from unittest import mock
 
+import httpx
+
 from deepresearch_agent.agents import ResearcherAgent
 from deepresearch_agent.schemas import (
     BoundingBox,
@@ -23,6 +25,9 @@ from deepresearch_agent.settings import Settings
 from deepresearch_agent.tools import (
     AKShareStructuredDataProvider,
     FixtureStructuredDataProvider,
+    RunToolContext,
+    SecCompanyFactsProvider,
+    ToolExecutionError,
     build_structured_data_provider,
 )
 from deepresearch_agent.tools.structured_data_factory import OptionalProviderDependencyError
@@ -30,6 +35,156 @@ from deepresearch_agent.workflow import DeepResearchEngine
 
 
 class StructuredDataProviderTests(unittest.TestCase):
+    def test_sec_companyfacts_resolves_domain_alias_and_keeps_20f_fact_provenance(self) -> None:
+        requested_urls: list[str] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requested_urls.append(str(request.url))
+            if request.url.path == "/files/company_tickers.json":
+                return httpx.Response(200, json={
+                    "0": {
+                        "cik_str": 1577552,
+                        "ticker": "BABA",
+                        "title": "Alibaba Group Holding Ltd",
+                    }
+                })
+            if request.url.path.endswith("CIK0001577552.json"):
+                return httpx.Response(200, json={
+                    "facts": {
+                        "us-gaap": {
+                            "Revenues": {"units": {"CNY": [
+                                {
+                                    "form": "20-F", "fp": "FY", "fy": 2024,
+                                    "start": "2023-04-01", "end": "2024-03-31",
+                                    "filed": "2024-05-23", "accn": "0000950170-24-063767",
+                                    "val": 941168000000,
+                                },
+                                {
+                                    "form": "6-K", "fp": "FY", "fy": 2024,
+                                    "end": "2024-03-31", "filed": "2024-06-01",
+                                    "accn": "0000950170-24-000001", "val": 1,
+                                },
+                            ]}},
+                            "NetIncomeLoss": {"units": {"CNY": [{
+                                "form": "20-F", "fp": "FY", "fy": 2024,
+                                "start": "2023-04-01", "end": "2024-03-31",
+                                "filed": "2024-05-23", "accn": "0000950170-24-063767",
+                                "val": 80009000000,
+                            }]}},
+                        }
+                    }
+                })
+            return httpx.Response(404)
+
+        class Domain:
+            def expand_retrieval_query(self, _query: str) -> str:
+                return "阿里巴巴 Alibaba Group Holding Limited"
+
+            @staticmethod
+            def structured_xbrl_concepts() -> dict[str, tuple[str, ...]]:
+                return {
+                    "营业收入": ("Revenues",),
+                    "归母净利润": ("NetIncomeLoss",),
+                }
+
+        provider = SecCompanyFactsProvider(
+            client=httpx.Client(transport=httpx.MockTransport(handler)),
+            max_retries=0,
+            domain_pack=Domain(),
+        )
+        symbol = provider.symbol_resolve("阿里巴巴")
+        records = provider.financial_indicators(
+            symbol.symbol if symbol else "", periods=["20240331"],
+            metrics=["营业收入", "归母净利润", "扣非净利润"],
+        )
+
+        self.assertIsNotNone(symbol)
+        self.assertEqual(symbol.symbol, "CIK0001577552")
+        self.assertEqual(
+            {(item.metric_name, item.value, item.period) for item in records},
+            {
+                ("营业收入", Decimal("941168000000"), "2024-03-31"),
+                ("归母净利润", Decimal("80009000000"), "2024-03-31"),
+            },
+        )
+        self.assertTrue(all(item.unit == "CNY" for item in records))
+        self.assertTrue(all(item.source_url and "000095017024063767" in item.source_url for item in records))
+        self.assertEqual(len(requested_urls), 2)
+
+    def test_sec_companyfacts_retries_bounded_http_failure(self) -> None:
+        attempts = 0
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                return httpx.Response(503, request=request)
+            return httpx.Response(200, json={"0": {
+                "cik_str": 1577552, "ticker": "BABA", "title": "Alibaba Group Holding Ltd",
+            }})
+
+        provider = SecCompanyFactsProvider(
+            client=httpx.Client(transport=httpx.MockTransport(handler)),
+            max_retries=1,
+            sleep_func=lambda _delay: None,
+        )
+
+        self.assertEqual(provider.symbol_resolve("BABA").symbol, "CIK0001577552")
+        self.assertEqual(attempts, 2)
+
+    def test_sec_companyfacts_counts_each_egress_against_the_bound_run_budget(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json={"0": {
+                "cik_str": 1577552, "ticker": "BABA", "title": "Alibaba Group Holding Ltd",
+            }}, request=request)
+
+        context = RunToolContext.for_run(max_external_fetch_requests=1)
+        provider = SecCompanyFactsProvider(
+            client=httpx.Client(transport=httpx.MockTransport(handler)),
+            max_retries=0,
+            context=context,
+        )
+
+        self.assertIsNotNone(provider.symbol_resolve("BABA"))
+        with self.assertRaises(ToolExecutionError):
+            provider.financial_indicators("CIK0001577552", periods=["20240331"])
+        self.assertEqual(context.external_request_budget.snapshot()["fetch_requests"], 1)
+
+    def test_researcher_records_sec_price_request_as_inapplicable_without_degradation(self) -> None:
+        class SecFactsOnly:
+            fidelity = "real"
+
+            @staticmethod
+            def supports_request(capability: str) -> bool:
+                return capability != "price_history"
+
+            def symbol_resolve(self, _company_name: str):
+                raise AssertionError("inapplicable price request must not resolve a symbol")
+
+            def financial_indicators(self, *_args: object, **_kwargs: object):
+                raise AssertionError("not requested")
+
+            def price_history(self, *_args: object, **_kwargs: object):
+                raise AssertionError("inapplicable price request must not execute")
+
+        researcher = ResearcherAgent(structured_data_provider=SecFactsOnly())
+        question = SubQuestion(
+            id="market",
+            question="Alibaba share price",
+            search_queries=[],
+            structured_data_requests=[StructuredDataRequest(
+                capability="price_history", company_name="Alibaba",
+                start_date=date(2024, 1, 2), end_date=date(2024, 1, 3),
+            )],
+        )
+
+        evidence, stats, resolutions = researcher.structured_evidence("run", question)
+
+        self.assertEqual((evidence, resolutions), ([], []))
+        self.assertEqual(stats["inapplicable_requests"], 1)
+        self.assertEqual(stats["execution_failures"], 0)
+        self.assertEqual(stats["executed_requests"], 0)
+
     def test_akshare_retry_is_not_queued_behind_a_timed_out_call(self) -> None:
         calls = multiprocessing.Value("i", 0)
 
@@ -271,6 +426,15 @@ class StructuredDataProviderTests(unittest.TestCase):
         provider = build_structured_data_provider({})
 
         self.assertIsInstance(provider, FixtureStructuredDataProvider)
+
+    def test_factory_selects_sec_companyfacts_provider(self) -> None:
+        provider = build_structured_data_provider(
+            {"DEEPRESEARCH_STRUCTURED_DATA_PROVIDER": "sec_companyfacts"}
+        )
+        try:
+            self.assertIsInstance(provider, SecCompanyFactsProvider)
+        finally:
+            provider.close()
 
     def test_live_factory_explains_missing_optional_dependency(self) -> None:
         with mock.patch(

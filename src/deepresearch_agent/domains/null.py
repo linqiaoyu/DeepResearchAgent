@@ -80,6 +80,12 @@ class NullDomainPack:
     def equity_exchange_label(self) -> str:
         return "unknown"
 
+    def structured_issuer_aliases(self) -> Mapping[str, str]:
+        return {}
+
+    def structured_xbrl_concepts(self) -> Mapping[str, tuple[str, ...]]:
+        return {}
+
     def primary_source_keyword(self, *, financial_intent: bool) -> str:
         return "notice" if financial_intent else "source"
 

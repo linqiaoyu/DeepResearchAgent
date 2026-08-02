@@ -228,9 +228,16 @@ class ExternalRequestBudgetTests(unittest.TestCase):
             for path in root.glob("*.py")
             if "import httpx" in path.read_text(encoding="utf-8")
         }
-        self.assertEqual(httpx_files, {"tavily_search.py", "disclosure_source.py"})
+        self.assertEqual(
+            httpx_files,
+            {"tavily_search.py", "disclosure_source.py", "sec_companyfacts.py"},
+        )
 
-        expected = {"tavily_search.py": 2, "disclosure_source.py": 3}
+        expected = {
+            "tavily_search.py": 2,
+            "disclosure_source.py": 3,
+            "sec_companyfacts.py": 1,
+        }
         for filename, count in expected.items():
             text = (root / filename).read_text(encoding="utf-8")
             calls = list(re.finditer(r"self\.client\.(?:get|post)\(", text))

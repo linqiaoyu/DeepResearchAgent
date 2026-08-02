@@ -138,6 +138,10 @@ class StructuredDataRecord(StrictModel):
     unit: str
     data_source: str
     as_of: date
+    # A provider-origin URL keeps structured facts independently auditable.
+    # Legacy fixtures predate this field and intentionally fall back to their
+    # provider-specific synthetic URI in ResearcherAgent.
+    source_url: str | None = None
 
 
 class NumericFields(StrictModel):

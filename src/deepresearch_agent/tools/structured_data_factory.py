@@ -7,9 +7,11 @@ from deepresearch_agent.domains.protocols import DomainPack
 from deepresearch_agent.tools.akshare_structured_data import AKShareStructuredDataProvider
 from deepresearch_agent.tools.fixture_structured_data import FixtureStructuredDataProvider
 from deepresearch_agent.tools.provider import StructuredDataProvider
+from deepresearch_agent.tools.sec_companyfacts import SecCompanyFactsProvider
 
 FIXTURE_STRUCTURED_PROVIDER_NAMES = {"", "fixture", "local", "deterministic"}
 LIVE_STRUCTURED_PROVIDER_NAMES = {"akshare", "live"}
+SEC_STRUCTURED_PROVIDER_NAMES = {"sec", "sec_companyfacts", "sec-companyfacts"}
 
 
 class OptionalProviderDependencyError(RuntimeError):
@@ -37,8 +39,16 @@ def build_structured_data_provider(
                 'pip install -e ".[finance]". For the offline fixture path, set '
                 "DEEPRESEARCH_STRUCTURED_DATA_PROVIDER=fixture."
             ) from exc
+    if provider_name in SEC_STRUCTURED_PROVIDER_NAMES:
+        return SecCompanyFactsProvider(domain_pack=domain_pack)
 
-    supported = ", ".join(sorted((FIXTURE_STRUCTURED_PROVIDER_NAMES - {""}) | LIVE_STRUCTURED_PROVIDER_NAMES))
+    supported = ", ".join(
+        sorted(
+            (FIXTURE_STRUCTURED_PROVIDER_NAMES - {""})
+            | LIVE_STRUCTURED_PROVIDER_NAMES
+            | SEC_STRUCTURED_PROVIDER_NAMES
+        )
+    )
     raise ValueError(
         f"Unsupported structured data provider '{provider_name}'. Supported providers: {supported}"
     )

@@ -13,6 +13,7 @@ _EXPORTS = {
     "contracts": ("ERROR_RETRY_POLICIES", "CircuitBreakerPolicy", "DegradationEvent", "RetryPolicy", "ToolError", "ToolErrorKind", "ToolResult", "ToolSpec"),
     "fixture_search": ("FixtureSearchTool",),
     "fixture_structured_data": ("FixtureStructuredDataProvider",),
+    "sec_companyfacts": ("SecCompanyFactsError", "SecCompanyFactsProvider"),
     "provider": ("FetchProvider", "SearchProvider", "StructuredDataProvider"),
     "recording_search": ("RecordingSearchProvider", "normalize_query_key", "recording_corpus_fingerprint"),
     "reliable_execution": ("CircuitBreaker", "CircuitState", "ExternalRequestBudget", "ReliableToolExecutor", "RetryBudget", "RunToolContext", "ToolExecutionError"),

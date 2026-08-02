@@ -10,6 +10,7 @@ from deepresearch_agent.schemas import (
 )
 from deepresearch_agent.tools.contracts import ToolSpec
 from deepresearch_agent.tools.provider import StructuredDataProvider
+from deepresearch_agent.tools.reliable_execution import RunToolContext
 from deepresearch_agent.trajectory import (
     ToolCallTrace,
     active_trajectory_recorder,
@@ -57,6 +58,13 @@ class TrajectoryStructuredDataProvider:
     @property
     def fidelity(self) -> str:
         return str(getattr(self.provider, "fidelity", "unknown"))
+
+    def set_run_context(self, context: RunToolContext) -> None:
+        """Forward workflow-scoped budget state to a real provider when used."""
+
+        setter = getattr(self.provider, "set_run_context", None)
+        if callable(setter):
+            setter(context)
 
     def symbol_resolve(self, company_name: str) -> SymbolInfo | None:
         return self._call(

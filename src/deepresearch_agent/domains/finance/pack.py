@@ -18,6 +18,7 @@ from deepresearch_agent.domains.finance.vocabulary import (
     MAINLAND_EQUITY_EXCHANGE,
     STRUCTURED_METRIC_ALIASES,
     STRUCTURED_METRIC_UNITS,
+    SEC_COMPANYFACTS_CONCEPTS,
     canonical_metric,
     parse_period,
 )
@@ -57,6 +58,14 @@ class FinanceDomainPack:
 
     def equity_exchange_label(self) -> str:
         return MAINLAND_EQUITY_EXCHANGE
+
+    def structured_issuer_aliases(self) -> Mapping[str, str]:
+        """Map public local issuer names to the SEC registrant-name candidate."""
+
+        return {chinese: english for chinese, (_entity_id, english) in _issuer_aliases().items()}
+
+    def structured_xbrl_concepts(self) -> Mapping[str, tuple[str, ...]]:
+        return SEC_COMPANYFACTS_CONCEPTS
 
     def primary_source_keyword(self, *, financial_intent: bool) -> str:
         return "年度报告" if financial_intent else "公告"

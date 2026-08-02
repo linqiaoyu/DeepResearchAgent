@@ -36,6 +36,20 @@ class ResearchPackageTests(unittest.TestCase):
             self.assertEqual(os.environ["DEEPRESEARCH_SEARCH_PROVIDER"], "fixture")
             self.assertEqual(os.environ["DEEPRESEARCH_STRUCTURED_DATA_PROVIDER"], "akshare")
 
+    def test_live_mode_preserves_market_compatible_structured_provider(self) -> None:
+        with patch.dict(
+            os.environ,
+            {"DEEPRESEARCH_STRUCTURED_DATA_PROVIDER": "sec_companyfacts"},
+            clear=True,
+        ):
+            run_research_package._configure_mode("live", as_of="2026-07-28")
+
+            self.assertEqual(os.environ["DEEPRESEARCH_MODE"], "llm")
+            self.assertEqual(os.environ["DEEPRESEARCH_SEARCH_PROVIDER"], "tavily")
+            self.assertEqual(
+                os.environ["DEEPRESEARCH_STRUCTURED_DATA_PROVIDER"], "sec_companyfacts"
+            )
+
     def test_fixture_command_produces_complete_package(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp) / "package"

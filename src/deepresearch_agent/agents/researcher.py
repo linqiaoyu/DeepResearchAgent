@@ -470,6 +470,12 @@ class ResearcherAgent:
 
         symbol_resolutions: list[dict[str, object]] = []
         for request in sub_question.structured_data_requests:
+            supports_request = getattr(self.structured_data_provider, "supports_request", None)
+            if callable(supports_request) and not supports_request(request.capability):
+                stats["inapplicable_requests"] = int(
+                    stats.get("inapplicable_requests", 0)
+                ) + 1
+                continue
             try:
                 stats["executed_requests"] += 1
                 records: list[StructuredDataRecord] = []
@@ -579,7 +585,7 @@ class ResearcherAgent:
             f"{record.entity} {record.period} {record.dimension}{record.metric_name}为"
             f"{rendered_value}{record.unit}。"
         )
-        source_url = (
+        source_url = record.source_url or (
             f"akshare://{record.metric_name}/{record.symbol}/{record.period}/"
             f"{hashlib.sha1(extract_text.encode('utf-8')).hexdigest()[:10]}"
         )
