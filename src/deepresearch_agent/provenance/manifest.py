@@ -333,9 +333,19 @@ def _actual_realness(
     state: ResearchState,
 ) -> Literal["real", "mixed", "fixture", "replay", "unknown"]:
     actual = _actual_provider_fidelity(state)
-    if not actual or any(value == "unused" for value in actual.values()):
-        return "mixed" if any(value != "unused" for value in actual.values()) else "unknown"
-    return _realness(actual)
+    # Disclosure is an optional auxiliary provider. Its explicit non-use does
+    # not downgrade a run whose active providers were all real; other unused
+    # providers remain part of the completion contract.
+    active = {
+        provider: value
+        for provider, value in actual.items()
+        if not (provider == "disclosure" and value == "unused")
+    }
+    if active and all(value == "unused" for value in active.values()):
+        return "mixed"
+    if not active:
+        return "unknown"
+    return _realness(active)
 
 
 def settings_flag_snapshot(
