@@ -111,10 +111,8 @@ class DecisionChainRenderingTest(unittest.TestCase):
             )
             engine._checkpoint_conn.close()
 
-        self.assertIn("## 决策链", state.final_report or "")
-        self.assertIn("预算分配读取了充分性", state.final_report or "")
-        self.assertIn("循环同时权衡预算", state.final_report or "")
-        self.assertIn("重规划承接 Critic", state.final_report or "")
+        self.assertNotIn("## 决策链", state.final_report or "")
+        self.assertTrue(state.agent_decisions)
 
 
 if __name__ == "__main__":

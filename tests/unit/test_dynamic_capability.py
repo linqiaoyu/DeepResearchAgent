@@ -270,8 +270,9 @@ class DynamicCapabilitySelectionTest(unittest.TestCase):
             if item.decision_type == "source_rerank"
         ]
         self.assertEqual(len(rerank_decisions), 3)
-        self.assertIn("capability_selection", state.final_report or "")
-        self.assertIn("source_rerank", state.final_report or "")
+        self.assertNotIn("## Agent 决策记录", state.final_report or "")
+        self.assertIn("capability_selection", [item.decision_type for item in state.agent_decisions])
+        self.assertIn("source_rerank", [item.decision_type for item in state.agent_decisions])
 
     def test_default_enables_task_specific_capability_selection(self) -> None:
         settings = Settings(storage_path=Path("test.db"))

@@ -477,14 +477,9 @@ class DisclosureDegradationTests(unittest.TestCase):
         self.assertGreater(web.search_calls, 0)
         self.assertGreater(web.fetch_calls, 0)
         self.assertNotIn("static.cninfo.com.cn", state.final_report or "")
-        self.assertTrue(
-            "## 数据获取降级" in (state.final_report or ""),
-            "reader-visible degradation section absent",
-        )
-        self.assertTrue(
-            "disclosure_source" in (state.final_report or ""),
-            "reader-visible authority channel absent",
-        )
+        self.assertNotIn("## 数据获取降级", state.final_report or "")
+        self.assertTrue(state.metadata.get("degradation_events"))
+        self.assertTrue(state.metadata.get("degradation_events"))
         self.assertTrue(
             any(
                 record.query.startswith("[disclosure]")

@@ -355,9 +355,9 @@ class PriorMemoryTest(unittest.TestCase):
             replay = replay_trajectory(trajectory, mode="strict")
 
         self.assertEqual(state.metadata["prior_memory"]["as_of"], "2026-07-09")
-        self.assertIn("## 与上期结论的差异", state.final_report or "")
-        self.assertIn("prior_memory_classification", state.final_report or "")
-        self.assertTrue(state.metadata["prior_memory"]["differences"])
+        self.assertNotIn("## 与上期结论的差异", state.final_report or "")
+        self.assertTrue(state.metadata["prior_memory"]["classifications"])
+        self.assertIn("snapshot", state.metadata["prior_memory"])
         self.assertEqual(
             trajectory.request["prior_memory_snapshot"]["as_of"],
             "2026-07-09",

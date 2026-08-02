@@ -113,8 +113,8 @@ class BranchBudgetTest(unittest.TestCase):
             decision_types.index("branch_budget_allocate"),
             decision_types.index("branch_budget_reallocate"),
         )
-        self.assertIn("## Agent 决策记录", state.final_report or "")
-        self.assertIn("branch_budget_allocate", state.final_report or "")
+        self.assertNotIn("## Agent 决策记录", state.final_report or "")
+        self.assertIn("branch_budget_allocate", decision_types)
 
 
 if __name__ == "__main__":

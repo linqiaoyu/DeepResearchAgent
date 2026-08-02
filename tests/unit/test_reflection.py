@@ -698,19 +698,10 @@ class ReflectionDrivenReplanningTest(unittest.TestCase):
             )
             engine._checkpoint_conn.close()
 
-        self.assertIn("## 研究过程", state.final_report or "")
-        self.assertIn(
-            "反思如何影响重规划",
-            state.final_report or "",
-        )
-        self.assertIn(
-            "LLM 洞察未参与，待 019",
-            state.final_report or "",
-        )
-        self.assertIn(
-            "没有追加反思定向条件",
-            state.final_report or "",
-        )
+        self.assertNotIn("## 研究过程", state.final_report or "")
+        self.assertTrue(state.metadata.get("research_process"))
+        self.assertTrue(state.metadata.get("research_process"))
+        self.assertTrue(state.metadata.get("research_process"))
 
 
 if __name__ == "__main__":

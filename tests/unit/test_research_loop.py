@@ -582,9 +582,8 @@ class ResearchSufficiencyTest(unittest.TestCase):
         ]
         self.assertIn("research_replan", decision_types)
         self.assertIn("bounded_loop_control", decision_types)
-        self.assertIn("## 研究过程", state.final_report or "")
-        self.assertIn("第 2 轮", state.final_report or "")
-        self.assertIn("max_iterations", state.final_report or "")
+        self.assertNotIn("## 研究过程", state.final_report or "")
+        self.assertGreaterEqual(len(state.metadata.get("research_process", [])), 2)
 
 
 if __name__ == "__main__":

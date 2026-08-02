@@ -241,8 +241,9 @@ class FinanceMetricSkillMigrationTest(unittest.TestCase):
             ["skill_selection", "skill_load"],
             skill_decisions,
         )
-        self.assertIn("skill_selection", state.final_report or "")
-        self.assertIn("skill_load", state.final_report or "")
+        self.assertNotIn("## Agent 决策记录", state.final_report or "")
+        self.assertIn("skill_selection", [item.decision_type for item in state.agent_decisions])
+        self.assertIn("skill_load", [item.decision_type for item in state.agent_decisions])
 
     def test_non_financial_topic_does_not_load_resource(self) -> None:
         with tempfile.TemporaryDirectory(

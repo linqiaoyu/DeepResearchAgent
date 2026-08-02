@@ -95,9 +95,9 @@ class AgentDecisionTests(unittest.TestCase):
             [decision.model_dump(mode="json")],
         )
         self.assertEqual(manifest.decision_summary, [decision])
-        self.assertIn("## Agent 决策记录", report)
-        self.assertIn("fixture_policy_choice", report)
-        self.assertIn('"source_count": 3', report)
+        self.assertNotIn("## Agent 决策记录", report)
+        self.assertEqual(state.agent_decisions[0].decision_type, "fixture_policy_choice")
+        self.assertEqual(state.agent_decisions[0].inputs["source_count"], 3)
 
         with tempfile.TemporaryDirectory() as tmp:
             path = write_run_manifest(manifest, Path(tmp))

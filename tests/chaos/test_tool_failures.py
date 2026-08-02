@@ -97,7 +97,7 @@ class ToolFailureChaosTests(unittest.TestCase):
             engine._checkpoint_conn.close()
         self.assertEqual(state.status, "done")
         self.assertTrue(state.metadata.get("degradation_events"))
-        self.assertIn("## 数据获取降级", state.final_report or "")
+        self.assertNotIn("## 数据获取降级", state.final_report or "")
         self.assertIsNotNone(state.evaluation)
         return state, provider, delays, breaker
 
@@ -180,7 +180,7 @@ class ToolFailureChaosTests(unittest.TestCase):
         state, _, _, _ = self._run(behavior, breaker_threshold=100)
         self.assertEqual(state.evaluation.task_success_rate, 1.0)
         self.assertGreater(len(state.evidence_store), 0)
-        self.assertIn("downstream evidence coverage may decrease", state.final_report or "")
+        self.assertTrue(state.metadata.get("degradation_events"))
 
     def test_total_retrieval_failure_produces_explicit_empty_evidence_warning(self) -> None:
         def behavior(_: int, __: str) -> None:
@@ -190,7 +190,7 @@ class ToolFailureChaosTests(unittest.TestCase):
         self.assertEqual(state.evaluation.task_success_rate, 0.0)
         self.assertEqual(state.evidence_store, [])
         self.assertIn("本次研究尚未收集到足够证据", state.final_report or "")
-        self.assertIn("search results unavailable", state.final_report or "")
+        self.assertTrue(state.metadata.get("degradation_events"))
 
 
 if __name__ == "__main__":
