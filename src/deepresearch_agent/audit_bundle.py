@@ -304,9 +304,13 @@ def _report_summary(report: str) -> str:
 
 
 def _write_json(path: Path, payload: Any) -> None:
-    _write_text(
-        path,
-        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+    # Redact typed string leaves before serializing.  Running ``redact`` on a
+    # serialized document can introduce a raw backslash (for example before a
+    # redacted email marker) and corrupt otherwise valid JSON.
+    path.write_text(
+        json.dumps(_redact_json_values(payload), ensure_ascii=False, indent=2, sort_keys=True)
+        + "\n",
+        encoding="utf-8",
     )
 
 
