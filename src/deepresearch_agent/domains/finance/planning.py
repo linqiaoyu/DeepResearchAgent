@@ -4,15 +4,28 @@ from __future__ import annotations
 
 import re
 
+from deepresearch_agent.domains.finance.issuer_aliases import registered_sec_issuer
 from deepresearch_agent.schemas import ResearchPlan, StructuredDataRequest, SubQuestion
 
 
 _CAPABILITIES = {"symbol_resolve", "financial_indicators", "price_history"}
-_METRIC_TERMS = (
-    "营业收入", "营收", "营业成本", "主营业务毛利率", "毛利率",
-    "归母净利润", "净利润", "资产负债", "现金流", "每股收益",
-    "净资产收益率",
-)
+_METRIC_TERMS = {
+    "营业收入": "营业收入",
+    "营收": "营业收入",
+    "revenue": "营业收入",
+    "营业成本": "营业成本",
+    "主营业务毛利率": "主营业务毛利率",
+    "毛利率": "主营业务毛利率",
+    "毛利": "毛利",
+    "gross profit": "毛利",
+    "gross margin": "主营业务毛利率",
+    "归母净利润": "归母净利润",
+    "净利润": "净利润",
+    "资产负债": "资产负债",
+    "现金流": "现金流",
+    "每股收益": "每股收益",
+    "净资产收益率": "净资产收益率",
+}
 _LISTED_COMPANIES = {
     "贵州茅台": "600519",
     "宁德时代": "300750",
@@ -26,6 +39,7 @@ class FinancePlanning:
         if request is None:
             return None
         code, company_name, metrics = request
+        issuer_label = code or company_name or "issuer"
         return ResearchPlan(
             topic=topic,
             depth_level=depth_level,
@@ -33,17 +47,11 @@ class FinancePlanning:
                 SubQuestion(
                     id="financial_metrics",
                     question=topic,
-                    search_queries=[f"{code} {metric} 年度报告" for metric in metrics],
+                    search_queries=[f"{issuer_label} {metric} 年度报告" for metric in metrics],
                     expected_source_types=["official"],
-                    structured_data_requests=[
-                        StructuredDataRequest(
-                            capability="financial_indicators",
-                            company_name=company_name,
-                            symbol=code,
-                            periods=self._annual_periods(topic),
-                            metrics=metrics,
-                        )
-                    ],
+                    structured_data_requests=self._financial_requests(
+                        company_name=company_name, symbol=code, topic=topic, metrics=metrics
+                    ),
                     priority=5,
                 )
             ],
@@ -59,6 +67,7 @@ class FinancePlanning:
         if request is None:
             return plan
         code, company_name, metrics = request
+        issuer_label = code or company_name or "issuer"
         target_index = next(
             (
                 index
@@ -75,21 +84,14 @@ class FinancePlanning:
             for item in target.structured_data_requests
             if item.capability != "financial_indicators"
         ]
-        existing.insert(
-            0,
-            StructuredDataRequest(
-                capability="financial_indicators",
-                company_name=company_name,
-                symbol=code,
-                periods=self._annual_periods(topic),
-                metrics=metrics,
-            ),
+        existing[0:0] = self._financial_requests(
+            company_name=company_name, symbol=code, topic=topic, metrics=metrics
         )
         updated[target_index] = target.model_copy(
             update={
                 "question": topic,
                 "search_queries": list(
-                    dict.fromkeys([f"{code} 年度报告", *target.search_queries])
+                    dict.fromkeys([f"{issuer_label} 年度报告", *target.search_queries])
                 ),
                 "structured_data_requests": existing,
             }
@@ -112,22 +114,48 @@ class FinancePlanning:
             and request.end_date
         )
 
-    def _metric_request(self, topic: str) -> tuple[str, str | None, list[str]] | None:
-        matched = [term for term in _METRIC_TERMS if term in topic]
-        metrics = [
-            term
-            for term in matched
-            if not any(term != other and term in other for other in matched)
+    def _metric_request(self, topic: str) -> tuple[str | None, str | None, list[str]] | None:
+        normalized = topic.casefold()
+        matched = [
+            (term, metric)
+            for term, metric in _METRIC_TERMS.items()
+            if term.casefold() in normalized
         ]
-        metrics = ["主营业务毛利率" if term == "毛利率" else term for term in metrics]
+        metrics = list(dict.fromkeys(metric for _term, metric in matched))
         if not metrics:
             return None
         code_match = re.search(r"(?<!\d)(\d{6})(?!\d)", topic)
         company_name = next((name for name in _LISTED_COMPANIES if name in topic), None)
-        if code_match is None and company_name is None:
+        if code_match is not None or company_name is not None:
+            code = code_match.group(1) if code_match else _LISTED_COMPANIES[company_name]
+            return code, company_name, metrics
+        issuer = registered_sec_issuer(topic)
+        if issuer is None:
             return None
-        code = code_match.group(1) if code_match else _LISTED_COMPANIES[company_name]
+        code = None
+        company_name = issuer
         return code, company_name, metrics
+
+    def _financial_requests(
+        self,
+        *,
+        company_name: str | None,
+        symbol: str | None,
+        topic: str,
+        metrics: list[str],
+    ) -> list[StructuredDataRequest]:
+        """Keep unsupported metrics isolated from mapped annual facts."""
+
+        return [
+            StructuredDataRequest(
+                capability="financial_indicators",
+                company_name=company_name,
+                symbol=symbol,
+                periods=self._annual_periods(topic),
+                metrics=[metric],
+            )
+            for metric in metrics
+        ]
 
     @staticmethod
     def _annual_periods(topic: str) -> list[str]:

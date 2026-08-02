@@ -8,6 +8,9 @@ from pathlib import Path
 import httpx
 
 from deepresearch_agent.schemas import ResearchState, SubQuestion
+from deepresearch_agent.schemas import StructuredDataRequest
+from deepresearch_agent.agents import ResearcherAgent
+from deepresearch_agent.agents.planner import PlannerAgent
 from deepresearch_agent.tools import (
     DeterministicCapabilitySelector,
     FixtureSearchTool,
@@ -69,6 +72,45 @@ class Round083StructuredDataTests(unittest.TestCase):
         )
 
         self.assertEqual(records, [])
+
+    def test_researcher_records_distinct_unsupported_and_empty_failure_types(self) -> None:
+        researcher = ResearcherAgent(structured_data_provider=_nio_provider())
+        outcomes = {}
+        for name, metric, period in (
+            ("gross", "毛利", "20241231"),
+            ("unsupported", "毛利率", "20241231"),
+            ("empty", "营业收入", "20151231"),
+        ):
+            _evidence, stats, _symbols = researcher.structured_evidence(
+                "round-083",
+                SubQuestion(
+                    id=name,
+                    question=name,
+                    search_queries=[],
+                    structured_data_requests=[StructuredDataRequest(
+                        capability="financial_indicators", symbol="CIK0001736541",
+                        periods=[period], metrics=[metric],
+                    )],
+                ),
+            )
+            outcomes[name] = stats
+
+        self.assertEqual(outcomes["gross"]["records"], 1)
+        self.assertEqual(outcomes["unsupported"]["failure_type_StructuredDataUnsupportedMetric"], 1)
+        self.assertEqual(outcomes["empty"]["failure_type_StructuredDataEmptyResult"], 1)
+
+    def test_finance_plan_injects_isolated_sec_requests_for_nio_and_pdd(self) -> None:
+        nio = PlannerAgent().plan("蔚来 2024 年年报的营收与毛利情况", 1)
+        pdd = PlannerAgent().plan("PDD 2024 annual report revenue and gross margin", 1)
+
+        self.assertEqual(
+            [item.metrics for item in nio.sub_questions[0].structured_data_requests],
+            [["营业收入"], ["毛利"]],
+        )
+        self.assertEqual(
+            [item.metrics for item in pdd.sub_questions[0].structured_data_requests],
+            [["营业收入"], ["主营业务毛利率"]],
+        )
 
     def test_english_and_chinese_financial_intent_select_structured_data(self) -> None:
         selector = DeterministicCapabilitySelector(build_capability_registry(

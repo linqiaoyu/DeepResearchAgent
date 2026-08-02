@@ -107,6 +107,24 @@ def catalog_entity_for_english(value: str) -> str | None:
     return None
 
 
+def registered_sec_issuer(topic: str) -> str | None:
+    """Resolve a public issuer name or catalog ticker to its SEC registrant."""
+
+    catalog, _snapshot = _assets()
+    query = topic.casefold()
+    for entity_id, names in catalog.items():
+        if re.search(rf"(?<![a-z0-9]){re.escape(entity_id.casefold())}(?![a-z0-9])", query):
+            return str(names[0])
+        for name in names:
+            if _tokens(name) and _tokens(name).issubset(_tokens(topic)):
+                return str(name)
+    for chinese, (_entity_id, english) in issuer_aliases().items():
+        short_name = chinese.removesuffix("汽车")
+        if chinese in topic or (len(short_name) > 1 and short_name in topic):
+            return english
+    return None
+
+
 def public_aliases_for_english(value: str) -> tuple[str, ...]:
     """Public-source aliases for non-corpus issuers; used by the generalization guard."""
     _catalog, snapshot = _assets()
