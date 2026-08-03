@@ -7,10 +7,14 @@ from unittest.mock import patch
 
 from deepresearch_agent.provenance import FLAG_CLASSIFICATIONS, settings_flag_snapshot
 from deepresearch_agent.settings import Settings
-from scripts.check_087_readme_facts import HEADINGS, check
+from scripts.check_087_readme_facts import HEADINGS, _architecture_count_matches, check
 
 
 class ReadmeFactsTests(unittest.TestCase):
+    def test_architecture_count_is_checked_against_the_current_graph(self) -> None:
+        self.assertTrue(_architecture_count_matches("当前工作流的 15 个节点"))
+        self.assertFalse(_architecture_count_matches("当前工作流的 14 个节点"))
+
     def test_checker_accepts_a_complete_generated_shape(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 from deepresearch_agent.provenance import FLAG_CLASSIFICATIONS, settings_flag_snapshot
 from deepresearch_agent.settings import Settings
+from deepresearch_agent.workflow.contracts import workflow_contract_graph
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -67,6 +68,8 @@ def _unverifiable_claims(
         "金融领域 SUT",
     )
     missing += sum(token not in text for token in required_boundaries)
+    if not _architecture_count_matches(text):
+        missing += 1
     marker = re.search(r"<!-- 087-FACT workflow_cost=([^ ]+) rag_cost=([^ ]+) -->", text)
     manifest = json.loads(
         (package / "audit_bundle" / "manifest.json").read_text(encoding="utf-8")
@@ -105,6 +108,13 @@ def _unverifiable_claims(
         if row != (expected_evidence, pair["decision"]):
             missing += 1
     return missing
+
+
+def _architecture_count_matches(text: str) -> bool:
+    node_count = len(
+        {node for edge in workflow_contract_graph().edges for node in edge}
+    )
+    return f"当前工作流的 {node_count} 个节点" in text
 
 
 def main() -> None:

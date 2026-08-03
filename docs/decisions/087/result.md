@@ -26,3 +26,8 @@ closure, and did not use an additional contingency run.
 This evidence validates only the finance SUT with the frozen 60-document SEC
 20-F corpus, two depth-1 topics, and one Chinese plus one English report. It
 does not establish a generic domain-pack implementation.
+
+The final audit's source-corrected acceptance decision is recorded in
+`docs/decisions/087/acceptance-amendment.md`. It preserves the immutable 086
+packages and final live artifacts while making the historical-baseline,
+showcase-source, and generated-architecture evidence rules explicit.
