@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 import json
+import sqlite3
 import tempfile
 from pathlib import Path
 
@@ -15,6 +16,7 @@ class SiteFactsTests(unittest.TestCase):
             package = root / "package"
             dist = root / "dist"
             (package / "audit_bundle").mkdir(parents=True)
+            (package / "runtime").mkdir()
             dist.mkdir()
             (package / "audit_bundle" / "evidence.json").write_text(
                 json.dumps([{"evidence_id": "e-1"}]), encoding="utf-8"
@@ -35,9 +37,20 @@ class SiteFactsTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
+            with sqlite3.connect(package / "runtime" / "research.db") as conn:
+                conn.execute("CREATE TABLE evidence (id TEXT PRIMARY KEY)")
+                conn.execute("INSERT INTO evidence VALUES ('source-1')")
             (dist / "index.html").write_text(
-                "".join('<section data-screen="x"></section>' for _ in range(5))
-                + '<span data-fact="12" data-evidence-id="e-1">12</span>',
+                "".join(
+                    f'<section data-screen="{index}"></section>'
+                    for index in range(5)
+                )
+                + "".join(
+                    f'<article data-capability="FLAG_{index}"></article>'
+                    for index in range(25)
+                )
+                + '<span data-fact="12" data-evidence-id="e-1">12</span>'
+                + '<blockquote data-source-evidence-id="source-1"></blockquote>',
                 encoding="utf-8",
             )
             values = check(dist, package)

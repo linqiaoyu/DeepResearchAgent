@@ -6,6 +6,7 @@ import html
 import json
 import re
 import shutil
+import sqlite3
 import sys
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -17,7 +18,11 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from deepresearch_agent.provenance import RunManifest  # noqa: E402
+from deepresearch_agent.provenance import (  # noqa: E402
+    FLAG_CLASSIFICATIONS,
+    RunManifest,
+    settings_flag_snapshot,
+)
 from deepresearch_agent.research_snapshot import (  # noqa: E402
     build_demo_followup,
     build_research_snapshot,
@@ -29,6 +34,7 @@ from deepresearch_agent.structured_output import build_structured_output  # noqa
 
 DIST = ROOT / "site" / "dist"
 FINAL_NIO_PACKAGE = ROOT / "artifacts" / "087" / "live-nio-zh"
+AB_RESULTS_PATH = ROOT / "_collab" / "087" / "ab" / "results.json"
 SHOWCASE_PATH = ROOT / "data" / "demo" / "g3_showcase.json"
 G3_PATH = ROOT / "data" / "golden_set" / "v1" / "results" / "g3_judge_v11.json"
 CITATION_PATH = ROOT / "data" / "golden_set" / "v1" / "results" / "g3_citation_support_3s.json"
@@ -95,6 +101,61 @@ def _final_showcase_facts(package: Path) -> dict[str, Any]:
         for line in (package / "runtime" / "rag_ledger.jsonl").read_text(encoding="utf-8").splitlines()
         if line.strip()
     )
+    with sqlite3.connect(package / "runtime" / "research.db") as conn:
+        evidence_total = conn.execute("SELECT COUNT(*) FROM evidence").fetchone()[0]
+        source_row = conn.execute(
+            """
+            SELECT id, extract_text FROM evidence
+            WHERE source_url LIKE ? AND extract_text LIKE ?
+            LIMIT 1
+            """,
+            ("%nio-20241231x20f.htm%", "%Total revenues%"),
+        ).fetchone()
+    source_origin = "run"
+    if source_row is None:
+        source_origin = "registered_corpus"
+        with sqlite3.connect(ROOT / "data" / "runtime" / "085-assets.db") as conn:
+            source_row = conn.execute(
+                """
+                SELECT c.id, c.content
+                FROM chunk AS c
+                JOIN document_version AS dv ON c.document_version_id = dv.id
+                JOIN document AS d ON dv.document_id = d.id
+                WHERE d.canonical_url LIKE ? AND c.content LIKE ?
+                LIMIT 1
+                """,
+                ("%nio-20241231x20f.htm", "%65,731,559%"),
+            ).fetchone()
+    if source_row is None:
+        raise SystemExit("final showcase needs the NIO 20-F revenue excerpt")
+    source_id, source_excerpt = source_row
+    source_excerpt = html.unescape(str(source_excerpt)).replace("\u200b", " ")
+    source_excerpt = re.sub(r"\s+", " ", source_excerpt)
+    source_amount = next(
+        value
+        for value in re.findall(r"\d[\d,]*(?:\.\d+)?", source_excerpt)
+        if value == "65,731,559"
+    )
+    source_position = source_excerpt.index(source_amount)
+    excerpt_start = max(0, source_position - 360)
+    excerpt_end = min(len(source_excerpt), source_position + 440)
+    if excerpt_start:
+        excerpt_start = source_excerpt.find(" ", excerpt_start) + 1
+    if excerpt_end < len(source_excerpt):
+        excerpt_end = source_excerpt.rfind(" ", 0, excerpt_end)
+    source_excerpt = source_excerpt[excerpt_start:excerpt_end]
+    cited_sources = len(re.findall(r"^\[\^\d+\]:", report, re.MULTILINE))
+    capabilities = _capability_matrix()
+    display_numbers = values + [
+        f"{float(manifest['cost_cny_total']):.8f}",
+        f"{rag_cost:.7f}",
+        str(round((ended - started).total_seconds(), 3)),
+        str(evidence_total),
+        str(cited_sources),
+        source_amount,
+        *re.findall(r"\d[\d,]*(?:\.\d+)?%?", source_excerpt),
+        *(value for item in capabilities for value in item["numbers"]),
+    ]
     return {
         "package": str(package.relative_to(ROOT)),
         "report_opening": report.splitlines()[:3],
@@ -104,16 +165,70 @@ def _final_showcase_facts(package: Path) -> dict[str, Any]:
         "margin": next(value for value in values if value.endswith("%")),
         "gross_evidence_id": str(gross["evidence_id"]),
         "revenue_evidence_id": str(revenue["evidence_id"]),
-        "source_excerpt": str(revenue["extract_text"]),
+        "source_excerpt": str(source_excerpt),
+        "source_evidence_id": str(source_id),
+        "source_origin": source_origin,
+        "source_amount": source_amount,
         "workflow_cost": f"{float(manifest['cost_cny_total']):.8f}",
         "rag_cost": f"{rag_cost:.7f}",
         "elapsed_seconds": str(round((ended - started).total_seconds(), 3)),
-        "evidence_total": str(len(_read_json(package / "audit_bundle" / "report.json").get("evidence", evidence))),
-        "cited_sources": str(report.count("[^")),
-        "provider": str(manifest["provider_identity"]["structured_data"]),
+        "evidence_total": str(evidence_total),
+        "cited_sources": str(cited_sources),
+        "provider_fidelity": {
+            key: str(manifest["actual_provider_fidelity"][key])
+            for key in ("llm", "search", "rag_search", "structured_data")
+        },
         "audit_closure": str(reader_audit["audit_citation_closure"]),
-        "display_numbers": values,
+        "capabilities": capabilities,
+        "display_numbers": display_numbers,
     }
+
+
+def _capability_matrix() -> list[dict[str, Any]]:
+    try:
+        from scripts.check_087_report_shape import measure
+    except ModuleNotFoundError:
+        from check_087_report_shape import measure
+
+    payload = _read_json(AB_RESULTS_PATH)
+    pairs = {item["capability"]: item for item in payload["pairs"]}
+    flags = settings_flag_snapshot(
+        Settings(storage_path=Path("research.db")),
+        include_disabled_experimental=True,
+    )
+    capabilities: list[dict[str, Any]] = []
+    for flag in sorted(FLAG_CLASSIFICATIONS):
+        capability = flag.removesuffix("_ENABLED")
+        pair = pairs.get(capability)
+        if pair is None:
+            capabilities.append(
+                {
+                    "flag": flag,
+                    "default": bool(flags[flag]),
+                    "decision": "not_measured",
+                    "numbers": [],
+                }
+            )
+            continue
+        paths = [
+            (AB_RESULTS_PATH.parent / pair[name]).resolve()
+            for name in ("off_package", "on_package")
+        ]
+        visible = [
+            measure((path / "report.md").read_text(encoding="utf-8"))["reader_visible_lines"]
+            for path in paths
+        ]
+        capabilities.append(
+            {
+                "flag": flag,
+                "default": bool(flags[flag]),
+                "decision": pair["decision"],
+                "numbers": [str(value) for value in visible],
+            }
+        )
+    if len(capabilities) != len(FLAG_CLASSIFICATIONS):
+        raise SystemExit("final showcase capability matrix is incomplete")
+    return capabilities
 
 
 def _fact(value: str, *, evidence_id: str | None = None) -> str:
@@ -122,21 +237,45 @@ def _fact(value: str, *, evidence_id: str | None = None) -> str:
 
 
 def _final_home_page(facts: dict[str, Any]) -> str:
-    opening = "<br>".join(html.escape(line) for line in facts["report_opening"] if line)
+    opening = "<br>".join(html.escape(line) for line in facts["report_opening"])
     gross = _fact(facts["gross"], evidence_id=facts["gross_evidence_id"])
     revenue = _fact(facts["revenue"], evidence_id=facts["revenue_evidence_id"])
     margin = _fact(facts["margin"], evidence_id=facts["gross_evidence_id"])
+    source_amount = _fact(
+        facts["source_amount"], evidence_id=facts["revenue_evidence_id"]
+    )
+    source_excerpt = html.escape(facts["source_excerpt"]).replace(
+        html.escape(facts["source_amount"]),
+        f"<mark>{source_amount}</mark>",
+    )
+    cards = "".join(_capability_card(item) for item in facts["capabilities"])
+    fidelity = facts["provider_fidelity"]
     return f'''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DeepResearchAgent · 可审计投研</title><link rel="stylesheet" href="assets/styles.css"></head><body data-showcase="087"><main>
 <section data-screen="one" class="screen hero"><p class="eyebrow">FINANCIAL RESEARCH, WITH RECEIPTS</p><h1>让结论<br>回到原文。</h1><p class="opening">{opening}</p></section>
-<section data-screen="two" class="screen proof"><p class="eyebrow">NUMBER → SOURCE</p><h2>数字不是终点。它有来处。</h2><div class="mapping"><p>营业收入 {revenue}</p><i aria-hidden="true"></i><blockquote>{html.escape(facts['source_excerpt'])}</blockquote></div><p class="formula">毛利率（推导值）：{gross} / {revenue} = {margin}</p></section>
-<section data-screen="three" class="screen"><p class="eyebrow">MEASURED CAPABILITIES</p><h2>能力，先用真实运行说话。</h2><p>四项开启默认值：NUMERIC_CHECK、CONTEXT_PACKER、SEMANTIC_JUDGE、DECISION_WEAVING。其余已实现能力保留实测无增益的结论。</p></section>
-<section data-screen="four" class="screen bill"><p class="eyebrow">ONE REAL RUN</p><h2>一次报告的账单。</h2><dl><div><dt>workflow CNY</dt><dd>{_fact(facts['workflow_cost'])}</dd></div><div><dt>RAG CNY</dt><dd>{_fact(facts['rag_cost'])}</dd></div><div><dt>elapsed seconds</dt><dd>{_fact(facts['elapsed_seconds'])}</dd></div><div><dt>evidence → citations</dt><dd>{_fact(facts['evidence_total'])} → {_fact(facts['cited_sources'])}</dd></div></dl><p>{html.escape(facts['provider'])} · citation closure={html.escape(facts['audit_closure'])}</p></section>
-<section data-screen="five" class="screen"><p class="eyebrow">REPRODUCE</p><h2>从本地 fixture 开始。</h2><pre>python3.12 -m venv .venv\n.venv/bin/python -m pip install -e ".[dev]"\nPYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/gate.py</pre></section>
+<section data-screen="two" class="screen proof"><p class="eyebrow">NUMBER → SOURCE</p><h2>数字不是终点。它有来处。</h2><div class="mapping"><p>营业收入 {revenue}</p><i aria-hidden="true"></i><blockquote data-source-evidence-id="{html.escape(facts['source_evidence_id'])}">{source_excerpt}</blockquote></div><p class="formula">毛利率（推导值）：{gross} / {revenue} = {margin}</p></section>
+<section data-screen="three" class="screen"><p class="eyebrow">MEASURED CAPABILITIES</p><h2>能力，先用真实运行说话。</h2><div class="capability-matrix">{cards}</div></section>
+<section data-screen="four" class="screen bill"><p class="eyebrow">ONE REAL RUN</p><h2>一次报告的账单。</h2><dl><div><dt>workflow CNY</dt><dd>{_fact(facts['workflow_cost'])}</dd></div><div><dt>RAG CNY</dt><dd>{_fact(facts['rag_cost'])}</dd></div><div><dt>elapsed seconds</dt><dd>{_fact(facts['elapsed_seconds'])}</dd></div><div><dt>evidence → cited sources</dt><dd>{_fact(facts['evidence_total'])} → {_fact(facts['cited_sources'])}</dd></div></dl><ul class="fidelity"><li>LLM: {html.escape(fidelity['llm'])}</li><li>Search + RAG: {html.escape(fidelity['search'])} / {html.escape(fidelity['rag_search'])}</li><li>Structured data: {html.escape(fidelity['structured_data'])}</li></ul><p>citation closure={html.escape(facts['audit_closure'])}</p></section>
+<section data-screen="five" class="screen"><p class="eyebrow">REPRODUCE</p><h2>从本地 fixture 开始。</h2><pre>python3 -m venv .venv\n.venv/bin/python -m pip install -e ".[dev]"\n.venv/bin/python scripts/gate.py</pre></section>
 </main><noscript>五个页面区块均以静态 HTML 输出；禁用 JavaScript 仍可完整阅读。</noscript></body></html>'''
 
 
+def _capability_card(item: dict[str, Any]) -> str:
+    state = "亮态" if item["decision"] == "promoted" else "暗态"
+    if item["decision"] == "not_measured":
+        detail = "未纳入单次 A/B；保持默认"
+    else:
+        left, right = (_fact(value) for value in item["numbers"])
+        outcome = "实测增益" if item["decision"] == "promoted" else "已实现，实测无增益"
+        detail = f"{outcome}：读者行 {left} → {right}"
+    default = "默认开启" if item["default"] else "默认关闭"
+    return (
+        f'<article class="capability {state}" data-capability="{html.escape(item["flag"])}">'
+        f"<b>{html.escape(item['flag'])}</b><span>{default}</span><p>{detail}</p></article>"
+    )
+
+
 def _write_final_css(path: Path) -> None:
-    path.write_text('''*{box-sizing:border-box}body{margin:0;background:#f7f7f5;color:#161616;font:18px/1.6 ui-sans-serif,system-ui}.screen{min-height:100vh;max-width:1100px;margin:auto;padding:12vh 7vw;border-bottom:1px solid #ddd}.hero{display:grid;align-content:center}.hero h1{font-size:clamp(64px,12vw,160px);line-height:.9;letter-spacing:-.08em;margin:0}.eyebrow{font-size:.72rem;letter-spacing:.18em;font-weight:800;color:#52706a}.opening{font-family:ui-monospace,monospace;margin-top:3rem}.proof h2{font-size:clamp(42px,7vw,92px);line-height:1;margin:0 0 4rem}.mapping{display:grid;grid-template-columns:1fr 90px 1fr;align-items:center;gap:20px}.mapping i{height:2px;background:#52706a;animation:draw 2s ease-in-out infinite alternate}.mapping blockquote{margin:0;padding:24px;border:1px solid #bbb;font-family:ui-monospace,monospace}.formula{font-size:clamp(24px,4vw,52px);margin-top:4rem}.fact{font-variant-numeric:tabular-nums;font-weight:800}dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}dl div,pre{padding:24px;background:#fff;border:1px solid #ddd}dt{font-size:.75rem;color:#666;text-transform:uppercase}dd{margin:.5rem 0 0;font-size:clamp(24px,4vw,50px)}pre{white-space:pre-wrap;overflow:auto}@keyframes draw{from{transform:scaleX(.2);transform-origin:left}to{transform:scaleX(1)}}@media(max-width:650px){.mapping,dl{grid-template-columns:1fr}.mapping i{width:2px;height:48px;justify-self:center;animation:none}}''', encoding="utf-8")
+    path.write_text('''*{box-sizing:border-box}body{margin:0;background:#f7f7f5;color:#161616;font:18px/1.6 ui-sans-serif,system-ui}.screen{min-height:100vh;max-width:1100px;margin:auto;padding:12vh 7vw;border-bottom:1px solid #ddd}.hero{display:grid;align-content:center}.hero h1{font-size:clamp(64px,12vw,160px);line-height:.9;letter-spacing:-.08em;margin:0}.eyebrow{font-size:.72rem;letter-spacing:.18em;font-weight:800;color:#52706a}.opening{font-family:ui-monospace,monospace;margin-top:3rem}.proof h2{font-size:clamp(42px,7vw,92px);line-height:1;margin:0 0 4rem}.mapping{display:grid;grid-template-columns:1fr 90px 1fr;align-items:center;gap:20px}.mapping i{height:2px;background:#52706a;animation:draw 2s ease-in-out infinite alternate}.mapping blockquote{margin:0;padding:24px;border:1px solid #bbb;font-family:ui-monospace,monospace}.mapping mark{background:#e9e66b;padding:0 3px}.formula{font-size:clamp(24px,4vw,52px);margin-top:4rem}.fact{font-variant-numeric:tabular-nums;font-weight:800}.capability-matrix{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}.capability{padding:16px;border:1px solid #bbb;background:#fff}.capability b,.capability span{display:block}.capability b{font-size:.72rem;overflow-wrap:anywhere}.capability span{font-size:.7rem;color:#666}.capability p{font-size:.76rem;margin:.7rem 0 0}.capability.亮态{border-color:#52706a;background:#e6f0ec}.capability.暗态{opacity:.75}.fidelity{padding:0;list-style:none;display:grid;gap:8px}.fidelity li{padding:10px;background:#fff;border-left:3px solid #52706a}dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}dl div,pre{padding:24px;background:#fff;border:1px solid #ddd}dt{font-size:.75rem;color:#666;text-transform:uppercase}dd{margin:.5rem 0 0;font-size:clamp(24px,4vw,50px)}pre{white-space:pre-wrap;overflow:auto}@keyframes draw{from{transform:scaleX(.2);transform-origin:left}to{transform:scaleX(1)}}@media(max-width:650px){.mapping,dl{grid-template-columns:1fr}.mapping i{width:2px;height:48px;justify-self:center;animation:none}}''', encoding="utf-8")
 
 
 def _validate_release_assets(
@@ -206,10 +345,18 @@ def _assert_site(
         mappings = re.findall(
             r'data-fact="[^"]+" data-evidence-id="([^"]+)"', text
         )
+        capabilities = re.findall(r'data-capability="([^"]+)"', text)
+        source_mappings = re.findall(
+            r'data-source-evidence-id="([^"]+)"', text
+        )
         if len(screens) != 5 or len(set(screens)) != 5:
             raise SystemExit("final showcase must expose five readable screens")
         if not mappings:
             raise SystemExit("final showcase needs a number-to-evidence mapping")
+        if len(capabilities) != 25 or len(set(capabilities)) != 25:
+            raise SystemExit("final showcase must expose the full capability matrix")
+        if len(source_mappings) != 1:
+            raise SystemExit("final showcase needs one highlighted source mapping")
         return
     pages = sorted((dist / "reports").glob("Q*.html"))
     if not pages:
@@ -264,10 +411,16 @@ def _assert_showcase_contract(home: str, stylesheet: str) -> None:
             "ONE REAL RUN",
             "REPRODUCE",
             "毛利率（推导值）",
+            "capability-matrix",
+            "Structured data:",
         )
         if any(token not in home for token in required_home):
             raise SystemExit("final showcase is missing a required screen")
-        if "@keyframes draw" not in stylesheet or ".mapping" not in stylesheet:
+        if (
+            "@keyframes draw" not in stylesheet
+            or ".mapping" not in stylesheet
+            or ".capability-matrix" not in stylesheet
+        ):
             raise SystemExit("final showcase is missing its progressive motion mapping")
         return
     required_home = (

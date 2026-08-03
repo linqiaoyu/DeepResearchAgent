@@ -3,6 +3,7 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from deepresearch_agent.provenance import FLAG_CLASSIFICATIONS, settings_flag_snapshot
 from deepresearch_agent.settings import Settings
@@ -22,7 +23,7 @@ class ReadmeFactsTests(unittest.TestCase):
                 include_disabled_experimental=True,
             )
             rows = "\n".join(
-                f"| {flag} | {'on' if value else 'off'} | recorded |"
+                f"| {flag} | {'on' if value else 'off'} | recorded | decision |"
                 for flag, value in sorted(flags.items())
             )
             readme = root / "README.md"
@@ -34,8 +35,13 @@ class ReadmeFactsTests(unittest.TestCase):
                 + rows,
                 encoding="utf-8",
             )
-            values = check(readme, package)
+            with patch(
+                "scripts.check_087_readme_facts._unverifiable_claims",
+                return_value=0,
+            ):
+                values = check(readme, package)
 
         self.assertEqual(values["capability_rows"], len(FLAG_CLASSIFICATIONS))
         self.assertEqual(values["flag_state_mismatches"], 0)
         self.assertEqual(values["embedded_report_matches_artifact"], 1)
+        self.assertEqual(values["unverifiable_claims"], 0)

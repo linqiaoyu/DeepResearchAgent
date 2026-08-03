@@ -51,41 +51,43 @@ PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/gate.py
 
 ## 凭什么信它
 
-报告把数值、对应 Evidence、引用闭合和成本账本放在同一个研究包；strict replay 用于复现已记录的轨迹，而不替代产物正确性检查。最终 NIO 包的数字、脚注和 provider 身份均由独立探针复核。
+报告把数值、对应 Evidence、引用闭合和成本账本放在同一个研究包；strict replay 用于复现已记录的轨迹，而不替代产物正确性检查。最终 NIO 包的 workflow 成本为 CNY 0.08938328，RAG 成本为 CNY 0.0366520；数字、脚注和 provider 身份均由独立探针复核。
+
+<!-- 087-FACT workflow_cost=0.08938328 rag_cost=0.0366520 -->
 
 ## 架构与边界
 
-工作流由 Planner、Researcher、Extractor、Critic、Reporter 与 Evaluator 组成；研究子问题通过 LangGraph `Send()` 并行 fan-out。NodeContract、DecisionGate 与显式 DomainPack 约束边界。金融是唯一真实领域实现，不能据此宣称 harness 已通用可用。
+当前工作流的 15 个节点由 Planner、Researcher、Extractor、Critic、Reporter 与 Evaluator 组成；研究子问题通过 LangGraph `Send()` 并行 fan-out。NodeContract、DecisionGate 与显式 DomainPack 约束边界。金融是唯一真实领域实现，不能据此宣称 harness 已通用可用。
 
 ## 25 个能力的实测状态
 
-| Flag | Default | 087 outcome |
-| --- | --- | --- |
-| BRANCH_BUDGET_ENABLED | on | not tested in 087 A/B |
-| CONFIG_FAIL_FAST_ENABLED | on | not tested in 087 A/B |
-| CONTEXT_PACKER_ENABLED | on | promoted |
-| CRITIC_ENABLED | on | not tested in 087 A/B |
-| DECISION_WEAVING_ENABLED | on | promoted |
-| DYNAMIC_CAPABILITY_ENABLED | on | not tested in 087 A/B |
-| EXTRACTOR_ENABLED | on | not tested in 087 A/B |
-| INJECTION_GUARD_ENABLED | off | not tested in 087 A/B |
-| LLM_TOOL_SELECTION_ENABLED | off | not tested in 087 A/B |
-| NUMERIC_CHECK_ENABLED | on | promoted |
-| PRIOR_MEMORY_ENABLED | off | not tested in 087 A/B |
-| PROCEDURAL_MEMORY_ENABLED | off | not tested in 087 A/B |
-| PROGRESSIVE_DELIVERY_ENABLED | off | kept_off |
-| RAG_ENABLED | off | not tested in 087 A/B |
-| REFLECTION_ENABLED | off | not tested in 087 A/B |
-| RERANK_ENABLED | on | not tested in 087 A/B |
-| RERANK_FAIL_OPEN | on | not tested in 087 A/B |
-| RESEARCH_LOOP_ENABLED | off | kept_off |
-| RUN_MANIFEST_ENABLED | on | not tested in 087 A/B |
-| SEMANTIC_JUDGE_ENABLED | on | promoted |
-| SKILL_PACKS_ENABLED | off | kept_off |
-| STRUCTURED_LOGGING_ENABLED | on | not tested in 087 A/B |
-| STRUCTURED_OUTPUT_ENABLED | on | not tested in 087 A/B |
-| TOOL_CONTRACT_ENABLED | on | not tested in 087 A/B |
-| TRAJECTORY_RECORD_ENABLED | off | kept_off |
+| Flag | Default | Real A/B evidence | 087 outcome |
+| --- | --- | --- | --- |
+| BRANCH_BUDGET_ENABLED | on | not measured: single-report outcome is not the right test | kept default |
+| CONFIG_FAIL_FAST_ENABLED | on | not measured: single-report outcome is not the right test | kept default |
+| CONTEXT_PACKER_ENABLED | on | reader lines 18 → 15 | promoted |
+| CRITIC_ENABLED | on | not measured: single-report outcome is not the right test | kept default |
+| DECISION_WEAVING_ENABLED | on | reader lines 18 → 13 | promoted |
+| DYNAMIC_CAPABILITY_ENABLED | on | not measured: single-report outcome is not the right test | kept default |
+| EXTRACTOR_ENABLED | on | not measured: single-report outcome is not the right test | kept default |
+| INJECTION_GUARD_ENABLED | off | not measured: single-report outcome is not the right test | kept default |
+| LLM_TOOL_SELECTION_ENABLED | off | not measured: single-report outcome is not the right test | kept default |
+| NUMERIC_CHECK_ENABLED | on | reader lines 15 → 13 | promoted |
+| PRIOR_MEMORY_ENABLED | off | not measured: single-report outcome is not the right test | kept default |
+| PROCEDURAL_MEMORY_ENABLED | off | not measured: single-report outcome is not the right test | kept default |
+| PROGRESSIVE_DELIVERY_ENABLED | off | reader lines 15 → 15 | kept_off |
+| RAG_ENABLED | off | not measured: single-report outcome is not the right test | kept default |
+| REFLECTION_ENABLED | off | not measured: single-report outcome is not the right test | kept default |
+| RERANK_ENABLED | on | not measured: single-report outcome is not the right test | kept default |
+| RERANK_FAIL_OPEN | on | not measured: single-report outcome is not the right test | kept default |
+| RESEARCH_LOOP_ENABLED | off | reader lines 13 → 13 | kept_off |
+| RUN_MANIFEST_ENABLED | on | not measured: single-report outcome is not the right test | kept default |
+| SEMANTIC_JUDGE_ENABLED | on | reader lines 18 → 16 | promoted |
+| SKILL_PACKS_ENABLED | off | reader lines 15 → 15 | kept_off |
+| STRUCTURED_LOGGING_ENABLED | on | not measured: single-report outcome is not the right test | kept default |
+| STRUCTURED_OUTPUT_ENABLED | on | not measured: single-report outcome is not the right test | kept default |
+| TOOL_CONTRACT_ENABLED | on | not measured: single-report outcome is not the right test | kept default |
+| TRAJECTORY_RECORD_ENABLED | off | reader lines 15 → 15 | kept_off |
 
 `promoted` 表示真实单开关 A/B 触发至少一项报告形态改善且没有形态劣化；`kept_off` 表示没有满足该规则。未测试项保持原默认值，不把“已接线”写成质量结论。
 
@@ -103,3 +105,7 @@ PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/gate.py
 - 不把 strict replay 当成事实正确性的证明。
 - 不在默认 CI、demo 或完整单测中要求付费 key。
 - 不把当前金融领域 SUT 的验证外推为通用 domain-pack 能力。
+- `REFLECTION_ENABLED` 保持关闭：确定性信号和接口存在，但没有本轮策略采用增益证据。
+- `CONTEXT_PACKER_ENABLED` 的默认开启只代表本轮单开关报告形态证据；它不等于所有主题的质量结论。`RESEARCH_LOOP_ENABLED`、`SKILL_PACKS_ENABLED` 与 `TRAJECTORY_RECORD_ENABLED` 保持关闭，因为本轮 A/B 未观察到严格增益。
+- MCP 不提供任意文件读取或命令执行；外部工具仍经过统一的超时、重试、预算与降级契约。
+- Docker/Compose 资产不是本机容器引擎构建证据；当前交付以项目虚拟环境的可复现 gate 为准。
