@@ -16,7 +16,7 @@
 [决策记录](docs/decisions/README.md) ·
 [生产边界](docs/production_readiness.md)
 
-分析师经常要在分散网页、财务口径、历史结论和引用之间来回核对；普通聊天式回答很难说明“这句话来自哪里”和“这次与上次相比什么变了”。DeepResearchAgent 把这些结果整理成一套可保存、可追溯、可复查的研究资产。当前首个场景是金融投研，默认使用本地 fixture，零 API key 即可运行。金融策略已通过显式 `DomainPack` 注入，但 finance 仍是唯一真实领域实现，不能据此宣称框架已经通用化；边界见 [architecture.md](docs/architecture.md)。
+分析师经常要在分散网页、财务口径、历史结论和引用之间来回核对；普通聊天式回答很难说明“这句话来自哪里”和“这次与上次相比什么变了”。DeepResearchAgent 把这些结果整理成一套可保存、可追溯、可复查的研究资产。当前首个场景是金融投研，默认使用本地 fixture，零 API key 即可运行；Round 087 的两份最终 live 包则在冻结的 60 文档 SEC 20-F 语料上验证了中文 NIO 与英文 PDD 报告。金融策略已通过显式 `DomainPack` 注入，但 finance 仍是唯一真实领域实现，不能据此宣称框架已经通用化；边界见 [architecture.md](docs/architecture.md)。
 
 ![DeepResearchAgent 静态演示站与研究产物](docs/assets/readme/site_overview.png)
 
@@ -63,13 +63,13 @@ sed -n '1,120p' _collab/package-demo/report.md
 | 多 Agent 研究流程 | Planner、Researcher、Extractor、Critic、Reporter、Evaluator 由 LangGraph `StateGraph` 编排；Researcher 按子问题 fan-out，见 [architecture.md](docs/architecture.md)。 |
 | 引用与证据闭合 | Reporter 固化 footnote → Evidence ID 映射，Evaluator 与审计导出复用同一契约，见 [citations.py](src/deepresearch_agent/citations.py) 和 [audit_bundle.py](src/deepresearch_agent/audit_bundle.py)。 |
 | 有界研究循环与预算 | Critic retry、轮次、调用预算和连续无进展均有显式边界；分支预算默认开启，多轮研究默认关闭，且预算状态按 run 隔离，见 [orchestration_contracts.md](docs/orchestration_contracts.md)。 |
-| 显式领域边界 | composition root 注入 finance `DomainPack`；核心对具体 finance pack 的 import 为 0，剩余金融字面量由 3 文件/9 行 allowlist 棘轮约束，见 [architecture.md](docs/architecture.md)。 |
+| 显式领域边界 | composition root 注入 finance `DomainPack`；核心对具体 finance pack 的 import 为 0，剩余金融字面量由 3 文件/8 处 allowlist 棘轮约束，见 [architecture.md](docs/architecture.md)。 |
 | 可审计工具选择 | 默认确定性 selector 只从 `CapabilityRegistry` 选择 search、fetch、structured data 与 disclosure；LLM tool selection 默认关闭且复用相同授权与预算边界，见 [dynamic_capabilities.md](docs/dynamic_capabilities.md)。 |
 | 可审计决策面 | 策略选择统一写入 `AgentDecision`、trace、manifest 和读者可见报告；缺失决策会被 `DecisionGate` 拦截，见 [agent_decisions.md](docs/agent_decisions.md)。 |
 | 跨期研究 | `ResearchSnapshot` 区分新增、消失、数值、证据、置信度与口径 6 类变化，见 [change_tracking.md](docs/change_tracking.md)。 |
 | MCP server | 标准库实现 JSON-RPC 2.0 over stdio，目标协议 `2025-06-18`，暴露研究、证据、审计导出、快照比较 4 个 fixture 工具，见 [server.py](src/deepresearch_agent/mcp/server.py)。 |
 | MCP client | 标准库客户端可启动外部 server、发现工具、注册进原 `CapabilityRegistry`，并复用超时/重试/降级契约，见 [client.py](src/deepresearch_agent/mcp/client.py)。 |
-| Skill packs | `SKILL.md` metadata-first 渐进披露；首个金融口径 pack 为 1299 字节等价迁移，SHA-256 `8e69cf6…153baf`，默认 `SKILL_PACKS_ENABLED=false`，见 [finance-metric-normalization](skills/finance-metric-normalization/SKILL.md)。 |
+| Skill packs | `SKILL.md` metadata-first 渐进披露；首个金融口径 pack 为 443 字节，SHA-256 `06f0c650…e34c2b0d`，默认 `SKILL_PACKS_ENABLED=false`，见 [finance-metric-normalization](skills/finance-metric-normalization/SKILL.md)。 |
 | 评测与回归 | 本地零 key 完整门禁覆盖文档同步、领域边界、计划台账、Ruff、prompt drift、全量 unittest、demo/eval smoke 与受跟踪文件不变检查；唯一入口是 `PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/gate.py`。 |
 
 ## 它如何工作
@@ -110,7 +110,7 @@ flowchart LR
 | --- | --- |
 | Judge 变化被误写成模型提升 | 历史分解为 `0.6134 + 0.1865 - 0.0585 = 0.7414`；manifest 现在比较模型、prompt hash、as-of、flags 与依赖，见 [evaluation.md](docs/evaluation.md)。 |
 | Citation resolution 满分掩盖综合退化 | G1/G2/G3 weighted score 为 `0.8337 → 0.7714 → 0.7982`，而 resolution 为 `0.6000 → 1.0000 → 0.9333`；保存态对比阻止把 G2 当成改进，见 [v11_three_point_comparison.json](data/golden_set/v1/results/v11_three_point_comparison.json)。 |
-| Context packer 静默丢 Evidence | 产物快照在 ¥0 fixture 路径发现约 80% Evidence 丢失；修复后两题保留 `12/21` 与 `13/29` 条，开关仍保持 dark，见 [method_limits.md](docs/method_limits.md)。 |
+| Context packer 静默丢 Evidence | 产物快照曾在 ¥0 fixture 路径发现约 80% Evidence 丢失；修复后两题保留 `12/21` 与 `13/29` 条。Round 087 的受控 live A/B 将 NIO 报告的读者可见行数从 `18` 降至 `15`，因此该开关已默认开启；证据仍仅覆盖金融 SUT，见 [method_limits.md](docs/method_limits.md)。 |
 
 ### Agent 决策不是黑盒日志
 
@@ -135,12 +135,13 @@ flowchart LR
 | 行为等价 | 2 个规范化题面逐字匹配 [golden_output](tests/golden_output/)；未知 manifest flag fail-closed，见 [manifest.py](src/deepresearch_agent/provenance/manifest.py)。 |
 | 故障演练 | 8 个离线 chaos 场景覆盖认证、限流、超时、连续失败、熔断和部分降级，见 [tests/chaos](tests/chaos/)。 |
 | Golden v1.1 | 30 questions；四键审计 `76 PASS / 0 DEFECT / 3 UNCERTAIN`；G3 weighted `0.7982`、fact accuracy `0.8867`、citation support `0.7376`，见 [Golden results](data/golden_set/v1/results/)。 |
+| Round 087 最终 live 报告 | NIO 中文报告为 13 条读者可见行、0 条样板噪声、2/2 指标回答并含 1 个可追溯派生指标；PDD 英文报告为 11 条读者可见行、0 条样板噪声、1/2 指标回答且对缺口作显式说明。两者均使用 `SecCompanyFactsProvider`，并通过结构化 manifest 与引用闭合检查，见 [087 result](docs/decisions/087/result.md)。 |
 | 公开形态 | [公开地址](https://deepresearch-agent.jacksonyu1109.workers.dev/) 是 `scripts/build_site.py` 生成的静态演示站，不是常驻 API 服务；部署边界见 [deployment.md](docs/deployment.md)。 |
 
 ## 诚实边界
 
 - `REFLECTION_ENABLED=false`：四类确定性信号、占位推理接口、程序记忆与重规划接线已实现；Round 033 未观察到策略采用，不能宣称具备反思判断力，见 [reflection.md](docs/reflection.md)。
-- `CONTEXT_PACKER_ENABLED=false`、`INJECTION_GUARD_ENABLED=false`、`RESEARCH_LOOP_ENABLED=false`、`DYNAMIC_CAPABILITY_ENABLED=true`、`BRANCH_BUDGET_ENABLED=true`、`SKILL_PACKS_ENABLED=false`：开关默认值不等于质量结论；Round 033 只证明动态选择改变路由，未测得质量增益，见 [method_limits.md](docs/method_limits.md)。
+- `CONTEXT_PACKER_ENABLED=true`、`INJECTION_GUARD_ENABLED=false`、`RESEARCH_LOOP_ENABLED=false`、`DYNAMIC_CAPABILITY_ENABLED=true`、`BRANCH_BUDGET_ENABLED=true`、`SKILL_PACKS_ENABLED=false`：Round 087 的单开关 live A/B 已转正 context packer、numeric check、semantic judge 和 decision weaving；research loop、skill packs、trajectory record 与 progressive delivery 仍未观察到严格增益而保持关闭。开关默认值不等于所有主题的质量结论，见 [method_limits.md](docs/method_limits.md)。
 - MCP 不暴露任意文件读取或命令执行；server 只允许服务端自管运行目录，付费路径需要显式 `allow_paid`，本轮 fixture server 即使确认也拒绝 LLM 执行，见 [server.py](src/deepresearch_agent/mcp/server.py)。
 - 金融仍是当前唯一已实现的领域包；核心侧具体金融 import 由
   [`scripts/check_domain_boundary.py`](scripts/check_domain_boundary.py) 测量并以
