@@ -847,7 +847,97 @@
   "retry_queue_events": [],
   "schema_version": 1,
   "side_effects": {
-    "context_events": [],
+    "context_events": [
+      {
+        "budget": 200000,
+        "dropped": [
+          {
+            "evidence_id": "<normalized-id>",
+            "reason": "duplicate_content",
+            "token_estimate": 83
+          },
+          {
+            "evidence_id": "<normalized-id>",
+            "reason": "duplicate_content",
+            "token_estimate": 73
+          },
+          {
+            "evidence_id": "<normalized-id>",
+            "reason": "duplicate_content",
+            "token_estimate": 69
+          },
+          {
+            "evidence_id": "<normalized-id>",
+            "reason": "duplicate_content",
+            "token_estimate": 81
+          },
+          {
+            "evidence_id": "<normalized-id>",
+            "reason": "duplicate_content",
+            "token_estimate": 63
+          },
+          {
+            "evidence_id": "<normalized-id>",
+            "reason": "duplicate_content",
+            "token_estimate": 65
+          },
+          {
+            "evidence_id": "<normalized-id>",
+            "reason": "duplicate_content",
+            "token_estimate": 82
+          },
+          {
+            "evidence_id": "<normalized-id>",
+            "reason": "duplicate_content",
+            "token_estimate": 77
+          },
+          {
+            "evidence_id": "<normalized-id>",
+            "reason": "duplicate_content",
+            "token_estimate": 85
+          },
+          {
+            "evidence_id": "<normalized-id>",
+            "reason": "duplicate_content",
+            "token_estimate": 91
+          },
+          {
+            "evidence_id": "<normalized-id>",
+            "reason": "duplicate_content",
+            "token_estimate": 83
+          },
+          {
+            "evidence_id": "<normalized-id>",
+            "reason": "duplicate_content",
+            "token_estimate": 73
+          },
+          {
+            "evidence_id": "<normalized-id>",
+            "reason": "duplicate_content",
+            "token_estimate": 69
+          },
+          {
+            "evidence_id": "<normalized-id>",
+            "reason": "duplicate_content",
+            "token_estimate": 77
+          },
+          {
+            "evidence_id": "<normalized-id>",
+            "reason": "duplicate_content",
+            "token_estimate": 85
+          },
+          {
+            "evidence_id": "<normalized-id>",
+            "reason": "duplicate_content",
+            "token_estimate": 91
+          }
+        ],
+        "dropped_count": 16,
+        "node": "reporter",
+        "selected_count": 13,
+        "token_total": 1013
+      }
+    ],
     "degradation_events": [],
     "manifest": {
       "actual_provider_fidelity": {
@@ -859,7 +949,97 @@
       },
       "actual_realness": "mixed",
       "config_hash": "<normalized-config-hash>",
-      "context_events": [],
+      "context_events": [
+        {
+          "budget": 200000,
+          "dropped": [
+            {
+              "evidence_id": "<normalized-id>",
+              "reason": "duplicate_content",
+              "token_estimate": 83
+            },
+            {
+              "evidence_id": "<normalized-id>",
+              "reason": "duplicate_content",
+              "token_estimate": 73
+            },
+            {
+              "evidence_id": "<normalized-id>",
+              "reason": "duplicate_content",
+              "token_estimate": 69
+            },
+            {
+              "evidence_id": "<normalized-id>",
+              "reason": "duplicate_content",
+              "token_estimate": 81
+            },
+            {
+              "evidence_id": "<normalized-id>",
+              "reason": "duplicate_content",
+              "token_estimate": 63
+            },
+            {
+              "evidence_id": "<normalized-id>",
+              "reason": "duplicate_content",
+              "token_estimate": 65
+            },
+            {
+              "evidence_id": "<normalized-id>",
+              "reason": "duplicate_content",
+              "token_estimate": 82
+            },
+            {
+              "evidence_id": "<normalized-id>",
+              "reason": "duplicate_content",
+              "token_estimate": 77
+            },
+            {
+              "evidence_id": "<normalized-id>",
+              "reason": "duplicate_content",
+              "token_estimate": 85
+            },
+            {
+              "evidence_id": "<normalized-id>",
+              "reason": "duplicate_content",
+              "token_estimate": 91
+            },
+            {
+              "evidence_id": "<normalized-id>",
+              "reason": "duplicate_content",
+              "token_estimate": 83
+            },
+            {
+              "evidence_id": "<normalized-id>",
+              "reason": "duplicate_content",
+              "token_estimate": 73
+            },
+            {
+              "evidence_id": "<normalized-id>",
+              "reason": "duplicate_content",
+              "token_estimate": 69
+            },
+            {
+              "evidence_id": "<normalized-id>",
+              "reason": "duplicate_content",
+              "token_estimate": 77
+            },
+            {
+              "evidence_id": "<normalized-id>",
+              "reason": "duplicate_content",
+              "token_estimate": 85
+            },
+            {
+              "evidence_id": "<normalized-id>",
+              "reason": "duplicate_content",
+              "token_estimate": 91
+            }
+          ],
+          "dropped_count": 16,
+          "node": "reporter",
+          "selected_count": 13,
+          "token_total": 1013
+        }
+      ],
       "cost_cny_total": null,
       "decision_summary": [
         {
@@ -1168,6 +1348,25 @@
           "made_by": "BranchBudget",
           "outcome": "reallocated_toward_lower_metric_branches",
           "timestamp": "<normalized-timestamp>"
+        },
+        {
+          "alternatives_considered": [
+            "run_applicable_checks",
+            "no_applicable_relationships"
+          ],
+          "criterion": "run every applicable deterministic growth, share, sum, and unit-conversion relationship",
+          "decision_type": "numeric_consistency_scan",
+          "inputs": {
+            "absolute_tolerance": 0.01,
+            "check_count": 0,
+            "issue_count": 0,
+            "numeric_observation_count": 0,
+            "relative_tolerance": 0.01
+          },
+          "iteration": null,
+          "made_by": "CriticAgent",
+          "outcome": "checks=0, issues=0",
+          "timestamp": "<normalized-timestamp>"
         }
       ],
       "degradation_events": [],
@@ -1186,15 +1385,18 @@
       "flags": {
         "BRANCH_BUDGET_ENABLED": true,
         "CONFIG_FAIL_FAST_ENABLED": true,
-        "CONTEXT_PACKER_ENABLED": false,
+        "CONTEXT_PACKER_ENABLED": true,
         "CRITIC_ENABLED": true,
+        "DECISION_WEAVING_ENABLED": true,
         "DYNAMIC_CAPABILITY_ENABLED": true,
         "EXTRACTOR_ENABLED": true,
         "INJECTION_GUARD_ENABLED": false,
+        "NUMERIC_CHECK_ENABLED": true,
         "PROCEDURAL_MEMORY_ENABLED": false,
         "RERANK_ENABLED": true,
         "RERANK_FAIL_OPEN": true,
         "RUN_MANIFEST_ENABLED": true,
+        "SEMANTIC_JUDGE_ENABLED": true,
         "STRUCTURED_LOGGING_ENABLED": true,
         "STRUCTURED_OUTPUT_ENABLED": true,
         "TOOL_CONTRACT_ENABLED": true
@@ -1214,7 +1416,8 @@
         "extractor.md": "55d22d6195fc69c268cf9ae8bb7d6ffdc585dc226a614f42fbb5497f77e5374f",
         "judge.md": "2e87f85cb54673ab6f84e0f0fc4b8c108441757e20ecd9ec4c3416df5d893533",
         "planner.md": "17b835c94076ee30521a57fa45404435e6a34bc3b6614e9927d9dd81795d9bc2",
-        "reporter.md": "e4f904bb49296b3f21651fd84b233f3fd4ac3f3fbc6a7de3d616e33154728b2a"
+        "reporter.md": "e4f904bb49296b3f21651fd84b233f3fd4ac3f3fbc6a7de3d616e33154728b2a",
+        "semantic_judge.md": "34fef462bbec51f64200420d1004ddd5b6c6a5b4855102184f2ba065eb030d07"
       },
       "provider_identity": {
         "disclosure": "FixtureDisclosureSource",
