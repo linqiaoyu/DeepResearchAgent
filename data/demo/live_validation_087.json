@@ -1,0 +1,15 @@
+{
+  "schema_version": "087-live-validation-v1",
+  "source": "docs/decisions/087/result.md",
+  "scope": "finance_sut_only",
+  "corpus": {"documents": 60, "description": "frozen SEC 20-F corpus"},
+  "topics": 2,
+  "provider": "SecCompanyFactsProvider",
+  "reports": [
+    {"company": "NIO", "language": "中文", "reader_visible_lines": 13, "boilerplate_lines": 0, "answered_metrics": 2, "requested_metrics": 2, "derived_metrics": 1, "workflow_cost_cny": 0.08938328, "rag_cost_cny": 0.036652},
+    {"company": "PDD", "language": "英文", "reader_visible_lines": 11, "boilerplate_lines": 0, "answered_metrics": 1, "requested_metrics": 2, "explained_gap": true, "workflow_cost_cny": 0.09856776}
+  ],
+  "checks": {"structured_manifest": "PASS", "citation_closure": "PASS"},
+  "capability_ab": {"comparisons": 8, "promoted": 4, "kept_off": 4},
+  "additional_contingency_run": false
+}

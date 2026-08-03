@@ -1,63 +1,46 @@
 from __future__ import annotations
 
-import unittest
 import json
-import sqlite3
 import tempfile
+import unittest
 from pathlib import Path
 
+from scripts.build_site import _write_css
 from scripts.check_087_site_facts import check
 
 
 class SiteFactsTests(unittest.TestCase):
-    def test_final_showcase_matches_its_nio_package(self) -> None:
+    def test_checker_rejects_a_missing_reader_visible_live_fact(self) -> None:
+        facts_path = Path("data/demo/live_validation_087.json")
+        facts = json.loads(facts_path.read_text(encoding="utf-8"))
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            package = root / "package"
-            dist = root / "dist"
-            (package / "audit_bundle").mkdir(parents=True)
-            (package / "runtime").mkdir()
-            dist.mkdir()
-            (package / "audit_bundle" / "evidence.json").write_text(
-                json.dumps([{"evidence_id": "e-1"}]), encoding="utf-8"
-            )
+            dist = Path(tmp)
+            (dist / "assets").mkdir()
+            _write_css(dist / "assets" / "styles.css")
             (dist / "manifest.json").write_text(
                 json.dumps(
                     {
-                        "generated_from": str(package),
-                        "facts": {
-                            "display_numbers": ["12"],
-                            "workflow_cost": "0.1",
-                            "rag_cost": "0.2",
-                            "elapsed_seconds": "3",
-                            "evidence_total": "4",
-                            "cited_sources": "5",
-                        },
+                        "generated_from": {"live_validation": str(facts_path)},
+                        "live_validation": facts,
                     }
                 ),
                 encoding="utf-8",
             )
-            with sqlite3.connect(package / "runtime" / "research.db") as conn:
-                conn.execute("CREATE TABLE evidence (id TEXT PRIMARY KEY)")
-                conn.execute("INSERT INTO evidence VALUES ('source-1')")
             (dist / "index.html").write_text(
-                "".join(
-                    f'<section data-screen="{index}"></section>'
-                    for index in range(5)
-                )
-                + "".join(
-                    f'<article data-capability="FLAG_{index}"></article>'
-                    for index in range(25)
-                )
-                + '<span data-fact="12" data-evidence-id="e-1">12</span>'
-                + '<blockquote data-source-evidence-id="source-1"></blockquote>',
+                "ROUND 087 · FINAL LIVE VALIDATION NIO 中文报告 PDD 英文报告 "
+                "13 11 SecCompanyFactsProvider 金融 SUT",
                 encoding="utf-8",
             )
-            values = check(dist, package)
+            (dist / "methodology.html").write_text(
+                "Round 087 最终 live 验证 SecCompanyFactsProvider 60 finance SUT",
+                encoding="utf-8",
+            )
+            values = check(dist, facts_path)
+            self.assertEqual(values["stylesheet_matches_cfca7fb"], 1)
 
-        self.assertEqual(values["unmatched_numbers"], 0)
-        self.assertEqual(values["external_requests"], 0)
-        self.assertEqual(values["noscript_readable_sections"], 5)
+            (dist / "index.html").write_text("NIO 中文报告", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "site home misses"):
+                check(dist, facts_path)
 
 
 if __name__ == "__main__":

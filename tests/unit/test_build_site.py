@@ -8,9 +8,11 @@ from scripts.build_site import (
     _assert_release_safety,
     _assert_showcase_contract,
     _assert_site,
+    _home_page,
     _markdown_to_html,
     _rag_page,
     _release_build_log,
+    _validate_live_validation,
 )
 
 
@@ -45,7 +47,10 @@ class StaticSiteBuildTests(unittest.TestCase):
         home = " ".join(
             (
                 "RESEARCH, WITH RECEIPTS",
-                "无实时 LLM、搜索或付费调用",
+                "ROUND 087 · FINAL LIVE VALIDATION",
+                "NIO 中文",
+                "PDD 英文",
+                "金融 SUT",
                 "浏览精选报告",
                 "MEASURABLE, NOT MERELY CLAIMED",
                 "RELEASE DISCIPLINE",
@@ -56,26 +61,42 @@ class StaticSiteBuildTests(unittest.TestCase):
 
         with self.assertRaises(SystemExit):
             _assert_showcase_contract(
-                home.replace("无实时 LLM、搜索或付费调用", ""), stylesheet
+                home.replace("ROUND 087 · FINAL LIVE VALIDATION", ""), stylesheet
             )
+
+    def test_home_page_exposes_the_reviewed_round_087_facts(self) -> None:
+        live = {
+            "schema_version": "087-live-validation-v1",
+            "scope": "finance_sut_only",
+            "corpus": {"documents": 60},
+            "topics": 2,
+            "provider": "SecCompanyFactsProvider",
+            "reports": [
+                {"company": "NIO", "language": "中文", "reader_visible_lines": 13, "boilerplate_lines": 0, "answered_metrics": 2, "requested_metrics": 2, "derived_metrics": 1, "workflow_cost_cny": 0.08938328, "rag_cost_cny": 0.036652},
+                {"company": "PDD", "language": "英文", "reader_visible_lines": 11, "boilerplate_lines": 0, "answered_metrics": 1, "requested_metrics": 2, "explained_gap": True, "workflow_cost_cny": 0.09856776},
+            ],
+            "checks": {"structured_manifest": "PASS", "citation_closure": "PASS"},
+            "capability_ab": {"comparisons": 8, "promoted": 4, "kept_off": 4},
+            "additional_contingency_run": False,
+        }
+        _validate_live_validation(live)
+        page = _home_page({"summary": {}}, {"retrieval_as_of": "2026-07-09"}, live)
+        for value in ("NIO 中文报告", "PDD 英文报告", "4/8", "金融 SUT"):
+            self.assertIn(value, page)
+
+        live["reports"][0]["reader_visible_lines"] = 12
+        with self.assertRaisesRegex(SystemExit, "NIO live-validation facts"):
+            _validate_live_validation(live)
 
     def test_social_share_card_is_project_owned_png(self) -> None:
         card = Path("site/social/og.png")
         self.assertTrue(card.is_file())
         self.assertEqual(card.read_bytes()[:8], b"\x89PNG\r\n\x1a\n")
 
-    def test_rag_page_keeps_the_negative_quality_result_and_rerank_limit(self) -> None:
-        page = _rag_page(
-            {
-                "corpus": {"version": "finance_v1", "documents": 60, "chunks": 22953, "fingerprint": "f" * 64},
-                "index": {"version": "idx-v1", "rebuild_seconds": 1.0, "cost_cny": 0.1},
-                "retrieval": {"bm25": {"recall_at_20": 0.0, "ndcg_at_10": 0.0}, "hybrid_rerank": {"recall_at_20": 0.1, "ndcg_at_10": 0.0}, "quality_gate": "FAIL", "decision": "No retuning."},
-                "trace": {"kind": "real probe", "lexical_candidates": 50, "dense_candidates": 50, "delivered_candidates": 8, "rerank_status": "ok", "cost_cny": 0.1},
-                "limitations": ["rerank 默认开启，其单项检索收益在本轮未经测量；展示的提升数字来自整条流水线，不可归因到 rerank。"],
-            }
-        )
-        self.assertIn("质量门槛：<strong>FAIL</strong>", page)
-        self.assertIn("不可归因到 rerank", page)
+    def test_rag_page_keeps_the_current_default_boundary_and_rerank_limit(self) -> None:
+        page = _rag_page()
+        self.assertIn("当前默认路径不启用 RAG", page)
+        self.assertIn("没有将任何整条流水线提升归因给 rerank", page)
 
     def test_references_are_deduplicated_and_citations_are_remapped(self) -> None:
         rendered = _markdown_to_html(

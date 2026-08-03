@@ -104,6 +104,18 @@ def run_gate() -> None:
         ("report_shape", [sys.executable, "scripts/check_087_report_shape.py", "--self-test"]),
         ("readme_facts", [sys.executable, "scripts/check_087_readme_facts.py", "--self-test"]),
         ("unittest", [sys.executable, "-m", "unittest", "discover", "-s", "tests"]),
+        ("site_build", [sys.executable, "scripts/build_site.py"]),
+        (
+            "site_current_facts",
+            [
+                sys.executable,
+                "scripts/check_087_site_facts.py",
+                "--dist",
+                "site/dist",
+                "--facts",
+                "data/demo/live_validation_087.json",
+            ],
+        ),
         ("demo_smoke", [sys.executable, "scripts/run_demo.py", "--output", "artifacts/ci_demo/report.md"]),
         (
             "eval_smoke",

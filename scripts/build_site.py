@@ -6,7 +6,6 @@ import html
 import json
 import re
 import shutil
-import sqlite3
 import sys
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -18,11 +17,7 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from deepresearch_agent.provenance import (  # noqa: E402
-    FLAG_CLASSIFICATIONS,
-    RunManifest,
-    settings_flag_snapshot,
-)
+from deepresearch_agent.provenance import RunManifest  # noqa: E402
 from deepresearch_agent.research_snapshot import (  # noqa: E402
     build_demo_followup,
     build_research_snapshot,
@@ -33,15 +28,13 @@ from deepresearch_agent.settings import Settings  # noqa: E402
 from deepresearch_agent.structured_output import build_structured_output  # noqa: E402
 
 DIST = ROOT / "site" / "dist"
-FINAL_NIO_PACKAGE = ROOT / "artifacts" / "087" / "live-nio-zh"
-AB_RESULTS_PATH = ROOT / "_collab" / "087" / "ab" / "results.json"
 SHOWCASE_PATH = ROOT / "data" / "demo" / "g3_showcase.json"
 G3_PATH = ROOT / "data" / "golden_set" / "v1" / "results" / "g3_judge_v11.json"
 CITATION_PATH = ROOT / "data" / "golden_set" / "v1" / "results" / "g3_citation_support_3s.json"
 AUDIT_PATH = ROOT / "data" / "golden_set" / "v1" / "audit_v11.json"
 FREEZE_PATH = ROOT / "data" / "golden_set" / "v1" / "freeze.md"
 BUSINESS_FIXTURE_PATH = ROOT / "tests" / "golden_output" / "wealth_research.json"
-RAG_RELEASE_EVIDENCE_PATH = ROOT / "data" / "round" / "047_release_evidence.json"
+LIVE_VALIDATION_PATH = ROOT / "data" / "demo" / "live_validation_087.json"
 FORBIDDEN_V10_NUMBERS = ("0.7803", "0.7999")
 HISTORICAL_JUDGE_DECOMPOSITION = "0.6134 + 0.1865 - 0.0585 = 0.7414"
 RELEASE_LEAK_PATTERNS = {
@@ -56,22 +49,53 @@ RELEASE_TEXT_SUFFIXES = {".css", ".html", ".json", ".md", ".txt"}
 
 
 def main() -> None:
-    facts = _final_showcase_facts(FINAL_NIO_PACKAGE)
+    showcase = _read_json(SHOWCASE_PATH)
+    g3 = _read_json(G3_PATH)
+    citation = _read_json(CITATION_PATH)
+    audit = _read_json(AUDIT_PATH)
+    live_validation = _read_json(LIVE_VALIDATION_PATH)
+    freeze = FREEZE_PATH.read_text(encoding="utf-8")
+    validation = _validate_release_assets(showcase, g3, citation, audit, freeze)
+    _validate_live_validation(live_validation)
+    business = _business_scenario_from_fixture()
     if DIST.exists():
         shutil.rmtree(DIST)
     (DIST / "assets").mkdir(parents=True)
-    _write_final_css(DIST / "assets" / "styles.css")
-    (DIST / "index.html").write_text(
-        _final_home_page(facts), encoding="utf-8"
+    (DIST / "reports").mkdir(parents=True)
+    shutil.copy2(ROOT / "site" / "social" / "og.png", DIST / "assets" / "og.png")
+    _write_css(DIST / "assets" / "styles.css")
+    reports = showcase["reports"]
+    _write_page("index.html", _home_page(showcase, validation, live_validation))
+    _write_page(
+        "methodology.html", _methodology_page(showcase, validation, live_validation)
     )
-    _assert_site(DIST)
+    _write_page("rag.html", _rag_page())
+    _write_page("reproduce.html", _reproduce_page())
+    _write_page("scenarios.html", _business_scenario_page(business))
+    _write_page(
+        "business-report.html",
+        _business_report_page(business),
+    )
+    _write_page("reports/index.html", _reports_index(reports))
+    for report in reports:
+        _write_page(f"reports/{report['id']}.html", _report_page(report, validation["retrieval_as_of"]))
+    _assert_site(DIST, business)
     _assert_showcase_contract(
         (DIST / "index.html").read_text(encoding="utf-8"),
         (DIST / "assets" / "styles.css").read_text(encoding="utf-8"),
     )
     manifest = {
-        "generated_from": "artifacts/087/live-nio-zh",
-        "facts": facts,
+        "generated_from": {
+            "showcase": str(SHOWCASE_PATH.relative_to(ROOT)),
+            "g3_judge": str(G3_PATH.relative_to(ROOT)),
+            "citation_support": str(CITATION_PATH.relative_to(ROOT)),
+            "audit": str(AUDIT_PATH.relative_to(ROOT)),
+            "freeze": str(FREEZE_PATH.relative_to(ROOT)),
+            "business_fixture": str(BUSINESS_FIXTURE_PATH.relative_to(ROOT)),
+            "live_validation": str(LIVE_VALIDATION_PATH.relative_to(ROOT)),
+        },
+        "validation": validation,
+        "live_validation": live_validation,
         "files": sorted(str(path.relative_to(DIST)) for path in DIST.rglob("*") if path.is_file()),
     }
     (DIST / "manifest.json").write_text(
@@ -80,202 +104,6 @@ def main() -> None:
     build_log = _release_build_log(len(manifest["files"]) + 1)
     _assert_release_safety(DIST, build_log)
     print(build_log, end="")
-
-
-def _final_showcase_facts(package: Path) -> dict[str, Any]:
-    report = (package / "report.md").read_text(encoding="utf-8")
-    evidence = _read_json(package / "audit_bundle" / "evidence.json")
-    manifest = _read_json(package / "audit_bundle" / "manifest.json")
-    reader_audit = _read_json(package / "audit_bundle" / "reader_audit.json")
-    if not isinstance(evidence, list) or len(evidence) < 2:
-        raise SystemExit("final showcase needs at least two final-package evidence records")
-    values = re.findall(r"(?<![\w,])\d[\d,]*(?:\.\d+)?%?", report)
-    gross = next((item for item in evidence if item.get("structured_record", {}).get("metric_name") == "毛利"), None)
-    revenue = next((item for item in evidence if item.get("structured_record", {}).get("metric_name") == "营业收入"), None)
-    if not isinstance(gross, dict) or not isinstance(revenue, dict):
-        raise SystemExit("final showcase needs gross-profit and revenue evidence")
-    started = datetime.fromisoformat(manifest["started_at"].replace("Z", "+00:00"))
-    ended = datetime.fromisoformat(manifest["ended_at"].replace("Z", "+00:00"))
-    rag_cost = sum(
-        float(json.loads(line).get("cost_cny", 0))
-        for line in (package / "runtime" / "rag_ledger.jsonl").read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    )
-    with sqlite3.connect(package / "runtime" / "research.db") as conn:
-        evidence_total = conn.execute("SELECT COUNT(*) FROM evidence").fetchone()[0]
-        source_row = conn.execute(
-            """
-            SELECT id, extract_text FROM evidence
-            WHERE source_url LIKE ? AND extract_text LIKE ?
-            LIMIT 1
-            """,
-            ("%nio-20241231x20f.htm%", "%Total revenues%"),
-        ).fetchone()
-    source_origin = "run"
-    if source_row is None:
-        source_origin = "registered_corpus"
-        with sqlite3.connect(ROOT / "data" / "runtime" / "085-assets.db") as conn:
-            source_row = conn.execute(
-                """
-                SELECT c.id, c.content
-                FROM chunk AS c
-                JOIN document_version AS dv ON c.document_version_id = dv.id
-                JOIN document AS d ON dv.document_id = d.id
-                WHERE d.canonical_url LIKE ? AND c.content LIKE ?
-                LIMIT 1
-                """,
-                ("%nio-20241231x20f.htm", "%65,731,559%"),
-            ).fetchone()
-    if source_row is None:
-        raise SystemExit("final showcase needs the NIO 20-F revenue excerpt")
-    source_id, source_excerpt = source_row
-    source_excerpt = html.unescape(str(source_excerpt)).replace("\u200b", " ")
-    source_excerpt = re.sub(r"\s+", " ", source_excerpt)
-    source_amount = next(
-        value
-        for value in re.findall(r"\d[\d,]*(?:\.\d+)?", source_excerpt)
-        if value == "65,731,559"
-    )
-    source_position = source_excerpt.index(source_amount)
-    excerpt_start = max(0, source_position - 360)
-    excerpt_end = min(len(source_excerpt), source_position + 440)
-    if excerpt_start:
-        excerpt_start = source_excerpt.find(" ", excerpt_start) + 1
-    if excerpt_end < len(source_excerpt):
-        excerpt_end = source_excerpt.rfind(" ", 0, excerpt_end)
-    source_excerpt = source_excerpt[excerpt_start:excerpt_end]
-    cited_sources = len(re.findall(r"^\[\^\d+\]:", report, re.MULTILINE))
-    capabilities = _capability_matrix()
-    display_numbers = values + [
-        f"{float(manifest['cost_cny_total']):.8f}",
-        f"{rag_cost:.7f}",
-        str(round((ended - started).total_seconds(), 3)),
-        str(evidence_total),
-        str(cited_sources),
-        source_amount,
-        *re.findall(r"\d[\d,]*(?:\.\d+)?%?", source_excerpt),
-        *(value for item in capabilities for value in item["numbers"]),
-    ]
-    return {
-        "package": str(package.relative_to(ROOT)),
-        "report_opening": report.splitlines()[:3],
-        "report": report,
-        "gross": str(gross["structured_record"]["value"]),
-        "revenue": str(revenue["structured_record"]["value"]),
-        "margin": next(value for value in values if value.endswith("%")),
-        "gross_evidence_id": str(gross["evidence_id"]),
-        "revenue_evidence_id": str(revenue["evidence_id"]),
-        "source_excerpt": str(source_excerpt),
-        "source_evidence_id": str(source_id),
-        "source_origin": source_origin,
-        "source_amount": source_amount,
-        "workflow_cost": f"{float(manifest['cost_cny_total']):.8f}",
-        "rag_cost": f"{rag_cost:.7f}",
-        "elapsed_seconds": str(round((ended - started).total_seconds(), 3)),
-        "evidence_total": str(evidence_total),
-        "cited_sources": str(cited_sources),
-        "provider_fidelity": {
-            key: str(manifest["actual_provider_fidelity"][key])
-            for key in ("llm", "search", "rag_search", "structured_data")
-        },
-        "audit_closure": str(reader_audit["audit_citation_closure"]),
-        "capabilities": capabilities,
-        "display_numbers": display_numbers,
-    }
-
-
-def _capability_matrix() -> list[dict[str, Any]]:
-    try:
-        from scripts.check_087_report_shape import measure
-    except ModuleNotFoundError:
-        from check_087_report_shape import measure
-
-    payload = _read_json(AB_RESULTS_PATH)
-    pairs = {item["capability"]: item for item in payload["pairs"]}
-    flags = settings_flag_snapshot(
-        Settings(storage_path=Path("research.db")),
-        include_disabled_experimental=True,
-    )
-    capabilities: list[dict[str, Any]] = []
-    for flag in sorted(FLAG_CLASSIFICATIONS):
-        capability = flag.removesuffix("_ENABLED")
-        pair = pairs.get(capability)
-        if pair is None:
-            capabilities.append(
-                {
-                    "flag": flag,
-                    "default": bool(flags[flag]),
-                    "decision": "not_measured",
-                    "numbers": [],
-                }
-            )
-            continue
-        paths = [
-            (AB_RESULTS_PATH.parent / pair[name]).resolve()
-            for name in ("off_package", "on_package")
-        ]
-        visible = [
-            measure((path / "report.md").read_text(encoding="utf-8"))["reader_visible_lines"]
-            for path in paths
-        ]
-        capabilities.append(
-            {
-                "flag": flag,
-                "default": bool(flags[flag]),
-                "decision": pair["decision"],
-                "numbers": [str(value) for value in visible],
-            }
-        )
-    if len(capabilities) != len(FLAG_CLASSIFICATIONS):
-        raise SystemExit("final showcase capability matrix is incomplete")
-    return capabilities
-
-
-def _fact(value: str, *, evidence_id: str | None = None) -> str:
-    identity = f' data-evidence-id="{html.escape(evidence_id)}"' if evidence_id else ""
-    return f'<span class="fact" data-fact="{html.escape(value)}"{identity}>{html.escape(value)}</span>'
-
-
-def _final_home_page(facts: dict[str, Any]) -> str:
-    opening = "<br>".join(html.escape(line) for line in facts["report_opening"])
-    gross = _fact(facts["gross"], evidence_id=facts["gross_evidence_id"])
-    revenue = _fact(facts["revenue"], evidence_id=facts["revenue_evidence_id"])
-    margin = _fact(facts["margin"], evidence_id=facts["gross_evidence_id"])
-    source_amount = _fact(
-        facts["source_amount"], evidence_id=facts["revenue_evidence_id"]
-    )
-    source_excerpt = html.escape(facts["source_excerpt"]).replace(
-        html.escape(facts["source_amount"]),
-        f"<mark>{source_amount}</mark>",
-    )
-    cards = "".join(_capability_card(item) for item in facts["capabilities"])
-    fidelity = facts["provider_fidelity"]
-    return f'''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DeepResearchAgent · 可审计投研</title><link rel="stylesheet" href="assets/styles.css"></head><body data-showcase="087"><main>
-<section data-screen="one" class="screen hero"><p class="eyebrow">FINANCIAL RESEARCH, WITH RECEIPTS</p><h1>让结论<br>回到原文。</h1><p class="opening">{opening}</p></section>
-<section data-screen="two" class="screen proof"><p class="eyebrow">NUMBER → SOURCE</p><h2>数字不是终点。它有来处。</h2><div class="mapping"><p>营业收入 {revenue}</p><i aria-hidden="true"></i><blockquote data-source-evidence-id="{html.escape(facts['source_evidence_id'])}">{source_excerpt}</blockquote></div><p class="formula">毛利率（推导值）：{gross} / {revenue} = {margin}</p></section>
-<section data-screen="three" class="screen"><p class="eyebrow">MEASURED CAPABILITIES</p><h2>能力，先用真实运行说话。</h2><div class="capability-matrix">{cards}</div></section>
-<section data-screen="four" class="screen bill"><p class="eyebrow">ONE REAL RUN</p><h2>一次报告的账单。</h2><dl><div><dt>workflow CNY</dt><dd>{_fact(facts['workflow_cost'])}</dd></div><div><dt>RAG CNY</dt><dd>{_fact(facts['rag_cost'])}</dd></div><div><dt>elapsed seconds</dt><dd>{_fact(facts['elapsed_seconds'])}</dd></div><div><dt>evidence → cited sources</dt><dd>{_fact(facts['evidence_total'])} → {_fact(facts['cited_sources'])}</dd></div></dl><ul class="fidelity"><li>LLM: {html.escape(fidelity['llm'])}</li><li>Search + RAG: {html.escape(fidelity['search'])} / {html.escape(fidelity['rag_search'])}</li><li>Structured data: {html.escape(fidelity['structured_data'])}</li></ul><p>citation closure={html.escape(facts['audit_closure'])}</p></section>
-<section data-screen="five" class="screen"><p class="eyebrow">REPRODUCE</p><h2>从本地 fixture 开始。</h2><pre>python3 -m venv .venv\n.venv/bin/python -m pip install -e ".[dev]"\n.venv/bin/python scripts/gate.py</pre></section>
-</main><noscript>五个页面区块均以静态 HTML 输出；禁用 JavaScript 仍可完整阅读。</noscript></body></html>'''
-
-
-def _capability_card(item: dict[str, Any]) -> str:
-    state = "亮态" if item["decision"] == "promoted" else "暗态"
-    if item["decision"] == "not_measured":
-        detail = "未纳入单次 A/B；保持默认"
-    else:
-        left, right = (_fact(value) for value in item["numbers"])
-        outcome = "实测增益" if item["decision"] == "promoted" else "已实现，实测无增益"
-        detail = f"{outcome}：读者行 {left} → {right}"
-    default = "默认开启" if item["default"] else "默认关闭"
-    return (
-        f'<article class="capability {state}" data-capability="{html.escape(item["flag"])}">'
-        f"<b>{html.escape(item['flag'])}</b><span>{default}</span><p>{detail}</p></article>"
-    )
-
-
-def _write_final_css(path: Path) -> None:
-    path.write_text('''*{box-sizing:border-box}body{margin:0;background:#f7f7f5;color:#161616;font:18px/1.6 ui-sans-serif,system-ui}.screen{min-height:100vh;max-width:1100px;margin:auto;padding:12vh 7vw;border-bottom:1px solid #ddd}.hero{display:grid;align-content:center}.hero h1{font-size:clamp(64px,12vw,160px);line-height:.9;letter-spacing:-.08em;margin:0}.eyebrow{font-size:.72rem;letter-spacing:.18em;font-weight:800;color:#52706a}.opening{font-family:ui-monospace,monospace;margin-top:3rem}.proof h2{font-size:clamp(42px,7vw,92px);line-height:1;margin:0 0 4rem}.mapping{display:grid;grid-template-columns:1fr 90px 1fr;align-items:center;gap:20px}.mapping i{height:2px;background:#52706a;animation:draw 2s ease-in-out infinite alternate}.mapping blockquote{margin:0;padding:24px;border:1px solid #bbb;font-family:ui-monospace,monospace}.mapping mark{background:#e9e66b;padding:0 3px}.formula{font-size:clamp(24px,4vw,52px);margin-top:4rem}.fact{font-variant-numeric:tabular-nums;font-weight:800}.capability-matrix{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}.capability{padding:16px;border:1px solid #bbb;background:#fff}.capability b,.capability span{display:block}.capability b{font-size:.72rem;overflow-wrap:anywhere}.capability span{font-size:.7rem;color:#666}.capability p{font-size:.76rem;margin:.7rem 0 0}.capability.亮态{border-color:#52706a;background:#e6f0ec}.capability.暗态{opacity:.75}.fidelity{padding:0;list-style:none;display:grid;gap:8px}.fidelity li{padding:10px;background:#fff;border-left:3px solid #52706a}dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}dl div,pre{padding:24px;background:#fff;border:1px solid #ddd}dt{font-size:.75rem;color:#666;text-transform:uppercase}dd{margin:.5rem 0 0;font-size:clamp(24px,4vw,50px)}pre{white-space:pre-wrap;overflow:auto}@keyframes draw{from{transform:scaleX(.2);transform-origin:left}to{transform:scaleX(1)}}@media(max-width:650px){.mapping,dl{grid-template-columns:1fr}.mapping i{width:2px;height:48px;justify-self:center;animation:none}}''', encoding="utf-8")
 
 
 def _validate_release_assets(
@@ -324,40 +152,57 @@ def _validate_release_assets(
     }
 
 
-def _validate_rag_release_evidence(evidence: dict[str, Any]) -> None:
-    required = ("corpus", "index", "retrieval", "trace", "limitations")
-    if evidence.get("schema_version") != "047-release-evidence-v1" or any(key not in evidence for key in required):
-        raise SystemExit("RAG release evidence has an invalid schema")
-    if evidence["corpus"].get("documents") != 60 or evidence["corpus"].get("chunks") != 22953:
-        raise SystemExit("RAG release evidence corpus summary is not the reviewed 047 result")
-    if evidence["retrieval"].get("quality_gate") != "FAIL":
-        raise SystemExit("RAG release evidence must retain the 047 quality-gate result")
+def _validate_live_validation(live: dict[str, Any]) -> None:
+    """Keep reader-visible Round 087 claims tied to its reviewed decision."""
+
+    reports = live.get("reports")
+    if not isinstance(reports, list) or len(reports) != 2:
+        raise SystemExit("live validation must contain exactly two final reports")
+    by_company = {report.get("company"): report for report in reports}
+    nio, pdd = by_company.get("NIO"), by_company.get("PDD")
+    if live.get("schema_version") != "087-live-validation-v1":
+        raise SystemExit("live validation schema is not the reviewed Round 087 version")
+    if live.get("scope") != "finance_sut_only" or live.get("topics") != 2:
+        raise SystemExit("live validation scope must remain limited to the finance SUT")
+    if live.get("corpus", {}).get("documents") != 60:
+        raise SystemExit("live validation must retain the 60-document corpus boundary")
+    if live.get("provider") != "SecCompanyFactsProvider":
+        raise SystemExit("live validation provider differs from the final decision")
+    if not isinstance(nio, dict) or not isinstance(pdd, dict):
+        raise SystemExit("live validation must name the NIO and PDD final reports")
+    if (
+        nio.get("language") != "中文"
+        or nio.get("reader_visible_lines") != 13
+        or nio.get("boilerplate_lines") != 0
+        or nio.get("answered_metrics") != 2
+        or nio.get("requested_metrics") != 2
+        or nio.get("derived_metrics") != 1
+        or nio.get("workflow_cost_cny") != 0.08938328
+        or nio.get("rag_cost_cny") != 0.036652
+    ):
+        raise SystemExit("NIO live-validation facts differ from the final decision")
+    if (
+        pdd.get("language") != "英文"
+        or pdd.get("reader_visible_lines") != 11
+        or pdd.get("boilerplate_lines") != 0
+        or pdd.get("answered_metrics") != 1
+        or pdd.get("requested_metrics") != 2
+        or pdd.get("explained_gap") is not True
+        or pdd.get("workflow_cost_cny") != 0.09856776
+    ):
+        raise SystemExit("PDD live-validation facts differ from the final decision")
+    if live.get("checks") != {"structured_manifest": "PASS", "citation_closure": "PASS"}:
+        raise SystemExit("live validation checks must remain closed")
+    if live.get("capability_ab") != {"comparisons": 8, "promoted": 4, "kept_off": 4}:
+        raise SystemExit("live validation A/B summary differs from the final decision")
+    if live.get("additional_contingency_run") is not False:
+        raise SystemExit("live validation must record that no contingency run was used")
 
 
 def _assert_site(
     dist: Path,
     business: dict[str, Any] | None = None,
 ) -> None:
-    index = dist / "index.html"
-    if index.is_file() and 'data-showcase="087"' in index.read_text(encoding="utf-8"):
-        text = index.read_text(encoding="utf-8")
-        screens = re.findall(r'<section data-screen="([^"]+)"', text)
-        mappings = re.findall(
-            r'data-fact="[^"]+" data-evidence-id="([^"]+)"', text
-        )
-        capabilities = re.findall(r'data-capability="([^"]+)"', text)
-        source_mappings = re.findall(
-            r'data-source-evidence-id="([^"]+)"', text
-        )
-        if len(screens) != 5 or len(set(screens)) != 5:
-            raise SystemExit("final showcase must expose five readable screens")
-        if not mappings:
-            raise SystemExit("final showcase needs a number-to-evidence mapping")
-        if len(capabilities) != 25 or len(set(capabilities)) != 25:
-            raise SystemExit("final showcase must expose the full capability matrix")
-        if len(source_mappings) != 1:
-            raise SystemExit("final showcase needs one highlighted source mapping")
-        return
     pages = sorted((dist / "reports").glob("Q*.html"))
     if not pages:
         raise SystemExit("site has no report pages")
@@ -404,28 +249,12 @@ def _assert_site(
 
 
 def _assert_showcase_contract(home: str, stylesheet: str) -> None:
-    if 'data-showcase="087"' in home:
-        required_home = (
-            "NUMBER → SOURCE",
-            "MEASURED CAPABILITIES",
-            "ONE REAL RUN",
-            "REPRODUCE",
-            "毛利率（推导值）",
-            "capability-matrix",
-            "Structured data:",
-        )
-        if any(token not in home for token in required_home):
-            raise SystemExit("final showcase is missing a required screen")
-        if (
-            "@keyframes draw" not in stylesheet
-            or ".mapping" not in stylesheet
-            or ".capability-matrix" not in stylesheet
-        ):
-            raise SystemExit("final showcase is missing its progressive motion mapping")
-        return
     required_home = (
         "RESEARCH, WITH RECEIPTS",
-        "无实时 LLM、搜索或付费调用",
+        "ROUND 087 · FINAL LIVE VALIDATION",
+        "NIO 中文",
+        "PDD 英文",
+        "金融 SUT",
         "浏览精选报告",
         "MEASURABLE, NOT MERELY CLAIMED",
         "RELEASE DISCIPLINE",
@@ -491,29 +320,33 @@ def _layout(title: str, content: str) -> str:
 <a class="nav-github" href="https://github.com/linqiaoyu/DeepResearchAgent">GitHub ↗</a></nav></header><main id="content">{content}</main><footer><span>DeepResearchAgent</span><span>静态展示 · 冻结语料 · 可审计产物</span></footer></body></html>"""
 
 
-def _home_page(showcase: dict[str, Any], validation: dict[str, Any]) -> str:
-    summary = showcase["summary"]
+def _home_page(
+    showcase: dict[str, Any], validation: dict[str, Any], live: dict[str, Any]
+) -> str:
+    nio, pdd = live["reports"]
     cards = [
-        ("G3 综合评分", _fmt4(summary["avg_weighted_score"]), "冻结语料上的多维中位数"),
-        ("事实准确性", _fmt4(summary["avg_fact_accuracy"]), "按锁定量规评分"),
-        ("引用支持率", _fmt4(summary["avg_citation_support_rate"]), "逐 claim、三次采样多数决"),
-        ("引用可解析率", _fmt4(summary["avg_citation_resolution_rate"]), "脚注可追溯至原始来源"),
+        ("NIO 中文报告", f"{nio['reader_visible_lines']} 行", "0 条样板噪声；2/2 指标回答，含 1 个派生指标"),
+        ("PDD 英文报告", f"{pdd['reader_visible_lines']} 行", "0 条样板噪声；1/2 指标回答，并明确说明缺口"),
+        ("受控 live A/B", f"{live['capability_ab']['promoted']}/{live['capability_ab']['comparisons']}", "四项转正，四项保持关闭"),
+        ("最终报告检查", "2/2", "structured manifest 与 citation closure 均通过"),
     ]
     return _layout(
         "首页",
         f"""<section class="hero hero-home"><div class="hero-copy"><p class="eyebrow">RESEARCH, WITH RECEIPTS</p><h1>让每一个研究结论，都经得起回看。</h1>
-<p class="hero-lede">DeepResearchAgent 将研究、引文、数值审计与评测发布连接成一条可复核的交付链路。这里展示的是冻结资产构建的静态成果，而非模拟的在线服务。</p>
+<p class="hero-lede">DeepResearchAgent 将研究、引文、数值审计与评测发布连接成一条可复核的交付链路。Round 087 的最终验证覆盖中文 NIO 与英文 PDD 两份报告；证据仅适用于金融 SUT，不宣称已经完成通用领域实现。</p>
 <div class="hero-actions"><a class="button button-primary" href="reports/index.html">浏览精选报告 <span>→</span></a><a class="button button-quiet" href="methodology.html">查看评测证据</a></div>
-<p class="boundary-note"><span></span> 检索语料截至 {validation['retrieval_as_of']} · 无实时 LLM、搜索或付费调用</p></div>
-<aside class="proof-panel" aria-label="发布核验摘要"><div class="proof-top"><span>RELEASE CHECK</span><b>VERIFIED</b></div><div class="score-orbit"><strong>{_fmt4(summary['avg_weighted_score'])}</strong><span>G3 composite</span></div><div class="proof-lines"><p><i></i><span>证据引用已解析</span><b>{_fmt4(summary['avg_citation_resolution_rate'])}</b></p><p><i></i><span>错误前提已识别</span><b>{summary['false_premise']['passed']}/2</b></p><p><i></i><span>数值审计缺陷</span><b>{validation['audit_counts']['DEFECT']}</b></p></div><div class="proof-caption">Golden v1.1 · 发布态</div></aside></section>
+<p class="boundary-note"><span></span> 冻结 {live['corpus']['documents']} 文档 SEC 20-F 语料 · 公开页不发起实时调用</p></div>
+<aside class="proof-panel" aria-label="发布核验摘要"><div class="proof-top"><span>ROUND 087 · FINAL LIVE VALIDATION</span><b>VERIFIED</b></div><div class="score-orbit"><strong>{len(live['reports'])}</strong><span>final reports</span></div><div class="proof-lines"><p><i></i><span>NIO 中文 · 读者可见行</span><b>{nio['reader_visible_lines']}</b></p><p><i></i><span>PDD 英文 · 读者可见行</span><b>{pdd['reader_visible_lines']}</b></p><p><i></i><span>引用闭合 / 结构化 manifest</span><b>PASS</b></p></div><div class="proof-caption">{live['provider']} · {live['corpus']['documents']} 文档冻结语料</div></aside></section>
 <section class="metric-section"><div class="section-kicker"><p class="eyebrow">MEASURABLE, NOT MERELY CLAIMED</p><h2>把可靠性变成可检查的交付物。</h2></div><div class="cards metric-cards">{''.join(_card(label, value, detail) for label, value, detail in cards)}</div></section>
-<section class="story-grid"><div class="story-intro"><p class="eyebrow">FROM QUESTION TO EVIDENCE</p><h2>不是一段“看起来像答案”的文字。</h2><p>每份展示报告将研究结论与来源脚注并列呈现；发布前经过引用支持抽样、数值与口径检查，以及冻结评测回归。</p><a class="text-link" href="scenarios.html">查看端到端工作流 <span>→</span></a></div><div class="chain"><article><span>01</span><h3>计划与取证</h3><p>拆解问题，按来源和期间组织可追溯证据。</p></article><article><span>02</span><h3>审校与回流</h3><p>将数字、口径、引用与不确定性置于同一审计链。</p></article><article><span>03</span><h3>发布与复现</h3><p>以固定版本资产生成报告、指标与发布清单。</p></article></div></section>
-<section class="release-section"><div><p class="eyebrow">RELEASE DISCIPLINE</p><h2>展示的每个数字，都有自己的位置。</h2></div><div class="release-grid"><article><b>{validation['audit_counts']['PASS']}</b><h3>审计通过</h3><p>实体、指标、期间、口径和数值摘录的联合核验。</p></article><article><b>{validation['citation_samples']}×</b><h3>引用支持采样</h3><p>逐 claim 多次判断，避免单次模型判断被当作结论。</p></article><article><b>0</b><h3>实时依赖</h3><p>公开页只读取受版本控制的发布资产，成本与密钥均不暴露。</p></article></div></section>
+<section class="story-grid"><div class="story-intro"><p class="eyebrow">FROM QUESTION TO EVIDENCE</p><h2>不是一段“看起来像答案”的文字。</h2><p>每份展示报告将研究结论与来源脚注并列呈现；发布前经过引用支持抽样、数值与口径检查，以及冻结评测回归。最终 live 包另记录 token、成本、延迟、结构化 manifest 与引用闭合。</p><a class="text-link" href="scenarios.html">查看端到端工作流 <span>→</span></a></div><div class="chain"><article><span>01</span><h3>计划与取证</h3><p>拆解问题，按来源和期间组织可追溯证据。</p></article><article><span>02</span><h3>审校与回流</h3><p>将数字、口径、引用与不确定性置于同一审计链。</p></article><article><span>03</span><h3>发布与复现</h3><p>以固定版本资产生成报告、指标与发布清单。</p></article></div></section>
+<section class="release-section"><div><p class="eyebrow">RELEASE DISCIPLINE</p><h2>展示的每个数字，都有自己的位置。</h2></div><div class="release-grid"><article><b>{live['capability_ab']['promoted']}</b><h3>能力转正</h3><p>{live['capability_ab']['comparisons']} 组 live A/B 中，其余 {live['capability_ab']['kept_off']} 组保持关闭。</p></article><article><b>{live['topics']}</b><h3>最终 live 主题</h3><p>中文 NIO 与英文 PDD；均通过结构化 manifest 与引用闭合检查。</p></article><article><b>0</b><h3>追加 contingency run</h3><p>最终验证未使用额外应急重跑；公开页不暴露密钥、端点或运行机路径。</p></article></div></section>
 <section class="report-cta"><div><p class="eyebrow">CURATED OUTPUTS</p><h2>阅读可回溯的研究成果。</h2><p>精选报告保留指标、引用与来源列表；业务场景展示结构化交付和隔期差分。</p></div><div class="cta-links"><a class="button button-primary" href="reports/index.html">G3 报告库 <span>→</span></a><a class="button button-quiet" href="business-report.html">Fixture 报告示例</a></div></section>""",
     )
 
 
-def _methodology_page(showcase: dict[str, Any], validation: dict[str, Any]) -> str:
+def _methodology_page(
+    showcase: dict[str, Any], validation: dict[str, Any], live: dict[str, Any]
+) -> str:
     summary = showcase["summary"]
     rows = [("fact_coverage", "0.35", summary["avg_fact_coverage"]), ("fact_accuracy", "0.25", summary["avg_fact_accuracy"]), ("citation_support", "0.25", summary["avg_citation_support"]), ("synthesis_balance", "0.15", summary["avg_synthesis_balance"])]
     return _layout(
@@ -521,24 +354,22 @@ def _methodology_page(showcase: dict[str, Any], validation: dict[str, Any]) -> s
         f"""<section class="page-title"><h1>Golden Set v1.1 方法论</h1><p>Judge 与 citation_support 均锁定 qwen3.7-plus；检索语料截至 {validation['retrieval_as_of']}，gold 附录采集于 {validation['gold_appendix_captured']}。</p></section>
 <section><h2>四维量规</h2><table><thead><tr><th>维度</th><th>权重</th><th>G3 均值</th></tr></thead><tbody>{''.join(f'<tr><td>{key}</td><td>{weight}</td><td>{_fmt4(value)}</td></tr>' for key, weight, value in rows)}</tbody></table></section>
 <section><h2>审计与引用验证</h2><p>四键写入闸覆盖实体、归一指标、报告期、口径/单位和数字摘录。v1.1 审计为 {validation['audit_counts']['PASS']}/0/{validation['audit_counts']['UNCERTAIN']}；citation_support 使用 {validation['citation_samples']} 采样逐 claim 多数决。</p></section>
+<section><h2>Round 087 最终 live 验证</h2><p>两份最终报告使用 {live['provider']}，在冻结的 {live['corpus']['documents']} 文档 SEC 20-F 语料上覆盖中文 NIO 与英文 PDD。NIO 为 {live['reports'][0]['reader_visible_lines']} 条读者可见行，PDD 为 {live['reports'][1]['reader_visible_lines']} 条；两者均通过结构化 manifest 与引用闭合检查。该证据仅验证 finance SUT，不构成通用领域实现的证明。</p></section>
 <section><h2>判官效应分解（gold v1.0 历史测量）</h2><p><code>{HISTORICAL_JUDGE_DECOMPOSITION}</code></p></section>""",
     )
 
 
 def _reproduce_page() -> str:
-    return _layout("复现", """<section class="page-title"><h1>复现与可部署资产</h1><p>静态站不依赖后端；仓库保留 API/UI 演示资产。</p></section><section><h2>三步</h2><ol><li>复制仓库并配置服务器侧 .env。</li><li>运行 <code>docker compose up -d --build</code>。</li><li>访问 <code>/demo</code> 或 Streamlit UI。</li></ol></section><section><h2>RAG MVP 边界</h2><ul><li>摄取仅接受本地、manifest 列出的公开 PDF、HTML 或 TXT，并保留文件 hash、版本与字符范围。</li><li>默认没有已配置的向量索引，因此 <code>rag_search</code> 返回明确的空结果，不伪造来源或指标。</li><li>rerank 默认开启的单项检索收益尚未经测量；未来展示的整条流水线提升也不可归因到 rerank。</li><li>公开站点只包含冻结发布资产，不包含 API key、私有 endpoint、运行机路径或全文语料。</li></ul></section>""")
+    return _layout("复现", """<section class="page-title"><h1>复现与可部署资产</h1><p>默认路径为 deterministic + fixture，不读取付费 provider，也不需要 API key。</p></section><section><h2>三步</h2><ol><li>创建项目虚拟环境并安装 <code>.[dev]</code> 依赖。</li><li>运行 <code>PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/gate.py</code>。</li><li>以受控 fixture 重放 demo 与评测 smoke；真实 provider 实验需单独预登记和授权。</li></ol></section><section><h2>RAG MVP 边界</h2><ul><li>摄取仅接受本地、manifest 列出的公开 PDF、HTML 或 TXT，并保留文件 hash、版本与字符范围。</li><li>默认没有已配置的向量索引，因此 <code>rag_search</code> 返回明确的空结果，不伪造来源或指标。</li><li>rerank 默认开启的单项检索收益尚未经测量；未来展示的整条流水线提升也不可归因到 rerank。</li><li>公开站点只包含冻结发布资产，不包含 API key、私有 endpoint、运行机路径或全文语料。</li></ul></section>""")
 
 
-def _rag_page(evidence: dict[str, Any]) -> str:
-    corpus, index, retrieval, trace = (evidence[key] for key in ("corpus", "index", "retrieval", "trace"))
-    limitations = "".join(f"<li>{html.escape(item)}</li>" for item in evidence["limitations"])
+def _rag_page() -> str:
     return _layout(
         "RAG 证据",
-        f"""<section class="page-title"><p class="eyebrow">ROUND 047 · REVIEWED RELEASE EVIDENCE</p><h1>RAG 是一组可复核的结果。</h1><p>此页只读取版本控制的脱敏摘要；不包含 endpoint、密钥、运行机路径或原始全文。</p></section>
-<section><h2>检索链路</h2><div class="workflow-grid"><article><span>01</span><h3>SQLite 词法检索</h3><p>候选 Top-50</p></article><article><span>02</span><h3>Qdrant 稠密检索</h3><p>以 index_version 与 as-of 过滤，候选 Top-50。</p></article><article><span>03</span><h3>RRF 融合</h3><p>只传递 chunk identity；正文仍由权威存储读取。</p></article><article><span>04</span><h3>DashScope rerank</h3><p>交付 Top-{trace['delivered_candidates']}，降级状态显式记录。</p></article></div></section>
-<section><h2>语料、索引与真实 trace</h2><table><tbody><tr><th>语料</th><td>{html.escape(corpus['version'])} · {corpus['documents']} 份公开原件 · {corpus['chunks']} active chunks</td></tr><tr><th>语料指纹</th><td><code>{html.escape(corpus['fingerprint'])}</code></td></tr><tr><th>索引</th><td><code>{html.escape(index['version'])}</code> · 重建 {index['rebuild_seconds']} s · ¥{index['cost_cny']:.6f}</td></tr><tr><th>真实检索 trace</th><td>{html.escape(trace['kind'])}：词法 {trace['lexical_candidates']} / 稠密 {trace['dense_candidates']} / 交付 {trace['delivered_candidates']}；rerank={trace['rerank_status']}；¥{trace['cost_cny']:.7f}</td></tr></tbody></table></section>
-<section><h2>冻结 test split：BM25 基线 vs hybrid + rerank</h2><table><thead><tr><th>链路</th><th>Recall@20</th><th>nDCG@10</th></tr></thead><tbody><tr><td>BM25</td><td>{retrieval['bm25']['recall_at_20']:.4f}</td><td>{retrieval['bm25']['ndcg_at_10']:.4f}</td></tr><tr><td>Hybrid + rerank</td><td>{retrieval['hybrid_rerank']['recall_at_20']:.4f}</td><td>{retrieval['hybrid_rerank']['ndcg_at_10']:.4f}</td></tr></tbody></table><p class="notice">质量门槛：<strong>{html.escape(retrieval['quality_gate'])}</strong>。{html.escape(retrieval['decision'])}</p></section>
-<section><h2>MVP 限制清单</h2><ul>{limitations}</ul></section>""",
+        """<section class="page-title"><p class="eyebrow">CURRENT CAPABILITY BOUNDARY</p><h1>RAG 的状态与边界。</h1><p>当前默认路径不启用 RAG；公开页只说明实现边界，不把历史实验数字当作当前效果。</p></section>
+<section><h2>检索链路</h2><div class="workflow-grid"><article><span>01</span><h3>SQLite 词法检索</h3><p>候选 Top-50</p></article><article><span>02</span><h3>Qdrant 稠密检索</h3><p>以 index_version 与 as-of 过滤，候选 Top-50。</p></article><article><span>03</span><h3>RRF 融合</h3><p>只传递 chunk identity；正文仍由权威存储读取。</p></article><article><span>04</span><h3>DashScope rerank</h3><p>交付 Top-8，降级状态显式记录。</p></article></div></section>
+<section><h2>当前默认值</h2><table><tbody><tr><th>RAG</th><td>默认关闭；未配置向量索引时返回明确空结果，不伪造来源或指标。</td></tr><tr><th>rerank</th><td>默认开启；其单项检索收益尚未经受控测量。</td></tr><tr><th>公开展示</th><td>不包含 API key、私有 endpoint、运行机路径或原始全文语料。</td></tr></tbody></table></section>
+<section><h2>解释边界</h2><p class="notice">当前没有将任何整条流水线提升归因给 rerank。真实检索或付费调用需要单独预登记、预算与降级记录。</p></section>""",
     )
 
 
