@@ -43,7 +43,13 @@ def measure(report: str) -> dict[str, int]:
         for line in risks.splitlines()
         if "outdated_source" in line and any(
             token in line.lower()
-            for token in ("20-f", "annual report", "年报", "sec edgar company facts")
+            for token in (
+                "20-f",
+                "x20f",
+                "annual report",
+                "年报",
+                "sec edgar company facts",
+            )
         )
     )
     return {
