@@ -313,6 +313,8 @@ class CriticAgent:
     def _unverified_projections(self, evidence: list[Evidence]) -> list[Issue]:
         issues: list[Issue] = []
         for item in evidence:
+            if self.domain_pack.is_legal_disclaimer_template(item):
+                continue
             if item.claim_type == "projection" and item.confidence < 0.7:
                 issues.append(
                     Issue(

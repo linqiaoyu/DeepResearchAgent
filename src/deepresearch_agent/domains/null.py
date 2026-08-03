@@ -116,6 +116,9 @@ class NullDomainPack:
     def is_historical_annual_disclosure(self, _evidence: Any) -> bool:
         return False
 
+    def is_legal_disclaimer_template(self, _evidence: Any) -> bool:
+        return False
+
     def reader_risk_visible(self, _line: str) -> bool:
         return True
 

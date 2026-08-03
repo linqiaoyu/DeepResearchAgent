@@ -133,6 +133,13 @@ class FinanceDomainPack:
 
         return is_historical_annual_disclosure(evidence)
 
+    def is_legal_disclaimer_template(self, evidence: object) -> bool:
+        from deepresearch_agent.domains.finance.disclosure_policy import (
+            is_legal_disclaimer_template,
+        )
+
+        return is_legal_disclaimer_template(evidence)
+
     def reader_risk_visible(self, line: str) -> bool:
         from deepresearch_agent.domains.finance.disclosure_policy import (
             reader_risk_visible,

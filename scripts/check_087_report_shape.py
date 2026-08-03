@@ -41,7 +41,10 @@ def measure(report: str) -> dict[str, int]:
     annual_outdated = sum(
         1
         for line in risks.splitlines()
-        if "outdated_source" in line and any(token in line.lower() for token in ("20-f", "annual report", "年报"))
+        if "outdated_source" in line and any(
+            token in line.lower()
+            for token in ("20-f", "annual report", "年报", "sec edgar company facts")
+        )
     )
     return {
         "reader_visible_lines": len(visible),

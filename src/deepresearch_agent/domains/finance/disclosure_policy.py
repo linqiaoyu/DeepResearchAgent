@@ -28,7 +28,14 @@ def is_historical_annual_disclosure(evidence: Any) -> bool:
     source_url = str(getattr(evidence, "source_url", "")).lower()
     return any(
         marker in f"{source_title} {source_url}"
-        for marker in ("20-f", "20f", "annual report", "年度报告", "年报")
+        for marker in (
+            "20-f",
+            "20f",
+            "annual report",
+            "年度报告",
+            "年报",
+            "sec edgar company facts",
+        )
     )
 
 
@@ -54,6 +61,16 @@ def reader_assumption_visible(line: str) -> bool:
             re.IGNORECASE,
         )
     )
+
+
+def is_legal_disclaimer_template(evidence: Any) -> bool:
+    """Recognize a filing's standard forward-looking disclaimer, not a forecast."""
+
+    text = " ".join(
+        str(getattr(evidence, field, ""))
+        for field in ("claim", "extract_text")
+    )
+    return not reader_assumption_visible(text)
 
 
 def reader_metric_gap_explanation(metric: str) -> str:
