@@ -196,14 +196,14 @@ capability 默认翻为 `true`，旧 AGENTS 仍写 `false`。
 |---|---:|---|
 | `BRANCH_BUDGET_ENABLED` | `true` | `content_affecting` |
 | `CONFIG_FAIL_FAST_ENABLED` | `true` | `operational` |
-| `CONTEXT_PACKER_ENABLED` | `false` | `content_affecting` |
+| `CONTEXT_PACKER_ENABLED` | `true` | `content_affecting` |
 | `CRITIC_ENABLED` | `true` | `content_affecting` |
-| `DECISION_WEAVING_ENABLED` | `false` | `content_affecting` |
+| `DECISION_WEAVING_ENABLED` | `true` | `content_affecting` |
 | `DYNAMIC_CAPABILITY_ENABLED` | `true` | `content_affecting` |
 | `EXTRACTOR_ENABLED` | `true` | `content_affecting` |
 | `INJECTION_GUARD_ENABLED` | `false` | `content_affecting` |
 | `LLM_TOOL_SELECTION_ENABLED` | `false` | `content_affecting` |
-| `NUMERIC_CHECK_ENABLED` | `false` | `content_affecting` |
+| `NUMERIC_CHECK_ENABLED` | `true` | `content_affecting` |
 | `PRIOR_MEMORY_ENABLED` | `false` | `content_affecting` |
 | `PROCEDURAL_MEMORY_ENABLED` | `false` | `content_affecting` |
 | `PROGRESSIVE_DELIVERY_ENABLED` | `false` | `operational` |
@@ -213,7 +213,7 @@ capability 默认翻为 `true`，旧 AGENTS 仍写 `false`。
 | `RERANK_FAIL_OPEN` | `true` | `content_affecting` |
 | `RESEARCH_LOOP_ENABLED` | `false` | `content_affecting` |
 | `RUN_MANIFEST_ENABLED` | `true` | `operational` |
-| `SEMANTIC_JUDGE_ENABLED` | `false` | `content_affecting` |
+| `SEMANTIC_JUDGE_ENABLED` | `true` | `content_affecting` |
 | `SKILL_PACKS_ENABLED` | `false` | `content_affecting` |
 | `STRUCTURED_LOGGING_ENABLED` | `true` | `operational` |
 | `STRUCTURED_OUTPUT_ENABLED` | `true` | `additive_content` |
