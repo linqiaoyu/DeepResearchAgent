@@ -29,7 +29,7 @@ class Settings:
     llm_ledger_path: Path = Path("data/runtime/llm_ledger.jsonl")
     llm_max_sub_questions: int = 3
     llm_max_queries_per_sub_question: int = 3
-    semantic_judge_enabled: bool = False
+    semantic_judge_enabled: bool = True
     as_of: date | None = None
     max_searches_per_run: int = 20
     max_external_search_requests_per_run: int = 20
@@ -54,7 +54,7 @@ class Settings:
     injection_guard_enabled: bool = False
     run_manifest_enabled: bool = True
     runs_root: Path = Path("runs")
-    context_packer_enabled: bool = False
+    context_packer_enabled: bool = True
     reporter_context_token_budget: int = 200_000
     structured_logging_enabled: bool = True
     config_fail_fast_enabled: bool = True
@@ -75,10 +75,10 @@ class Settings:
     research_max_unresolved_critic_issues: int = 0
     prior_memory_enabled: bool = False
     prior_watch_confidence_threshold: float = 0.7
-    decision_weaving_enabled: bool = False
+    decision_weaving_enabled: bool = True
     decision_weaving_budget_remaining_ratio: float = 0.2
     decision_weaving_verify_min_allocation: int = 1
-    numeric_check_enabled: bool = False
+    numeric_check_enabled: bool = True
     numeric_check_relative_tolerance: float = 0.01
     numeric_check_absolute_tolerance: float = 0.01
     dynamic_capability_enabled: bool = True
