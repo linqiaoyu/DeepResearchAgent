@@ -28,6 +28,7 @@ from deepresearch_agent.settings import Settings  # noqa: E402
 from deepresearch_agent.structured_output import build_structured_output  # noqa: E402
 
 DIST = ROOT / "site" / "dist"
+FINAL_NIO_PACKAGE = ROOT / "artifacts" / "087" / "live-nio-zh"
 SHOWCASE_PATH = ROOT / "data" / "demo" / "g3_showcase.json"
 G3_PATH = ROOT / "data" / "golden_set" / "v1" / "results" / "g3_judge_v11.json"
 CITATION_PATH = ROOT / "data" / "golden_set" / "v1" / "results" / "g3_citation_support_3s.json"
@@ -49,50 +50,22 @@ RELEASE_TEXT_SUFFIXES = {".css", ".html", ".json", ".md", ".txt"}
 
 
 def main() -> None:
-    showcase = _read_json(SHOWCASE_PATH)
-    g3 = _read_json(G3_PATH)
-    citation = _read_json(CITATION_PATH)
-    audit = _read_json(AUDIT_PATH)
-    rag_evidence = _read_json(RAG_RELEASE_EVIDENCE_PATH)
-    freeze = FREEZE_PATH.read_text(encoding="utf-8")
-    validation = _validate_release_assets(showcase, g3, citation, audit, freeze)
-    _validate_rag_release_evidence(rag_evidence)
-    business = _business_scenario_from_fixture()
+    facts = _final_showcase_facts(FINAL_NIO_PACKAGE)
     if DIST.exists():
         shutil.rmtree(DIST)
     (DIST / "assets").mkdir(parents=True)
-    (DIST / "reports").mkdir(parents=True)
-    shutil.copy2(ROOT / "site" / "social" / "og.png", DIST / "assets" / "og.png")
-    _write_css(DIST / "assets" / "styles.css")
-    reports = showcase["reports"]
-    _write_page("index.html", _home_page(showcase, validation))
-    _write_page("methodology.html", _methodology_page(showcase, validation))
-    _write_page("rag.html", _rag_page(rag_evidence))
-    _write_page("reproduce.html", _reproduce_page())
-    _write_page("scenarios.html", _business_scenario_page(business))
-    _write_page(
-        "business-report.html",
-        _business_report_page(business),
+    _write_final_css(DIST / "assets" / "styles.css")
+    (DIST / "index.html").write_text(
+        _final_home_page(facts), encoding="utf-8"
     )
-    _write_page("reports/index.html", _reports_index(reports))
-    for report in reports:
-        _write_page(f"reports/{report['id']}.html", _report_page(report, validation["retrieval_as_of"]))
-    _assert_site(DIST, business)
+    _assert_site(DIST)
     _assert_showcase_contract(
         (DIST / "index.html").read_text(encoding="utf-8"),
         (DIST / "assets" / "styles.css").read_text(encoding="utf-8"),
     )
     manifest = {
-        "generated_from": {
-            "showcase": str(SHOWCASE_PATH.relative_to(ROOT)),
-            "g3_judge": str(G3_PATH.relative_to(ROOT)),
-            "citation_support": str(CITATION_PATH.relative_to(ROOT)),
-            "audit": str(AUDIT_PATH.relative_to(ROOT)),
-            "freeze": str(FREEZE_PATH.relative_to(ROOT)),
-            "business_fixture": str(BUSINESS_FIXTURE_PATH.relative_to(ROOT)),
-            "rag_release_evidence": str(RAG_RELEASE_EVIDENCE_PATH.relative_to(ROOT)),
-        },
-        "validation": validation,
+        "generated_from": "artifacts/087/live-nio-zh",
+        "facts": facts,
         "files": sorted(str(path.relative_to(DIST)) for path in DIST.rglob("*") if path.is_file()),
     }
     (DIST / "manifest.json").write_text(
@@ -101,6 +74,69 @@ def main() -> None:
     build_log = _release_build_log(len(manifest["files"]) + 1)
     _assert_release_safety(DIST, build_log)
     print(build_log, end="")
+
+
+def _final_showcase_facts(package: Path) -> dict[str, Any]:
+    report = (package / "report.md").read_text(encoding="utf-8")
+    evidence = _read_json(package / "audit_bundle" / "evidence.json")
+    manifest = _read_json(package / "audit_bundle" / "manifest.json")
+    reader_audit = _read_json(package / "audit_bundle" / "reader_audit.json")
+    if not isinstance(evidence, list) or len(evidence) < 2:
+        raise SystemExit("final showcase needs at least two final-package evidence records")
+    values = re.findall(r"(?<![\w,])\d[\d,]*(?:\.\d+)?%?", report)
+    gross = next((item for item in evidence if item.get("structured_record", {}).get("metric_name") == "毛利"), None)
+    revenue = next((item for item in evidence if item.get("structured_record", {}).get("metric_name") == "营业收入"), None)
+    if not isinstance(gross, dict) or not isinstance(revenue, dict):
+        raise SystemExit("final showcase needs gross-profit and revenue evidence")
+    started = datetime.fromisoformat(manifest["started_at"].replace("Z", "+00:00"))
+    ended = datetime.fromisoformat(manifest["ended_at"].replace("Z", "+00:00"))
+    rag_cost = sum(
+        float(json.loads(line).get("cost_cny", 0))
+        for line in (package / "runtime" / "rag_ledger.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    )
+    return {
+        "package": str(package.relative_to(ROOT)),
+        "report_opening": report.splitlines()[:3],
+        "report": report,
+        "gross": str(gross["structured_record"]["value"]),
+        "revenue": str(revenue["structured_record"]["value"]),
+        "margin": next(value for value in values if value.endswith("%")),
+        "gross_evidence_id": str(gross["evidence_id"]),
+        "revenue_evidence_id": str(revenue["evidence_id"]),
+        "source_excerpt": str(revenue["extract_text"]),
+        "workflow_cost": f"{float(manifest['cost_cny_total']):.8f}",
+        "rag_cost": f"{rag_cost:.7f}",
+        "elapsed_seconds": str(round((ended - started).total_seconds(), 3)),
+        "evidence_total": str(len(_read_json(package / "audit_bundle" / "report.json").get("evidence", evidence))),
+        "cited_sources": str(report.count("[^")),
+        "provider": str(manifest["provider_identity"]["structured_data"]),
+        "audit_closure": str(reader_audit["audit_citation_closure"]),
+        "display_numbers": values,
+    }
+
+
+def _fact(value: str, *, evidence_id: str | None = None) -> str:
+    identity = f' data-evidence-id="{html.escape(evidence_id)}"' if evidence_id else ""
+    return f'<span class="fact" data-fact="{html.escape(value)}"{identity}>{html.escape(value)}</span>'
+
+
+def _final_home_page(facts: dict[str, Any]) -> str:
+    opening = "<br>".join(html.escape(line) for line in facts["report_opening"] if line)
+    gross = _fact(facts["gross"], evidence_id=facts["gross_evidence_id"])
+    revenue = _fact(facts["revenue"], evidence_id=facts["revenue_evidence_id"])
+    margin = _fact(facts["margin"], evidence_id=facts["gross_evidence_id"])
+    return f'''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DeepResearchAgent · 可审计投研</title><link rel="stylesheet" href="assets/styles.css"></head><body data-showcase="087"><main>
+<section data-screen="one" class="screen hero"><p class="eyebrow">FINANCIAL RESEARCH, WITH RECEIPTS</p><h1>让结论<br>回到原文。</h1><p class="opening">{opening}</p></section>
+<section data-screen="two" class="screen proof"><p class="eyebrow">NUMBER → SOURCE</p><h2>数字不是终点。它有来处。</h2><div class="mapping"><p>营业收入 {revenue}</p><i aria-hidden="true"></i><blockquote>{html.escape(facts['source_excerpt'])}</blockquote></div><p class="formula">毛利率（推导值）：{gross} / {revenue} = {margin}</p></section>
+<section data-screen="three" class="screen"><p class="eyebrow">MEASURED CAPABILITIES</p><h2>能力，先用真实运行说话。</h2><p>四项开启默认值：NUMERIC_CHECK、CONTEXT_PACKER、SEMANTIC_JUDGE、DECISION_WEAVING。其余已实现能力保留实测无增益的结论。</p></section>
+<section data-screen="four" class="screen bill"><p class="eyebrow">ONE REAL RUN</p><h2>一次报告的账单。</h2><dl><div><dt>workflow CNY</dt><dd>{_fact(facts['workflow_cost'])}</dd></div><div><dt>RAG CNY</dt><dd>{_fact(facts['rag_cost'])}</dd></div><div><dt>elapsed seconds</dt><dd>{_fact(facts['elapsed_seconds'])}</dd></div><div><dt>evidence → citations</dt><dd>{_fact(facts['evidence_total'])} → {_fact(facts['cited_sources'])}</dd></div></dl><p>{html.escape(facts['provider'])} · citation closure={html.escape(facts['audit_closure'])}</p></section>
+<section data-screen="five" class="screen"><p class="eyebrow">REPRODUCE</p><h2>从本地 fixture 开始。</h2><pre>python3.12 -m venv .venv\n.venv/bin/python -m pip install -e ".[dev]"\nPYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/gate.py</pre></section>
+</main><noscript>五个页面区块均以静态 HTML 输出；禁用 JavaScript 仍可完整阅读。</noscript></body></html>'''
+
+
+def _write_final_css(path: Path) -> None:
+    path.write_text('''*{box-sizing:border-box}body{margin:0;background:#f7f7f5;color:#161616;font:18px/1.6 ui-sans-serif,system-ui}.screen{min-height:100vh;max-width:1100px;margin:auto;padding:12vh 7vw;border-bottom:1px solid #ddd}.hero{display:grid;align-content:center}.hero h1{font-size:clamp(64px,12vw,160px);line-height:.9;letter-spacing:-.08em;margin:0}.eyebrow{font-size:.72rem;letter-spacing:.18em;font-weight:800;color:#52706a}.opening{font-family:ui-monospace,monospace;margin-top:3rem}.proof h2{font-size:clamp(42px,7vw,92px);line-height:1;margin:0 0 4rem}.mapping{display:grid;grid-template-columns:1fr 90px 1fr;align-items:center;gap:20px}.mapping i{height:2px;background:#52706a;animation:draw 2s ease-in-out infinite alternate}.mapping blockquote{margin:0;padding:24px;border:1px solid #bbb;font-family:ui-monospace,monospace}.formula{font-size:clamp(24px,4vw,52px);margin-top:4rem}.fact{font-variant-numeric:tabular-nums;font-weight:800}dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}dl div,pre{padding:24px;background:#fff;border:1px solid #ddd}dt{font-size:.75rem;color:#666;text-transform:uppercase}dd{margin:.5rem 0 0;font-size:clamp(24px,4vw,50px)}pre{white-space:pre-wrap;overflow:auto}@keyframes draw{from{transform:scaleX(.2);transform-origin:left}to{transform:scaleX(1)}}@media(max-width:650px){.mapping,dl{grid-template-columns:1fr}.mapping i{width:2px;height:48px;justify-self:center;animation:none}}''', encoding="utf-8")
 
 
 def _validate_release_assets(
@@ -163,6 +199,18 @@ def _assert_site(
     dist: Path,
     business: dict[str, Any] | None = None,
 ) -> None:
+    index = dist / "index.html"
+    if index.is_file() and 'data-showcase="087"' in index.read_text(encoding="utf-8"):
+        text = index.read_text(encoding="utf-8")
+        screens = re.findall(r'<section data-screen="([^"]+)"', text)
+        mappings = re.findall(
+            r'data-fact="[^"]+" data-evidence-id="([^"]+)"', text
+        )
+        if len(screens) != 5 or len(set(screens)) != 5:
+            raise SystemExit("final showcase must expose five readable screens")
+        if not mappings:
+            raise SystemExit("final showcase needs a number-to-evidence mapping")
+        return
     pages = sorted((dist / "reports").glob("Q*.html"))
     if not pages:
         raise SystemExit("site has no report pages")
@@ -209,6 +257,19 @@ def _assert_site(
 
 
 def _assert_showcase_contract(home: str, stylesheet: str) -> None:
+    if 'data-showcase="087"' in home:
+        required_home = (
+            "NUMBER → SOURCE",
+            "MEASURED CAPABILITIES",
+            "ONE REAL RUN",
+            "REPRODUCE",
+            "毛利率（推导值）",
+        )
+        if any(token not in home for token in required_home):
+            raise SystemExit("final showcase is missing a required screen")
+        if "@keyframes draw" not in stylesheet or ".mapping" not in stylesheet:
+            raise SystemExit("final showcase is missing its progressive motion mapping")
+        return
     required_home = (
         "RESEARCH, WITH RECEIPTS",
         "无实时 LLM、搜索或付费调用",

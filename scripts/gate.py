@@ -101,6 +101,8 @@ def run_gate() -> None:
             "reader_visible_contract",
             [sys.executable, "scripts/check_reader_visible_contract.py", "--self-test"],
         ),
+        ("report_shape", [sys.executable, "scripts/check_087_report_shape.py", "--self-test"]),
+        ("readme_facts", [sys.executable, "scripts/check_087_readme_facts.py", "--self-test"]),
         ("unittest", [sys.executable, "-m", "unittest", "discover", "-s", "tests"]),
         ("demo_smoke", [sys.executable, "scripts/run_demo.py", "--output", "artifacts/ci_demo/report.md"]),
         (
