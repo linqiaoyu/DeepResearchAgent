@@ -88,6 +88,7 @@ class ObservabilityAndConfigTests(unittest.TestCase):
         self.assertEqual(
             raised.exception.missing,
             [
+                "DASHSCOPE_API_KEY",
                 "DEEPRESEARCH_DEMO_OWNER_TOKEN",
                 "DEEPSEEK_API_KEY",
                 "TAVILY_API_KEY",
@@ -111,7 +112,10 @@ class ObservabilityAndConfigTests(unittest.TestCase):
         )
         with tempfile.TemporaryDirectory() as tmp:
             env_path = Path(tmp) / ".env"
-            env_path.write_text("DEEPSEEK_API_KEY=test-key\n", encoding="utf-8")
+            env_path.write_text(
+                "DEEPSEEK_API_KEY=test-key\nDASHSCOPE_API_KEY=test-key\n",
+                encoding="utf-8",
+            )
             validate_required_configuration(settings, env_path=env_path)
 
     def test_enabled_llm_semantic_judge_requires_its_provider_key(self) -> None:

@@ -92,6 +92,9 @@ class RunManifestTests(unittest.TestCase):
                 "DYNAMIC_CAPABILITY_ENABLED": settings.dynamic_capability_enabled,
                 "RERANK_ENABLED": settings.rerank_enabled,
                 "RERANK_FAIL_OPEN": settings.rerank_fail_open,
+                "DECISION_WEAVING_ENABLED": settings.decision_weaving_enabled,
+                "NUMERIC_CHECK_ENABLED": settings.numeric_check_enabled,
+                "SEMANTIC_JUDGE_ENABLED": settings.semantic_judge_enabled,
             },
         )
         self.assertEqual(
@@ -572,7 +575,7 @@ class RunManifestTests(unittest.TestCase):
             compare_manifests(manifest(), changed).differences,
         )
 
-    def test_016_flags_are_content_affecting_and_omitted_when_off(
+    def test_016_flags_are_content_affecting_and_present_when_on(
         self,
     ) -> None:
         settings = Settings(storage_path=Path("test.db"))
@@ -591,12 +594,8 @@ class RunManifestTests(unittest.TestCase):
                 FLAG_CLASSIFICATIONS[name],
                 "content_affecting",
             )
-            if name == "DYNAMIC_CAPABILITY_ENABLED":
-                self.assertIs(default_flags[name], True)
-                self.assertIs(expanded[name], True)
-            else:
-                self.assertNotIn(name, default_flags)
-                self.assertIs(expanded[name], False)
+            self.assertIs(default_flags[name], True)
+            self.assertIs(expanded[name], True)
 
     def test_each_enabled_016_flag_makes_historical_run_incomparable(
         self,
@@ -737,7 +736,7 @@ class RunManifestTests(unittest.TestCase):
             comparison.incomparable_reasons,
         )
 
-    def test_semantic_judge_flag_is_content_affecting_and_omitted_when_off(
+    def test_semantic_judge_flag_is_content_affecting_and_present_when_on(
         self,
     ) -> None:
         settings = Settings(storage_path=Path("test.db"))
@@ -751,8 +750,8 @@ class RunManifestTests(unittest.TestCase):
             FLAG_CLASSIFICATIONS["SEMANTIC_JUDGE_ENABLED"],
             "content_affecting",
         )
-        self.assertNotIn("SEMANTIC_JUDGE_ENABLED", default_flags)
-        self.assertIs(expanded["SEMANTIC_JUDGE_ENABLED"], False)
+        self.assertIs(default_flags["SEMANTIC_JUDGE_ENABLED"], True)
+        self.assertIs(expanded["SEMANTIC_JUDGE_ENABLED"], True)
 
         enabled = settings_flag_snapshot(
             Settings(
@@ -782,7 +781,7 @@ class RunManifestTests(unittest.TestCase):
             comparison.incomparable_reasons,
         )
 
-    def test_default_manifest_omits_unreachable_semantic_judge_prompt(
+    def test_default_manifest_includes_reachable_semantic_judge_prompt(
         self,
     ) -> None:
         started = datetime(2026, 7, 24, tzinfo=timezone.utc)
@@ -800,7 +799,7 @@ class RunManifestTests(unittest.TestCase):
             started_at=started,
         )
 
-        self.assertNotIn("semantic_judge.md", default_manifest.prompt_hashes)
+        self.assertIn("semantic_judge.md", default_manifest.prompt_hashes)
         self.assertIn("semantic_judge.md", enabled_manifest.prompt_hashes)
 
 

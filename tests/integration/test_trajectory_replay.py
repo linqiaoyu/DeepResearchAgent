@@ -294,6 +294,7 @@ class TrajectoryReplayTests(unittest.TestCase):
                         "source_rerank",
                         "branch_budget_allocate",
                         "branch_budget_reallocate",
+                        "numeric_consistency_scan",
                     },
                 )
                 self.assertTrue(trajectory.run_manifest_ref)

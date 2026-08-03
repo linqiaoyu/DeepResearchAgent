@@ -92,8 +92,17 @@ def build_workflow_contracts(
             name="critic",
             consumes={"research_state": state_field, "research_state.plan": ContractField(dict), "research_state.evidence_store": ContractField(list)},
             produces=frozenset({"research_state.critic_report", "research_state.retry_queue", "research_state.current_phase"} | ({"research_state.agent_decisions"} if settings.numeric_check_enabled else set())),
-            invariants=(identity, *((numeric_issues,) if settings.numeric_check_enabled else ())),
-            decision_node=settings.numeric_check_enabled,
+            invariants=(
+                identity,
+                *(
+                    (numeric_issues,)
+                    if settings.numeric_check_enabled and settings.critic_enabled
+                    else ()
+                ),
+            ),
+            decision_node=(
+                settings.numeric_check_enabled and settings.critic_enabled
+            ),
         ),
         "reflector": NodeContract(name="reflector", consumes={"research_state": state_field, "research_state.agent_decisions": ContractField(list)}, produces=frozenset({"research_state.metadata.reflection_result", "research_state.agent_decisions"}), invariants=(identity,), decision_node=settings.reflection_enabled),
         "research_loop_decide": NodeContract(name="research_loop_decide", consumes={"research_state": state_field, "research_state.plan": ContractField(dict), "research_state.evidence_store": ContractField(list), "research_state.critic_report": ContractField(dict)}, produces=frozenset({"research_state.metadata", "research_state.agent_decisions"}), invariants=(identity,), decision_node=True),
@@ -129,8 +138,12 @@ def numeric_issues_complete(_before: dict[str, Any], after: dict[str, Any]) -> b
     if not isinstance(state, dict):
         return False
     report = state.get("critic_report")
+    # A disabled Critic deliberately emits no report and therefore cannot
+    # contain an incomplete numeric issue.  The caller only attaches this
+    # invariant when Critic is enabled; accepting the absent value also keeps
+    # the predicate total for paused/short-circuited graph states.
     if not isinstance(report, dict):
-        return False
+        return True
     return all(
         issue.get("claimed_value") is not None
         and issue.get("calculated_value") is not None

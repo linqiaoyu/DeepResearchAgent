@@ -103,9 +103,9 @@ class DecisionContextTest(unittest.TestCase):
             context.iteration = 3
         self.assertIsInstance(context.unresolved_critic_issues, tuple)
 
-    def test_default_switch_is_off(self) -> None:
+    def test_default_switch_is_on(self) -> None:
         settings = Settings(storage_path="test.db")
-        self.assertFalse(settings.decision_weaving_enabled)
+        self.assertTrue(settings.decision_weaving_enabled)
 
 
 class WovenDecisionDependencyTest(unittest.TestCase):

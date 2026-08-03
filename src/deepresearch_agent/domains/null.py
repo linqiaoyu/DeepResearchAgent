@@ -14,8 +14,10 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+from deepresearch_agent.decisions import record_agent_decision
 from deepresearch_agent.domains.protocols import RetrievalFilterValues
 from deepresearch_agent.reporting.grounded_facts import GroundedFactBatch
+from deepresearch_agent.schemas import AgentDecision
 
 
 @dataclass(frozen=True)
@@ -38,7 +40,21 @@ class _NullTableExtractors:
 
 @dataclass(frozen=True)
 class _NullNumericChecker:
-    def check(self, _state: Any) -> list[Any]:
+    def check(self, state: Any) -> list[Any]:
+        # Numeric checking is enabled by default.  The capability-empty pack
+        # still records the explicit no-op so the Critic's decision contract
+        # remains truthful without inventing finance-specific relationships.
+        record_agent_decision(
+            state,
+            AgentDecision(
+                decision_type="numeric_consistency_scan",
+                made_by="NullDomainPack",
+                inputs={"numeric_observation_count": 0, "check_count": 0},
+                criterion="no domain numeric relationships are available",
+                outcome="no_applicable_relationships",
+                alternatives_considered=["run_applicable_checks"],
+            ),
+        )
         return []
 
 

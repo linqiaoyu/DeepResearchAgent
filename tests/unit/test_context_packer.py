@@ -178,7 +178,7 @@ class ContextPackerTests(unittest.TestCase):
         self.assertEqual(estimator.estimate("中文abcd"), 3)
         budget = ContextBudget()
         self.assertEqual(budget.reporter_tokens, 200_000)
-        self.assertFalse(Settings(storage_path=Path("test.db")).context_packer_enabled)
+        self.assertTrue(Settings(storage_path=Path("test.db")).context_packer_enabled)
 
 
 if __name__ == "__main__":
