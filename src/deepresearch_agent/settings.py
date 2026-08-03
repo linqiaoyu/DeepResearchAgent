@@ -180,7 +180,7 @@ def load_settings() -> Settings:
         llm_max_queries_per_sub_question=int(
             os.getenv("DEEPRESEARCH_LLM_MAX_QUERIES_PER_SUB_QUESTION", "3")
         ),
-        semantic_judge_enabled=_env_flag("SEMANTIC_JUDGE_ENABLED"),
+        semantic_judge_enabled=_env_flag("SEMANTIC_JUDGE_ENABLED", default=True),
         as_of=as_of,
         max_searches_per_run=int(os.getenv("DEEPRESEARCH_MAX_SEARCHES_PER_RUN", "20")),
         max_external_search_requests_per_run=int(
@@ -213,7 +213,7 @@ def load_settings() -> Settings:
         injection_guard_enabled=_env_flag("INJECTION_GUARD_ENABLED"),
         run_manifest_enabled=_env_flag("RUN_MANIFEST_ENABLED", default=True),
         runs_root=runs_root,
-        context_packer_enabled=_env_flag("CONTEXT_PACKER_ENABLED"),
+        context_packer_enabled=_env_flag("CONTEXT_PACKER_ENABLED", default=True),
         reporter_context_token_budget=int(
             os.getenv("DEEPRESEARCH_REPORTER_CONTEXT_TOKEN_BUDGET", "200000")
         ),
@@ -273,7 +273,7 @@ def load_settings() -> Settings:
                 "0.7",
             )
         ),
-        decision_weaving_enabled=_env_flag("DECISION_WEAVING_ENABLED"),
+        decision_weaving_enabled=_env_flag("DECISION_WEAVING_ENABLED", default=True),
         decision_weaving_budget_remaining_ratio=float(
             os.getenv(
                 "DEEPRESEARCH_DECISION_WEAVING_BUDGET_REMAINING_RATIO",
@@ -286,7 +286,7 @@ def load_settings() -> Settings:
                 "1",
             )
         ),
-        numeric_check_enabled=_env_flag("NUMERIC_CHECK_ENABLED"),
+        numeric_check_enabled=_env_flag("NUMERIC_CHECK_ENABLED", default=True),
         numeric_check_relative_tolerance=float(
             os.getenv(
                 "DEEPRESEARCH_NUMERIC_CHECK_RELATIVE_TOLERANCE",
