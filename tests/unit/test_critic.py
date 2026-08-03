@@ -327,6 +327,26 @@ class CriticTests(unittest.TestCase):
         self.assertNotIn("outdated_source", {issue.issue_type for issue in at_boundary.issues})
         self.assertIn("outdated_source", {issue.issue_type for issue in past_boundary.issues})
 
+    def test_historical_annual_filing_is_not_a_stale_news_source(self) -> None:
+        state = ResearchState(topic="NIO 2024 annual report")
+        state.evidence_store = [
+            Evidence(
+                id="annual-filing",
+                research_id=state.research_id,
+                sub_question_id="finance",
+                claim="NIO reported 2024 revenue.",
+                claim_type="data",
+                source_url="https://www.sec.gov/Archives/edgar/data/1736541/nio-20241231x20f.htm",
+                source_title="NIO Inc. 2024 Annual Report on Form 20-F",
+                source_pub_date=date(2025, 4, 8),
+                extract_text="NIO reported 2024 revenue.",
+            )
+        ]
+
+        report = CriticAgent(today=date(2026, 8, 2)).critique(state)
+
+        self.assertNotIn("outdated_source", {issue.issue_type for issue in report.issues})
+
     def test_outdated_source_retry_uses_structured_verification_query(self) -> None:
         state = ResearchState(topic="retry query test")
         state.evidence_store = [

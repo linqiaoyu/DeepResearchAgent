@@ -139,8 +139,9 @@ class ReporterFinanceTemplateTests(unittest.TestCase):
         self.assertIn("归母净利润（请求报告期：2024, 2025）", report)
         self.assertIn("年报 p62", report)
         self.assertIn(
-            "主营业务毛利率（请求报告期：2024, 2025）：已检索，"
-            "但未获得可引用的完整指标证据",
+            "主营业务毛利率（请求报告期：2024, 2025）："
+            "未在可用的结构化年报字段中找到该指标；可由利润表的营业收入与营业成本推算，"
+            "本轮未作推算，推算值需二次核验后才可进入关键数据。",
             report,
         )
         coverage = state.metadata["requested_metric_coverage"]
@@ -241,7 +242,9 @@ class ReporterFinanceTemplateTests(unittest.TestCase):
 
         self.assertEqual(coverage["status"], "searched_unavailable")
         self.assertEqual(coverage["evidence_ids"], [])
-        self.assertIn("已检索，但未获得可引用的完整指标证据", report)
+        self.assertIn("可由利润表的营业收入与营业成本推算", report)
+        self.assertNotIn("typed coverage", report)
+        self.assertNotIn("Evidence 保真合同", report)
 
     def test_current_period_without_prior_or_yoy_is_explicitly_incomplete(
         self,

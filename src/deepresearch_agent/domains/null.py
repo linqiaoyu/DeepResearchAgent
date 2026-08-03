@@ -113,6 +113,18 @@ class NullDomainPack:
     def comparison_observed(self, _evidence: Any) -> bool:
         return False
 
+    def is_historical_annual_disclosure(self, _evidence: Any) -> bool:
+        return False
+
+    def reader_risk_visible(self, _line: str) -> bool:
+        return True
+
+    def reader_assumption_visible(self, _line: str) -> bool:
+        return True
+
+    def reader_metric_gap_explanation(self, _metric: str) -> str:
+        return "No citable source fact was obtained; consult the primary disclosure."
+
     def evidence_matches_metric(self, _evidence: Any, _required_metric: str) -> bool:
         return False
 

@@ -259,6 +259,8 @@ class CriticAgent:
     def _outdated_sources(self, evidence: list[Evidence]) -> list[Issue]:
         issues: list[Issue] = []
         for item in evidence:
+            if self.domain_pack.is_historical_annual_disclosure(item):
+                continue
             if item.source_pub_date is None:
                 continue
             age_days = (self.today - item.source_pub_date).days

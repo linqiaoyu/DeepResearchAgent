@@ -78,6 +78,10 @@ class ReaderVisibleContractTests(unittest.TestCase):
         validate_expected_findings(report, expected)
         validate_self_consistency(report, ("营业收入", "毛利"))
         self.assertNotIn("未取得", section(report, "关键发现"))
+        self.assertIn("毛利率（推导值）：6,492,762,000 / 65,731,559,000 = 9.88%", report)
+        self.assertNotIn("## Agent 决策记录", report)
+        self.assertNotIn("typed coverage", report)
+        self.assertNotIn("Evidence 保真合同", report)
 
     def test_c3_duplicate_urls_share_one_footnote_without_misrefs(self) -> None:
         maps = build_footnote_maps(self.state.evidence_store)

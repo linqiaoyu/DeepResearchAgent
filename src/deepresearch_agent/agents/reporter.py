@@ -159,13 +159,15 @@ class ReporterAgent:
         # are not stale merely because they are older than news articles.
         risks = [
             line for line in section("风险与限制")
-            if "outdated_source" not in line
+            if self.domain_pack.reader_risk_visible(line)
         ]
         if risks and "Critic 未执行" not in risks[0]:
             lines.extend(["", "## 风险与限制", *risks])
-        assumptions = [line for line in section("未验证假设") if not re.search(
-            r"actual future results may be materially different", line, re.I
-        )]
+        assumptions = [
+            line
+            for line in section("未验证假设")
+            if self.domain_pack.reader_assumption_visible(line)
+        ]
         if assumptions and "本轮报告未单独引入" not in assumptions[0]:
             lines.extend(["", "## 未验证假设", *assumptions])
         references = section("参考来源")
@@ -299,8 +301,7 @@ class ReporterAgent:
             )
         for label in dict.fromkeys(grounded_gaps):
             grounded_lines.append(
-                f"- {label}：未取得满足 typed coverage 与 Evidence "
-                "保真合同的事实；本轮不展示生成式数值结论。"
+                f"- {label}：{self.domain_pack.reader_metric_gap_explanation(label)}"
             )
         lines = lines[:start] + grounded_lines + [""] + lines[end:]
         downgraded = self._downgrade_unsupported_numeric_lines(
@@ -1206,13 +1207,9 @@ class ReporterAgent:
                     if item.missing_periods
                     else ""
                 )
-                availability = (
-                    "已取得部分证据，但未获得可引用的完整指标或同比证据"
-                    if item.evidence_ids
-                    else "已检索，但未获得可引用的完整指标证据"
-                )
                 lines.append(
-                    f"- {item.metric}{periods}：{availability}{missing}。"
+                    f"- {item.metric}{periods}："
+                    f"{self.domain_pack.reader_metric_gap_explanation(item.metric)}{missing}"
                 )
             else:
                 lines.append(

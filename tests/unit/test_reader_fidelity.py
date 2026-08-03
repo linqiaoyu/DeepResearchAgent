@@ -93,7 +93,7 @@ class ReaderFidelityTests(unittest.TestCase):
         )
 
         self.assertNotIn("2025年归母净利润7,711,054,811.98 元", guarded)
-        self.assertIn("归母净利润：未取得满足", guarded)
+        self.assertIn("归母净利润：未取得可引用的原始披露事实", guarded)
         self.assertIn(
             {
                 "tool": "grounded_fact_renderer",
@@ -149,7 +149,7 @@ class ReaderFidelityTests(unittest.TestCase):
         )
 
         self.assertNotIn("6,336,527,14.75", guarded)
-        self.assertIn("归母净利润：未取得满足", guarded)
+        self.assertIn("归母净利润：未取得可引用的原始披露事实", guarded)
 
     def test_public_report_path_invokes_fidelity_guard(self) -> None:
         state = self._state()

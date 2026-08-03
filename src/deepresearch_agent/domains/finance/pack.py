@@ -126,6 +126,34 @@ class FinanceDomainPack:
 
         return reader_derived_metrics(evidence)
 
+    def is_historical_annual_disclosure(self, evidence: object) -> bool:
+        from deepresearch_agent.domains.finance.disclosure_policy import (
+            is_historical_annual_disclosure,
+        )
+
+        return is_historical_annual_disclosure(evidence)
+
+    def reader_risk_visible(self, line: str) -> bool:
+        from deepresearch_agent.domains.finance.disclosure_policy import (
+            reader_risk_visible,
+        )
+
+        return reader_risk_visible(line)
+
+    def reader_assumption_visible(self, line: str) -> bool:
+        from deepresearch_agent.domains.finance.disclosure_policy import (
+            reader_assumption_visible,
+        )
+
+        return reader_assumption_visible(line)
+
+    def reader_metric_gap_explanation(self, metric: str) -> str:
+        from deepresearch_agent.domains.finance.disclosure_policy import (
+            reader_metric_gap_explanation,
+        )
+
+        return reader_metric_gap_explanation(metric)
+
     def comparison_observed(self, evidence: object) -> bool:
         from deepresearch_agent.domains.finance.metric_coverage import (
             comparison_observed,
