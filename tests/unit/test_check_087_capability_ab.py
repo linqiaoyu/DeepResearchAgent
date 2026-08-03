@@ -1,11 +1,34 @@
 from __future__ import annotations
 
 import unittest
+import subprocess
+import sys
+from pathlib import Path
 
 from scripts.check_087_capability_ab import _promoted, _single_flag_violation
 
 
 class CapabilityAbCheckTests(unittest.TestCase):
+    def test_cli_reports_missing_results_instead_of_importing_failure(self) -> None:
+        root = Path(__file__).resolve().parents[2]
+        with self.subTest("direct script execution"):
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "scripts/check_087_capability_ab.py",
+                    "--results",
+                    "missing-results",
+                ],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("capabilities_tested=0", completed.stdout)
+        self.assertNotIn("ModuleNotFoundError", completed.stderr)
+
     def _record(self, *, enabled: bool, answered: int = 2) -> dict[str, object]:
         return {
             "request": {"topic": "NIO 2024", "as_of": "2026-07-01", "depth": 1},

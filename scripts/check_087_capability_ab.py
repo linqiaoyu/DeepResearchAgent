@@ -7,8 +7,12 @@ import json
 from pathlib import Path
 from typing import Any
 
-from scripts.check_082_report_fidelity import measure as fidelity_measure
-from scripts.check_087_report_shape import measure as shape_measure
+try:  # Support both `python scripts/...` and module-based unit tests.
+    from scripts.check_082_report_fidelity import measure as fidelity_measure
+    from scripts.check_087_report_shape import measure as shape_measure
+except ModuleNotFoundError:  # pragma: no cover - exercised by the CLI subprocess test.
+    from check_082_report_fidelity import measure as fidelity_measure
+    from check_087_report_shape import measure as shape_measure
 
 
 CAPABILITIES = (
