@@ -52,9 +52,15 @@ def measure(report: str) -> dict[str, int]:
             )
         )
     )
+    analysis_false_positives = annual_outdated + len(DISCLAIMER.findall(assumptions))
     return {
         "reader_visible_lines": len(visible),
         "boilerplate_lines": boilerplate,
+        # R090: the pass/fail criterion counts noise, not length. A cap on total
+        # reader lines scored an empty report as the best possible one, and the
+        # R087 A/B promoted capabilities on exactly that signal while both LLM
+        # agents were silently truncated. Length is still reported, never judged.
+        "noise_lines": boilerplate + analysis_false_positives,
         "audit_sections_in_report": len(AUDIT_HEADINGS.findall(report)),
         "metrics_requested": len(coverage),
         "metrics_answered": answered,
@@ -62,7 +68,7 @@ def measure(report: str) -> dict[str, int]:
         "derived_metrics_with_provenance": sum(
             1 for line in report.splitlines() if "推导值" in line and len(re.findall(r"\[\^\d+\]", line)) >= 2
         ),
-        "analysis_false_positives": annual_outdated + len(DISCLAIMER.findall(assumptions)),
+        "analysis_false_positives": analysis_false_positives,
     }
 
 
@@ -78,6 +84,12 @@ def main() -> None:
         )
         if values["derived_metrics_with_provenance"] != 1:
             raise SystemExit(1)
+        noisy = measure(
+            "# report\n\n## 未验证假设\n- actual future results may be materially different\n\n"
+            "## 参考来源\n[^1]: source"
+        )
+        if noisy["noise_lines"] < 1:
+            raise SystemExit(1)
         print("report_shape_self_test=PASS")
         return
     if args.package is None:
@@ -86,8 +98,7 @@ def main() -> None:
     for key, value in values.items():
         print(f"{key}={value}")
     valid = (
-        values["reader_visible_lines"] <= 40
-        and values["boilerplate_lines"] == 0
+        values["noise_lines"] == 0
         and values["audit_sections_in_report"] == 0
         and values["metrics_answered"] + values["metrics_explained_gap"] == values["metrics_requested"]
         and (

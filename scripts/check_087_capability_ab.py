@@ -25,8 +25,13 @@ CAPABILITIES = (
     "PROGRESSIVE_DELIVERY",
     "DECISION_WEAVING",
 )
+# R090: `reader_visible_lines` was removed from the decision signal. It scored a
+# shorter report as a better one, so a capability that adds analysis could only
+# ever look neutral or harmful -- which is how R087 measured RESEARCH_LOOP,
+# SKILL_PACKS, TRAJECTORY_RECORD and PROGRESSIVE_DELIVERY at zero effect while
+# the extractor and reporter were truncated into their fallbacks.
 LOWER_IS_BETTER = (
-    "reader_visible_lines",
+    "noise_lines",
     "boilerplate_lines",
     "audit_sections_in_report",
     "metrics_explained_gap",
@@ -61,8 +66,7 @@ def _package_record(path: Path) -> dict[str, Any]:
 
 def _shape_valid(values: dict[str, int]) -> bool:
     return (
-        values["reader_visible_lines"] <= 40
-        and values["boilerplate_lines"] == 0
+        values["noise_lines"] == 0
         and values["audit_sections_in_report"] == 0
         and values["metrics_answered"] + values["metrics_explained_gap"]
         == values["metrics_requested"]

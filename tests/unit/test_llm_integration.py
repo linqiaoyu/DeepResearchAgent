@@ -704,6 +704,136 @@ class LLMIntegrationTests(unittest.TestCase):
 
             self.assertEqual(len(ledger_path.read_text(encoding="utf-8").splitlines()), 2)
 
+    def _truncating_client(self, tmp: str, *, completion_tokens: int) -> LLMClient:
+        env_path = Path(tmp) / ".env"
+        env_path.write_text("DEEPSEEK_API_KEY=test-key\n", encoding="utf-8")
+        completion = MockCompletion(
+            ['{"claims": [{"claim": "partial"'],
+            completion_tokens=completion_tokens,
+        )
+        client = LLMClient(
+            ledger_path=Path(tmp) / "ledger.jsonl",
+            budget_cny=3.0,
+            completion_func=completion,
+            sleep_func=lambda _: None,
+            env_path=env_path,
+            global_ledger_path=Path(tmp) / "global_ledger.jsonl",
+        )
+        client.completion_probe = completion  # type: ignore[attr-defined]
+        return client
+
+    def test_truncated_structured_output_is_classified_and_not_repaired(self) -> None:
+        """A cut-off response must not buy a second identical cut-off response.
+
+        R073-R089 paid for 28 repair calls that re-truncated at the same cap and
+        then degraded silently; the ledger recorded only `parse_error: true`.
+        """
+
+        from deepresearch_agent.llm.client import StructuredOutputTruncatedError
+        from deepresearch_agent.schemas import ExtractedClaims
+
+        cap = DEFAULT_LLM_CONFIG.roles["extractor"].max_completion_tokens
+        with tempfile.TemporaryDirectory() as tmp:
+            client = self._truncating_client(tmp, completion_tokens=cap)
+
+            with self.assertRaises(StructuredOutputTruncatedError):
+                client.complete(
+                    role="extractor",
+                    run_id="truncated",
+                    schema=ExtractedClaims,
+                    messages=[{"role": "user", "content": "extract"}],
+                )
+
+            self.assertEqual(client.completion_probe.calls, 1)  # type: ignore[attr-defined]
+            rows = [
+                json.loads(line)
+                for line in (Path(tmp) / "ledger.jsonl").read_text(encoding="utf-8").splitlines()
+            ]
+            self.assertEqual(len(rows), 1)
+            self.assertTrue(rows[0]["truncated"])
+            self.assertEqual(rows[0]["parse_error_kind"], "truncated")
+
+    def test_malformed_but_complete_output_is_repaired_not_reported_as_truncated(self) -> None:
+        from deepresearch_agent.schemas import ExtractedClaims
+
+        with tempfile.TemporaryDirectory() as tmp:
+            client = self._truncating_client(tmp, completion_tokens=12)
+
+            with self.assertRaises(StructuredOutputError):
+                client.complete(
+                    role="extractor",
+                    run_id="malformed",
+                    schema=ExtractedClaims,
+                    messages=[{"role": "user", "content": "extract"}],
+                )
+
+            self.assertEqual(client.completion_probe.calls, 2)  # type: ignore[attr-defined]
+            rows = [
+                json.loads(line)
+                for line in (Path(tmp) / "ledger.jsonl").read_text(encoding="utf-8").splitlines()
+            ]
+            self.assertTrue(all(not row["truncated"] for row in rows))
+            self.assertEqual(rows[0]["parse_error_kind"], "invalid_json")
+
+    def test_finish_reason_length_marks_truncation_below_the_cap(self) -> None:
+        """Providers may stop early on their own limits, not only on ours."""
+
+        from deepresearch_agent.llm.client import StructuredOutputTruncatedError
+        from deepresearch_agent.schemas import ExtractedClaims
+
+        class LengthStop(MockCompletion):
+            def __call__(self, **kwargs: object) -> dict:
+                response = super().__call__(**kwargs)
+                response["choices"][0]["finish_reason"] = "length"
+                return response
+
+        with tempfile.TemporaryDirectory() as tmp:
+            env_path = Path(tmp) / ".env"
+            env_path.write_text("DEEPSEEK_API_KEY=test-key\n", encoding="utf-8")
+            client = LLMClient(
+                ledger_path=Path(tmp) / "ledger.jsonl",
+                budget_cny=3.0,
+                completion_func=LengthStop(['{"claims": [{"claim": "partial"'], completion_tokens=7),
+                sleep_func=lambda _: None,
+                env_path=env_path,
+                global_ledger_path=Path(tmp) / "global_ledger.jsonl",
+            )
+
+            with self.assertRaises(StructuredOutputTruncatedError):
+                client.complete(
+                    role="extractor",
+                    run_id="length-stop",
+                    schema=ExtractedClaims,
+                    messages=[{"role": "user", "content": "extract"}],
+                )
+
+            row = json.loads(
+                (Path(tmp) / "ledger.jsonl").read_text(encoding="utf-8").splitlines()[0]
+            )
+            self.assertEqual(row["finish_reason"], "length")
+            self.assertTrue(row["truncated"])
+
+    def test_run_aggregate_counts_structured_output_health(self) -> None:
+        from deepresearch_agent.llm.client import StructuredOutputTruncatedError
+        from deepresearch_agent.schemas import ExtractedClaims
+
+        cap = DEFAULT_LLM_CONFIG.roles["extractor"].max_completion_tokens
+        with tempfile.TemporaryDirectory() as tmp:
+            client = self._truncating_client(tmp, completion_tokens=cap)
+            with self.assertRaises(StructuredOutputTruncatedError):
+                client.complete(
+                    role="extractor",
+                    run_id="aggregate",
+                    schema=ExtractedClaims,
+                    messages=[{"role": "user", "content": "extract"}],
+                )
+
+            health = client.aggregate_run("aggregate")["structured_output"]
+
+            self.assertEqual(health["structured_calls"], 1)
+            self.assertEqual(health["structured_parse_errors"], 1)
+            self.assertEqual(health["truncated_calls"], 1)
+
     def test_mode_switch_defaults_to_deterministic_and_accepts_llm_env(self) -> None:
         old_value = os.environ.get("DEEPRESEARCH_MODE")
         try:
@@ -1090,7 +1220,13 @@ class LLMIntegrationTests(unittest.TestCase):
             self.assertEqual(len(prompt_sources), 3)
             self.assertEqual(sum(len(item["content"]) for item in prompt_sources), 12_000)
             self.assertEqual(extractor.last_stats["llm_context_omitted_source_count"], 17)
-            self.assertEqual(DEFAULT_LLM_CONFIG.roles["extractor"].max_completion_tokens, 1024)
+            # R090: the R073 input bounds above are unchanged and still asserted.
+            # Only the completion cap moved: 1024 could not hold the extractor's
+            # own schema, so every structured response was truncated into the
+            # deterministic fallback. The cap must stay above that reference.
+            self.assertGreater(
+                DEFAULT_LLM_CONFIG.roles["extractor"].max_completion_tokens, 1024
+            )
 
     def test_reporter_reference_validation_counts_invalid_ids(self) -> None:
         state = ResearchState(topic="wealth AI")
@@ -1180,7 +1316,9 @@ class LLMIntegrationTests(unittest.TestCase):
         self.assertEqual(len(prompt_evidence), 18)
         self.assertTrue(all(len(item.claim) == 800 for item in prompt_evidence))
         self.assertTrue(all(len(item.claim) == 900 for item in evidence))
-        self.assertEqual(DEFAULT_LLM_CONFIG.roles["reporter"].max_completion_tokens, 1024)
+        # R090: the R075 evidence bounds above are unchanged and still asserted.
+        # Only the completion cap moved, for the same reason as the extractor's.
+        self.assertGreater(DEFAULT_LLM_CONFIG.roles["reporter"].max_completion_tokens, 1024)
 
     def test_reporter_repairs_missing_evidence_ids_before_rendering(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1246,6 +1384,83 @@ class LLMIntegrationTests(unittest.TestCase):
         self.assertEqual(agent.last_stats["citation_repaired_claims"], 1)
         self.assertEqual(agent.last_stats["uncited_claims"], 0)
         self.assertEqual(agent.last_stats["claim_provenance"][0]["provenance"], "repaired")
+
+    def test_finance_reader_report_delivers_the_reporter_llm_analysis(self) -> None:
+        """End-to-end through `report()`, not a hand-set fallback flag.
+
+        R087 recorded authored claims in the ledger while two later steps
+        removed every one of them from the delivered report, so a pipeline-side
+        assertion alone would not have caught the regression.
+        """
+
+        with tempfile.TemporaryDirectory() as tmp:
+            env_path = Path(tmp) / ".env"
+            env_path.write_text("DEEPSEEK_API_KEY=test-key\n", encoding="utf-8")
+            state = ResearchState(topic="蔚来 2024 年营业收入")
+            state.plan = ResearchPlan(
+                topic=state.topic,
+                sub_questions=[
+                    SubQuestion(id="rev", question=state.topic, search_queries=["蔚来 年报"])
+                ],
+            )
+            state.evidence_store = [
+                Evidence(
+                    id="revenue",
+                    research_id=state.research_id,
+                    sub_question_id="rev",
+                    claim="蔚来 2024 年营业收入为 65,731,559,000 元。",
+                    claim_type="data",
+                    source_url="https://sec.example/nio-20f",
+                    source_title="NIO 20-F",
+                    source_pub_date=date(2025, 4, 8),
+                    extract_text="蔚来 2024 年营业收入为 65,731,559,000 元。",
+                )
+            ]
+            draft = {
+                "summary": "2024 年营业收入同比增长。",
+                "key_findings": [
+                    {
+                        "text": "蔚来 2024 年营业收入为 65,731,559,000 元。",
+                        "evidence_ids": ["revenue"],
+                    }
+                ],
+                "detailed_analysis": [
+                    {
+                        "sub_question_id": "rev",
+                        "heading": "营收结构",
+                        "claims": [
+                            {
+                                "text": "增量主要来自整车交付量提升，而非售价变化。",
+                                "evidence_ids": ["revenue"],
+                            },
+                            {
+                                "text": "其他销售的增速高于整车销售，收入结构随之变化。",
+                                "evidence_ids": ["revenue"],
+                            },
+                        ],
+                    }
+                ],
+                "risks": [],
+                "unverified_assumptions": [],
+            }
+            client = LLMClient(
+                ledger_path=Path(tmp) / "ledger.jsonl",
+                budget_cny=3.0,
+                completion_func=MockCompletion(
+                    [json.dumps(draft)], prompt_tokens=10, completion_tokens=5
+                ),
+                sleep_func=lambda _: None,
+                env_path=env_path,
+                global_ledger_path=Path(tmp) / "global_ledger.jsonl",
+            )
+
+            agent = ReporterAgent(llm_client=client)
+            report = agent.report(state)
+
+        self.assertFalse(agent.last_stats["fallback"])
+        self.assertIn("## 详细分析", report)
+        self.assertIn("增量主要来自整车交付量提升", report)
+        self.assertIn("其他销售的增速高于整车销售", report)
 
 
 if __name__ == "__main__":

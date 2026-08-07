@@ -10,6 +10,7 @@ from deepresearch_agent.schemas import (
     NumericFields,
     ReportClaim,
     ReportDraft,
+    ReportSection,
     ResearchPlan,
     ResearchState,
     StructuredDataRequest,
@@ -560,6 +561,103 @@ class ReporterFinanceTemplateTests(unittest.TestCase):
             "numeric_citation_mismatch",
             result.bad_case_categories,
         )
+
+    def _analysis_state(self) -> tuple[ResearchState, ReporterAgent, ReportDraft]:
+        state = ResearchState(topic="贵州茅台 2025 年营业收入")
+        state.plan = ResearchPlan(
+            topic=state.topic,
+            sub_questions=[
+                SubQuestion(
+                    id="finance",
+                    question=state.topic,
+                    search_queries=["600519 年度报告"],
+                )
+            ],
+        )
+        evidence = self._metric_evidence(
+            state, "revenue-2025", "营业收入", "20251231", 168_838_102_514.79, 61
+        )
+        state.evidence_store = [evidence]
+        draft = ReportDraft(
+            summary="2025 年营业收入同比小幅下降。",
+            key_findings=[
+                ReportClaim(
+                    text="2025 年营业收入为 168,838,102,514.79 元。",
+                    evidence_ids=[evidence.id],
+                )
+            ],
+            detailed_analysis=[
+                ReportSection(
+                    sub_question_id="finance",
+                    heading="营收结构",
+                    claims=[
+                        ReportClaim(
+                            text="收入主要来自酒类业务，其余分部占比较低。",
+                            evidence_ids=[evidence.id],
+                        ),
+                        ReportClaim(
+                            text="年报口径与结构化接口口径一致，可直接比较。",
+                            evidence_ids=[evidence.id],
+                        ),
+                    ],
+                )
+            ],
+            risks=[],
+            unverified_assumptions=[],
+        )
+        return state, ReporterAgent(), draft
+
+    def test_reader_report_keeps_analysis_when_the_reporter_llm_ran(self) -> None:
+        """R090: the finance compaction step used to delete `## 详细分析`.
+
+        That was correct while the reporter was truncated into its mechanical
+        fallback and the section held filing boilerplate. With the LLM path
+        working it deletes the only prose that answers the question.
+        """
+
+        state, reporter, draft = self._analysis_state()
+        rendered, _invalid, _backfills = reporter._render_llm_report(state, draft)
+        reporter.last_stats["fallback"] = False
+
+        compacted = reporter._compact_reader_report(
+            rendered, state, {"revenue-2025": 1}
+        )
+
+        self.assertIn("## 详细分析", compacted)
+        self.assertIn("收入主要来自酒类业务", compacted)
+
+    def test_analysis_repeating_an_already_stated_number_is_still_dropped(self) -> None:
+        """The dedup rule still holds where it was actually aimed.
+
+        R090 narrowed it to claims that restate a number, not to every claim
+        citing an already-cited source.
+        """
+
+        state, reporter, draft = self._analysis_state()
+        draft.detailed_analysis[0].claims[0] = ReportClaim(
+            text="2025 年营业收入为 168,838,102,514.79 元。",
+            evidence_ids=["revenue-2025"],
+        )
+
+        rendered, _invalid, _backfills = reporter._render_llm_report(state, draft)
+
+        analysis = rendered.split("## 详细分析", 1)[1]
+        self.assertNotIn("168,838,102,514.79 元。 [^1]\n- 168", analysis)
+        self.assertEqual(analysis.count("168,838,102,514.79"), 0)
+        self.assertIn("年报口径与结构化接口口径一致", analysis)
+
+    def test_reader_report_still_drops_analysis_from_the_mechanical_fallback(
+        self,
+    ) -> None:
+        state, reporter, draft = self._analysis_state()
+        rendered, _invalid, _backfills = reporter._render_llm_report(state, draft)
+        reporter.last_stats["fallback"] = True
+
+        compacted = reporter._compact_reader_report(
+            rendered, state, {"revenue-2025": 1}
+        )
+
+        self.assertNotIn("## 详细分析", compacted)
 
     def _metric_evidence(
         self,

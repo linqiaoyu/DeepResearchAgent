@@ -41,6 +41,7 @@ class CapabilityAbCheckTests(unittest.TestCase):
             "shape": {
                 "reader_visible_lines": 20,
                 "boilerplate_lines": 0,
+                "noise_lines": 0,
                 "audit_sections_in_report": 0,
                 "metrics_requested": 2,
                 "metrics_answered": answered,
@@ -57,8 +58,22 @@ class CapabilityAbCheckTests(unittest.TestCase):
 
         self.assertTrue(_promoted(off, on))
 
-        on["shape"]["reader_visible_lines"] = 21  # type: ignore[index]
+        on["shape"]["noise_lines"] = 1  # type: ignore[index]
         self.assertFalse(_promoted(off, on))
+
+    def test_a_longer_report_is_not_a_regression_by_itself(self) -> None:
+        """R090: length must not decide capability promotion.
+
+        Under the R087 rule a capability that answered one more metric was
+        rejected the moment its report grew a line, which is how every
+        analysis-adding capability measured as useless.
+        """
+
+        off = self._record(enabled=False, answered=1)
+        on = self._record(enabled=True, answered=2)
+        on["shape"]["reader_visible_lines"] = 60  # type: ignore[index]
+
+        self.assertTrue(_promoted(off, on))
 
     def test_rejects_a_pair_that_changes_a_second_flag(self) -> None:
         off = self._record(enabled=False)

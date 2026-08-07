@@ -22,6 +22,22 @@ class ReportShapeTests(unittest.TestCase):
         values = measure(report)
 
         self.assertEqual(values["analysis_false_positives"], 2)
+        self.assertGreaterEqual(values["noise_lines"], 2)
+
+    def test_a_long_analytical_report_carries_no_noise(self) -> None:
+        """R090: substance must not read as a shape defect.
+
+        `reader_visible_lines <= 40` used to reject this report, so the gate
+        preferred a two-line metric dump over an explained one.
+        """
+
+        body = "\n".join(f"- 第 {index} 条分析结论，来源见脚注。 [^1]" for index in range(60))
+        report = f"# Report\n\n## 详细分析\n{body}\n\n## 参考来源\n[^1]: source\n"
+
+        values = measure(report)
+
+        self.assertGreater(values["reader_visible_lines"], 40)
+        self.assertEqual(values["noise_lines"], 0)
 
 
 if __name__ == "__main__":
