@@ -61,7 +61,37 @@ class LLMRetryExhaustedError(LLMClientError):
 
 
 class StructuredOutputError(LLMClientError):
-    pass
+    #: One of ``invalid_json``, ``schema_violation`` or ``truncated``.
+    kind: str = "invalid_json"
+
+
+class StructuredOutputTruncatedError(StructuredOutputError):
+    """The provider stopped at ``max_completion_tokens`` before closing the JSON.
+
+    This is a configuration failure, not a model failure: a repair attempt under
+    the same completion cap re-truncates at the same boundary, so the call must
+    surface instead of silently paying for a second identical truncation.
+    """
+
+    def __init__(
+        self,
+        *,
+        role: str,
+        completion_tokens: int,
+        max_completion_tokens: int,
+        finish_reason: str | None,
+    ) -> None:
+        super().__init__(
+            f"structured output truncated for role={role}: "
+            f"completion_tokens={completion_tokens} "
+            f"max_completion_tokens={max_completion_tokens} "
+            f"finish_reason={finish_reason}"
+        )
+        self.kind = "truncated"
+        self.role = role
+        self.completion_tokens = completion_tokens
+        self.max_completion_tokens = max_completion_tokens
+        self.finish_reason = finish_reason
 
 
 class BudgetExceededError(LLMClientError):
@@ -109,6 +139,7 @@ class LLMCallResult:
     cache_hit: bool | None
     repair_attempts: int = 0
     tool_calls: tuple[dict[str, Any], ...] = ()
+    finish_reason: str | None = None
 
 
 class LLMClient:
@@ -189,6 +220,7 @@ class LLMClient:
         self._reserve_budget(run_id, reservation_cny)
 
         first_error: str | None = None
+        first_error_kind: str | None = None
         try:
             with correlation_context(llm_call=role):
                 raw_result = self._completion_with_retries(
@@ -213,6 +245,8 @@ class LLMClient:
                 parsed = self._parse_schema(content, schema)
             except StructuredOutputError as exc:
                 first_error = str(exc)
+                truncated = self._truncated(raw_result, role_config.max_completion_tokens)
+                first_error_kind = "truncated" if truncated else exc.kind
                 try:
                     self._record_ledger(
                         run_id=run_id,
@@ -220,6 +254,7 @@ class LLMClient:
                         result=raw_result,
                         structured=True,
                         parse_error=first_error,
+                        parse_error_kind=first_error_kind,
                     )
                 finally:
                     self._release_reservation(run_id, reservation_cny)
@@ -231,6 +266,15 @@ class LLMClient:
                 )
                 if self.run_total_cny(run_id) > self.budget_cny:
                     raise BudgetExceededError(run_id, self.budget_cny, self.run_total_cny(run_id))
+                if truncated:
+                    # Repairing under an unchanged completion cap buys a second
+                    # identical truncation.  Surface the cap instead.
+                    raise StructuredOutputTruncatedError(
+                        role=role,
+                        completion_tokens=raw_result.completion_tokens,
+                        max_completion_tokens=role_config.max_completion_tokens,
+                        finish_reason=raw_result.finish_reason,
+                    ) from exc
                 repair_attempts = 1
                 repair_messages = [
                     *prompt_messages,
@@ -266,9 +310,14 @@ class LLMClient:
                 content = raw_result.content
                 try:
                     parsed = self._parse_schema(content, schema)
-                except BaseException:
+                except BaseException as repair_exc:
                     # The repair request reached the provider and must be
                     # accounted for even when its response is invalid too.
+                    repair_kind = first_error_kind
+                    if self._truncated(raw_result, role_config.max_completion_tokens):
+                        repair_kind = "truncated"
+                    elif isinstance(repair_exc, StructuredOutputError):
+                        repair_kind = repair_exc.kind
                     try:
                         self._record_ledger(
                             run_id=run_id,
@@ -276,6 +325,7 @@ class LLMClient:
                             result=raw_result,
                             structured=True,
                             parse_error=first_error,
+                            parse_error_kind=repair_kind,
                         )
                     finally:
                         self._release_reservation(run_id, reservation_cny)
@@ -298,6 +348,7 @@ class LLMClient:
             cache_hit=raw_result.cache_hit,
             repair_attempts=repair_attempts,
             tool_calls=raw_result.tool_calls,
+            finish_reason=raw_result.finish_reason,
         )
         try:
             self._record_ledger(
@@ -306,6 +357,7 @@ class LLMClient:
                 result=result,
                 structured=bool(schema),
                 parse_error=first_error,
+                parse_error_kind=first_error_kind,
             )
         finally:
             self._release_reservation(run_id, reservation_cny)
@@ -476,9 +528,20 @@ class LLMClient:
                     "cost_usd": 0.0,
                     "cost_cny": 0.0,
                     "latency_seconds": 0.0,
+                    "structured_calls": 0,
+                    "structured_parse_errors": 0,
+                    "truncated_calls": 0,
                 },
             )
             bucket["calls"] = int(bucket["calls"]) + 1
+            if row.get("structured"):
+                bucket["structured_calls"] = int(bucket["structured_calls"]) + 1
+                if row.get("parse_error"):
+                    bucket["structured_parse_errors"] = (
+                        int(bucket["structured_parse_errors"]) + 1
+                    )
+                if row.get("truncated"):
+                    bucket["truncated_calls"] = int(bucket["truncated_calls"]) + 1
             for key in (
                 "prompt_tokens",
                 "prompt_cache_hit_tokens",
@@ -492,6 +555,10 @@ class LLMClient:
         return {
             "rows": rows,
             "by_role": by_role,
+            "structured_output": {
+                key: sum(int(bucket[key]) for bucket in by_role.values())
+                for key in ("structured_calls", "structured_parse_errors", "truncated_calls")
+            },
             "total_cost_cny": sum(float(r.get("cost_cny", 0.0)) for r in rows),
             "price_source": (
                 price_sources[0]
@@ -565,6 +632,7 @@ class LLMClient:
                         cache_hit=self._cache_hit(response),
                         repair_attempts=1 if is_repair else 0,
                         tool_calls=self._message_tool_calls(response),
+                        finish_reason=self._finish_reason(response),
                     )
                     recorder = active_trajectory_recorder()
                     if recorder:
@@ -769,7 +837,37 @@ class LLMClient:
         try:
             return schema.model_validate_json(self._json_payload(content))
         except (ValidationError, ValueError, json.JSONDecodeError) as exc:
-            raise StructuredOutputError(str(exc)) from exc
+            error = StructuredOutputError(str(exc))
+            error.kind = self._parse_error_kind(exc)
+            raise error from exc
+
+    @staticmethod
+    def _parse_error_kind(exc: Exception) -> str:
+        """Separate "not JSON" from "JSON that violates the schema".
+
+        Pydantic reports a syntax error as a ``ValidationError`` too, so the
+        exception type alone would file every malformed payload -- including a
+        truncated one -- under ``schema_violation``.
+        """
+
+        if isinstance(exc, ValidationError):
+            if any(str(error.get("type", "")).startswith("json_") for error in exc.errors()):
+                return "invalid_json"
+            return "schema_violation"
+        return "invalid_json"
+
+    @staticmethod
+    def _truncated(result: LLMCallResult, max_completion_tokens: int) -> bool:
+        """Distinguish "the model wrote bad JSON" from "we cut the model off".
+
+        Both surface as an unparsable payload, and conflating them hid a
+        permanently truncated extractor/reporter for fifteen rounds.
+        """
+
+        return (
+            result.finish_reason == "length"
+            or result.completion_tokens >= max_completion_tokens > 0
+        )
 
     def _json_payload(self, content: str) -> str:
         text = content.strip()
@@ -787,6 +885,15 @@ class LLMClient:
         message = choice["message"] if isinstance(choice, dict) else choice.message
         content = message["content"] if isinstance(message, dict) else message.content
         return content or ""
+
+    def _finish_reason(self, response: Any) -> str | None:
+        choice = response["choices"][0] if isinstance(response, dict) else response.choices[0]
+        value = (
+            choice.get("finish_reason")
+            if isinstance(choice, dict)
+            else getattr(choice, "finish_reason", None)
+        )
+        return str(value) if value else None
 
     def _message_tool_calls(self, response: Any) -> tuple[dict[str, Any], ...]:
         choice = response["choices"][0] if isinstance(response, dict) else response.choices[0]
@@ -933,6 +1040,7 @@ class LLMClient:
         result: LLMCallResult,
         structured: bool,
         parse_error: str | None,
+        parse_error_kind: str | None = None,
     ) -> None:
         row = {
             "run_id": run_id,
@@ -953,6 +1061,9 @@ class LLMClient:
             "structured": structured,
             "repair_attempts": result.repair_attempts,
             "parse_error": bool(parse_error),
+            "parse_error_kind": parse_error_kind,
+            "finish_reason": result.finish_reason,
+            "truncated": parse_error_kind == "truncated",
             "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         }
         self._append_ledger_row(row)

@@ -300,6 +300,7 @@ def _accounting_payload(
         "provider_invoice_available": False,
         "mode": settings.execution_mode,
         "llm_stats": state.metadata.get("llm_stats", {}),
+        "structured_output": llm_usage.get("structured_output", {}),
     }
 
 

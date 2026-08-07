@@ -88,6 +88,7 @@ class WorkflowHelpers:
         state.cost_used = round(sum(float(row.get("cost_usd", 0.0)) for row in rows), 8)
         state.metadata["llm_usage"] = {
             "by_role": aggregate["by_role"],
+            "structured_output": aggregate.get("structured_output", {}),
             "total_cost_cny": round(float(aggregate["total_cost_cny"]), 8),
             "ledger_total_cny": round(self.llm_client.ledger_total_cny(), 8),
             "price_source": aggregate.get("price_source"),
