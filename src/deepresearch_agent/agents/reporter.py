@@ -39,6 +39,12 @@ _RMB_RE = re.compile(
     re.IGNORECASE,
 )
 _FOOTNOTE_RE = re.compile(r"\[\^(\d+)\]")
+# `prompts/reporter.md` requires each numeric fact to be emitted once. R090:
+# that rule was enforced against the evidence a claim cites rather than the
+# numbers it states, so an explanatory sentence citing an already-cited source
+# was deleted -- which for a single-metric financial question deletes the whole
+# analysis section regardless of how good it is.
+_RESTATES_NUMBER_RE = re.compile(r"\d")
 REPORTER_LLM_MAX_EVIDENCE = 18
 REPORTER_LLM_MAX_CLAIM_CHARS = 800
 
@@ -131,11 +137,17 @@ class ReporterAgent:
         state: ResearchState,
         ref_map: dict[str, int],
     ) -> str:
-        """Keep only mechanically grounded reader content in the report.
+        """Drop reader noise without dropping the reporter's actual analysis.
 
         Web-page excerpts and execution/audit traces remain available in the
-        audit bundle.  This deliberately reuses the existing grounded-fact
-        rendering path rather than attempting another generative summary.
+        audit bundle.  R087 wrote this to strip everything except mechanically
+        grounded facts, which was right while the reporter LLM was truncated
+        into its fallback and its ``详细分析`` held deterministic filing
+        boilerplate.  With that call working (R090), unconditionally deleting
+        the section would discard the only part of the report that answers the
+        question in prose, so the section is carried through exactly when the
+        reporter did not fall back.  ``补充事实`` stays dropped: it is the
+        renderer's bucket for claims unrelated to the question.
         """
         def section(title: str) -> list[str]:
             match = re.search(
@@ -153,6 +165,9 @@ class ReporterAgent:
         derived = self._gross_margin_derivation(state, ref_map)
         if derived:
             lines.extend(["", *derived])
+        detailed = section("详细分析") if self.last_stats.get("fallback") is False else []
+        if detailed:
+            lines.extend(["", "## 详细分析", *detailed])
         if coverage:
             lines.extend(["", "## 指标覆盖状态", *coverage])
         # Keep only reader-relevant, non-template limitations.  Annual filings
@@ -803,6 +818,7 @@ class ReporterAgent:
                 if (
                     fact_keys
                     and fact_keys <= seen_fact_keys
+                    and _RESTATES_NUMBER_RE.search(claim.text)
                     and not any(
                         not evidence_fact_keys.get(item)
                         for item in valid_claim_ids
