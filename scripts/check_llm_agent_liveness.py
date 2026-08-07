@@ -425,6 +425,11 @@ def measure_package(
     )
 
 
+def _is_live(package: Path) -> bool:
+    ledger = json.loads((package / "audit_bundle" / "ledger.json").read_text(encoding="utf-8"))
+    return ledger.get("mode") == "llm"
+
+
 def _from_global_ledger(package: Path, llm_ledger: Path) -> tuple[int, int]:
     """Reconstruct structured-call health for packages written before R090.
 
@@ -475,6 +480,11 @@ def check_package(
         )
     if measurement.truncated_calls:
         failures.append(f"{measurement.truncated_calls} structured call(s) were truncated")
+    if measurement.structured_parse_errors is None and _is_live(package):
+        # A package produced after R090 carries its own structured-output
+        # health. Missing counters on a live package means the evidence for
+        # "no call was truncated" does not exist, which must not read as zero.
+        failures.append("structured-output health is unavailable for a live package")
     if measurement.llm_authored_claims < min_authored_claims:
         failures.append(
             f"only {measurement.llm_authored_claims} LLM-authored cited claim(s), "

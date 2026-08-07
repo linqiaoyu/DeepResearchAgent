@@ -176,6 +176,21 @@ class LlmAgentLivenessPackageTests(unittest.TestCase):
 
             self.assertEqual(measure_package(package).orphan_footnotes, 1)
 
+    def test_a_live_package_without_health_counters_fails_instead_of_reading_zero(
+        self,
+    ) -> None:
+        ledger = _healthy_ledger()
+        del ledger["structured_output"]
+        with tempfile.TemporaryDirectory() as tmp:
+            package = _package(Path(tmp), ledger)
+
+            measurement = measure_package(package)
+
+            self.assertIsNone(measurement.structured_parse_errors)
+            self.assertEqual(
+                check_package(package, min_authored_claims=3, llm_ledger=None), 1
+            )
+
     def test_pre_r090_package_reconstructs_health_from_the_global_ledger(self) -> None:
         ledger = _healthy_ledger()
         del ledger["structured_output"]
