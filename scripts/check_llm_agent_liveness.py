@@ -107,6 +107,59 @@ class TruncatingProvider:
         }
 
 
+class ReasoningExhaustingProvider:
+    """Provider stub that spends the whole cap thinking, as the live one did.
+
+    R099 measured this shape twice against the real endpoint
+    (``_collab/099/evidence/probe_exhaustion_fix.log``) and confirmed it in both
+    R098 live runs, whose discarded reporter payloads are one byte each: at a cap
+    the model cannot finish inside, ``content`` comes back empty,
+    ``finish_reason`` is ``length`` and ``reasoning_tokens`` equals the whole
+    budget. The same request carrying the measured reasoning-off body returns the
+    payload instead, with zero reasoning tokens.
+
+    A stub that answered on the first call would make the recovery check vacuous,
+    so this one refuses until the request actually carries that body.
+    """
+
+    def __init__(self, payload: str) -> None:
+        self.payload = payload
+        self.bodies: list[Any] = []
+
+    def __call__(self, **kwargs: Any) -> dict[str, Any]:
+        max_tokens = int(kwargs.get("max_tokens") or 0)
+        extra_body = kwargs.get("extra_body")
+        self.bodies.append(extra_body)
+        if not extra_body:
+            return {
+                "choices": [{"message": {"content": ""}, "finish_reason": "length"}],
+                "usage": {
+                    "prompt_tokens": 100,
+                    "completion_tokens": max_tokens,
+                    "total_tokens": 100 + max_tokens,
+                    "completion_tokens_details": {"reasoning_tokens": max_tokens},
+                },
+            }
+        content = (
+            _truncate_to_tokens(self.payload, max_tokens) if max_tokens else self.payload
+        )
+        completion_tokens = _estimate_tokens(content)
+        return {
+            "choices": [
+                {
+                    "message": {"content": content},
+                    "finish_reason": "length" if content != self.payload else "stop",
+                }
+            ],
+            "usage": {
+                "prompt_tokens": 100,
+                "completion_tokens": completion_tokens,
+                "total_tokens": 100 + completion_tokens,
+                "completion_tokens_details": {"reasoning_tokens": 0},
+            },
+        }
+
+
 def _evidence_id(index: int) -> str:
     return f"3f2a{index:04d}-0000-5000-8000-00000000{index:04d}"
 
@@ -444,6 +497,61 @@ def self_test(tmp_root: Path) -> int:
     if not detected:
         failures.append("truncation classifier did not fire at a 64-token cap")
 
+    # R099: every reader-facing role must survive the failure that put
+    # `reader_analysis_lines` at 0 in all three of R098's live runs -- a response
+    # that spends the whole completion budget reasoning and returns nothing. The
+    # two checks above cannot see it: an empty payload is not an over-long one,
+    # and no schema bound prevents it.
+    for probe in _role_probes():
+        provider = ReasoningExhaustingProvider(probe.payload)
+        client = LLMClient(
+            ledger_path=tmp_root / f"exhaustion-{probe.role}.jsonl",
+            global_ledger_path=tmp_root / "exhaustion-global.jsonl",
+            budget_cny=10.0,
+            completion_func=provider,
+            env_path=tmp_root / ".env",
+        )
+        recovered = False
+        try:
+            result = client.complete(
+                role=probe.role,
+                run_id=f"self-test-exhaustion-{probe.role}",
+                messages=[{"role": "user", "content": "reference"}],
+                schema=probe.schema,
+            )
+            recovered = isinstance(result.parsed, probe.schema)
+        except StructuredOutputTruncatedError:
+            recovered = False
+        health = client.aggregate_run(f"self-test-exhaustion-{probe.role}")[
+            "structured_output"
+        ]
+        print(
+            f"role={probe.role} reasoning_exhausted_calls="
+            f"{health['reasoning_exhausted_calls']} reasoning_recovered_calls="
+            f"{health['reasoning_recovered_calls']} recovered={str(recovered).lower()}"
+        )
+        if not recovered:
+            failures.append(
+                f"{probe.role}: a response that spent its whole completion budget "
+                "reasoning was not recovered, so the role falls back and the reader "
+                "receives no authored analysis"
+            )
+        # A recovery that reached the provider without the measured body would
+        # have been answered by a provider that ignores it, and would prove
+        # nothing about production.
+        if provider.bodies[:1] != [None] or not provider.bodies[1:2] == [
+            {"thinking": {"type": "disabled"}}
+        ]:
+            failures.append(
+                f"{probe.role}: the recovery did not carry the reasoning-off body "
+                f"measured against the endpoint (sent {provider.bodies[:2]})"
+            )
+        if int(health["reasoning_exhausted_calls"]) != 1:
+            failures.append(
+                f"{probe.role}: the exhausted call was not recorded exactly once "
+                f"({health['reasoning_exhausted_calls']}), so its cost is unaccounted"
+            )
+
     for failure in failures:
         print(f"FAIL {failure}", file=sys.stderr)
     print(f"self_test_failures={len(failures)}")
@@ -549,6 +657,18 @@ def measure_report(report: str) -> tuple[int, int]:
     return reader_analysis_lines, len(listed - cited)
 
 
+def _analysis_flow(package: Path) -> dict[str, int]:
+    """What the reporter's draft offered and what the renderer did with it."""
+
+    ledger = package / "audit_bundle" / "ledger.json"
+    if not ledger.exists():
+        return {}
+    stats = (json.loads(ledger.read_text(encoding="utf-8")).get("llm_stats") or {})
+    reporter = stats.get("reporter") or {}
+    flow = reporter.get("analysis_flow") or {}
+    return {str(key): int(value) for key, value in flow.items()}
+
+
 def measure_package(
     package: Path,
     *,
@@ -652,6 +772,18 @@ def check_package(
 ) -> int:
     measurement = measure_package(package, llm_ledger=llm_ledger)
     print(measurement.as_line())
+    # R099: printed beside the measurement so a `reader_analysis_lines=0` names
+    # its own cause in the same command. Absent on packages produced before the
+    # telemetry existed, which must read as "not recorded", not as zero.
+    flow = _analysis_flow(package)
+    print(
+        "analysis_flow="
+        + (
+            " ".join(f"{key}={value}" for key, value in sorted(flow.items()))
+            if flow
+            else "unavailable"
+        )
+    )
     failures: list[str] = []
     if measurement.extractor_fallback:
         failures.append("extractor degraded to its deterministic fallback")
