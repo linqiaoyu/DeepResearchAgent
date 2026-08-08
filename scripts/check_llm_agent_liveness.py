@@ -258,45 +258,92 @@ def _measured_floor() -> int:
     return MEASURED_TRUNCATION_TOKENS * REQUIRED_CAP_HEADROOM
 
 
-def worst_case_extractor_payload() -> str:
-    """The largest response `ExtractedClaims` permits, built from its own bounds.
+#: A JSON number's textual length is not bounded by `minimum`/`maximum`, so the
+#: walker charges every numeric field this fixed width rather than pretend a
+#: bound exists. It is the width of the widest double `json.dumps` emits.
+NUMERIC_WORST_CASE_CHARS = len("-1.7976931348623157e+308")
 
-    R091 raised the extractor cap twice and the model filled it twice, because
-    nothing but the prompt asked it to stop. A cap is only a guarantee if the
-    schema's own worst case fits inside it, so this reads `maxItems` and
-    `maxLength` out of the generated JSON Schema rather than restating them.
+
+def _resolve_ref(node: dict[str, Any], defs: dict[str, Any], path: str) -> dict[str, Any]:
+    seen: set[str] = set()
+    while "$ref" in node:
+        name = str(node["$ref"]).rsplit("/", 1)[-1]
+        if name in seen:
+            raise UnboundedSchemaError(
+                f"{path} is defined by a recursive $ref to {name}, which has no "
+                "finite worst case"
+            )
+        seen.add(name)
+        node = defs[name]
+    return node
+
+
+def schema_worst_case(node: dict[str, Any], defs: dict[str, Any], path: str) -> Any:
+    """The largest instance a JSON Schema permits, or raise naming the gap.
+
+    The refusal is the point. R092 bounded two of `ExtractedClaims`'s fields and
+    the hand-written worst case supplied plausible lengths for the rest, so it
+    reported a finite worst case for a schema that had none -- and the same
+    check was never pointed at `ReportDraft`, which bounded nothing at all.
+    Substituting a realistic value for a field the provider was given no limit
+    on is what let both roles run to the cap in production.
     """
 
-    schema = ExtractedClaims.model_json_schema()
-    max_claims = schema["properties"]["claims"].get("maxItems")
-    definition = schema["$defs"]["ExtractedClaim"]
-    max_extract = definition["properties"]["extract_text"].get("maxLength")
-    if max_claims is None or max_extract is None:
-        missing = "claims.maxItems" if max_claims is None else "extract_text.maxLength"
-        raise UnboundedSchemaError(
-            f"ExtractedClaims declares no {missing}, so nothing bounds the "
-            "response the provider may return"
+    node = _resolve_ref(node, defs, path)
+
+    # A bound declared on the field itself covers unions whose branches carry no
+    # length of their own, such as `Decimal | None`.
+    max_length = node.get("maxLength")
+    if max_length is not None and node.get("type") in {None, "string"}:
+        return "公" * int(max_length)
+
+    if "enum" in node:
+        return max(node["enum"], key=lambda value: len(str(value)))
+    if "anyOf" in node:
+        # A union is as large as its largest branch, and unbounded when any
+        # branch it may legally take is unbounded.
+        return max(
+            (
+                schema_worst_case(branch, defs, f"{path}|{index}")
+                for index, branch in enumerate(node["anyOf"])
+            ),
+            key=lambda value: len(json.dumps(value, ensure_ascii=False)),
         )
-    claims = [
-        {
-            "claim": "公" * 120,
-            "claim_type": "data",
-            "source_url": "https://www.sec.gov/Archives/edgar/data/1736541/"
-            + f"000141057825000661/nio-20241231x20f.htm#chunk={_evidence_id(index)}",
-            "extract_text": "公" * max_extract,
-            "confidence": 0.82,
-            "numeric_fields": {
-                "entity": "NIO Inc.",
-                "metric_name": "营业收入",
-                "period": "2024-12-31",
-                "dimension": "年度",
-                "value": "65731559000",
-                "unit": "CNY",
-            },
+
+    kind = node.get("type")
+    if kind == "object":
+        return {
+            name: schema_worst_case(sub, defs, f"{path}.{name}")
+            for name, sub in (node.get("properties") or {}).items()
         }
-        for index in range(max_claims)
-    ]
-    return json.dumps({"claims": claims}, ensure_ascii=False)
+    if kind == "array":
+        max_items = node.get("maxItems")
+        if max_items is None:
+            raise UnboundedSchemaError(f"{path} declares no maxItems")
+        return [
+            schema_worst_case(node.get("items") or {}, defs, f"{path}[]")
+            for _ in range(int(max_items))
+        ]
+    if kind == "string":
+        raise UnboundedSchemaError(f"{path} declares no maxLength")
+    if kind in {"number", "integer"}:
+        return "9" * NUMERIC_WORST_CASE_CHARS
+    if kind == "boolean":
+        return False
+    if kind == "null":
+        return None
+    raise UnboundedSchemaError(f"{path} declares no type, so nothing bounds it")
+
+
+def worst_case_payload(schema: type) -> str:
+    """The largest response `schema` permits, built from its own bounds."""
+
+    generated = schema.model_json_schema()
+    defs = generated.get("$defs") or {}
+    return json.dumps(
+        schema_worst_case(generated, defs, schema.__name__),
+        ensure_ascii=False,
+    )
 
 
 def self_test(tmp_root: Path) -> int:
@@ -348,21 +395,27 @@ def self_test(tmp_root: Path) -> int:
             )
 
     # A cap the schema's own worst case can overrun is not a bound at all.
-    extractor_cap = DEFAULT_LLM_CONFIG.roles["extractor"].max_completion_tokens
-    try:
-        worst_case: int | None = _estimate_tokens(worst_case_extractor_payload())
-    except UnboundedSchemaError as exc:
-        worst_case = None
-        failures.append(str(exc))
-    print(
-        f"extractor_schema_worst_case_tokens={worst_case if worst_case is not None else 'unbounded'} "
-        f"extractor_cap={extractor_cap}"
-    )
-    if worst_case is not None and worst_case >= extractor_cap:
-        failures.append(
-            f"the extractor schema permits ~{worst_case} tokens, which its "
-            f"{extractor_cap}-token cap cannot hold"
+    # R098: this ran for the extractor only. `ReportDraft` bounded nothing, so
+    # the one check that would have caught the reporter running to 8192 tokens
+    # was never pointed at it. Every role whose output reaches the reader is
+    # checked here now.
+    for probe in _role_probes():
+        cap = DEFAULT_LLM_CONFIG.roles[probe.role].max_completion_tokens
+        try:
+            worst_case: int | None = _estimate_tokens(worst_case_payload(probe.schema))
+        except UnboundedSchemaError as exc:
+            worst_case = None
+            failures.append(f"{probe.role}: {exc}")
+        print(
+            f"role={probe.role} schema={probe.schema.__name__} "
+            f"schema_worst_case_tokens="
+            f"{worst_case if worst_case is not None else 'unbounded'} cap={cap}"
         )
+        if worst_case is not None and worst_case >= cap:
+            failures.append(
+                f"the {probe.role} schema permits ~{worst_case} tokens, which its "
+                f"{cap}-token cap cannot hold"
+            )
 
     # A truncating provider must still be *detected* as truncating; a classifier
     # that never fires would make the check above vacuous.

@@ -321,15 +321,139 @@ class ExtractedClaimsBoundTests(unittest.TestCase):
         )
 
     def test_the_worst_case_the_schema_permits_fits_the_role_cap(self) -> None:
+        from deepresearch_agent.schemas import ExtractedClaims
         from scripts.check_llm_agent_liveness import (
             _estimate_tokens,
-            worst_case_extractor_payload,
+            worst_case_payload,
         )
 
         self.assertLess(
-            _estimate_tokens(worst_case_extractor_payload()),
+            _estimate_tokens(worst_case_payload(ExtractedClaims)),
             DEFAULT_LLM_CONFIG.roles["extractor"].max_completion_tokens,
         )
+
+
+class ReportDraftBoundTests(unittest.TestCase):
+    """R098: the reporter is the second role whose schema bounded nothing.
+
+    The R097 live run emitted 8192 completion tokens with
+    ``finish_reason=length``, salvage found no complete element before the cut,
+    and the reader received a report with zero authored analysis lines.
+    """
+
+    def test_the_schema_sent_to_the_provider_bounds_every_field(self) -> None:
+        from deepresearch_agent.schemas import ReportDraft
+        from scripts.check_llm_agent_liveness import worst_case_payload
+
+        # Raises UnboundedSchemaError naming the field if any is unbounded.
+        worst_case_payload(ReportDraft)
+
+    def test_the_worst_case_the_schema_permits_fits_the_reporter_cap(self) -> None:
+        from deepresearch_agent.schemas import ReportDraft
+        from scripts.check_llm_agent_liveness import (
+            _estimate_tokens,
+            worst_case_payload,
+        )
+
+        self.assertLess(
+            _estimate_tokens(worst_case_payload(ReportDraft)),
+            DEFAULT_LLM_CONFIG.roles["reporter"].max_completion_tokens,
+        )
+
+    def test_an_over_long_draft_is_rejected_rather_than_silently_kept(self) -> None:
+        from pydantic import ValidationError
+
+        from deepresearch_agent.schemas import (
+            MAX_REPORT_KEY_FINDINGS,
+            MAX_REPORT_SUMMARY_CHARS,
+            ReportDraft,
+        )
+
+        with self.subTest("summary too long"):
+            with self.assertRaises(ValidationError):
+                ReportDraft.model_validate(
+                    {"summary": "x" * (MAX_REPORT_SUMMARY_CHARS + 1)}
+                )
+
+        with self.subTest("too many key findings"):
+            with self.assertRaises(ValidationError):
+                ReportDraft.model_validate(
+                    {
+                        "summary": "s",
+                        "key_findings": [{"text": "t"}] * (MAX_REPORT_KEY_FINDINGS + 1),
+                    }
+                )
+
+
+class SchemaWorstCaseWalkerTests(unittest.TestCase):
+    """The walker must refuse, not guess, when a field states no limit."""
+
+    def test_an_unbounded_string_is_named_rather_than_assumed(self) -> None:
+        from scripts.check_llm_agent_liveness import (
+            UnboundedSchemaError,
+            schema_worst_case,
+        )
+
+        schema = {
+            "type": "object",
+            "properties": {"summary": {"type": "string"}},
+        }
+
+        with self.assertRaises(UnboundedSchemaError) as caught:
+            schema_worst_case(schema, {}, "Draft")
+
+        self.assertIn("Draft.summary", str(caught.exception))
+        self.assertIn("maxLength", str(caught.exception))
+
+    def test_an_unbounded_array_is_named_rather_than_assumed(self) -> None:
+        from scripts.check_llm_agent_liveness import (
+            UnboundedSchemaError,
+            schema_worst_case,
+        )
+
+        schema = {
+            "type": "object",
+            "properties": {
+                "risks": {"type": "array", "items": {"type": "string", "maxLength": 4}}
+            },
+        }
+
+        with self.assertRaises(UnboundedSchemaError) as caught:
+            schema_worst_case(schema, {}, "Draft")
+
+        self.assertIn("Draft.risks", str(caught.exception))
+        self.assertIn("maxItems", str(caught.exception))
+
+    def test_a_union_is_unbounded_when_any_branch_it_may_take_is(self) -> None:
+        from scripts.check_llm_agent_liveness import (
+            UnboundedSchemaError,
+            schema_worst_case,
+        )
+
+        schema = {
+            "type": "object",
+            "properties": {
+                "value": {"anyOf": [{"type": "string"}, {"type": "null"}]}
+            },
+        }
+
+        with self.assertRaises(UnboundedSchemaError):
+            schema_worst_case(schema, {}, "Draft")
+
+    def test_a_bound_declared_on_the_field_covers_its_union_branches(self) -> None:
+        from scripts.check_llm_agent_liveness import schema_worst_case
+
+        schema = {
+            "type": "object",
+            "properties": {
+                "value": {
+                    "anyOf": [{"type": "number"}, {"type": "string"}, {"type": "null"}],
+                    "maxLength": 5,
+                }
+            },
+        }
+
+        self.assertEqual(schema_worst_case(schema, {}, "Draft"), {"value": "公" * 5})
 
 
 class ResearchBehaviourMeasureTests(unittest.TestCase):

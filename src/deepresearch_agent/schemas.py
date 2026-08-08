@@ -3,10 +3,16 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 from decimal import Decimal
 import re
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    model_validator,
+)
 
 
 def utc_now() -> datetime:
@@ -154,15 +160,24 @@ class StructuredDataRecord(StrictModel):
     source_url: str | None = None
 
 
+#: Declared here rather than beside the extractor's other bounds because
+#: `NumericFields` is defined first; see the R098 note on `MAX_EXTRACTED_CLAIMS`.
+MAX_NUMERIC_FIELD_CHARS = 32
+
+
 class NumericFields(StrictModel):
-    entity: str | None = None
-    metric_name: str | None = None
-    period: str | None = None
-    dimension: str = "未标注"
+    entity: str | None = Field(default=None, max_length=MAX_NUMERIC_FIELD_CHARS)
+    metric_name: str | None = Field(default=None, max_length=MAX_NUMERIC_FIELD_CHARS)
+    period: str | None = Field(default=None, max_length=MAX_NUMERIC_FIELD_CHARS)
+    dimension: str = Field(default="未标注", max_length=MAX_NUMERIC_FIELD_CHARS)
     # This mirror is consumed by numeric guards, so it must preserve the same
     # source value as StructuredDataRecord rather than reintroduce float loss.
-    value: Decimal | None = None
-    unit: str | None = None
+    # `Decimal` renders as a JSON string, and its own schema declares no
+    # textual bound, so the field declares one for the provider to read.
+    value: Decimal | None = Field(
+        default=None, json_schema_extra={"maxLength": MAX_NUMERIC_FIELD_CHARS}
+    )
+    unit: str | None = Field(default=None, max_length=MAX_NUMERIC_FIELD_CHARS)
 
     @model_validator(mode="after")
     def normalize_unit_misfiled_as_dimension(self) -> NumericFields:
@@ -218,14 +233,22 @@ class Evidence(StrictModel):
 #: `model_json_schema()` and are checked by validation, and
 #: `scripts/check_llm_agent_liveness.py` asserts the worst case they permit
 #: still fits the role's completion cap.
-MAX_EXTRACTED_CLAIMS = 12
+#:
+#: R098: R092 bounded two of this schema's fields and left `claim`,
+#: `source_url` and every `NumericFields` string with no `maxLength`, so the
+#: worst case it permits was never finite -- the R097 live run truncated three
+#: of eleven extractor batches at 8192 tokens and lost two of them whole. A
+#: field left unbounded here is a field the provider is told nothing about.
+MAX_EXTRACTED_CLAIMS = 8
 MAX_EXTRACT_TEXT_CHARS = 300
+MAX_EXTRACT_CLAIM_CHARS = 160
+MAX_SOURCE_URL_CHARS = 256
 
 
 class ExtractedClaim(StrictModel):
-    claim: str
+    claim: str = Field(max_length=MAX_EXTRACT_CLAIM_CHARS)
     claim_type: Literal["fact", "opinion", "data", "projection"]
-    source_url: str
+    source_url: str = Field(max_length=MAX_SOURCE_URL_CHARS)
     extract_text: str = Field(max_length=MAX_EXTRACT_TEXT_CHARS)
     confidence: float = Field(default=0.75, ge=0, le=1)
     numeric_fields: NumericFields | None = None
@@ -237,15 +260,44 @@ class ExtractedClaims(StrictModel):
     )
 
 
+#: R098: `ReportDraft` reached production with no `maxLength` and no `maxItems`
+#: on any field, so the JSON Schema the reporter receives stated no limit
+#: anywhere. The R097 live run emitted 8192 completion tokens with
+#: `finish_reason=length`, the salvage found no complete element before the cut,
+#: and the reporter fell back -- delivering a 22-line report with zero authored
+#: analysis lines and zero cited numbers. R092 had already learned this on the
+#: extractor and the lesson was never carried across to the second role.
+#:
+#: The list bounds match what `ReporterAgent._render_llm_report` actually
+#: renders (6 key findings, 3 claims per section, 6 risks), so a response that
+#: respects them loses nothing to the renderer.
+MAX_REPORT_SUMMARY_CHARS = 320
+MAX_REPORT_CLAIM_CHARS = 140
+MAX_REPORT_HEADING_CHARS = 60
+MAX_REPORT_SUB_QUESTION_ID_CHARS = 64
+MAX_REPORT_EVIDENCE_ID_CHARS = 40
+MAX_REPORT_CLAIM_EVIDENCE_IDS = 3
+MAX_REPORT_SECTION_CLAIMS = 3
+MAX_REPORT_SECTIONS = 4
+MAX_REPORT_RISKS = 6
+MAX_REPORT_RISK_CHARS = 140
+MAX_REPORT_ASSUMPTIONS = 3
+MAX_REPORT_KEY_FINDINGS = 6
+
+
 class ReportClaim(StrictModel):
-    text: str
-    evidence_ids: list[str] = Field(default_factory=list)
+    text: str = Field(max_length=MAX_REPORT_CLAIM_CHARS)
+    evidence_ids: list[
+        Annotated[str, StringConstraints(max_length=MAX_REPORT_EVIDENCE_ID_CHARS)]
+    ] = Field(default_factory=list, max_length=MAX_REPORT_CLAIM_EVIDENCE_IDS)
 
 
 class ReportSection(StrictModel):
-    sub_question_id: str
-    heading: str
-    claims: list[ReportClaim] = Field(default_factory=list)
+    sub_question_id: str = Field(max_length=MAX_REPORT_SUB_QUESTION_ID_CHARS)
+    heading: str = Field(max_length=MAX_REPORT_HEADING_CHARS)
+    claims: list[ReportClaim] = Field(
+        default_factory=list, max_length=MAX_REPORT_SECTION_CLAIMS
+    )
 
 
 class ReportDraft(StrictModel):
@@ -261,11 +313,19 @@ class ReportDraft(StrictModel):
     section that is discarded anyway.
     """
 
-    summary: str
-    detailed_analysis: list[ReportSection] = Field(default_factory=list)
-    risks: list[str] = Field(default_factory=list)
-    unverified_assumptions: list[ReportClaim] = Field(default_factory=list)
-    key_findings: list[ReportClaim] = Field(default_factory=list)
+    summary: str = Field(max_length=MAX_REPORT_SUMMARY_CHARS)
+    detailed_analysis: list[ReportSection] = Field(
+        default_factory=list, max_length=MAX_REPORT_SECTIONS
+    )
+    risks: list[
+        Annotated[str, StringConstraints(max_length=MAX_REPORT_RISK_CHARS)]
+    ] = Field(default_factory=list, max_length=MAX_REPORT_RISKS)
+    unverified_assumptions: list[ReportClaim] = Field(
+        default_factory=list, max_length=MAX_REPORT_ASSUMPTIONS
+    )
+    key_findings: list[ReportClaim] = Field(
+        default_factory=list, max_length=MAX_REPORT_KEY_FINDINGS
+    )
 
 
 class TraceableRow(StrictModel):

@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 
 from deepresearch_agent.llm.client import LLMClient, salvage_truncated_json
-from deepresearch_agent.schemas import ExtractedClaims
+from deepresearch_agent.schemas import MAX_EXTRACTED_CLAIMS, ExtractedClaims
 
 
 def _claim(index: int) -> dict[str, object]:
@@ -22,14 +22,22 @@ class SalvageTruncatedJsonTests(unittest.TestCase):
     """R093: a response cut off mid-element keeps the elements before the cut."""
 
     def test_complete_elements_survive_the_cut(self) -> None:
-        whole = json.dumps({"claims": [_claim(i) for i in range(11)]}, ensure_ascii=False)
+        # R098 lowered MAX_EXTRACTED_CLAIMS to keep the schema's worst case
+        # inside the extractor's completion cap, so the fixture is built from
+        # the bound rather than from a literal that silently exceeded it. The
+        # assertion is unchanged: every element that closed before the cut
+        # survives, and the incomplete one is dropped.
+        whole = json.dumps(
+            {"claims": [_claim(i) for i in range(MAX_EXTRACTED_CLAIMS)]},
+            ensure_ascii=False,
+        )
         truncated = whole[: whole.rindex("}]}") - 20]
 
         salvaged = salvage_truncated_json(truncated)
 
         self.assertIsNotNone(salvaged)
         parsed = ExtractedClaims.model_validate_json(salvaged or "")
-        self.assertEqual(len(parsed.claims), 10)
+        self.assertEqual(len(parsed.claims), MAX_EXTRACTED_CLAIMS - 1)
         self.assertEqual(parsed.claims[0].claim, "claim 0")
 
     def test_a_complete_document_is_not_touched(self) -> None:
