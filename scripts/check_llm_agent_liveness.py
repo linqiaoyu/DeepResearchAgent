@@ -297,6 +297,8 @@ def schema_worst_case(node: dict[str, Any], defs: dict[str, Any], path: str) -> 
     if max_length is not None and node.get("type") in {None, "string"}:
         return "公" * int(max_length)
 
+    if "const" in node:
+        return node["const"]
     if "enum" in node:
         return max(node["enum"], key=lambda value: len(str(value)))
     if "anyOf" in node:
