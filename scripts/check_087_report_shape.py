@@ -38,6 +38,10 @@ def measure(report: str) -> dict[str, int]:
     answered = len(coverage) - explained
     risks = _section(report, "风险与限制")
     assumptions = _section(report, "未验证假设")
+    # R095: this recognised a filing by tokens in its name, so NIO's HKEX annual
+    # report -- served as `2025032100789_c.pdf` -- produced five reader-visible
+    # stale-source warnings while this counter read zero. A filing venue in the
+    # line is the same claim as a filing token.
     annual_outdated = sum(
         1
         for line in risks.splitlines()
@@ -49,9 +53,21 @@ def measure(report: str) -> dict[str, int]:
                 "annual report",
                 "年报",
                 "sec edgar company facts",
+                "hkexnews",
+                "sec.gov",
+                "cninfo",
+                "_c.pdf",
             )
         )
     )
+    # A section that repeats one sentence is noise the reader has to wade
+    # through, whatever produced it. R094 delivered the same warning five times.
+    reader_bullets = [
+        line.strip()
+        for line in reader.splitlines()
+        if line.strip().startswith("- ")
+    ]
+    duplicate_reader_lines = len(reader_bullets) - len(set(reader_bullets))
     analysis_false_positives = annual_outdated + len(DISCLAIMER.findall(assumptions))
     return {
         "reader_visible_lines": len(visible),
@@ -60,7 +76,8 @@ def measure(report: str) -> dict[str, int]:
         # reader lines scored an empty report as the best possible one, and the
         # R087 A/B promoted capabilities on exactly that signal while both LLM
         # agents were silently truncated. Length is still reported, never judged.
-        "noise_lines": boilerplate + analysis_false_positives,
+        "duplicate_reader_lines": duplicate_reader_lines,
+        "noise_lines": boilerplate + analysis_false_positives + duplicate_reader_lines,
         "audit_sections_in_report": len(AUDIT_HEADINGS.findall(report)),
         "metrics_requested": len(coverage),
         "metrics_answered": answered,

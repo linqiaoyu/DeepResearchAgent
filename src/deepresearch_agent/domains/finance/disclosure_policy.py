@@ -28,15 +28,24 @@ def is_historical_annual_disclosure(evidence: Any) -> bool:
     source_url = str(getattr(evidence, "source_url", "")).lower()
     return any(
         marker in f"{source_title} {source_url}"
-        for marker in (
-            "20-f",
-            "20f",
-            "annual report",
-            "年度报告",
-            "年报",
-            "sec edgar company facts",
-        )
-    )
+        for marker in _ANNUAL_DISCLOSURE_MARKERS
+    ) or any(venue in source_url.lower() for venue in _FILING_VENUES)
+
+
+#: R095: R086/R087 recognised a filing by tokens in its name. NIO's Chinese
+#: annual report on HKEX is served as `2025032100789_c.pdf`, which carries none
+#: of them, so the first run that reached it reported a 547-day-old annual
+#: report as a stale source -- five identical times. A document served by a
+#: regulatory filing repository is a filing regardless of its filename.
+_FILING_VENUES = ("hkexnews.hk", "sec.gov", "cninfo.com.cn", "sse.com.cn", "szse.cn")
+_ANNUAL_DISCLOSURE_MARKERS = (
+    "20-f",
+    "20f",
+    "annual report",
+    "年度报告",
+    "年报",
+    "sec edgar company facts",
+)
 
 
 def reader_risk_visible(line: str) -> bool:
@@ -44,9 +53,10 @@ def reader_risk_visible(line: str) -> bool:
 
     if "outdated_source" not in line:
         return True
-    return not any(
-        marker in line.lower()
-        for marker in ("20-f", "20f", "annual report", "年度报告", "年报")
+    lowered = line.lower()
+    return not (
+        any(marker in lowered for marker in _ANNUAL_DISCLOSURE_MARKERS)
+        or any(venue in lowered for venue in _FILING_VENUES)
     )
 
 
