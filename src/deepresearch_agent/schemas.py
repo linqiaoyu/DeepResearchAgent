@@ -210,17 +210,31 @@ class Evidence(StrictModel):
     extracted_at: datetime = Field(default_factory=utc_now)
 
 
+#: R092: the extractor's response size is bounded by the schema, not by asking.
+#: R091 measured it emitting the full 4096 and then the full 8192 completion
+#: tokens with `finish_reason=length` while `prompts/extractor.md` asked for at
+#: most 24 claims -- an unbounded schema states no limit to the model and
+#: enforces none on the way back. These bounds travel to the provider inside
+#: `model_json_schema()` and are checked by validation, and
+#: `scripts/check_llm_agent_liveness.py` asserts the worst case they permit
+#: still fits the role's completion cap.
+MAX_EXTRACTED_CLAIMS = 12
+MAX_EXTRACT_TEXT_CHARS = 300
+
+
 class ExtractedClaim(StrictModel):
     claim: str
     claim_type: Literal["fact", "opinion", "data", "projection"]
     source_url: str
-    extract_text: str
+    extract_text: str = Field(max_length=MAX_EXTRACT_TEXT_CHARS)
     confidence: float = Field(default=0.75, ge=0, le=1)
     numeric_fields: NumericFields | None = None
 
 
 class ExtractedClaims(StrictModel):
-    claims: list[ExtractedClaim] = Field(default_factory=list)
+    claims: list[ExtractedClaim] = Field(
+        default_factory=list, max_length=MAX_EXTRACTED_CLAIMS
+    )
 
 
 class ReportClaim(StrictModel):
