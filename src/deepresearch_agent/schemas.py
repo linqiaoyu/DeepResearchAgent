@@ -249,11 +249,23 @@ class ReportSection(StrictModel):
 
 
 class ReportDraft(StrictModel):
+    """Ordered by what survives to the reader, because a cut keeps a prefix.
+
+    R095: `ReporterAgent._enforce_reader_fidelity` always replaces the rendered
+    `关键发现` with mechanically grounded facts when the domain requests
+    metrics, so `key_findings` is the one field the reader never receives as
+    written. It used to be emitted second, ahead of the analysis, and R094's
+    truncated report lost `detailed_analysis` and `unverified_assumptions`
+    entirely -- the reader got zero authored lines while the discarded section
+    had consumed the budget. Emitting it last means a truncation costs the
+    section that is discarded anyway.
+    """
+
     summary: str
-    key_findings: list[ReportClaim] = Field(default_factory=list)
     detailed_analysis: list[ReportSection] = Field(default_factory=list)
     risks: list[str] = Field(default_factory=list)
     unverified_assumptions: list[ReportClaim] = Field(default_factory=list)
+    key_findings: list[ReportClaim] = Field(default_factory=list)
 
 
 class TraceableRow(StrictModel):
