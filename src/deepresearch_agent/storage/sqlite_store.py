@@ -130,9 +130,31 @@ class SQLiteStore:
             conn.execute("CREATE INDEX IF NOT EXISTS idx_chunk_entity_id ON chunk(entity_id)")
 
     def _ensure_column(self, conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:
-        columns = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
-        if column not in columns:
+        """Add a column once, even when two connections migrate concurrently.
+
+        SQLite has no ``ADD COLUMN IF NOT EXISTS``, so this reads the schema and
+        then alters it. Two request-scoped engines opening the same database can
+        both observe the column as missing and both issue the ALTER; the loser
+        used to surface ``duplicate column name`` as a migration failure. Losing
+        that race means the column exists, which is the intended end state.
+        """
+
+        if self._has_column(conn, table, column):
+            return
+        try:
             conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+        except sqlite3.OperationalError as exc:
+            if "duplicate column name" not in str(exc).lower():
+                raise
+            if not self._has_column(conn, table, column):
+                raise
+
+    @staticmethod
+    def _has_column(conn: sqlite3.Connection, table: str, column: str) -> bool:
+        return any(
+            row["name"] == column
+            for row in conn.execute(f"PRAGMA table_info({table})").fetchall()
+        )
 
     def add_evidence_many(self, items: list[Evidence]) -> None:
         with self._connection() as conn:
