@@ -87,17 +87,20 @@ class LLMConfig:
                 model="openai/deepseek-v4-flash",
                 api_base="https://api.deepseek.com",
             ),
-            # R073/R075 bounded these two roles for latency.  The input bounds
+            # R073/R075 bounded these two roles for latency. The input bounds
             # (12k prompt chars, 18 evidence entries) fixed the timeout and are
             # kept; the 1024-token completion cap did not, and truncated every
             # structured response from R073 to R089 into a silent fallback.
-            # Completion budget is sized from the observed ~75 tokens/s so a
-            # full response stays well inside the role timeout.
+            # R090 raised it to 4096 from an estimate; the first live run that
+            # reached a provider measured both roles emitting exactly 4096 with
+            # `finish_reason=length`, so the estimate was still short. Both now
+            # use the 8192 default, and `prompts/` bounds the response to what
+            # the renderer actually consumes so the cap is headroom, not a
+            # target.
             "extractor": RoleModelConfig(
                 model="openai/deepseek-v4-flash",
                 api_base="https://api.deepseek.com",
                 timeout_seconds=180,
-                max_completion_tokens=4096,
             ),
             "capability_selector": RoleModelConfig(
                 model="openai/deepseek-v4-flash",
@@ -107,7 +110,6 @@ class LLMConfig:
                 model="openai/deepseek-v4-flash",
                 api_base="https://api.deepseek.com",
                 timeout_seconds=180,
-                max_completion_tokens=4096,
             ),
             "judge": RoleModelConfig(
                 model="openai/qwen3.7-plus",

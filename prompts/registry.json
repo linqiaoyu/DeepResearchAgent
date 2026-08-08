@@ -9,8 +9,8 @@
       "sha256": "fd7b56de2e65c335f966f85be911d1e9e31eb5375708291f8ae61d535ab8e882"
     },
     "extractor.md": {
-      "version": "1.0.0",
-      "sha256": "55d22d6195fc69c268cf9ae8bb7d6ffdc585dc226a614f42fbb5497f77e5374f"
+      "version": "1.1.0",
+      "sha256": "30244369333be22a5e1052cda62c5602736d69b021fef2454191d0ba716a9d49"
     },
     "judge.md": {
       "version": "1.0.0",
@@ -21,8 +21,8 @@
       "sha256": "17b835c94076ee30521a57fa45404435e6a34bc3b6614e9927d9dd81795d9bc2"
     },
     "reporter.md": {
-      "version": "1.1.0",
-      "sha256": "e4f904bb49296b3f21651fd84b233f3fd4ac3f3fbc6a7de3d616e33154728b2a"
+      "version": "1.2.0",
+      "sha256": "fad7dab69e9275ded2746c18ce09d52025e8956afc50678de928912d3e954a69"
     },
     "semantic_judge.md": {
       "version": "1.1.0",

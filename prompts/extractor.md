@@ -10,6 +10,8 @@ Return only JSON matching the ExtractedClaims schema supplied by the caller.
 - For numeric `data` claims, fill `numeric_fields` with entity, metric_name, period, dimension, value, and unit.
 - If the source text does not state the dimension/calculation basis, set dimension to `未标注`; do not infer or invent it.
 - If a required numeric element is absent from the source text, leave that field null rather than guessing.
+- Emit at most 3 claims per source and at most 24 claims in total. Prefer the claims that answer the sub-question over complete coverage of the source.
+- Keep each `extract_text` to the shortest verbatim span that supports its claim; do not quote whole paragraphs when one sentence carries the fact.
 - Do not add commentary outside JSON.
 
 VARIABLE INPUT

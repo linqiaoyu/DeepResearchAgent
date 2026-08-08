@@ -12,6 +12,7 @@ Return only JSON matching the ReportDraft schema supplied by the caller.
 - Keep claims faithful to the evidence text.
 - For numeric conclusions, preserve the provided period/timepoint, dimension, and unit.
 - Prefer 3-6 key findings, each short enough to map to one or two evidence items; split compound claims when different facts need different sources.
+- The renderer keeps at most 6 key findings, at most 3 claims per `detailed_analysis` section, and at most 6 risks; anything beyond those limits is discarded, so do not produce it.
 - Give sections distinct reader duties: key_findings state conclusions; detailed_analysis explains support, implications, contradictions, or limits. Do not repeat a key finding verbatim in detailed_analysis.
 - Emit each numeric fact identified by entity, normalized metric, period, and scope once. A different display unit does not make a new fact.
 - Render RMB amounts in readable 元/万元/亿元 units without scientific notation, and render YYYYMMDD periods as human-readable dates.

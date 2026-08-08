@@ -40,6 +40,15 @@ from deepresearch_agent.schemas import ExtractedClaims, ReportDraft  # noqa: E40
 #: reporter LLM's output.
 MECHANICAL_PROVENANCE = "mechanical_grounded_fact"
 DEFAULT_MIN_AUTHORED_CLAIMS = 3
+#: Measured, not estimated. The first live run that reached a provider (R091,
+#: `_collab/091/evidence/liveness_attempt1.log`) recorded both the extractor and
+#: the reporter emitting exactly 4096 completion tokens with
+#: `finish_reason=length` -- they wanted more. R090's hand-built reference
+#: payloads came to 1487 and 1230 tokens, so the guard went green while
+#: production truncated on every call. A role's cap must clear what production
+#: was measured to need, with headroom.
+MEASURED_TRUNCATION_TOKENS = 4096
+REQUIRED_CAP_HEADROOM = 2
 #: `ReporterAgent._render_llm_report` renders at most three analysis claims per
 #: sub-question and drops those unrelated to the key findings, so a depth-1
 #: single-sub-question topic has a ceiling of three. The floor is what proves
@@ -239,6 +248,12 @@ def _role_probes() -> tuple[RoleProbe, ...]:
     )
 
 
+def _measured_floor() -> int:
+    """The cap a role must clear, taken from measured production output."""
+
+    return MEASURED_TRUNCATION_TOKENS * REQUIRED_CAP_HEADROOM
+
+
 def self_test(tmp_root: Path) -> int:
     failures: list[str] = []
     # The stub provider never leaves the process; a placeholder satisfies the
@@ -271,14 +286,20 @@ def self_test(tmp_root: Path) -> int:
                 status = "unparsed"
         except StructuredOutputTruncatedError:
             status = "truncated"
+        floor = _measured_floor()
         print(
             f"role={probe.role} max_completion_tokens={cap} "
-            f"reference_tokens={needed} status={status}"
+            f"reference_tokens={needed} measured_floor={floor} status={status}"
         )
         if status != "ok":
             failures.append(
                 f"{probe.role}: max_completion_tokens={cap} cannot carry its own schema "
                 f"(reference response needs ~{needed} tokens, status={status})"
+            )
+        if cap < floor:
+            failures.append(
+                f"{probe.role}: max_completion_tokens={cap} is below the measured floor "
+                f"{floor} (production emitted {MEASURED_TRUNCATION_TOKENS} and was cut off)"
             )
 
     # A truncating provider must still be *detected* as truncating; a classifier
