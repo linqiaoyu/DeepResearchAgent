@@ -271,3 +271,62 @@ class LlmAgentLivenessSelfTestTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ExtractedClaimsBoundTests(unittest.TestCase):
+    """R092: the extractor's size limit lives in the schema, not the prompt."""
+
+    def test_the_schema_sent_to_the_provider_declares_both_limits(self) -> None:
+        from deepresearch_agent.schemas import ExtractedClaims
+
+        schema = ExtractedClaims.model_json_schema()
+
+        self.assertIn("maxItems", schema["properties"]["claims"])
+        self.assertIn(
+            "maxLength",
+            schema["$defs"]["ExtractedClaim"]["properties"]["extract_text"],
+        )
+
+    def test_an_over_long_response_is_rejected_rather_than_silently_kept(self) -> None:
+        from pydantic import ValidationError
+
+        from deepresearch_agent.schemas import (
+            MAX_EXTRACT_TEXT_CHARS,
+            MAX_EXTRACTED_CLAIMS,
+            ExtractedClaims,
+        )
+
+        def claim(extract: str) -> dict[str, object]:
+            return {
+                "claim": "c",
+                "claim_type": "fact",
+                "source_url": "https://example.test",
+                "extract_text": extract,
+            }
+
+        with self.subTest("too many claims"):
+            with self.assertRaises(ValidationError):
+                ExtractedClaims.model_validate(
+                    {"claims": [claim("x")] * (MAX_EXTRACTED_CLAIMS + 1)}
+                )
+
+        with self.subTest("extract too long"):
+            with self.assertRaises(ValidationError):
+                ExtractedClaims.model_validate(
+                    {"claims": [claim("x" * (MAX_EXTRACT_TEXT_CHARS + 1))]}
+                )
+
+        ExtractedClaims.model_validate(
+            {"claims": [claim("x" * MAX_EXTRACT_TEXT_CHARS)] * MAX_EXTRACTED_CLAIMS}
+        )
+
+    def test_the_worst_case_the_schema_permits_fits_the_role_cap(self) -> None:
+        from scripts.check_llm_agent_liveness import (
+            _estimate_tokens,
+            worst_case_extractor_payload,
+        )
+
+        self.assertLess(
+            _estimate_tokens(worst_case_extractor_payload()),
+            DEFAULT_LLM_CONFIG.roles["extractor"].max_completion_tokens,
+        )

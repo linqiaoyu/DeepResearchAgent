@@ -248,10 +248,55 @@ def _role_probes() -> tuple[RoleProbe, ...]:
     )
 
 
+class UnboundedSchemaError(RuntimeError):
+    """A structured-output schema declares no size limit for the provider."""
+
+
 def _measured_floor() -> int:
     """The cap a role must clear, taken from measured production output."""
 
     return MEASURED_TRUNCATION_TOKENS * REQUIRED_CAP_HEADROOM
+
+
+def worst_case_extractor_payload() -> str:
+    """The largest response `ExtractedClaims` permits, built from its own bounds.
+
+    R091 raised the extractor cap twice and the model filled it twice, because
+    nothing but the prompt asked it to stop. A cap is only a guarantee if the
+    schema's own worst case fits inside it, so this reads `maxItems` and
+    `maxLength` out of the generated JSON Schema rather than restating them.
+    """
+
+    schema = ExtractedClaims.model_json_schema()
+    max_claims = schema["properties"]["claims"].get("maxItems")
+    definition = schema["$defs"]["ExtractedClaim"]
+    max_extract = definition["properties"]["extract_text"].get("maxLength")
+    if max_claims is None or max_extract is None:
+        missing = "claims.maxItems" if max_claims is None else "extract_text.maxLength"
+        raise UnboundedSchemaError(
+            f"ExtractedClaims declares no {missing}, so nothing bounds the "
+            "response the provider may return"
+        )
+    claims = [
+        {
+            "claim": "公" * 120,
+            "claim_type": "data",
+            "source_url": "https://www.sec.gov/Archives/edgar/data/1736541/"
+            + f"000141057825000661/nio-20241231x20f.htm#chunk={_evidence_id(index)}",
+            "extract_text": "公" * max_extract,
+            "confidence": 0.82,
+            "numeric_fields": {
+                "entity": "NIO Inc.",
+                "metric_name": "营业收入",
+                "period": "2024-12-31",
+                "dimension": "年度",
+                "value": "65731559000",
+                "unit": "CNY",
+            },
+        }
+        for index in range(max_claims)
+    ]
+    return json.dumps({"claims": claims}, ensure_ascii=False)
 
 
 def self_test(tmp_root: Path) -> int:
@@ -301,6 +346,23 @@ def self_test(tmp_root: Path) -> int:
                 f"{probe.role}: max_completion_tokens={cap} is below the measured floor "
                 f"{floor} (production emitted {MEASURED_TRUNCATION_TOKENS} and was cut off)"
             )
+
+    # A cap the schema's own worst case can overrun is not a bound at all.
+    extractor_cap = DEFAULT_LLM_CONFIG.roles["extractor"].max_completion_tokens
+    try:
+        worst_case: int | None = _estimate_tokens(worst_case_extractor_payload())
+    except UnboundedSchemaError as exc:
+        worst_case = None
+        failures.append(str(exc))
+    print(
+        f"extractor_schema_worst_case_tokens={worst_case if worst_case is not None else 'unbounded'} "
+        f"extractor_cap={extractor_cap}"
+    )
+    if worst_case is not None and worst_case >= extractor_cap:
+        failures.append(
+            f"the extractor schema permits ~{worst_case} tokens, which its "
+            f"{extractor_cap}-token cap cannot hold"
+        )
 
     # A truncating provider must still be *detected* as truncating; a classifier
     # that never fires would make the check above vacuous.
