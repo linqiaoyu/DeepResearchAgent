@@ -259,6 +259,31 @@ class StructuredDataProviderTests(unittest.TestCase):
             {process.pid for process in multiprocessing.active_children()},
         )
 
+    def test_akshare_returns_a_result_larger_than_the_queue_pipe_buffer(self) -> None:
+        """R098: the A-share structured path had never once succeeded live.
+
+        The parent waited for the child to exit before reading the queue, and a
+        child returning more than the pipe buffer holds blocks inside ``put``
+        until the parent reads. Both waited on the other until the timeout, on
+        every attempt, for every result too large to fit the pipe.
+        ``stock_financial_abstract`` for 600519 returns an 80x104 frame; the
+        live run recorded ``timeout after 15.000s`` for both of its requests.
+
+        A payload comfortably over the buffer makes the deadlock deterministic:
+        before the fix this raises ``timeout after``, after it returns.
+        """
+
+        payload = "x" * (4 * 1024 * 1024)
+
+        provider = AKShareStructuredDataProvider(
+            akshare_module=object(),
+            timeout_seconds=20.0,
+            max_retries=0,
+            sleep_func=lambda _: None,
+        )
+
+        self.assertEqual(len(provider._call(lambda: payload, "probe")), len(payload))
+
     def test_financial_request_rejects_unparseable_period_before_execution(self) -> None:
         with self.assertRaisesRegex(ValidationError, "unparsable_periods=.*TTM"):
             StructuredDataRequest(

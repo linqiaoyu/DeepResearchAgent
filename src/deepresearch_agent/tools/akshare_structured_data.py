@@ -204,31 +204,44 @@ class AKShareStructuredDataProvider:
             process = context.Process(target=_call_in_child, args=(func, result_queue))
             try:
                 process.start()
-                process.join(timeout=self.timeout_seconds)
-                if process.is_alive():
+                # R098: read the result before waiting for the child to exit.
+                # A queue is a pipe with a bounded buffer, so a child returning
+                # more than the buffer holds blocks inside `put` until the
+                # parent reads -- while the parent was blocked in `join`
+                # waiting for that same child to exit. The two waited on each
+                # other until the timeout, on every attempt, for every result
+                # too large to fit the pipe. `stock_financial_abstract` for
+                # 600519 returns an 80x104 frame, so the A-share structured
+                # path deadlocked deterministically and had never once
+                # succeeded in a live run.
+                try:
+                    ok, payload = result_queue.get(timeout=self.timeout_seconds)
+                except queue.Empty:
                     # Thread cancellation cannot stop a blocking provider
                     # call.  Each attempt therefore owns a process that can be
                     # terminated before the retry budget is consumed.
-                    process.terminate()
-                    process.join(timeout=1)
                     if process.is_alive():
-                        process.kill()
+                        process.terminate()
                         process.join(timeout=1)
-                    last_error = TimeoutError(f"timeout after {self.timeout_seconds:.3f}s")
-                else:
-                    try:
-                        ok, payload = result_queue.get(timeout=0.1)
-                    except queue.Empty:
+                        if process.is_alive():
+                            process.kill()
+                            process.join(timeout=1)
+                        last_error = TimeoutError(
+                            f"timeout after {self.timeout_seconds:.3f}s"
+                        )
+                    else:
                         last_error = AKShareStructuredDataError(
                             f"worker exited with code {process.exitcode} without a result"
                         )
-                    else:
-                        if ok:
-                            return payload
-                        error_type, error_message = payload
-                        last_error = AKShareStructuredDataError(
-                            f"{error_type}: {error_message}"
-                        )
+                else:
+                    # The child is done writing; it exits on its own now.
+                    process.join(timeout=self.timeout_seconds)
+                    if ok:
+                        return payload
+                    error_type, error_message = payload
+                    last_error = AKShareStructuredDataError(
+                        f"{error_type}: {error_message}"
+                    )
             finally:
                 if process.is_alive():
                     process.terminate()
