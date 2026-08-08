@@ -332,9 +332,11 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
                 self.settings.storage_path,
                 check_same_thread=False,
                 timeout=30,
+                isolation_level="IMMEDIATE",
             )
-            self._checkpoint_conn.execute("PRAGMA journal_mode=WAL")
+            # Busy timeout first: `journal_mode=WAL` can itself block.
             self._checkpoint_conn.execute("PRAGMA busy_timeout=30000")
+            self._checkpoint_conn.execute("PRAGMA journal_mode=WAL")
             self.checkpointer = SqliteSaver(self._checkpoint_conn)
         self.graph = self._build_graph()
 

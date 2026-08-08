@@ -31,10 +31,18 @@ class SQLiteStore:
         self._setup()
 
     def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.path, timeout=30)
+        # R096: `isolation_level="IMMEDIATE"` takes the write lock when the
+        # transaction opens. Python's default defers it, so a connection that
+        # has already read then tries to write is upgrading a shared lock --
+        # SQLite answers SQLITE_BUSY immediately for that case rather than
+        # invoking the busy handler, so `timeout` and `busy_timeout` do not
+        # apply and the caller sees "database is locked". Eight concurrent
+        # request-scoped engines hit it in 1 of 12 standalone runs.
+        conn = sqlite3.connect(self.path, timeout=30, isolation_level="IMMEDIATE")
         conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
+        # Set the busy timeout before the statement that can itself block.
         conn.execute("PRAGMA busy_timeout=30000")
+        conn.execute("PRAGMA journal_mode=WAL")
         return conn
 
     @contextmanager
