@@ -31,6 +31,24 @@ _MAX_DETACHED_LLM_CALLS = 16
 _LLM_CALL_SLOTS = threading.BoundedSemaphore(_MAX_DETACHED_LLM_CALLS)
 
 
+# Importing the provider SDK is local work, not a provider transport. Charging
+# it to a role's call timeout made a slow host unable to complete any call at
+# all, so worker startup gets its own budget.
+_WORKER_STARTUP_TIMEOUT_SECONDS = float(
+    os.getenv("DEEPRESEARCH_PROVIDER_WORKER_STARTUP_TIMEOUT", "900")
+)
+
+
+def _response_payload(response: Any) -> Any:
+    if isinstance(response, dict):
+        return response
+    if callable(model_dump := getattr(response, "model_dump", None)):
+        return model_dump()
+    if callable(to_dict := getattr(response, "dict", None)):
+        return to_dict()
+    return json.loads(response.json())
+
+
 def _litellm_subprocess_worker(
     kwargs: dict[str, Any],
     result_queue: Any,
@@ -38,18 +56,153 @@ def _litellm_subprocess_worker(
     """Run one production LiteLLM request in a killable child process."""
     try:
         litellm = import_module("litellm")
-        response = litellm.completion(**kwargs)
-        if isinstance(response, dict):
-            payload = response
-        elif callable(model_dump := getattr(response, "model_dump", None)):
-            payload = model_dump()
-        elif callable(to_dict := getattr(response, "dict", None)):
-            payload = to_dict()
-        else:
-            payload = json.loads(response.json())
-        result_queue.put(("ok", payload))
+        result_queue.put(("ok", _response_payload(litellm.completion(**kwargs))))
     except BaseException as exc:
         result_queue.put(("error", f"{type(exc).__name__}: {exc}"))
+
+
+def _litellm_worker_loop(
+    request_queue: Any,
+    response_queue: Any,
+    ready_queue: Any,
+) -> None:
+    """Import the provider SDK once, then serve requests until told to stop.
+
+    One import per worker instead of one per call. The worker stays killable:
+    the parent terminates it whenever a call overruns its deadline, and never
+    reuses a worker whose response never arrived.
+    """
+
+    try:
+        litellm = import_module("litellm")
+    except BaseException as exc:  # pragma: no cover - import failure is fatal
+        ready_queue.put(("error", f"{type(exc).__name__}: {exc}"))
+        return
+    ready_queue.put(("ok", None))
+    while True:
+        request = request_queue.get()
+        if request is None:
+            return
+        try:
+            response_queue.put(("ok", _response_payload(litellm.completion(**request))))
+        except BaseException as exc:
+            response_queue.put(("error", f"{type(exc).__name__}: {exc}"))
+
+
+class _ProviderWorker:
+    """One spawned process serving provider calls for one caller thread.
+
+    Workers are per-thread so branch fan-out keeps its parallelism; a single
+    shared worker would serialize every branch behind one provider call.
+    """
+
+    def __init__(
+        self,
+        *,
+        worker_loop: Callable[[Any, Any, Any], None],
+        startup_timeout_seconds: float,
+    ) -> None:
+        context = multiprocessing.get_context("spawn")
+        self._request_queue = context.Queue(maxsize=1)
+        self._response_queue = context.Queue(maxsize=1)
+        self._ready_queue = context.Queue(maxsize=1)
+        self.process = context.Process(
+            target=worker_loop,
+            args=(self._request_queue, self._response_queue, self._ready_queue),
+            daemon=True,
+        )
+        self.process.start()
+        try:
+            status, detail = self._ready_queue.get(timeout=startup_timeout_seconds)
+        except queue.Empty:
+            self.terminate()
+            raise TimeoutError(
+                "provider worker did not become ready within "
+                f"{startup_timeout_seconds:g}s"
+            ) from None
+        if status != "ok":
+            self.terminate()
+            raise RuntimeError(f"provider worker failed to start: {detail}")
+
+    def call(self, kwargs: dict[str, Any], timeout_seconds: float) -> dict[str, Any]:
+        self._request_queue.put(kwargs)
+        try:
+            status, payload = self._response_queue.get(timeout=timeout_seconds)
+        except queue.Empty:
+            self.terminate()
+            raise TimeoutError(
+                f"LLM operation timed out after {timeout_seconds:g}s; "
+                "provider subprocess terminated"
+            ) from None
+        if status == "error":
+            raise RuntimeError(str(payload))
+        if not isinstance(payload, dict):
+            raise RuntimeError("LiteLLM subprocess returned a non-object response")
+        return payload
+
+    def terminate(self) -> None:
+        if self.process.is_alive():
+            self.process.terminate()
+            self.process.join(timeout=5)
+
+    @property
+    def alive(self) -> bool:
+        return self.process.is_alive()
+
+
+class _ProviderWorkerPool:
+    """Keep one ready worker per caller thread, replacing it after a timeout."""
+
+    def __init__(
+        self,
+        *,
+        worker_loop: Callable[[Any, Any, Any], None] = _litellm_worker_loop,
+        startup_timeout_seconds: float = _WORKER_STARTUP_TIMEOUT_SECONDS,
+    ) -> None:
+        self._worker_loop = worker_loop
+        self._startup_timeout_seconds = startup_timeout_seconds
+        self._workers: dict[int, _ProviderWorker] = {}
+        self._lock = threading.Lock()
+        self.spawns = 0
+
+    def call(self, kwargs: dict[str, Any], timeout_seconds: float) -> dict[str, Any]:
+        worker = self._acquire()
+        try:
+            return worker.call(kwargs, timeout_seconds)
+        except TimeoutError:
+            # `call` already terminated it. Drop the handle so the next call
+            # cannot read a late response belonging to this one.
+            self._discard(worker)
+            raise
+
+    def _acquire(self) -> _ProviderWorker:
+        key = threading.get_ident()
+        with self._lock:
+            worker = self._workers.get(key)
+            if worker is not None and worker.alive:
+                return worker
+            self._workers.pop(key, None)
+        created = _ProviderWorker(
+            worker_loop=self._worker_loop,
+            startup_timeout_seconds=self._startup_timeout_seconds,
+        )
+        with self._lock:
+            self._workers[key] = created
+            self.spawns += 1
+        return created
+
+    def _discard(self, worker: _ProviderWorker) -> None:
+        with self._lock:
+            for key, candidate in list(self._workers.items()):
+                if candidate is worker:
+                    del self._workers[key]
+
+    def close(self) -> None:
+        with self._lock:
+            workers = list(self._workers.values())
+            self._workers.clear()
+        for worker in workers:
+            worker.terminate()
 
 
 class LLMClientError(RuntimeError):
@@ -156,12 +309,17 @@ class LLMClient:
         logger: JsonLogger | None = None,
         fail_on_retry_exhaustion: bool = False,
     ) -> None:
-        self._litellm = None if completion_func is not None else self._load_litellm()
+        # R091: production never calls the SDK in this process -- every request
+        # goes to a worker that imported it itself. Importing it here too cost a
+        # second full import (about 15 minutes on the R090 run host) for a value
+        # used only as a mode flag.
+        self._production = completion_func is None
+        self._worker_pool = _ProviderWorkerPool()
         self.ledger_path = ledger_path
         self.global_ledger_path = global_ledger_path or project_root() / "data" / "runtime" / "llm_ledger.jsonl"
         self.budget_cny = budget_cny
         self.config = config
-        self._completion = completion_func or self._litellm.completion
+        self._completion = completion_func
         self._sleep = sleep_func
         self._env_path = env_path or project_root() / ".env"
         self._run_costs_cny: dict[str, float] = {}
@@ -689,16 +847,17 @@ class LLMClient:
     ) -> Any:
         """Bound an SDK call even when its transport timeout is ineffective.
 
-        On the main POSIX thread, an interval timer interrupts the synchronous
-        SDK operation itself, so an SSL read cannot leave a provider worker
-        alive after the deadline.  Python cannot safely interrupt an arbitrary
-        non-main thread, so those callers use a bounded daemon-worker fallback.
+        Production calls go to a per-thread worker process that has already
+        imported the provider SDK; an overdue call still terminates that worker,
+        which is then never reused.  On the main POSIX thread, an interval timer
+        interrupts the synchronous SDK operation itself, so an SSL read cannot
+        leave a provider worker alive after the deadline.  Python cannot safely
+        interrupt an arbitrary non-main thread, so those callers use a bounded
+        daemon-worker fallback.
         """
-        if self._litellm is not None:
-            return self._call_litellm_in_subprocess(
-                kwargs=kwargs,
-                timeout_seconds=timeout_seconds,
-            )
+        if self._production:
+            return self._worker_pool.call(kwargs, timeout_seconds)
+        assert self._completion is not None
         if (
             threading.current_thread() is threading.main_thread()
             and hasattr(signal, "setitimer")
@@ -1158,7 +1317,15 @@ class LLMClient:
                 continue
         return rows
 
-    def _load_litellm(self) -> Any:
+    @staticmethod
+    def _load_litellm() -> Any:
+        """Import the provider SDK in this process.
+
+        Production no longer uses this: the worker imports the SDK itself. Kept
+        as the explicit way to check availability without guessing at a module
+        name, and used by the worker-startup failure path's error text.
+        """
+
         try:
             return import_module("litellm")
         except ModuleNotFoundError as exc:  # pragma: no cover - exercised only in misconfigured envs.
