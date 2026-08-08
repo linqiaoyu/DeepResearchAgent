@@ -5,6 +5,7 @@ import re
 from collections import defaultdict
 from dataclasses import dataclass
 from decimal import Decimal
+from difflib import SequenceMatcher
 
 from deepresearch_agent.citations import build_footnote_maps
 from deepresearch_agent.llm import (
@@ -40,12 +41,49 @@ _RMB_RE = re.compile(
     re.IGNORECASE,
 )
 _FOOTNOTE_RE = re.compile(r"\[\^(\d+)\]")
-# `prompts/reporter.md` requires each numeric fact to be emitted once. R090:
-# that rule was enforced against the evidence a claim cites rather than the
-# numbers it states, so an explanatory sentence citing an already-cited source
-# was deleted -- which for a single-metric financial question deletes the whole
-# analysis section regardless of how good it is.
-_RESTATES_NUMBER_RE = re.compile(r"\d")
+# `prompts/reporter.md` requires each numeric fact to be emitted once, and tells
+# the reporter not to repeat a key finding *verbatim* in the analysis. R090
+# moved the test off the evidence a claim cites and onto the text it states,
+# which was the right move; the test it landed on was `\d` -- true of any
+# sentence containing a year. Every analysis line about a metric already named
+# in `关键发现` matched it, so R099's live runs dropped 2 of 3 analysis claims
+# here and the reader received no `## 详细分析` at all.
+#
+# What the reader loses to a repeat is having already read the sentence, so
+# that is what this measures: the claim's content characters against the lines
+# already emitted, ignoring digits, punctuation and spacing.
+_CONTENT_CHARS_RE = re.compile(r"[\s\d\W_]+", re.UNICODE)
+#: Two lines this similar in content characters say the same thing to a reader.
+#: Calibrated on the pair the R090 rule was written for -- a key finding and an
+#: analysis claim stating one metric's value, which score 0.88.
+RESTATEMENT_SIMILARITY = 0.80
+def _content_key(text: str) -> str:
+    """The characters a reader would recognise again, without the numbers."""
+
+    return _CONTENT_CHARS_RE.sub("", text)
+
+
+def restates_an_emitted_line(text: str, emitted: list[str]) -> bool:
+    """Has the reader already read this sentence?
+
+    Containment covers the case a threshold reads badly on: a short claim whose
+    every content character already appears, in order, inside a longer line.
+    """
+
+    key = _content_key(text)
+    if not key:
+        return False
+    for line in emitted:
+        other = _content_key(line)
+        if not other:
+            continue
+        if key in other or other in key:
+            return True
+        if SequenceMatcher(None, key, other).ratio() >= RESTATEMENT_SIMILARITY:
+            return True
+    return False
+
+
 REPORTER_LLM_MAX_EVIDENCE = 18
 REPORTER_LLM_MAX_CLAIM_CHARS = 800
 #: The bound the reporter is already held to: `prompts/reporter.md` states it and
@@ -746,6 +784,10 @@ class ReporterAgent:
             for item in metric_requirements(state, self.domain_pack)
         }
         seen_fact_keys: set[tuple[str, str, str, str]] = set()
+        # R100: what the reader has already been shown, in the order shown. The
+        # repeat test in the analysis loop asks whether a claim says the same
+        # thing as one of these, which is the whole of the harm a repeat does.
+        emitted_reader_lines: list[str] = []
         key_fact_keys: set[tuple[str, str, str, str]] = set()
         key_evidence_ids: set[str] = set()
         supplemental: list[tuple[str, int, ReportClaim]] = []
@@ -789,6 +831,7 @@ class ReporterAgent:
             missing_reference_backfills += backfilled
             claim_provenance.append(provenance)
             lines.append(f"- {rendered}")
+            emitted_reader_lines.append(rendered)
             seen_fact_keys.update(fact_keys)
             key_fact_keys.update(fact_keys)
             key_evidence_ids.update(
@@ -846,6 +889,10 @@ class ReporterAgent:
             "claims_dropped_duplicate_number": 0,
             "rendered_lines": 0,
         }
+        # R100: R099's counters said how many claims each rule consumed but not
+        # which, so judging whether a rule was right needed another paid run.
+        # The texts are kept beside the counts.
+        dropped_claims: list[dict[str, str]] = []
         # R092: relatedness normally means "shares evidence or a fact key with a
         # key finding". That signal disappears when every key finding comes from
         # the structured provider and the analysis cites filing text, because the
@@ -888,17 +935,23 @@ class ReporterAgent:
                         (sub_question.id, index, claim)
                     )
                     analysis_flow["claims_dropped_unrelated"] += 1
+                    dropped_claims.append(
+                        {"reason": "unrelated", "text": claim.text}
+                    )
                     continue
                 if (
                     fact_keys
                     and fact_keys <= seen_fact_keys
-                    and _RESTATES_NUMBER_RE.search(claim.text)
+                    and restates_an_emitted_line(claim.text, emitted_reader_lines)
                     and not any(
                         not evidence_fact_keys.get(item)
                         for item in valid_claim_ids
                     )
                 ):
                     analysis_flow["claims_dropped_duplicate_number"] += 1
+                    dropped_claims.append(
+                        {"reason": "duplicate_number", "text": claim.text}
+                    )
                     continue
                 path = _ClaimPath("detailed_analysis", index, sub_question.id)
                 rendered, invalid, backfilled, provenance = self._render_claim(
@@ -912,6 +965,7 @@ class ReporterAgent:
                 missing_reference_backfills += backfilled
                 claim_provenance.append(provenance)
                 section_lines.append(f"- {rendered}")
+                emitted_reader_lines.append(rendered)
                 seen_fact_keys.update(fact_keys)
                 rendered_count += 1
             if rendered_count:
@@ -1034,6 +1088,7 @@ class ReporterAgent:
             )
         self.last_stats["claim_provenance"] = claim_provenance
         self.last_stats["analysis_flow"] = analysis_flow
+        self.last_stats["dropped_analysis_claims"] = dropped_claims
         return "\n".join(lines), invalid_references, missing_reference_backfills
 
     def _render_claim(

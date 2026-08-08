@@ -3,7 +3,14 @@ from __future__ import annotations
 import unittest
 from datetime import date
 
+from difflib import SequenceMatcher
+
 from deepresearch_agent.agents import ReporterAgent
+from deepresearch_agent.agents.reporter import (
+    RESTATEMENT_SIMILARITY,
+    _content_key,
+    restates_an_emitted_line,
+)
 from deepresearch_agent.schemas import (
     MAX_REPORT_SECTION_CLAIMS,
     Evidence,
@@ -258,6 +265,72 @@ class ReportReaderGuardTests(unittest.TestCase):
         # Every claim the reporter was allowed to write reaches the reader.
         self.assertEqual(flow["rendered_lines"], 2 * MAX_REPORT_SECTION_CLAIMS)
         self._assert_counters_close(flow)
+
+    def test_analysis_about_an_already_stated_metric_survives(self) -> None:
+        """R100: the repeat test must separate restating from explaining.
+
+        `prompts/reporter.md` tells the reporter not to repeat a key finding
+        verbatim; the renderer enforced `\\d`, true of any sentence carrying a
+        year. For a financial question every analysis line names the metric the
+        key findings already state, so the rule deleted the analysis and kept
+        nothing in its place -- 2 of 3 claims in R099's last live run.
+        """
+
+        emitted = ["宁德时代 2024年12月31日 营业收入为3620.13亿元。 [^1]"]
+
+        restatements = [
+            "宁德时代营业收入为3620.13亿元。",
+            "宁德时代2024年营业收入为3620.13亿元。",
+        ]
+        analysis = [
+            "2024年营业收入3620.13亿元的增长主要来自动力电池出货量提升，而非单价上行。",
+            "营业收入口径包含储能业务，与分部报表的电池收入不可直接比较。",
+            "收入下降与利润增长并存，需结合毛利率变化解释。",
+        ]
+
+        for text in restatements:
+            self.assertTrue(
+                restates_an_emitted_line(text, emitted),
+                f"a bare restatement reached the reader twice: {text}",
+            )
+        for text in analysis:
+            self.assertFalse(
+                restates_an_emitted_line(text, emitted),
+                f"an explanatory line was deleted as a repeat: {text}",
+            )
+
+    def test_the_repeat_threshold_is_not_on_a_knife_edge(self) -> None:
+        """The two populations must sit either side of it with room to spare."""
+
+        emitted = ["宁德时代 2024年12月31日 营业收入为3620.13亿元。 [^1]"]
+        key = _content_key(emitted[0])
+
+        def ratio(text: str) -> float:
+            return SequenceMatcher(None, _content_key(text), key).ratio()
+
+        restatement = ratio("宁德时代营业收入为3620.13亿元。")
+        explanation = ratio(
+            "2024年营业收入3620.13亿元的增长主要来自动力电池出货量提升，而非单价上行。"
+        )
+
+        self.assertGreaterEqual(restatement, RESTATEMENT_SIMILARITY + 0.05)
+        self.assertLessEqual(explanation, RESTATEMENT_SIMILARITY - 0.2)
+
+    def test_dropped_analysis_claims_are_recorded_with_their_text(self) -> None:
+        """R100: a counter says how many; judging the rule needs which."""
+
+        reporter = ReporterAgent()
+        state, draft = self._three_outcome_fixture()
+
+        reporter._render_llm_report(state, draft)
+        dropped = reporter.last_stats["dropped_analysis_claims"]
+
+        self.assertEqual(
+            [item["reason"] for item in dropped],
+            ["duplicate_number", "unrelated"],
+        )
+        self.assertIn("3620.13", dropped[0]["text"])
+        self.assertIn("匈牙利工厂", dropped[1]["text"])
 
     def _assert_counters_close(self, flow: dict) -> None:
         """A claim that disappears without landing in a bucket is the loss itself."""

@@ -669,6 +669,20 @@ def _analysis_flow(package: Path) -> dict[str, int]:
     return {str(key): int(value) for key, value in flow.items()}
 
 
+def _dropped_analysis_claims(package: Path) -> list[dict[str, str]]:
+    """The analysis claims a filtering rule consumed, with their text."""
+
+    ledger = package / "audit_bundle" / "ledger.json"
+    if not ledger.exists():
+        return []
+    stats = json.loads(ledger.read_text(encoding="utf-8")).get("llm_stats") or {}
+    reporter = stats.get("reporter") or {}
+    return [
+        {"reason": str(item.get("reason", "")), "text": str(item.get("text", ""))}
+        for item in (reporter.get("dropped_analysis_claims") or [])
+    ]
+
+
 def measure_package(
     package: Path,
     *,
@@ -784,6 +798,11 @@ def check_package(
             else "unavailable"
         )
     )
+    # R100: which claim each rule consumed, not only how many. A count alone
+    # cannot say whether the rule was right, and R099 needed a second paid run
+    # to find out.
+    for item in _dropped_analysis_claims(package):
+        print(f"dropped_analysis_claim reason={item['reason']} text={item['text']}")
     failures: list[str] = []
     if measurement.extractor_fallback:
         failures.append("extractor degraded to its deterministic fallback")
