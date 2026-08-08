@@ -356,6 +356,8 @@ class LLMCallResult:
     repair_attempts: int = 0
     tool_calls: tuple[dict[str, Any], ...] = ()
     finish_reason: str | None = None
+    #: R098: `max_tokens` bounds reasoning plus content on a reasoning model.
+    reasoning_tokens: int = 0
 
 
 class LLMClient:
@@ -469,7 +471,27 @@ class LLMClient:
             except StructuredOutputError as exc:
                 first_error = str(exc)
                 truncated = self._truncated(raw_result, role_config.max_completion_tokens)
-                first_error_kind = "truncated" if truncated else exc.kind
+                # R098: "the model wrote past the cap" and "the model spent the
+                # cap reasoning and wrote nothing" both arrive as
+                # finish_reason=length. They have different causes and
+                # different fixes, and reading the second as the first is what
+                # sent R090 and this round's first patch after the schema size.
+                reasoning_exhausted = truncated and not raw_result.content.strip()
+                first_error_kind = (
+                    "reasoning_exhausted"
+                    if reasoning_exhausted
+                    else "truncated"
+                    if truncated
+                    else exc.kind
+                )
+                if first_error_kind == "schema_violation":
+                    # R098 bounded both structured schemas. A bound that is
+                    # tighter than what the role actually needs turns a usable
+                    # response into a rejected one, and the payload is the only
+                    # record of which bound bit.
+                    self._dump_truncated_payload(
+                        run_id=run_id, role=f"{role}.schema_violation", content=content
+                    )
                 if truncated:
                     recovered = self._salvage(content, schema)
                     if recovered is not None:
@@ -774,6 +796,7 @@ class LLMClient:
                     "structured_calls": 0,
                     "structured_parse_errors": 0,
                     "truncated_calls": 0,
+                    "reasoning_exhausted_calls": 0,
                     "salvaged_calls": 0,
                 },
             )
@@ -786,6 +809,10 @@ class LLMClient:
                     )
                 if row.get("truncated"):
                     bucket["truncated_calls"] = int(bucket["truncated_calls"]) + 1
+                if row.get("parse_error_kind") == "reasoning_exhausted":
+                    bucket["reasoning_exhausted_calls"] = (
+                        int(bucket["reasoning_exhausted_calls"]) + 1
+                    )
                 if row.get("salvaged"):
                     bucket["salvaged_calls"] = int(bucket["salvaged_calls"]) + 1
             for key in (
@@ -807,6 +834,7 @@ class LLMClient:
                     "structured_calls",
                     "structured_parse_errors",
                     "truncated_calls",
+                    "reasoning_exhausted_calls",
                     "salvaged_calls",
                 )
             },
@@ -873,6 +901,7 @@ class LLMClient:
                         prompt_cache_hit_tokens=usage["prompt_cache_hit_tokens"],
                         prompt_cache_miss_tokens=usage["prompt_cache_miss_tokens"],
                         completion_tokens=usage["completion_tokens"],
+                        reasoning_tokens=usage["reasoning_tokens"],
                         total_tokens=usage["total_tokens"],
                         # USD is display_only: the ledger's authoritative
                         # accounting amount and budget currency are CNY.
@@ -1213,13 +1242,30 @@ class LLMClient:
         )
         prompt_cache_hit_tokens = min(prompt_cache_hit_tokens, prompt_tokens)
         prompt_cache_miss_tokens = max(0, prompt_tokens - prompt_cache_hit_tokens)
+        # R098: the configured model is a reasoning model and `max_tokens`
+        # bounds reasoning plus content together. A run that spends the whole
+        # completion budget thinking returns `finish_reason=length` with an
+        # empty `content` -- indistinguishable, from `completion_tokens` alone,
+        # from a response that wrote too much JSON. Two rounds of cap analysis
+        # read the second when the measured cause was the first.
+        reasoning_tokens = int(
+            self._nested_reasoning_tokens(getter("completion_tokens_details", None))
+        )
         return {
             "prompt_tokens": prompt_tokens,
             "prompt_cache_hit_tokens": prompt_cache_hit_tokens,
             "prompt_cache_miss_tokens": prompt_cache_miss_tokens,
             "completion_tokens": completion_tokens,
+            "reasoning_tokens": reasoning_tokens,
             "total_tokens": total_tokens,
         }
+
+    def _nested_reasoning_tokens(self, value: Any) -> int:
+        if value is None:
+            return 0
+        if isinstance(value, dict):
+            return int(value.get("reasoning_tokens", 0) or 0)
+        return int(getattr(value, "reasoning_tokens", 0) or 0)
 
     def _nested_cached_tokens(self, value: Any) -> int:
         if value is None:
@@ -1344,6 +1390,12 @@ class LLMClient:
             "prompt_cache_miss_tokens": result.prompt_cache_miss_tokens,
             "completion_tokens": result.completion_tokens,
             "output_tokens": result.completion_tokens,
+            # R098: on a reasoning model `max_tokens` bounds reasoning plus
+            # content. Without this column the ledger cannot tell a response
+            # that wrote too much JSON from one that thought until the budget
+            # was gone and wrote nothing.
+            "reasoning_tokens": result.reasoning_tokens,
+            "content_chars": len(result.content),
             "total_tokens": result.total_tokens,
             "cost_usd": round(result.cost_usd, 8),
             "cost_cny": round(result.cost_cny, 8),

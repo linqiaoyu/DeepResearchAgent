@@ -119,6 +119,66 @@ class ClientSalvageTests(unittest.TestCase):
                     messages=[{"role": "user", "content": "extract"}],
                 )
 
+    def test_a_reasoning_model_that_wrote_nothing_is_not_filed_as_truncated(
+        self,
+    ) -> None:
+        """R098: two different faults arrive as finish_reason=length.
+
+        The configured model is a reasoning model and ``max_tokens`` bounds
+        reasoning plus content together. Both live runs this round recorded
+        ``completion_tokens=8192`` with an empty ``content`` and
+        ``reasoning_tokens`` equal to the whole budget: the model thought until
+        the budget was gone and never began the JSON. Read as "the response was
+        too long for the cap", that sends the fix at the schema's size, which
+        is what R090 and this round's first patch both did.
+        """
+
+        from deepresearch_agent.llm.client import StructuredOutputTruncatedError
+
+        with tempfile.TemporaryDirectory() as tmp:
+            env = Path(tmp) / ".env"
+            env.write_text("DEEPSEEK_API_KEY=test-key\n", encoding="utf-8")
+
+            def completion(**_: object) -> dict[str, object]:
+                return {
+                    "choices": [
+                        {"message": {"content": ""}, "finish_reason": "length"}
+                    ],
+                    "usage": {
+                        "prompt_tokens": 10,
+                        "completion_tokens": 8192,
+                        "total_tokens": 8202,
+                        "completion_tokens_details": {"reasoning_tokens": 8192},
+                    },
+                }
+
+            client = LLMClient(
+                ledger_path=Path(tmp) / "ledger.jsonl",
+                global_ledger_path=Path(tmp) / "global.jsonl",
+                budget_cny=3.0,
+                completion_func=completion,
+                sleep_func=lambda _: None,
+                env_path=env,
+            )
+
+            with self.assertRaises(StructuredOutputTruncatedError):
+                client.complete(
+                    role="reporter",
+                    run_id="thinking",
+                    schema=ExtractedClaims,
+                    messages=[{"role": "user", "content": "report"}],
+                )
+
+            row = json.loads(
+                (Path(tmp) / "ledger.jsonl").read_text(encoding="utf-8").splitlines()[0]
+            )
+            self.assertEqual(row["parse_error_kind"], "reasoning_exhausted")
+            self.assertEqual(row["reasoning_tokens"], 8192)
+            self.assertEqual(row["content_chars"], 0)
+
+            health = client.aggregate_run("thinking")["structured_output"]
+            self.assertEqual(health["reasoning_exhausted_calls"], 1)
+
     def test_an_unsalvageable_truncation_keeps_the_payload_that_overran(self) -> None:
         """R098: token counts alone cannot say where the model spent the cap.
 
