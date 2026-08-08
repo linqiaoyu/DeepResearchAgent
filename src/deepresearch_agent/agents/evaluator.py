@@ -214,7 +214,14 @@ class Evaluator:
             uncited_claims = int(reporter_stats.get("uncited_claims", 0) or 0)
             claim_count = int(reporter_stats.get("claim_count", 0) or 0)
             uncited_claim_rate = uncited_claims / claim_count if claim_count else 0.0
-        critic_catch_rate = min(1.0, len(issues) / 3) if issues else 1.0
+        # R095 contract change: count the problems found, not the sentences
+        # printed. `len(issues) / 3` scored a critic higher for repeating one
+        # warning once per affected claim, so deduplicating the reader's risk
+        # section registered as a quality drop. An issue carries every claim it
+        # affects, so counting those is the same measurement without rewarding
+        # duplication. See docs/evaluation.md.
+        caught = sum(max(1, len(issue.affected_claims)) for issue in issues)
+        critic_catch_rate = min(1.0, caught / 3) if issues else 1.0
         latency_seconds = 0.0 if started_at is None else max(0.0, time.perf_counter() - started_at)
         llm_usage = state.metadata.get("llm_usage", {})
         cost_cny = None

@@ -257,7 +257,15 @@ class CriticAgent:
         return issues[:3]
 
     def _outdated_sources(self, evidence: list[Evidence]) -> list[Issue]:
+        """One issue per stale source.
+
+        R095: this emitted one issue per evidence item, so six claims quoting
+        one filing produced the same sentence five times in the reader's risk
+        section, capped only by the trailing slice.
+        """
+
         issues: list[Issue] = []
+        issue_by_source: dict[str, Issue] = {}
         for item in evidence:
             if self.domain_pack.is_historical_annual_disclosure(item):
                 continue
@@ -267,6 +275,12 @@ class CriticAgent:
             if age_days <= self.max_source_age_days:
                 continue
             if item.claim_type in {"data", "projection"}:
+                existing = issue_by_source.get(item.source_url)
+                if existing is not None:
+                    # Same source, another claim: record the claim, do not
+                    # repeat the sentence.
+                    existing.affected_claims.append(item.id)
+                    continue
                 task = RetryTask(
                     reason="Time-sensitive claim uses an old source",
                     query=self._verification_query(item),
@@ -274,15 +288,18 @@ class CriticAgent:
                     sub_question_id=item.sub_question_id,
                     severity="medium",
                 )
-                issues.append(
-                    Issue(
-                        issue_type="outdated_source",
-                        severity="medium",
-                        affected_claims=[item.id],
-                        message=f"Source '{item.source_title}' is {age_days} days old for a time-sensitive claim.",
-                        suggested_retry_task=task,
-                    )
+                issue = Issue(
+                    issue_type="outdated_source",
+                    severity="medium",
+                    affected_claims=[item.id],
+                    message=(
+                        f"Source '{item.source_title}' is {age_days} days old "
+                        "for a time-sensitive claim."
+                    ),
+                    suggested_retry_task=task,
                 )
+                issue_by_source[item.source_url] = issue
+                issues.append(issue)
         return issues[:5]
 
     def _missing_counterargument(self, state: ResearchState) -> list[Issue]:

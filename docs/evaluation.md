@@ -619,3 +619,17 @@ marked degraded, so citation resolution cannot fail silently. Historical public
 release results are unchanged: their reports and saved Evidence were produced and
 evaluated under the same canonical order; this repair makes that formerly implicit
 condition explicit without changing any scoring formula.
+
+## R095 contract change: `critic_catch_rate` counts problems, not sentences
+
+Previously `critic_catch_rate = min(1.0, len(issues) / 3)`. That counted issue
+objects, so a critic that repeated one warning once per affected claim scored
+higher than one that said it once. R094 delivered the same stale-source warning
+five times to the reader for that reason, and deduplicating it registered as a
+0.066 quality drop against the baseline.
+
+It is now `min(1.0, sum(max(1, len(issue.affected_claims)) for issue in issues) / 3)`.
+An issue records every claim it affects, so merging duplicate messages leaves
+the measurement unchanged while removing the repetition from the report. The
+denominator and the 1.0 cap are unchanged, and `data/eval_baseline_v2.json` is
+unchanged: the deterministic eval scores the same 0.933 before and after.
