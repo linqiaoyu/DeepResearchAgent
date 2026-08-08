@@ -106,6 +106,10 @@ def run_gate() -> None:
             "llm_agent_liveness",
             [sys.executable, "scripts/check_llm_agent_liveness.py", "--self-test"],
         ),
+        (
+            "provider_worker",
+            [sys.executable, "scripts/check_provider_worker.py", "--self-test"],
+        ),
         ("readme_facts", [sys.executable, "scripts/check_087_readme_facts.py", "--self-test"]),
         ("unittest", [sys.executable, "-m", "unittest", "discover", "-s", "tests"]),
         ("site_build", [sys.executable, "scripts/build_site.py"]),
