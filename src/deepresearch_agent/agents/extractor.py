@@ -21,7 +21,13 @@ NUMBER_RE = re.compile(r"(\$?\d+(?:\.\d+)?%?|\d+(?:\.\d+)?)")
 PDF_PAGE_MARKER_RE = re.compile(r"\[\[PDF_PAGE=(\d+)\]\]")
 _CJK_RUN_RE = re.compile(r"[\u3400-\u9fff]+")
 _WORD_RE = re.compile(r"[A-Za-z0-9_]+")
-EXTRACTOR_LLM_MAX_CONTEXT_CHARS = 12_000
+# R073 bounded one request at 12,000 characters because one request carried
+# every source. R093 made each request carry a single source, so the per-source
+# bound below is what keeps a request small, and the old total only dropped
+# sources: R094's first live run offered 12 candidates, admitted 3, and
+# extracted 0 claims from them. The run-level bound is now a source count, so
+# every candidate gets its own bounded request.
+EXTRACTOR_LLM_MAX_SOURCES = 10
 EXTRACTOR_LLM_MAX_SOURCE_CHARS = 4_000
 
 
@@ -347,10 +353,9 @@ class ExtractorAgent:
         used_chars = 0
         prompt_sources: list[dict[str, str]] = []
         for _, source in ordered:
-            remaining_chars = EXTRACTOR_LLM_MAX_CONTEXT_CHARS - used_chars
-            if remaining_chars <= 0:
+            if len(prompt_sources) >= EXTRACTOR_LLM_MAX_SOURCES:
                 break
-            excerpt = source.content[: min(EXTRACTOR_LLM_MAX_SOURCE_CHARS, remaining_chars)]
+            excerpt = source.content[:EXTRACTOR_LLM_MAX_SOURCE_CHARS]
             if not excerpt:
                 continue
             prompt_sources.append(
