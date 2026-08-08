@@ -412,6 +412,8 @@ class PackageMeasurement:
     llm_authored_claims: int
     reader_analysis_lines: int
     orphan_footnotes: int
+    periods_compared: int
+    cross_source_domains: int
 
     def as_line(self) -> str:
         def show(value: int | None) -> str:
@@ -424,8 +426,45 @@ class PackageMeasurement:
             f"truncated_calls={show(self.truncated_calls)} "
             f"llm_authored_claims={self.llm_authored_claims} "
             f"reader_analysis_lines={self.reader_analysis_lines} "
-            f"orphan_footnotes={self.orphan_footnotes}"
+            f"orphan_footnotes={self.orphan_footnotes} "
+            f"periods_compared={self.periods_compared} "
+            f"cross_source_domains={self.cross_source_domains}"
         )
+
+
+def measure_research(report: str) -> tuple[int, int]:
+    """Measure research behaviour, not pipeline health.
+
+    R097: every acceptance so far asked whether the machinery ran. A report can
+    satisfy all of them by looking one number up in one document, which is what
+    every delivery through R096 did. These two count things a single retrieval
+    cannot produce.
+
+    ``periods_compared``
+        distinct reporting periods the reader's metric-coverage section
+        actually answers for. Taken from the rendered `请求报告期` lists rather
+        than from years in prose, which would count a document's publication
+        date as a period -- that error made R093 read 2 when it answered 1.
+
+    ``cross_source_domains``
+        distinct source hosts cited in the body. One means every number rests
+        on a single provider; two or more means a fact can be corroborated
+        across independent sources.
+    """
+
+    body, _, references = report.partition("## 参考来源")
+    coverage = re.search(r"(?ms)^## 指标覆盖状态\s*$\n?(.*?)(?=^## |\Z)", body)
+    periods: set[str] = set()
+    if coverage:
+        for group in re.findall(r"请求报告期：([^）)]+)", coverage.group(1)):
+            periods.update(part.strip() for part in group.split(",") if part.strip())
+    cited = set(re.findall(r"\[\^(\d+)\]", body))
+    domains: set[str] = set()
+    for number, url in re.findall(r"(?m)^\[\^(\d+)\]:.*?(https?://[^\s)]+)", references):
+        if number in cited:
+            host = re.sub(r"^https?://", "", url).split("/")[0].lower()
+            domains.add(host.removeprefix("www.").removeprefix("www1."))
+    return len(periods), len(domains)
 
 
 def measure_report(report: str) -> tuple[int, int]:
@@ -491,10 +530,12 @@ def measure_package(
         parse_errors, truncated = _from_global_ledger(package, llm_ledger)
 
     report_path = package / "report.md"
+    report_text = report_path.read_text(encoding="utf-8") if report_path.exists() else ""
     reader_analysis_lines, orphan_footnotes = (
-        measure_report(report_path.read_text(encoding="utf-8"))
-        if report_path.exists()
-        else (0, 0)
+        measure_report(report_text) if report_text else (0, 0)
+    )
+    periods_compared, cross_source_domains = (
+        measure_research(report_text) if report_text else (0, 0)
     )
 
     return PackageMeasurement(
@@ -505,6 +546,8 @@ def measure_package(
         llm_authored_claims=authored,
         reader_analysis_lines=reader_analysis_lines,
         orphan_footnotes=orphan_footnotes,
+        periods_compared=periods_compared,
+        cross_source_domains=cross_source_domains,
     )
 
 
@@ -549,6 +592,8 @@ def check_package(
     min_authored_claims: int,
     llm_ledger: Path | None,
     min_reader_analysis_lines: int = DEFAULT_MIN_READER_ANALYSIS_LINES,
+    min_periods_compared: int = 0,
+    min_source_domains: int = 0,
 ) -> int:
     measurement = measure_package(package, llm_ledger=llm_ledger)
     print(measurement.as_line())
@@ -572,6 +617,18 @@ def check_package(
         failures.append(
             f"only {measurement.llm_authored_claims} LLM-authored cited claim(s), "
             f"need >= {min_authored_claims}"
+        )
+    # Reported for every package; enforced only where the question asks for a
+    # comparison, because a single-period question honestly answers one period.
+    if measurement.periods_compared < min_periods_compared:
+        failures.append(
+            f"the report answers {measurement.periods_compared} reporting period(s), "
+            f"need >= {min_periods_compared} to speak about change"
+        )
+    if measurement.cross_source_domains < min_source_domains:
+        failures.append(
+            f"every cited fact rests on {measurement.cross_source_domains} source "
+            f"host(s), need >= {min_source_domains} for cross-source corroboration"
         )
     if measurement.reader_analysis_lines < min_reader_analysis_lines:
         failures.append(
@@ -597,6 +654,8 @@ def main(argv: list[str] | None = None) -> int:
         type=int,
         default=DEFAULT_MIN_READER_ANALYSIS_LINES,
     )
+    parser.add_argument("--min-periods-compared", type=int, default=0)
+    parser.add_argument("--min-source-domains", type=int, default=0)
     parser.add_argument(
         "--llm-ledger",
         type=Path,
@@ -618,6 +677,8 @@ def main(argv: list[str] | None = None) -> int:
         min_authored_claims=args.min_authored_claims,
         llm_ledger=args.llm_ledger,
         min_reader_analysis_lines=args.min_reader_analysis_lines,
+        min_periods_compared=args.min_periods_compared,
+        min_source_domains=args.min_source_domains,
     )
 
 

@@ -330,3 +330,56 @@ class ExtractedClaimsBoundTests(unittest.TestCase):
             _estimate_tokens(worst_case_extractor_payload()),
             DEFAULT_LLM_CONFIG.roles["extractor"].max_completion_tokens,
         )
+
+
+class ResearchBehaviourMeasureTests(unittest.TestCase):
+    """R097: measure what a single retrieval cannot produce."""
+
+    def test_periods_come_from_the_coverage_section_not_from_prose_years(self) -> None:
+        from scripts.check_llm_agent_liveness import measure_research
+
+        report = (
+            "# r\n\n## 指标覆盖状态\n"
+            "- 营业收入（请求报告期：2023, 2024）：… [^1]\n"
+            "- 毛利（请求报告期：2023, 2024）：… [^1]\n\n"
+            "## 参考来源\n[^1]: filing. https://www.sec.gov/x (2025-04-08)\n"
+        )
+
+        periods, domains = measure_research(report)
+
+        self.assertEqual(periods, 2)
+        self.assertEqual(domains, 1)
+
+    def test_a_publication_date_is_not_a_reporting_period(self) -> None:
+        """R093 read 2 periods off a 2025-04-08 publication date."""
+
+        from scripts.check_llm_agent_liveness import measure_research
+
+        report = (
+            "# r\n\n## 指标覆盖状态\n- 毛利（请求报告期：2024）：… [^1]\n\n"
+            "## 参考来源\n[^1]: filing. https://www.sec.gov/x (2025-04-08)\n"
+        )
+
+        self.assertEqual(measure_research(report)[0], 1)
+
+    def test_only_cited_references_count_toward_source_diversity(self) -> None:
+        from scripts.check_llm_agent_liveness import measure_research
+
+        report = (
+            "# r\n\n## 关键发现\n- a [^1]\n\n## 参考来源\n"
+            "[^1]: one. https://www.sec.gov/x (2025-01-01)\n"
+            "[^2]: two. https://www1.hkexnews.hk/y (2025-01-01)\n"
+        )
+
+        self.assertEqual(measure_research(report)[1], 1)
+
+    def test_two_hosts_cited_in_the_body_count_as_two(self) -> None:
+        from scripts.check_llm_agent_liveness import measure_research
+
+        report = (
+            "# r\n\n## 关键发现\n- a [^1]\n- b [^2]\n\n## 参考来源\n"
+            "[^1]: one. https://www.sec.gov/x (2025-01-01)\n"
+            "[^2]: two. https://www1.hkexnews.hk/y (2025-01-01)\n"
+        )
+
+        self.assertEqual(measure_research(report)[1], 2)
