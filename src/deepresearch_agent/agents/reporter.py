@@ -790,10 +790,25 @@ class ReporterAgent:
         detailed_lines: list[str] = []
         if not state.plan:
             raise ValueError("Cannot render detailed analysis without a plan.")
+        # R092: relatedness normally means "shares evidence or a fact key with a
+        # key finding". That signal disappears when every key finding comes from
+        # the structured provider and the analysis cites filing text, because the
+        # two can never share an evidence id -- R091 delivered four authored
+        # claims and zero analysis lines because of exactly that. Only in that
+        # case does citing this sub-question's own evidence stand in for it; when
+        # a key finding does cite retrieved text, the original rule still holds
+        # and off-topic claims still fall through to 补充事实.
+        evidence_by_sub_question: dict[str, set[str]] = defaultdict(set)
+        retrieved_ids = {item.id for item in evidence if item.structured_record is None}
+        for item in evidence:
+            evidence_by_sub_question[item.sub_question_id].add(item.id)
         for sub_question in state.plan.sub_questions:
             section = by_section.get(sub_question.id)
             if not section or not section.claims:
                 continue
+            section_evidence_ids = evidence_by_sub_question[sub_question.id]
+            if key_evidence_ids & retrieved_ids & section_evidence_ids:
+                section_evidence_ids = set()
             section_lines = [f"### {self._reader_text(sub_question.question)}"]
             rendered_count = 0
             for index, claim in enumerate(section.claims[:3]):
@@ -807,7 +822,7 @@ class ReporterAgent:
                     if item in evidence_ids
                 }
                 related = bool(
-                    valid_claim_ids & key_evidence_ids
+                    valid_claim_ids & (key_evidence_ids | section_evidence_ids)
                     or fact_keys & key_fact_keys
                 )
                 if not related:

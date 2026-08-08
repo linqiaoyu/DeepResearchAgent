@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 from datetime import date
+from decimal import Decimal
 
 from deepresearch_agent.agents import Evaluator, ReporterAgent
 from deepresearch_agent.agents.researcher import ResearcherAgent
@@ -625,6 +626,84 @@ class ReporterFinanceTemplateTests(unittest.TestCase):
 
         self.assertIn("## 详细分析", compacted)
         self.assertIn("收入主要来自酒类业务", compacted)
+
+    def test_analysis_citing_filing_text_survives_structured_key_findings(self) -> None:
+        """R092: relatedness must not require sharing evidence with a finding.
+
+        R091 delivered four authored claims and zero analysis lines: the key
+        findings cite the structured provider, the analysis cites filing text,
+        so every analysis claim was routed to `补充事实` and dropped.
+        """
+
+        state = ResearchState(topic="贵州茅台 2025 年营业收入")
+        state.plan = ResearchPlan(
+            topic=state.topic,
+            sub_questions=[
+                SubQuestion(id="finance", question=state.topic, search_queries=["600519"])
+            ],
+        )
+        structured = self._metric_evidence(
+            state, "structured-revenue", "营业收入", "20251231", 168_838_102_514.79, 61
+        )
+        # The R091 shape: the key finding comes from the structured provider, so
+        # it can never share an evidence id with analysis grounded in filing text.
+        structured.structured_record = StructuredDataRecord(
+            entity="贵州茅台",
+            symbol="600519",
+            metric_name="营业收入",
+            period="20251231",
+            dimension="合并",
+            value=Decimal("168838102514.79"),
+            unit="元",
+            data_source="SEC EDGAR Company Facts",
+            as_of=date(2026, 4, 16),
+            source_pub_date=date(2026, 4, 16),
+        )
+        filing = Evidence(
+            id="filing-chunk",
+            research_id=state.research_id,
+            sub_question_id="finance",
+            claim="酒类业务是收入主体。",
+            claim_type="fact",
+            source_url="https://static.cninfo.com.cn/600519.pdf#chunk=1",
+            source_title="贵州茅台 2025 年年度报告",
+            source_pub_date=date(2026, 4, 16),
+            extract_text="酒类业务是收入主体。",
+        )
+        state.evidence_store = [structured, filing]
+        draft = ReportDraft(
+            summary="2025 年营业收入同比小幅下降。",
+            key_findings=[
+                ReportClaim(
+                    text="2025 年营业收入为 168,838,102,514.79 元。",
+                    evidence_ids=[structured.id],
+                )
+            ],
+            detailed_analysis=[
+                ReportSection(
+                    sub_question_id="finance",
+                    heading="营收结构",
+                    claims=[
+                        ReportClaim(
+                            text="收入主体是酒类业务，其余分部占比较低。",
+                            evidence_ids=[filing.id],
+                        ),
+                        ReportClaim(
+                            text="年报口径与结构化接口口径一致，可直接比较。",
+                            evidence_ids=[filing.id],
+                        ),
+                    ],
+                )
+            ],
+            risks=[],
+            unverified_assumptions=[],
+        )
+
+        rendered, _invalid, _backfills = ReporterAgent()._render_llm_report(state, draft)
+
+        self.assertIn("## 详细分析", rendered)
+        self.assertIn("收入主体是酒类业务", rendered)
+        self.assertNotIn("## 补充事实", rendered)
 
     def test_analysis_repeating_an_already_stated_number_is_still_dropped(self) -> None:
         """The dedup rule still holds where it was actually aimed.
