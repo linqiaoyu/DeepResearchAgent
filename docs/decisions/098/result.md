@@ -181,17 +181,7 @@ authorized per-run breaker of CNY 0.6. E1 was inherited from R097 at CNY 0.15908
   `reasoning_effort` is unsupported for this model through litellm; the
   candidates are a larger cap for structured roles, a non-thinking model
   variant, or a retry that limits thinking. None is validated.
-- **INCOMPLETE (high)**: E3's `关键发现` states
-  `NIO Inc. 2023年 年度营业收入为167,180,000 CNY` beside `2023年 …556.179 亿元`
-  in the next section — two 2023 revenue figures differing by ~333x, in one
-  report. The structured record is
-  `{"data_source": "SEC EDGAR Company Facts", "dimension": "年度",
-  "period": "2023-12-31", "unit": "CNY", "value": "167180000"}`. Candidate
-  cause, **not verified**: `sec_companyfacts.py:288-303` filters facts by
-  `end` and `fy` but never by the fact's `start`, so a sub-annual duration can
-  be emitted as an annual value; 167.18亿 is close to the Q4-2023 figure the
-  report's own footnote 2 carries (171 亿元). This is a downstream path that
-  could not show itself until multi-period retrieval worked.
+- **FIXED after the round's first report** — see the correction below.
 - **INCOMPLETE (medium)**: the reader-visible contradiction between
   `disclosure_policy.py:94` (`未取得可引用的原始披露事实`) and
   `reporter.py:1227` (`部分已引用；已覆盖 …`), present in E1 and E2. Two
@@ -206,10 +196,65 @@ authorized per-run breaker of CNY 0.6. E1 was inherited from R097 at CNY 0.15908
   `test_independent_request_engines_share_wal_checkpoint_safely`
   `database is locked` failure. 854 tests passed in the one full gate run.
 
+## Correction: the 167,180,000 figure, and why the first guess was wrong
+
+E3's `关键发现` stated `NIO Inc. 2023年 年度营业收入为167,180,000 CNY` beside the
+same report's `2023年 …556.179 亿元` — two 2023 revenue figures differing by
+~333x. The section above originally named a candidate cause and marked it
+unverified: that `sec_companyfacts.py` filters facts by `end` and `fy` but
+never by `start`, so a sub-annual duration could be emitted as annual.
+
+**That guess was wrong.** Fetching the filer's actual Company Facts shows the
+fact is `start=2023-01-01 end=2023-12-31`, a full 364-day year:
+
+```
+CNY facts with end=2023-12-31, form=20-F, fp=FY, under the generic concept: 1
+  start=2023-01-01 end=2023-12-31 days=364 fy=2023 val=167,180,000 filed=2024-04-09
+under the specific concept:
+  start=2023-01-01 end=2023-12-31 days=364 val=55,617,933,000
+  start=2024-01-01 end=2024-12-31 days=365 val=65,731,559,000
+```
+
+The cause is the **tag choice**, at what was `sec_companyfacts.py:172-179`:
+`financial_indicators` walked the domain's mapped concepts and `break`ed on the
+first that returned anything. The vocabulary lists the generic revenue concept
+first; this filer carries one stray 167,180,000 fact under it, filed once,
+while every annual total sits under the specific concept and is restated by
+each later filing. A list position decided which of two mapped concepts was
+"total revenue".
+
+Selection is by coverage now: the concept answering more of the requested
+periods wins, then the concept the filer uses across more of its own annual
+periods, and only then vocabulary order. Concepts equally used that disagree on
+a period emit nothing for it.
+
+Verified against live SEC data: requesting 2023 and 2024 returns
+55,617,933,000 and 65,731,559,000; requesting 2023 alone still returns
+55,617,933,000 rather than the stray fact — the second case matters because
+requested-period coverage ties there and only the filer's own usage breaks it.
+
+| guard | mutation | failure |
+|---|---|---|
+| concept choice | restore the first-match rule | `[('2023-12-31', Decimal('167180000'))] != [('2023-12-31', Decimal('55617933000'))]` |
+
+Gate after the fix: `gate_exit=0`, `Ran 857 tests ... OK (skipped=4)`,
+`import_sites=0 literal_files=3 literal_hits=8` — unchanged from the R097
+baseline, after a first attempt was correctly rejected by
+`check_domain_boundary.py` for naming the two XBRL concepts in a core tool's
+docstring.
+
 ## Note on this round's own method
 
-The schema-bounds commit was written before the payload dump existed, from
-token counts alone, and it aimed at the wrong cause. The dump that corrected it
-cost about fifteen lines. Where a measurement is cheap and the inference from
-existing telemetry is not forced, take the measurement first — R090 and R092
-both spent a round each on the same inference.
+Twice this round an inference from existing telemetry was wrong, and both times
+a cheap direct measurement settled it in minutes.
+
+- The schema-bounds commit was written from token counts alone and aimed at the
+  wrong cause. A fifteen-line payload dump showed the responses were empty.
+- The 167,180,000 diagnosis was written from reading the filter code and aimed
+  at the wrong cause. One request to the filer's own Company Facts showed the
+  fact was a full year.
+
+R090 and R092 each spent a round on the first inference. Where a measurement is
+cheap and the inference from existing telemetry is not forced, take the
+measurement first — and mark the inference as unverified until it is, which is
+what let the second one be corrected rather than inherited.
