@@ -130,6 +130,137 @@ class ReportReaderGuardTests(unittest.TestCase):
             362_013_000_000,
         )
 
+    def test_every_draft_analysis_claim_is_accounted_for(self) -> None:
+        """R099: a zero must say which branch consumed the claims.
+
+        R098's A-share run delivered `reader_analysis_lines=0` with a reporter
+        that had *not* fallen back, and nothing recorded whether the draft
+        arrived empty or this renderer discarded it -- so the cause could only be
+        guessed at by reading the function. The fixture below exercises three
+        different outcomes for three claims: one renders, one is dropped as a
+        restatement of a key finding's number, one falls through to 补充事实.
+        """
+
+        reporter = ReporterAgent()
+        state, draft = self._three_outcome_fixture()
+
+        reporter._render_llm_report(state, draft)
+        flow = reporter.last_stats["analysis_flow"]
+
+        self.assertEqual(flow["draft_sections"], 1)
+        self.assertEqual(flow["draft_claims"], 3)
+        self.assertEqual(flow["rendered_lines"], 1)
+        self.assertEqual(flow["claims_dropped_duplicate_number"], 1)
+        self.assertEqual(flow["claims_dropped_unrelated"], 1)
+        self.assertEqual(flow["sections_unmatched_to_plan"], 0)
+        self.assertEqual(flow["claims_over_section_cap"], 0)
+        # The counters have to close: a claim that disappears without landing in
+        # one of these buckets is exactly the loss this telemetry exists to name.
+        self.assertEqual(
+            flow["draft_claims"],
+            flow["rendered_lines"]
+            + flow["claims_dropped_duplicate_number"]
+            + flow["claims_dropped_unrelated"]
+            + flow["claims_over_section_cap"],
+        )
+
+    def test_a_section_the_plan_never_asked_for_is_named_not_silently_dropped(
+        self,
+    ) -> None:
+        """R099: `by_section` is keyed by sub-question id, so a mismatch renders nothing."""
+
+        reporter = ReporterAgent()
+        state, draft = self._three_outcome_fixture()
+        draft = draft.model_copy(
+            update={
+                "detailed_analysis": [
+                    draft.detailed_analysis[0].model_copy(
+                        update={"sub_question_id": "not-in-the-plan"}
+                    )
+                ]
+            }
+        )
+
+        reporter._render_llm_report(state, draft)
+        flow = reporter.last_stats["analysis_flow"]
+
+        self.assertEqual(flow["draft_claims"], 3)
+        self.assertEqual(flow["rendered_lines"], 0)
+        self.assertEqual(flow["sections_unmatched_to_plan"], 1)
+
+    def _three_outcome_fixture(self) -> tuple[ResearchState, ReportDraft]:
+        state = ResearchState(topic="宁德时代 20241231 业绩")
+        state.plan = ResearchPlan(
+            topic=state.topic,
+            sub_questions=[
+                SubQuestion(
+                    id="finance",
+                    question="宁德时代 20241231 业绩意味着什么？",
+                    search_queries=["fixture"],
+                )
+            ],
+        )
+        state.evidence_store = [
+            self._evidence(state, "yuan", "营业收入", 362_013_000_000, "元"),
+            self._evidence(state, "yi", "营收", 3620.13, "亿元"),
+            Evidence(
+                id="meaning",
+                research_id=state.research_id,
+                sub_question_id="finance",
+                claim="收入下降与利润增长并存，需结合毛利率变化解释。",
+                claim_type="fact",
+                source_url="https://example.com/meaning",
+                source_title="Meaning",
+                source_pub_date=date(2025, 3, 15),
+                extract_text="收入下降与利润增长并存。",
+            ),
+            Evidence(
+                id="factory",
+                research_id=state.research_id,
+                sub_question_id="finance",
+                claim="匈牙利工厂仍处于建设阶段。",
+                claim_type="fact",
+                source_url="https://example.com/factory",
+                source_title="Factory",
+                source_pub_date=date(2025, 3, 15),
+                extract_text="匈牙利工厂仍处于建设阶段。",
+            ),
+        ]
+        draft = ReportDraft(
+            summary="截至20241231，研究使用本地证据。",
+            key_findings=[
+                ReportClaim(
+                    text="宁德时代 20241231 营业收入为3.62013e+11元。",
+                    evidence_ids=["yuan"],
+                ),
+                ReportClaim(
+                    text="宁德时代2024年营业收入为3620.13亿元。",
+                    evidence_ids=["yi"],
+                ),
+            ],
+            detailed_analysis=[
+                ReportSection(
+                    sub_question_id="finance",
+                    heading="含义",
+                    claims=[
+                        ReportClaim(
+                            text="宁德时代营业收入为3620.13亿元。",
+                            evidence_ids=["yi"],
+                        ),
+                        ReportClaim(
+                            text="收入下降与利润增长并存，需结合毛利率变化解释。",
+                            evidence_ids=["yuan", "meaning"],
+                        ),
+                        ReportClaim(
+                            text="匈牙利工厂仍处于建设阶段。",
+                            evidence_ids=["factory"],
+                        ),
+                    ],
+                )
+            ],
+        )
+        return state, draft
+
     def _evidence(
         self,
         state: ResearchState,

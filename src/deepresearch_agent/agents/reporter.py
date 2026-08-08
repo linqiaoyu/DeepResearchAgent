@@ -589,6 +589,7 @@ class ReporterAgent:
             "claim_count": repair_stats["claim_count"],
             "uncited_claims": repair_stats["uncited_claims"],
             "claim_provenance": self.last_stats.get("claim_provenance", []),
+            "analysis_flow": self.last_stats.get("analysis_flow", {}),
             "repair_attempts": result.repair_attempts,
         }
         return report
@@ -790,6 +791,32 @@ class ReporterAgent:
         detailed_lines: list[str] = []
         if not state.plan:
             raise ValueError("Cannot render detailed analysis without a plan.")
+        # R099: `reader_analysis_lines` was 0 in all three of R098's live runs,
+        # and in the one where the reporter did not fall back there was no way
+        # to tell an empty draft from a draft this loop discarded. Every branch
+        # below that costs the reader a line is counted, so the next look at a
+        # zero starts from a measurement instead of a reading of this function.
+        plan_sub_question_ids = {item.id for item in state.plan.sub_questions}
+        analysis_flow: dict[str, int] = {
+            "draft_sections": len(draft.detailed_analysis),
+            "draft_claims": sum(
+                len(section.claims) for section in draft.detailed_analysis
+            ),
+            "sections_unmatched_to_plan": sum(
+                1
+                for section in draft.detailed_analysis
+                if section.sub_question_id not in plan_sub_question_ids
+            ),
+            "sections_collapsed_by_duplicate_id": len(draft.detailed_analysis)
+            - len(by_section),
+            "claims_over_section_cap": sum(
+                max(0, len(section.claims) - 3)
+                for section in draft.detailed_analysis
+            ),
+            "claims_dropped_unrelated": 0,
+            "claims_dropped_duplicate_number": 0,
+            "rendered_lines": 0,
+        }
         # R092: relatedness normally means "shares evidence or a fact key with a
         # key finding". That signal disappears when every key finding comes from
         # the structured provider and the analysis cites filing text, because the
@@ -829,6 +856,7 @@ class ReporterAgent:
                     supplemental.append(
                         (sub_question.id, index, claim)
                     )
+                    analysis_flow["claims_dropped_unrelated"] += 1
                     continue
                 if (
                     fact_keys
@@ -839,6 +867,7 @@ class ReporterAgent:
                         for item in valid_claim_ids
                     )
                 ):
+                    analysis_flow["claims_dropped_duplicate_number"] += 1
                     continue
                 path = _ClaimPath("detailed_analysis", index, sub_question.id)
                 rendered, invalid, backfilled, provenance = self._render_claim(
@@ -856,6 +885,7 @@ class ReporterAgent:
                 rendered_count += 1
             if rendered_count:
                 detailed_lines.extend(section_lines)
+                analysis_flow["rendered_lines"] += rendered_count
 
         if detailed_lines:
             lines.extend(["", "## 详细分析", *detailed_lines])
@@ -972,6 +1002,7 @@ class ReporterAgent:
                 f"{f' [page={item.source_page}]' if item.source_page else ''}{provenance}"
             )
         self.last_stats["claim_provenance"] = claim_provenance
+        self.last_stats["analysis_flow"] = analysis_flow
         return "\n".join(lines), invalid_references, missing_reference_backfills
 
     def _render_claim(
