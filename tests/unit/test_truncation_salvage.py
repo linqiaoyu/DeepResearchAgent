@@ -176,8 +176,146 @@ class ClientSalvageTests(unittest.TestCase):
             self.assertEqual(row["reasoning_tokens"], 8192)
             self.assertEqual(row["content_chars"], 0)
 
+            # R099 gave this role a recovery attempt, so a provider that
+            # exhausts unconditionally now exhausts twice before the call
+            # surfaces. Both are charged and both are recorded; the assertion is
+            # raised from 1 to 2 because the behaviour genuinely changed, not to
+            # accommodate the new code -- an unrecorded second paid call is
+            # exactly what this row exists to prevent.
             health = client.aggregate_run("thinking")["structured_output"]
+            self.assertEqual(health["reasoning_exhausted_calls"], 2)
+            self.assertEqual(health["reasoning_recovered_calls"], 0)
+
+    def test_an_exhausted_call_is_retried_with_reasoning_disabled(self) -> None:
+        """R099: the empty response is recoverable, and only one lever recovers it.
+
+        Measured against the live endpoint at a cap the baseline exhausts
+        (`_collab/099/evidence/probe_exhaustion_fix.log`): the same request that
+        returns 0 content characters and 400/400 reasoning tokens returns 1581
+        content characters and 0 reasoning tokens once the request carries
+        ``extra_body={"thinking": {"type": "disabled"}}``. ``reasoning_effort``
+        is forwarded and ignored by this endpoint, so the retry has to carry the
+        spelling that was measured to work.
+        """
+
+        seen: list[object] = []
+        whole = json.dumps({"claims": [_claim(0)]}, ensure_ascii=False)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            env = Path(tmp) / ".env"
+            env.write_text("DEEPSEEK_API_KEY=test-key\n", encoding="utf-8")
+
+            def completion(**kwargs: object) -> dict[str, object]:
+                extra_body = kwargs.get("extra_body")
+                seen.append(extra_body)
+                if not extra_body:
+                    return {
+                        "choices": [
+                            {"message": {"content": ""}, "finish_reason": "length"}
+                        ],
+                        "usage": {
+                            "prompt_tokens": 10,
+                            "completion_tokens": 8192,
+                            "total_tokens": 8202,
+                            "completion_tokens_details": {"reasoning_tokens": 8192},
+                        },
+                    }
+                return {
+                    "choices": [
+                        {"message": {"content": whole}, "finish_reason": "stop"}
+                    ],
+                    "usage": {
+                        "prompt_tokens": 10,
+                        "completion_tokens": 120,
+                        "total_tokens": 130,
+                        "completion_tokens_details": {"reasoning_tokens": 0},
+                    },
+                }
+
+            client = LLMClient(
+                ledger_path=Path(tmp) / "ledger.jsonl",
+                global_ledger_path=Path(tmp) / "global.jsonl",
+                budget_cny=3.0,
+                completion_func=completion,
+                sleep_func=lambda _: None,
+                env_path=env,
+            )
+
+            result = client.complete(
+                role="reporter",
+                run_id="recovered",
+                schema=ExtractedClaims,
+                messages=[{"role": "user", "content": "report"}],
+            )
+
+            assert isinstance(result.parsed, ExtractedClaims)
+            self.assertEqual(len(result.parsed.claims), 1)
+            self.assertEqual(seen[0], None)
+            self.assertEqual(seen[1], {"thinking": {"type": "disabled"}})
+
+            rows = [
+                json.loads(line)
+                for line in (Path(tmp) / "ledger.jsonl")
+                .read_text(encoding="utf-8")
+                .splitlines()
+            ]
+            self.assertEqual(len(rows), 2, "the exhausted call went unrecorded")
+            self.assertEqual(rows[0]["parse_error_kind"], "reasoning_exhausted")
+            self.assertFalse(rows[0]["reasoning_recovered"])
+            self.assertTrue(rows[1]["reasoning_recovered"])
+
+            health = client.aggregate_run("recovered")["structured_output"]
             self.assertEqual(health["reasoning_exhausted_calls"], 1)
+            self.assertEqual(health["reasoning_recovered_calls"], 1)
+
+    def test_a_role_with_no_measured_control_is_not_sent_a_guessed_body(self) -> None:
+        """R099: the DashScope roles were never probed, so they get no retry.
+
+        Sending them a body measured against a different provider would be a
+        guess wearing a measurement's clothes, and a silently ignored parameter
+        would read in the ledger as a recovery that worked.
+        """
+
+        seen: list[object] = []
+
+        with tempfile.TemporaryDirectory() as tmp:
+            env = Path(tmp) / ".env"
+            env.write_text("DASHSCOPE_API_KEY=test-key\n", encoding="utf-8")
+
+            def completion(**kwargs: object) -> dict[str, object]:
+                seen.append(kwargs.get("extra_body"))
+                return {
+                    "choices": [
+                        {"message": {"content": ""}, "finish_reason": "length"}
+                    ],
+                    "usage": {
+                        "prompt_tokens": 10,
+                        "completion_tokens": 8192,
+                        "total_tokens": 8202,
+                        "completion_tokens_details": {"reasoning_tokens": 8192},
+                    },
+                }
+
+            client = LLMClient(
+                ledger_path=Path(tmp) / "ledger.jsonl",
+                global_ledger_path=Path(tmp) / "global.jsonl",
+                budget_cny=3.0,
+                completion_func=completion,
+                sleep_func=lambda _: None,
+                env_path=env,
+            )
+
+            from deepresearch_agent.llm.client import StructuredOutputTruncatedError
+
+            with self.assertRaises(StructuredOutputTruncatedError):
+                client.complete(
+                    role="judge",
+                    run_id="unprobed",
+                    schema=ExtractedClaims,
+                    messages=[{"role": "user", "content": "judge"}],
+                )
+
+            self.assertEqual(seen, [None], "an unprobed role was sent a guessed body")
 
     def test_an_unsalvageable_truncation_keeps_the_payload_that_overran(self) -> None:
         """R098: token counts alone cannot say where the model spent the cap.

@@ -7,6 +7,7 @@ import queue
 import signal
 import threading
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass
 from importlib import import_module
 from pathlib import Path
@@ -21,6 +22,14 @@ from deepresearch_agent.settings import project_root
 from deepresearch_agent.trajectory import LLMCallTrace, active_trajectory_recorder
 
 SchemaT = TypeVar("SchemaT", bound=BaseModel)
+
+
+def _deep_plain(value: Any) -> Any:
+    """Rebuild read-only mappings as plain ones so the worker pool can pickle them."""
+
+    if isinstance(value, Mapping):
+        return {key: _deep_plain(item) for key, item in value.items()}
+    return value
 
 
 # A transport timeout is necessary but insufficient: a provider SDK can still
@@ -380,6 +389,7 @@ class LLMClient:
         # used only as a mode flag.
         self._production = completion_func is None
         self._salvaged_calls = 0
+        self._reasoning_recovered_calls = 0
         self._worker_pool = _ProviderWorkerPool()
         self.ledger_path = ledger_path
         self.global_ledger_path = global_ledger_path or project_root() / "data" / "runtime" / "llm_ledger.jsonl"
@@ -462,6 +472,29 @@ class LLMClient:
         except BaseException:
             self._release_reservation(run_id, reservation_cny)
             raise
+        reasoning_recovered = False
+        if schema and self._reasoning_exhausted(
+            raw_result, role_config.max_completion_tokens
+        ):
+            # R099: the call did not write too much JSON -- it never began. The
+            # cap bounds reasoning plus content on this model, so repairing or
+            # salvaging an empty string buys nothing, and the only lever that
+            # changes the outcome is asking the endpoint not to reason. Doing it
+            # here, before the parse machinery, keeps that machinery working on
+            # a response that exists.
+            raw_result, reservation_cny, reasoning_recovered = (
+                self._retry_without_reasoning(
+                    run_id=run_id,
+                    role=role,
+                    role_config=role_config,
+                    api_key=api_key,
+                    exhausted=raw_result,
+                    messages=prompt_messages,
+                    tools=tools,
+                    reservation_cny=reservation_cny,
+                    expected_cost_cny=expected_cost_cny,
+                )
+            )
         content = raw_result.content
         parsed: BaseModel | None = None
         repair_attempts = 0
@@ -476,7 +509,9 @@ class LLMClient:
                 # finish_reason=length. They have different causes and
                 # different fixes, and reading the second as the first is what
                 # sent R090 and this round's first patch after the schema size.
-                reasoning_exhausted = truncated and not raw_result.content.strip()
+                reasoning_exhausted = self._reasoning_exhausted(
+                    raw_result, role_config.max_completion_tokens
+                )
                 first_error_kind = (
                     "reasoning_exhausted"
                     if reasoning_exhausted
@@ -623,6 +658,7 @@ class LLMClient:
                 parse_error=first_error,
                 parse_error_kind=first_error_kind,
                 salvaged=salvaged_parse,
+                reasoning_recovered=reasoning_recovered,
             )
         finally:
             self._release_reservation(run_id, reservation_cny)
@@ -797,6 +833,7 @@ class LLMClient:
                     "structured_parse_errors": 0,
                     "truncated_calls": 0,
                     "reasoning_exhausted_calls": 0,
+                    "reasoning_recovered_calls": 0,
                     "salvaged_calls": 0,
                 },
             )
@@ -812,6 +849,10 @@ class LLMClient:
                 if row.get("parse_error_kind") == "reasoning_exhausted":
                     bucket["reasoning_exhausted_calls"] = (
                         int(bucket["reasoning_exhausted_calls"]) + 1
+                    )
+                if row.get("reasoning_recovered"):
+                    bucket["reasoning_recovered_calls"] = (
+                        int(bucket["reasoning_recovered_calls"]) + 1
                     )
                 if row.get("salvaged"):
                     bucket["salvaged_calls"] = int(bucket["salvaged_calls"]) + 1
@@ -835,6 +876,7 @@ class LLMClient:
                     "structured_parse_errors",
                     "truncated_calls",
                     "reasoning_exhausted_calls",
+                    "reasoning_recovered_calls",
                     "salvaged_calls",
                 )
             },
@@ -862,6 +904,7 @@ class LLMClient:
         messages: list[dict[str, str]],
         tools: list[dict[str, Any]] | None = None,
         is_repair: bool = False,
+        extra_body: Mapping[str, Any] | None = None,
     ) -> LLMCallResult:
         last_error: Exception | None = None
         candidate_models = [model]
@@ -882,6 +925,13 @@ class LLMClient:
                     )
                     if tools is not None:
                         kwargs["tools"] = tools
+                    if extra_body:
+                        # A plain request body extension, so it survives the
+                        # provider-agnostic route that drops unknown top-level
+                        # parameters.  `_deep_plain` because the worker pool
+                        # pickles these kwargs and `MappingProxyType` is not
+                        # picklable.
+                        kwargs["extra_body"] = _deep_plain(extra_body)
                     response = self._call_with_hard_timeout(
                         kwargs=kwargs,
                         timeout_seconds=timeout_seconds,
@@ -1176,6 +1226,103 @@ class LLMClient:
             return "schema_violation"
         return "invalid_json"
 
+    @classmethod
+    def _reasoning_exhausted(
+        cls, result: LLMCallResult, max_completion_tokens: int
+    ) -> bool:
+        """The call stopped at the cap having written nothing.
+
+        R098 measured the cause: ``max_tokens`` bounds reasoning plus content on
+        this model, so a response can consume the entire budget deliberating and
+        return an empty ``content`` with ``finish_reason=length``. R099 verified
+        the payload dumps of both live runs that fell back -- one byte each, the
+        newline the dumper writes -- so this is the shape the reporter actually
+        hit, not an inferred one.
+        """
+
+        return cls._truncated(result, max_completion_tokens) and not result.content.strip()
+
+    def _retry_without_reasoning(
+        self,
+        *,
+        run_id: str,
+        role: str,
+        role_config: Any,
+        api_key: str,
+        exhausted: LLMCallResult,
+        messages: list[dict[str, str]],
+        tools: list[dict[str, Any]] | None,
+        reservation_cny: float,
+        expected_cost_cny: float | None,
+    ) -> tuple[LLMCallResult, float, bool]:
+        """Re-issue an exhausted call with the endpoint's reasoning turned off.
+
+        Returns the result to carry forward, the reservation now outstanding for
+        it, and whether the retry happened. A role with no measured way to stop
+        its endpoint reasoning gets no retry: the caller then handles the
+        exhausted response exactly as before this method existed.
+        """
+
+        extra_body = getattr(role_config, "no_reasoning_extra_body", None)
+        if not extra_body:
+            return exhausted, reservation_cny, False
+
+        # The exhausted call reached the provider and was charged for, so it is
+        # accounted before the second one is reserved -- otherwise a recovery
+        # could carry a run past its budget without either call appearing.
+        try:
+            self._record_ledger(
+                run_id=run_id,
+                role=role,
+                result=exhausted,
+                structured=True,
+                parse_error="completion budget spent on reasoning, empty content",
+                parse_error_kind="reasoning_exhausted",
+            )
+        finally:
+            self._release_reservation(run_id, reservation_cny)
+        self._add_run_cost(run_id, exhausted.cost_cny)
+        if self.run_total_cny(run_id) > self.budget_cny:
+            raise BudgetExceededError(run_id, self.budget_cny, self.run_total_cny(run_id))
+        # Empty, and that emptiness is the record: it is what tells a later
+        # reader this was exhaustion rather than an over-long response.
+        self._dump_truncated_payload(
+            run_id=run_id, role=f"{role}.reasoning_exhausted", content=exhausted.content
+        )
+
+        retry_reservation = expected_cost_cny or self._estimate_max_cost_cny(
+            messages, role_config.model, role_config.max_completion_tokens
+        )
+        self._reserve_budget(run_id, retry_reservation)
+        try:
+            recovered = self._completion_with_retries(
+                role=role,
+                model=role_config.model,
+                fallback_model=role_config.fallback_model,
+                api_base=role_config.api_base,
+                api_key=api_key,
+                timeout_seconds=role_config.timeout_seconds or self.config.timeout_seconds,
+                max_completion_tokens=role_config.max_completion_tokens,
+                messages=messages,
+                tools=tools,
+                extra_body=extra_body,
+            )
+        except BaseException:
+            self._release_reservation(run_id, retry_reservation)
+            raise
+        self._reasoning_recovered_calls += 1
+        with correlation_context(llm_call=role):
+            self.logger.event(
+                "llm_reasoning_recovery",
+                role=role,
+                run_id=run_id,
+                exhausted_completion_tokens=exhausted.completion_tokens,
+                exhausted_reasoning_tokens=exhausted.reasoning_tokens,
+                recovered_content_chars=len(recovered.content),
+                recovered_reasoning_tokens=recovered.reasoning_tokens,
+            )
+        return recovered, retry_reservation, True
+
     @staticmethod
     def _truncated(result: LLMCallResult, max_completion_tokens: int) -> bool:
         """Distinguish "the model wrote bad JSON" from "we cut the model off".
@@ -1379,6 +1526,7 @@ class LLMClient:
         parse_error: str | None,
         parse_error_kind: str | None = None,
         salvaged: bool = False,
+        reasoning_recovered: bool = False,
     ) -> None:
         row = {
             "run_id": run_id,
@@ -1409,6 +1557,10 @@ class LLMClient:
             "finish_reason": result.finish_reason,
             "truncated": parse_error_kind == "truncated",
             "salvaged": bool(salvaged),
+            # R099: this row is a second paid call standing in for one that
+            # returned nothing. Without the flag the ledger shows a healthy
+            # response and no trace of what it cost to get it.
+            "reasoning_recovered": bool(reasoning_recovered),
             "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         }
         self._append_ledger_row(row)

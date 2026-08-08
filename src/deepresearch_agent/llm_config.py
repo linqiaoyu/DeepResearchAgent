@@ -1,6 +1,31 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
+from types import MappingProxyType
+from typing import Any
+
+
+# R099: the request body that makes this endpoint stop reasoning. Measured, not
+# guessed -- `_collab/099/evidence/probe_exhaustion_fix.log` ran one identical
+# request under four controls at a cap the baseline exhausts:
+#
+#   baseline                          finish_reason=length content=0    reasoning=400/400
+#   reasoning_effort=minimal          finish_reason=length content=0    reasoning=400/400
+#   extra_body.thinking=disabled      finish_reason=length content=1581 reasoning=0
+#   extra_body.enable_thinking=false  finish_reason=length content=0    reasoning=400/400
+#
+# `reasoning_effort` is forwarded by litellm once `allowed_openai_params` names
+# it -- R098 read its rejection as the model's and concluded bounding the
+# thinking was not a one-line setting -- but the endpoint ignores it. Passing
+# `thinking` as a top-level parameter is rejected by the OpenAI SDK itself
+# (`Completions.create() got an unexpected keyword argument`). Only the
+# `extra_body` spelling below changes what comes back.
+#
+# Kept read-only because it is shared by every role that references it.
+DISABLE_REASONING_EXTRA_BODY: Mapping[str, Any] = MappingProxyType(
+    {"thinking": MappingProxyType({"type": "disabled"})}
+)
 
 
 # Retrieval model identifiers are kept here with the chat-role models so
@@ -20,6 +45,14 @@ class RoleModelConfig:
     api_key_env: str = "DEEPSEEK_API_KEY"
     timeout_seconds: int | None = None
     max_completion_tokens: int = 8192
+    #: Request body that makes this role's endpoint stop reasoning, or ``None``
+    #: when no such body has been measured for it. The client sends it only to
+    #: recover a call that spent its whole completion budget thinking, so a role
+    #: keeps its reasoning for as long as the reasoning leaves room to answer.
+    #: Left ``None`` for the DashScope roles: their endpoint was never probed,
+    #: and sending a body measured against a different provider would be a guess
+    #: dressed as a fix.
+    no_reasoning_extra_body: Mapping[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -86,6 +119,7 @@ class LLMConfig:
             "planner": RoleModelConfig(
                 model="openai/deepseek-v4-flash",
                 api_base="https://api.deepseek.com",
+                no_reasoning_extra_body=DISABLE_REASONING_EXTRA_BODY,
             ),
             # R073/R075 bounded these two roles for latency. The input bounds
             # (12k prompt chars, 18 evidence entries) fixed the timeout and are
@@ -101,15 +135,18 @@ class LLMConfig:
                 model="openai/deepseek-v4-flash",
                 api_base="https://api.deepseek.com",
                 timeout_seconds=180,
+                no_reasoning_extra_body=DISABLE_REASONING_EXTRA_BODY,
             ),
             "capability_selector": RoleModelConfig(
                 model="openai/deepseek-v4-flash",
                 api_base="https://api.deepseek.com",
+                no_reasoning_extra_body=DISABLE_REASONING_EXTRA_BODY,
             ),
             "reporter": RoleModelConfig(
                 model="openai/deepseek-v4-flash",
                 api_base="https://api.deepseek.com",
                 timeout_seconds=180,
+                no_reasoning_extra_body=DISABLE_REASONING_EXTRA_BODY,
             ),
             "judge": RoleModelConfig(
                 model="openai/qwen3.7-plus",
