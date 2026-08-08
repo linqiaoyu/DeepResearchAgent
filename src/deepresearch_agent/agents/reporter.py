@@ -787,7 +787,16 @@ class ReporterAgent:
                 item for item in claim.evidence_ids if item in evidence_ids
             )
 
-        by_section = {section.sub_question_id: section for section in draft.detailed_analysis}
+        # R099: this was a dict comprehension keyed by `sub_question_id`, so a
+        # reporter that answered one sub-question in several themed sections --
+        # which `prompts/reporter.md` invites and the live run did, three
+        # sections under one id -- had all but the last silently discarded
+        # before any of it was looked at. The heading the draft supplies is not
+        # rendered anyway (the sub-question's own text is), so sections sharing
+        # an id are one section's worth of claims, in the order they arrived.
+        by_section: dict[str, list[ReportClaim]] = defaultdict(list)
+        for section in draft.detailed_analysis:
+            by_section[section.sub_question_id].extend(section.claims)
         detailed_lines: list[str] = []
         if not state.plan:
             raise ValueError("Cannot render detailed analysis without a plan.")
@@ -807,11 +816,17 @@ class ReporterAgent:
                 for section in draft.detailed_analysis
                 if section.sub_question_id not in plan_sub_question_ids
             ),
-            "sections_collapsed_by_duplicate_id": len(draft.detailed_analysis)
+            "sections_merged_by_shared_id": len(draft.detailed_analysis)
             - len(by_section),
+            "claims_in_unmatched_sections": sum(
+                len(claims)
+                for identifier, claims in by_section.items()
+                if identifier not in plan_sub_question_ids
+            ),
             "claims_over_section_cap": sum(
-                max(0, len(section.claims) - 3)
-                for section in draft.detailed_analysis
+                max(0, len(claims) - 3)
+                for identifier, claims in by_section.items()
+                if identifier in plan_sub_question_ids
             ),
             "claims_dropped_unrelated": 0,
             "claims_dropped_duplicate_number": 0,
@@ -830,15 +845,15 @@ class ReporterAgent:
         for item in evidence:
             evidence_by_sub_question[item.sub_question_id].add(item.id)
         for sub_question in state.plan.sub_questions:
-            section = by_section.get(sub_question.id)
-            if not section or not section.claims:
+            section_claims = by_section.get(sub_question.id) or []
+            if not section_claims:
                 continue
             section_evidence_ids = evidence_by_sub_question[sub_question.id]
             if key_evidence_ids & retrieved_ids & section_evidence_ids:
                 section_evidence_ids = set()
             section_lines = [f"### {self._reader_text(sub_question.question)}"]
             rendered_count = 0
-            for index, claim in enumerate(section.claims[:3]):
+            for index, claim in enumerate(section_claims[:3]):
                 fact_keys = self._claim_fact_keys(
                     claim,
                     evidence_fact_keys,
