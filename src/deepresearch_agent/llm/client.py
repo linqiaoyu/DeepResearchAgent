@@ -39,6 +39,50 @@ _WORKER_STARTUP_TIMEOUT_SECONDS = float(
 )
 
 
+def salvage_truncated_json(text: str) -> str | None:
+    """Close a JSON document cut off mid-value, keeping its complete elements.
+
+    A response truncated inside the twelfth array element used to be discarded
+    whole, so eleven complete claims yielded nothing. This finds the end of the
+    last element that closed cleanly and shuts the open brackets there.
+
+    Returns ``None`` when the text is not a truncated document, or when nothing
+    complete precedes the cut -- never a guess about the missing content.
+    """
+
+    stack: list[str] = []
+    safe_end: int | None = None
+    safe_stack: list[str] = []
+    in_string = False
+    escaped = False
+    for index, char in enumerate(text):
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+        elif char in "[{":
+            stack.append(char)
+        elif char in "]}":
+            if not stack:
+                return None
+            stack.pop()
+            if stack and stack[-1] == "[":
+                # A value just closed directly inside an array: everything up to
+                # here is a whole number of elements.
+                safe_end = index + 1
+                safe_stack = list(stack)
+    if not stack or safe_end is None:
+        return None
+    closing = "".join("]" if opener == "[" else "}" for opener in reversed(safe_stack))
+    return text[:safe_end] + closing
+
+
 def _response_payload(response: Any) -> Any:
     if isinstance(response, dict):
         return response
@@ -333,6 +377,7 @@ class LLMClient:
         # second full import (about 15 minutes on the R090 run host) for a value
         # used only as a mode flag.
         self._production = completion_func is None
+        self._salvaged_calls = 0
         self._worker_pool = _ProviderWorkerPool()
         self.ledger_path = ledger_path
         self.global_ledger_path = global_ledger_path or project_root() / "data" / "runtime" / "llm_ledger.jsonl"
@@ -398,6 +443,7 @@ class LLMClient:
 
         first_error: str | None = None
         first_error_kind: str | None = None
+        salvaged_parse = False
         try:
             with correlation_context(llm_call=role):
                 raw_result = self._completion_with_retries(
@@ -424,34 +470,46 @@ class LLMClient:
                 first_error = str(exc)
                 truncated = self._truncated(raw_result, role_config.max_completion_tokens)
                 first_error_kind = "truncated" if truncated else exc.kind
-                try:
-                    self._record_ledger(
-                        run_id=run_id,
-                        role=role,
-                        result=raw_result,
-                        structured=True,
-                        parse_error=first_error,
-                        parse_error_kind=first_error_kind,
-                    )
-                finally:
-                    self._release_reservation(run_id, reservation_cny)
-                self._add_run_cost(run_id, raw_result.cost_cny)
-                self._enforce_cost_overrun(
-                    run_id,
-                    expected_cost_cny,
-                    raw_result.cost_cny,
-                )
-                if self.run_total_cny(run_id) > self.budget_cny:
-                    raise BudgetExceededError(run_id, self.budget_cny, self.run_total_cny(run_id))
                 if truncated:
-                    # Repairing under an unchanged completion cap buys a second
-                    # identical truncation.  Surface the cap instead.
-                    raise StructuredOutputTruncatedError(
-                        role=role,
-                        completion_tokens=raw_result.completion_tokens,
-                        max_completion_tokens=role_config.max_completion_tokens,
-                        finish_reason=raw_result.finish_reason,
-                    ) from exc
+                    recovered = self._salvage(content, schema)
+                    if recovered is not None:
+                        # Keep the elements that arrived before the cut. The
+                        # normal tail records the one row and charges the one
+                        # call; the row carries `truncated` and `salvaged` so a
+                        # partial result can never read as a whole one.
+                        self._salvaged_calls += 1
+                        salvaged_parse = True
+                        parsed = recovered
+                if not salvaged_parse:
+                    try:
+                        self._record_ledger(
+                            run_id=run_id,
+                            role=role,
+                            result=raw_result,
+                            structured=True,
+                            parse_error=first_error,
+                            parse_error_kind=first_error_kind,
+                        )
+                    finally:
+                        self._release_reservation(run_id, reservation_cny)
+                    self._add_run_cost(run_id, raw_result.cost_cny)
+                    self._enforce_cost_overrun(
+                        run_id,
+                        expected_cost_cny,
+                        raw_result.cost_cny,
+                    )
+                    if self.run_total_cny(run_id) > self.budget_cny:
+                        raise BudgetExceededError(run_id, self.budget_cny, self.run_total_cny(run_id))
+                    if truncated:
+                        # Repairing under an unchanged completion cap buys a second
+                        # identical truncation.  Surface the cap instead.
+                        raise StructuredOutputTruncatedError(
+                            role=role,
+                            completion_tokens=raw_result.completion_tokens,
+                            max_completion_tokens=role_config.max_completion_tokens,
+                            finish_reason=raw_result.finish_reason,
+                        ) from exc
+            if parsed is None:
                 repair_attempts = 1
                 repair_messages = [
                     *prompt_messages,
@@ -535,6 +593,7 @@ class LLMClient:
                 structured=bool(schema),
                 parse_error=first_error,
                 parse_error_kind=first_error_kind,
+                salvaged=salvaged_parse,
             )
         finally:
             self._release_reservation(run_id, reservation_cny)
@@ -708,6 +767,7 @@ class LLMClient:
                     "structured_calls": 0,
                     "structured_parse_errors": 0,
                     "truncated_calls": 0,
+                    "salvaged_calls": 0,
                 },
             )
             bucket["calls"] = int(bucket["calls"]) + 1
@@ -719,6 +779,8 @@ class LLMClient:
                     )
                 if row.get("truncated"):
                     bucket["truncated_calls"] = int(bucket["truncated_calls"]) + 1
+                if row.get("salvaged"):
+                    bucket["salvaged_calls"] = int(bucket["salvaged_calls"]) + 1
             for key in (
                 "prompt_tokens",
                 "prompt_cache_hit_tokens",
@@ -734,7 +796,12 @@ class LLMClient:
             "by_role": by_role,
             "structured_output": {
                 key: sum(int(bucket[key]) for bucket in by_role.values())
-                for key in ("structured_calls", "structured_parse_errors", "truncated_calls")
+                for key in (
+                    "structured_calls",
+                    "structured_parse_errors",
+                    "truncated_calls",
+                    "salvaged_calls",
+                )
             },
             "total_cost_cny": sum(float(r.get("cost_cny", 0.0)) for r in rows),
             "price_source": (
@@ -1026,6 +1093,17 @@ class LLMClient:
             error.kind = self._parse_error_kind(exc)
             raise error from exc
 
+    def _salvage(self, content: str, schema: type[SchemaT]) -> SchemaT | None:
+        """Parse the complete prefix of a truncated structured response."""
+
+        repaired = salvage_truncated_json(self._json_payload(content))
+        if repaired is None:
+            return None
+        try:
+            return self._parse_schema(repaired, schema)
+        except StructuredOutputError:
+            return None
+
     @staticmethod
     def _parse_error_kind(exc: Exception) -> str:
         """Separate "not JSON" from "JSON that violates the schema".
@@ -1226,6 +1304,7 @@ class LLMClient:
         structured: bool,
         parse_error: str | None,
         parse_error_kind: str | None = None,
+        salvaged: bool = False,
     ) -> None:
         row = {
             "run_id": run_id,
@@ -1249,6 +1328,7 @@ class LLMClient:
             "parse_error_kind": parse_error_kind,
             "finish_reason": result.finish_reason,
             "truncated": parse_error_kind == "truncated",
+            "salvaged": bool(salvaged),
             "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         }
         self._append_ledger_row(row)
