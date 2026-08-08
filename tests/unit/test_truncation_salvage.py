@@ -119,6 +119,31 @@ class ClientSalvageTests(unittest.TestCase):
                     messages=[{"role": "user", "content": "extract"}],
                 )
 
+    def test_an_unsalvageable_truncation_keeps_the_payload_that_overran(self) -> None:
+        """R098: token counts alone cannot say where the model spent the cap.
+
+        R097's reporter truncation had to be reasoned about from
+        `completion_tokens=8192` because the response itself was discarded.
+        """
+
+        from deepresearch_agent.llm.client import StructuredOutputTruncatedError
+
+        content = '{"claims": [{"claim": "half'
+        with tempfile.TemporaryDirectory() as tmp:
+            client = self._client(tmp, content, completion_tokens=8192)
+
+            with self.assertRaises(StructuredOutputTruncatedError):
+                client.complete(
+                    role="extractor",
+                    run_id="dumped",
+                    schema=ExtractedClaims,
+                    messages=[{"role": "user", "content": "extract"}],
+                )
+
+            dump = Path(tmp) / "truncated_payloads" / "dumped.extractor.json"
+            self.assertTrue(dump.exists(), "the overrunning payload was discarded")
+            self.assertIn("half", dump.read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main()

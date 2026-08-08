@@ -501,6 +501,13 @@ class LLMClient:
                     if self.run_total_cny(run_id) > self.budget_cny:
                         raise BudgetExceededError(run_id, self.budget_cny, self.run_total_cny(run_id))
                     if truncated:
+                        # R098: the payload is the only record of *where* the
+                        # model spent the cap, and discarding it is why R097's
+                        # reporter truncation had to be reasoned about from
+                        # token counts alone. Keep it before raising.
+                        self._dump_truncated_payload(
+                            run_id=run_id, role=role, content=content
+                        )
                         # Repairing under an unchanged completion cap buys a second
                         # identical truncation.  Surface the cap instead.
                         raise StructuredOutputTruncatedError(
@@ -1084,6 +1091,27 @@ class LLMClient:
                 if key.strip() == key_name and value.strip():
                     return value.strip().strip('"').strip("'")
         raise LLMClientError(f"Missing {key_name} in .env or container environment.")
+
+    def _dump_truncated_payload(self, *, run_id: str, role: str, content: str) -> None:
+        """Keep the response that overran the cap, for the run that lost it.
+
+        Written beside the global ledger, which already lives under a gitignored
+        runtime path, and never raised from: an unwritable dump must not turn a
+        recoverable truncation into a failed run.
+        """
+
+        try:
+            path = (
+                self.global_ledger_path.parent
+                / "truncated_payloads"
+                / f"{run_id}.{role}.json"
+            )
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with path.open("a", encoding="utf-8") as handle:
+                handle.write(content)
+                handle.write("\n")
+        except OSError:
+            return
 
     def _parse_schema(self, content: str, schema: type[SchemaT]) -> SchemaT:
         try:
