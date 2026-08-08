@@ -216,30 +216,59 @@ class ExtractorAgent:
         source_by_url = {source.url: source for source in sources}
         prompt_sources, context_stats = self._llm_prompt_sources(sources)
         prompt = (project_root() / "prompts" / "extractor.md").read_text(encoding="utf-8")
-        result = self.llm_client.complete(
-            role="extractor",
-            run_id=research_id,
-            schema=ExtractedClaims,
-            messages=[
-                {"role": "system", "content": prompt},
-                {
-                    "role": "user",
-                    "content": json.dumps(
+        # R093: one source per call. A single call over the whole retrieved set
+        # made the response scale with the set, and R091/R092 measured the model
+        # filling a 4096 and then an 8192 completion cap regardless of what the
+        # prompt or the JSON Schema asked for -- the schema reaches the provider
+        # as advisory text, not as a constraint. Bounding the input is the only
+        # lever that does not depend on the model complying. A failed batch also
+        # costs one source's claims now, not the whole extraction.
+        claims: list[ExtractedClaim] = []
+        batch_failures: list[str] = []
+        for prompt_source in prompt_sources:
+            try:
+                result = self.llm_client.complete(
+                    role="extractor",
+                    run_id=research_id,
+                    schema=ExtractedClaims,
+                    messages=[
+                        {"role": "system", "content": prompt},
                         {
-                            "sub_question": sub_question.model_dump(mode="json"),
-                            "sources": prompt_sources,
+                            "role": "user",
+                            "content": json.dumps(
+                                {
+                                    "sub_question": sub_question.model_dump(mode="json"),
+                                    "sources": [prompt_source],
+                                },
+                                ensure_ascii=False,
+                            ),
                         },
-                        ensure_ascii=False,
-                    ),
-                },
-            ],
-        )
-        if not isinstance(result.parsed, ExtractedClaims):
-            raise ValueError("Extractor did not return ExtractedClaims.")
+                    ],
+                )
+            except (LLMClientError, StructuredOutputError) as exc:
+                if (
+                    isinstance(exc, LLMRetryExhaustedError)
+                    and self.llm_client.fail_on_retry_exhaustion
+                ):
+                    raise
+                batch_failures.append(type(exc).__name__)
+                continue
+            if not isinstance(result.parsed, ExtractedClaims):
+                raise ValueError("Extractor did not return ExtractedClaims.")
+            claims.extend(result.parsed.claims)
+        if batch_failures and not claims:
+            raise StructuredOutputError(
+                f"every extractor batch failed: {', '.join(sorted(set(batch_failures)))}"
+            )
+        context_stats = {
+            **context_stats,
+            "llm_extract_calls": len(prompt_sources),
+            "llm_extract_batch_failures": len(batch_failures),
+        }
         evidence: list[Evidence] = []
         invalid_extract_text = 0
         incomplete_numeric_fields = 0
-        for index, claim in enumerate(result.parsed.claims):
+        for index, claim in enumerate(claims):
             source = source_by_url.get(claim.source_url)
             if not source or claim.extract_text not in source.content:
                 invalid_extract_text += 1

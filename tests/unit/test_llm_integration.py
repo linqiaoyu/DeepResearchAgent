@@ -1178,10 +1178,10 @@ class LLMIntegrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             env_path = Path(tmp) / ".env"
             env_path.write_text("DEEPSEEK_API_KEY=test-key\n", encoding="utf-8")
-            captured: dict[str, object] = {}
+            captured: list[dict[str, object]] = []
 
             def completion(**kwargs: object) -> dict[str, object]:
-                captured.update(kwargs)
+                captured.append(dict(kwargs))
                 return {
                     "choices": [{"message": {"content": '{"claims":[]}'}}],
                     "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
@@ -1212,14 +1212,23 @@ class LLMIntegrationTests(unittest.TestCase):
                 sources,
             )
 
-            messages = captured["messages"]
-            assert isinstance(messages, list)
-            user_message = next(message for message in messages if message["role"] == "user")
-            payload = json.loads(user_message["content"])
-            prompt_sources = payload["sources"]
+            # R093: the R073 budget is unchanged -- 3 of 20 sources and 12,000
+            # characters reach the provider -- but it is now spent one source per
+            # call, so a response can only scale with a single source. Asserting
+            # the totals across calls is strictly stronger than the single-call
+            # form: it also pins that no call carries more than one source.
+            per_call_sources = []
+            for call in captured:
+                messages = call["messages"]
+                assert isinstance(messages, list)
+                user_message = next(m for m in messages if m["role"] == "user")
+                per_call_sources.append(json.loads(user_message["content"])["sources"])
+            self.assertEqual([len(item) for item in per_call_sources], [1, 1, 1])
+            prompt_sources = [source for call in per_call_sources for source in call]
             self.assertEqual(len(prompt_sources), 3)
             self.assertEqual(sum(len(item["content"]) for item in prompt_sources), 12_000)
             self.assertEqual(extractor.last_stats["llm_context_omitted_source_count"], 17)
+            self.assertEqual(extractor.last_stats["llm_extract_calls"], 3)
             # R090: the R073 input bounds above are unchanged and still asserted.
             # Only the completion cap moved: 1024 could not hold the extractor's
             # own schema, so every structured response was truncated into the
