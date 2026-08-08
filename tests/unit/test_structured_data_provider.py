@@ -114,6 +114,154 @@ class StructuredDataProviderTests(unittest.TestCase):
         self.assertTrue(all(item.source_url and "000095017024063767" in item.source_url for item in records))
         self.assertEqual(len(requested_urls), 2)
 
+    def _nio_shaped_provider(self, tags: tuple[str, ...]) -> SecCompanyFactsProvider:
+        """A filer that tags its total revenue under the second mapped concept.
+
+        Verbatim shape of NIO's Company Facts as fetched on 2026-08-08: a lone
+        167,180,000 fact under ``Revenues``, filed once, while every annual
+        total sits under ``RevenueFromContractWithCustomerExcludingAssessedTax``
+        and is restated by each later filing.
+        """
+
+        def fact(value: int, year: int, filed: str) -> dict[str, object]:
+            return {
+                "form": "20-F", "fp": "FY", "fy": year,
+                "start": f"{year}-01-01", "end": f"{year}-12-31",
+                "filed": filed, "accn": "0001410578-25-000661", "val": value,
+            }
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/files/company_tickers.json":
+                return httpx.Response(200, json={"0": {
+                    "cik_str": 1736541, "ticker": "NIO", "title": "NIO Inc.",
+                }})
+            if request.url.path.endswith("CIK0001736541.json"):
+                return httpx.Response(200, json={"facts": {"us-gaap": {
+                    "Revenues": {"units": {"CNY": [
+                        fact(167180000, 2023, "2024-04-09"),
+                    ]}},
+                    "RevenueFromContractWithCustomerExcludingAssessedTax": {
+                        "units": {"CNY": [
+                            fact(55617933000, 2023, "2024-04-09"),
+                            fact(65731559000, 2024, "2025-04-08"),
+                            fact(49268600000, 2022, "2023-04-11"),
+                        ]}
+                    },
+                }}})
+            return httpx.Response(404)
+
+        class Domain:
+            @staticmethod
+            def structured_xbrl_concepts() -> dict[str, tuple[str, ...]]:
+                return {"营业收入": tags}
+
+        return SecCompanyFactsProvider(
+            client=httpx.Client(transport=httpx.MockTransport(handler)),
+            max_retries=0,
+            domain_pack=Domain(),
+        )
+
+    def test_sec_revenue_comes_from_the_tag_the_filer_uses_not_the_first_listed(
+        self,
+    ) -> None:
+        """R098: a list position decided which number was 'total revenue'.
+
+        The R098 live run delivered `NIO Inc. 2023-12-31 年度营业收入为
+        167,180,000 CNY` four lines above the same report's 556.179 亿元,
+        because `_annual_facts` took the first mapped tag that returned
+        anything and `vocabulary.py` lists `Revenues` first.
+        """
+
+        provider = self._nio_shaped_provider(
+            ("Revenues", "RevenueFromContractWithCustomerExcludingAssessedTax")
+        )
+
+        records = provider.financial_indicators(
+            "CIK0001736541", periods=["20231231", "20241231"], metrics=["营业收入"]
+        )
+
+        self.assertEqual(
+            {(item.period, item.value) for item in records},
+            {
+                ("2023-12-31", Decimal("55617933000")),
+                ("2024-12-31", Decimal("65731559000")),
+            },
+        )
+
+    def test_sec_revenue_tag_choice_does_not_depend_on_asking_for_two_periods(
+        self,
+    ) -> None:
+        """Both tags cover a lone 2023 request, so requested coverage ties.
+
+        The filer's own usage breaks it: one annual period under ``Revenues``
+        against three under the concept it actually reports revenue with.
+        """
+
+        provider = self._nio_shaped_provider(
+            ("Revenues", "RevenueFromContractWithCustomerExcludingAssessedTax")
+        )
+
+        records = provider.financial_indicators(
+            "CIK0001736541", periods=["20231231"], metrics=["营业收入"]
+        )
+
+        self.assertEqual(
+            [(item.period, item.value) for item in records],
+            [("2023-12-31", Decimal("55617933000"))],
+        )
+
+    def test_sec_emits_nothing_when_equally_used_tags_disagree(self) -> None:
+        """Choosing by list position is what produced the wrong number.
+
+        Two tags the filer uses identically, reporting different values for one
+        period, are an ambiguity Company Facts cannot settle. The reader gets a
+        stated gap rather than a silently chosen figure.
+        """
+
+        def fact(value: int, year: int) -> dict[str, object]:
+            return {
+                "form": "20-F", "fp": "FY", "fy": year,
+                "start": f"{year}-01-01", "end": f"{year}-12-31",
+                "filed": "2024-04-09", "accn": "0001410578-25-000661", "val": value,
+            }
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/files/company_tickers.json":
+                return httpx.Response(200, json={"0": {
+                    "cik_str": 1, "ticker": "T", "title": "Test Co",
+                }})
+            if request.url.path.endswith("CIK0000000001.json"):
+                return httpx.Response(200, json={"facts": {"us-gaap": {
+                    "Revenues": {"units": {"CNY": [fact(100, 2023)]}},
+                    "RevenueFromContractWithCustomerExcludingAssessedTax": {
+                        "units": {"CNY": [fact(999, 2023)]}
+                    },
+                }}})
+            return httpx.Response(404)
+
+        class Domain:
+            @staticmethod
+            def structured_xbrl_concepts() -> dict[str, tuple[str, ...]]:
+                return {
+                    "营业收入": (
+                        "Revenues",
+                        "RevenueFromContractWithCustomerExcludingAssessedTax",
+                    )
+                }
+
+        provider = SecCompanyFactsProvider(
+            client=httpx.Client(transport=httpx.MockTransport(handler)),
+            max_retries=0,
+            domain_pack=Domain(),
+        )
+
+        self.assertEqual(
+            provider.financial_indicators(
+                "CIK0000000001", periods=["20231231"], metrics=["营业收入"]
+            ),
+            [],
+        )
+
     def test_researcher_never_uses_structured_retrieval_time_as_publication_date(self) -> None:
         record = StructuredDataRecord(
             entity="Example", symbol="EX", metric_name="revenue", period="2019",

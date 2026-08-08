@@ -11,6 +11,7 @@ from __future__ import annotations
 import re
 import time
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from typing import Any
@@ -169,14 +170,7 @@ class SecCompanyFactsProvider:
                         f"SEC Company Facts does not support metric {requested_metric!r}"
                     )
                 continue
-            annual_facts: list[tuple[str, Mapping[str, Any]]] = []
-            for tag in tags:
-                candidate = us_gaap.get(tag)
-                if not isinstance(candidate, dict):
-                    continue
-                annual_facts = _annual_facts(candidate, requested_periods)
-                if annual_facts:
-                    break
+            annual_facts = _select_tag_facts(us_gaap, tags, requested_periods)
             if not annual_facts:
                 continue
             for unit, fact in annual_facts:
@@ -274,6 +268,110 @@ def _period_year(value: str) -> str | None:
         return value[:4]
     match = _YEAR.search(value)
     return match.group(1) if match else None
+
+
+#: Two tags disagreeing by more than this on the same period and unit are not
+#: two roundings of one disclosure; they are two different facts.
+_CONFLICT_TOLERANCE = Decimal("0.01")
+
+
+@dataclass(frozen=True)
+class _TagCandidate:
+    tag: str
+    order: int
+    facts: list[tuple[str, Mapping[str, Any]]]
+    #: Reporting periods the request asked for that this tag answers.
+    requested_coverage: int
+    #: Annual periods the filer tags with this concept at all. A tag used for
+    #: one year, while another mapped tag is used for every year, is not this
+    #: filer's tag for the metric.
+    filer_coverage: int
+
+    @property
+    def coverage(self) -> tuple[int, int]:
+        """How well this tag answers the request. List order is not part of it."""
+
+        return (self.requested_coverage, self.filer_coverage)
+
+
+def _select_tag_facts(
+    us_gaap: Mapping[str, Any],
+    tags: tuple[str, ...],
+    requested_years: set[str],
+) -> list[tuple[str, Mapping[str, Any]]]:
+    """Pick the tag this filer uses for the metric, not the first one listed.
+
+    R098: the previous rule took the first mapped tag that returned anything.
+    The domain vocabulary lists a generic revenue concept ahead of the specific
+    one, and the R098 live filer tagged its total under the second while
+    carrying a single unrelated 167,180,000 fact under the first. The reader
+    received that number as the issuer's 2023 annual revenue, four lines above
+    the same report's 55.6 billion, because a list position decided which of
+    two mapped concepts was the metric.
+
+    Coverage decides instead: the tag that answers more of the requested
+    periods wins, then the tag the filer uses across more of its own annual
+    periods, and only then list order.
+    """
+
+    candidates: list[_TagCandidate] = []
+    for order, tag in enumerate(tags):
+        concept = us_gaap.get(tag)
+        if not isinstance(concept, dict):
+            continue
+        facts = _annual_facts(concept, requested_years)
+        if not facts:
+            continue
+        candidates.append(
+            _TagCandidate(
+                tag=tag,
+                order=order,
+                facts=facts,
+                requested_coverage=len({str(item["end"]) for _unit, item in facts}),
+                filer_coverage=len(
+                    {str(item["end"]) for _unit, item in _annual_facts(concept, set())}
+                ),
+            )
+        )
+    if not candidates:
+        return []
+
+    winner = max(candidates, key=lambda candidate: (candidate.coverage, -candidate.order))
+    rivals = [
+        candidate
+        for candidate in candidates
+        if candidate.tag != winner.tag and candidate.coverage == winner.coverage
+    ]
+    if not rivals:
+        return winner.facts
+    # Equally-used tags that disagree are an ambiguity Company Facts cannot
+    # settle, and choosing by list position is what produced the wrong number
+    # in the first place. Drop only the periods actually in conflict.
+    conflicted = {
+        (unit, str(item["end"]))
+        for rival in rivals
+        for unit, item in rival.facts
+        for winner_unit, winner_item in winner.facts
+        if winner_unit == unit
+        and str(winner_item["end"]) == str(item["end"])
+        and _materially_differs(winner_item["val"], item["val"])
+    }
+    return [
+        (unit, item)
+        for unit, item in winner.facts
+        if (unit, str(item["end"])) not in conflicted
+    ]
+
+
+def _materially_differs(left: Any, right: Any) -> bool:
+    try:
+        first, second = Decimal(str(left)), Decimal(str(right))
+    except (ArithmeticError, TypeError, ValueError):
+        return str(left) != str(right)
+    largest = max(abs(first), abs(second))
+    if not largest:
+        return False
+    return abs(first - second) / largest > _CONFLICT_TOLERANCE
 
 
 def _annual_facts(concept: Mapping[str, Any], requested_years: set[str]) -> list[tuple[str, Mapping[str, Any]]]:
