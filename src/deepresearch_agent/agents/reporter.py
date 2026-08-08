@@ -21,6 +21,7 @@ from deepresearch_agent.reporting import GroundedFactRenderer
 from deepresearch_agent.domains.protocols import NumericCitationPolicy, ReportingDomain
 from deepresearch_agent.domains.requirements import resolve_domain_capability
 from deepresearch_agent.schemas import (
+    MAX_REPORT_SECTION_CLAIMS,
     Evidence,
     ReportClaim,
     ReportDraft,
@@ -47,6 +48,13 @@ _FOOTNOTE_RE = re.compile(r"\[\^(\d+)\]")
 _RESTATES_NUMBER_RE = re.compile(r"\d")
 REPORTER_LLM_MAX_EVIDENCE = 18
 REPORTER_LLM_MAX_CLAIM_CHARS = 800
+#: The bound the reporter is already held to: `prompts/reporter.md` states it and
+#: `ReportSection.claims` enforces it, so a validated draft can never exceed it.
+#: Applied per authored section, which makes it a no-op -- and that is the point.
+#: The renderer used to re-apply the same number to the *merged* group, where it
+#: was the only thing cutting claims: the second R099 live run lost 3 of 6
+#: analysis claims to it after the sections were merged.
+MAX_ANALYSIS_CLAIMS_PER_SECTION = MAX_REPORT_SECTION_CLAIMS
 
 
 @dataclass(frozen=True)
@@ -794,9 +802,16 @@ class ReporterAgent:
         # before any of it was looked at. The heading the draft supplies is not
         # rendered anyway (the sub-question's own text is), so sections sharing
         # an id are one section's worth of claims, in the order they arrived.
+        # `prompts/reporter.md` promises the renderer keeps at most three claims
+        # per section, so the cap belongs to the section the reporter wrote, not
+        # to the group they merge into. Applying it after the merge would make
+        # answering the prompt in three sections cost two thirds of the answer --
+        # the same loss the comprehension used to cause, one step later.
         by_section: dict[str, list[ReportClaim]] = defaultdict(list)
         for section in draft.detailed_analysis:
-            by_section[section.sub_question_id].extend(section.claims)
+            by_section[section.sub_question_id].extend(
+                section.claims[:MAX_ANALYSIS_CLAIMS_PER_SECTION]
+            )
         detailed_lines: list[str] = []
         if not state.plan:
             raise ValueError("Cannot render detailed analysis without a plan.")
@@ -824,9 +839,8 @@ class ReporterAgent:
                 if identifier not in plan_sub_question_ids
             ),
             "claims_over_section_cap": sum(
-                max(0, len(claims) - 3)
-                for identifier, claims in by_section.items()
-                if identifier in plan_sub_question_ids
+                max(0, len(section.claims) - MAX_ANALYSIS_CLAIMS_PER_SECTION)
+                for section in draft.detailed_analysis
             ),
             "claims_dropped_unrelated": 0,
             "claims_dropped_duplicate_number": 0,
@@ -853,7 +867,9 @@ class ReporterAgent:
                 section_evidence_ids = set()
             section_lines = [f"### {self._reader_text(sub_question.question)}"]
             rendered_count = 0
-            for index, claim in enumerate(section_claims[:3]):
+            # Already capped per authored section above; capping again here
+            # would reintroduce the group-wide cut this change exists to remove.
+            for index, claim in enumerate(section_claims):
                 fact_keys = self._claim_fact_keys(
                     claim,
                     evidence_fact_keys,

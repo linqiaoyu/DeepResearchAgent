@@ -5,6 +5,7 @@ from datetime import date
 
 from deepresearch_agent.agents import ReporterAgent
 from deepresearch_agent.schemas import (
+    MAX_REPORT_SECTION_CLAIMS,
     Evidence,
     NumericFields,
     ReportClaim,
@@ -208,9 +209,54 @@ class ReportReaderGuardTests(unittest.TestCase):
         self.assertEqual(flow["draft_sections"], 2)
         self.assertEqual(flow["sections_merged_by_shared_id"], 1)
         self.assertEqual(flow["rendered_lines"], 2)
+        self.assertEqual(flow["claims_over_section_cap"], 0)
         self.assertEqual(len(cited_lines), 2)
         self.assertIn("收入下降与利润增长并存", analysis)
         self.assertIn("毛利率变化需与营业收入一并解读", analysis)
+        self._assert_counters_close(flow)
+
+    def test_merged_sections_are_not_re_capped_as_one_section(self) -> None:
+        """R099: the three-claim cap is per authored section, not per merged group.
+
+        `ReportSection.claims` already bounds a section at three, so a validated
+        draft can never exceed the cap on its own. Re-applying the same number
+        after merging was therefore the only thing the cap ever cut: the second
+        live run this round reached `claims_over_section_cap=3` of 6 claims that
+        way, all of them inside the reporter's stated allowance.
+        """
+
+        reporter = ReporterAgent()
+        state, draft = self._three_outcome_fixture()
+
+        def qualitative(index: int) -> ReportClaim:
+            return ReportClaim(
+                text=f"驱动因素解释之{index}：结构性变化需结合披露口径理解。",
+                evidence_ids=["yuan", "meaning"],
+            )
+
+        draft = draft.model_copy(
+            update={
+                "detailed_analysis": [
+                    ReportSection(
+                        sub_question_id="finance",
+                        heading=f"主题{group}",
+                        claims=[
+                            qualitative(group * MAX_REPORT_SECTION_CLAIMS + item)
+                            for item in range(MAX_REPORT_SECTION_CLAIMS)
+                        ],
+                    )
+                    for group in range(2)
+                ]
+            }
+        )
+
+        reporter._render_llm_report(state, draft)
+        flow = reporter.last_stats["analysis_flow"]
+
+        self.assertEqual(flow["draft_claims"], 2 * MAX_REPORT_SECTION_CLAIMS)
+        self.assertEqual(flow["claims_over_section_cap"], 0)
+        # Every claim the reporter was allowed to write reaches the reader.
+        self.assertEqual(flow["rendered_lines"], 2 * MAX_REPORT_SECTION_CLAIMS)
         self._assert_counters_close(flow)
 
     def _assert_counters_close(self, flow: dict) -> None:
