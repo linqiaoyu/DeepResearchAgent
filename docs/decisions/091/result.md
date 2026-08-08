@@ -67,3 +67,72 @@ Each property has a saved counter-example under `_collab/091/evidence/`:
 
 The import count is measured by counting the distinct worker pids that served
 the calls, not reported by the stub, so it cannot pass vacuously.
+
+## Live validation
+
+Two paid attempts on this blocker, then a self-imposed stop before a third.
+Round total **CNY 0.265327**, inside the CNY 1.5 breaker; each run inside the
+CNY 0.5 per-run breaker.
+
+### Attempt 1 (`_collab/091/evidence/liveness_attempt1.log`)
+
+First run ever to complete end to end on this host. The provider worker worked
+as designed:
+
+```
+provider_worker_started startup_seconds=1.952 import_seconds=1.486
+planner  finish_reason=stop  completion_tokens=1321  truncated=False
+```
+
+R091's own target is therefore validated live, not only offline: one worker,
+sub-two-second startup, and the parent reaching the planner node 5ms after
+`run_started` instead of 15 minutes.
+
+It also produced the first real evidence for R090's other change:
+`truncated_calls=2` for two truncated roles, where R086/R087 recorded 4 -- the
+wasted repair call under an unchanged cap is gone.
+
+Both the extractor and the reporter still truncated, at the new 4096 cap, with
+`finish_reason=length`. R090's cap came from an estimate; this is the
+measurement that estimate was missing.
+
+### Attempt 2 (`_collab/091/evidence/liveness_attempt2.log`)
+
+With both roles at the 8192 default and the prompts bounded to the renderer's
+own limits:
+
+```
+extractor_fallback=1 reporter_fallback=0 structured_parse_errors=1
+truncated_calls=1 llm_authored_claims=4 reader_analysis_lines=0
+orphan_footnotes=6
+reporter  finish_reason=stop  completion_tokens=6946  truncated=False
+extractor finish_reason=length completion_tokens=8192 truncated=True
+claim provenance: first_pass=4, mechanical_grounded_fact=2
+```
+
+**The reporter LLM path ran for the first time since R075.** Every one of the
+30 packages in R086-R091 attempt 1 recorded `reporter_fallback=1` and
+`llm_authored_claims=0`; this package records `0` and `4`. The delivered report
+gained a substantive `## 风险与限制` section -- missing 2023 comparatives,
+missing segment breakdown, an unlabelled unit in the cash-flow extract, and
+EDGAR-versus-filing rounding differences -- and two cited unverified
+assumptions. None of that existed in any prior delivery.
+
+The reporter needed 6946 completion tokens, which is why 1024 and 4096 both
+failed and why the cap is now measured rather than estimated.
+
+## Still open, by line
+
+- **INCOMPLETE (high)**: the extractor truncates at 8192 too. Raising the cap
+  is chasing the model; the output needs a structural bound.
+  `src/deepresearch_agent/schemas.py` `ExtractedClaims.claims` and
+  `ExtractedClaim.extract_text` are both unbounded, so the JSON Schema sent to
+  the model states no limit and validation enforces none. Named, not fixed:
+  after two paid attempts on this blocker the round stops spending.
+- **INCOMPLETE (high)**: `reader_analysis_lines=0` despite four authored
+  claims. `src/deepresearch_agent/agents/reporter.py` `_render_llm_report`
+  keeps a `detailed_analysis` claim only if it shares evidence or a fact key
+  with a key finding. The key findings here are the mechanical structured
+  facts, while the model's analysis cites 20-F chunks, so every analysis claim
+  was routed to `补充事实` and dropped by the compaction step.
+- **INCOMPLETE (medium)**: `orphan_footnotes=6`, unchanged in kind from R090.
