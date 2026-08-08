@@ -73,12 +73,19 @@ def _litellm_worker_loop(
     reuses a worker whose response never arrived.
     """
 
+    started = time.monotonic()
     try:
         litellm = import_module("litellm")
     except BaseException as exc:  # pragma: no cover - import failure is fatal
         ready_queue.put(("error", f"{type(exc).__name__}: {exc}"))
         return
-    ready_queue.put(("ok", None))
+    # Deliberately no warm-up call here: a `mock_response` completion measured
+    # at 9ms left the SDK in a state where the first real request took 74s,
+    # against 1.4s without it. Import, report, and let the first real request be
+    # the first request.
+    ready_queue.put(
+        ("ok", {"import_seconds": round(time.monotonic() - started, 3)})
+    )
     while True:
         request = request_queue.get()
         if request is None:
@@ -111,6 +118,7 @@ class _ProviderWorker:
             args=(self._request_queue, self._response_queue, self._ready_queue),
             daemon=True,
         )
+        started = time.monotonic()
         self.process.start()
         try:
             status, detail = self._ready_queue.get(timeout=startup_timeout_seconds)
@@ -123,6 +131,8 @@ class _ProviderWorker:
         if status != "ok":
             self.terminate()
             raise RuntimeError(f"provider worker failed to start: {detail}")
+        self.startup_seconds = round(time.monotonic() - started, 3)
+        self.startup_detail = detail if isinstance(detail, dict) else {}
 
     def call(self, kwargs: dict[str, Any], timeout_seconds: float) -> dict[str, Any]:
         self._request_queue.put(kwargs)
@@ -164,6 +174,9 @@ class _ProviderWorkerPool:
         self._workers: dict[int, _ProviderWorker] = {}
         self._lock = threading.Lock()
         self.spawns = 0
+        #: Startup cost of every worker this pool created, so a slow host shows
+        #: up as a number instead of an unexplained timeout.
+        self.startup_records: list[dict[str, Any]] = []
 
     def call(self, kwargs: dict[str, Any], timeout_seconds: float) -> dict[str, Any]:
         worker = self._acquire()
@@ -189,6 +202,12 @@ class _ProviderWorkerPool:
         with self._lock:
             self._workers[key] = created
             self.spawns += 1
+            self.startup_records.append(
+                {
+                    "startup_seconds": getattr(created, "startup_seconds", None),
+                    **getattr(created, "startup_detail", {}),
+                }
+            )
         return created
 
     def _discard(self, worker: _ProviderWorker) -> None:
@@ -856,7 +875,14 @@ class LLMClient:
         daemon-worker fallback.
         """
         if self._production:
-            return self._worker_pool.call(kwargs, timeout_seconds)
+            spawns_before = self._worker_pool.spawns
+            response = self._worker_pool.call(kwargs, timeout_seconds)
+            if self._worker_pool.spawns > spawns_before:
+                self.logger.event(
+                    "provider_worker_started",
+                    **self._worker_pool.startup_records[-1],
+                )
+            return response
         assert self._completion is not None
         if (
             threading.current_thread() is threading.main_thread()
