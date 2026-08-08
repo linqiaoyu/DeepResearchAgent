@@ -94,3 +94,8 @@ class DegradationEvent(StrictModel):
     reason: ToolErrorKind
     impact: str
     attempts: int = Field(ge=0)
+    #: Set when this harness refused the call itself rather than the provider
+    #: failing. R094: the Tavily credit guardrail refused every web search from
+    #: 2026-08-03 onward and the manifest said only "search results
+    #: unavailable", which reads as a provider outage.
+    refused_by: str | None = None

@@ -392,6 +392,7 @@ class ReliableToolExecutor:
                         degraded_value,
                         impact,
                         exception_type=type(exc).__name__,
+                        refused_by=getattr(exc, "refused_by", None),
                     )
                 delay = policy.base_backoff_s * (2 ** (attempts - 1))
                 delay *= 0.5 + self._random()
@@ -453,14 +454,16 @@ class ReliableToolExecutor:
         degraded_value: Any,
         impact: str,
         exception_type: str | None = None,
+        refused_by: str | None = None,
     ) -> ToolResult:
         if degrade:
             context.degradation_events.append(
                 DegradationEvent(
                     tool=spec.name,
                     reason=kind,
-                    impact=impact,
+                    impact=impact if refused_by is None else f"{impact}; refused_by={refused_by}",
                     attempts=attempts,
+                    refused_by=refused_by,
                 )
             )
         return ToolResult(

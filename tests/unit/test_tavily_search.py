@@ -457,8 +457,14 @@ class TavilySearchProviderTests(unittest.TestCase):
         client = FakeHttpClient(response)
         with tempfile.TemporaryDirectory() as tmp:
             ledger_path = Path(tmp) / "search_ledger.jsonl"
+            # R094: the thresholds bound one run, so the prior spend only
+            # counts when it belongs to this run's budget. Stamping the seeded
+            # row additionally pins that rows outside the budget are ignored.
             ledger_path.write_text(
-                json.dumps({"credit_estimate": 449, "refused": False}) + "\n",
+                json.dumps(
+                    {"credit_estimate": 449, "refused": False, "budget_id": "test-budget"}
+                )
+                + "\n",
                 encoding="utf-8",
             )
             provider = TavilySearchProvider(
@@ -467,6 +473,7 @@ class TavilySearchProviderTests(unittest.TestCase):
                 ledger_path=ledger_path,
                 credit_warning_threshold=450,
                 credit_hard_threshold=520,
+                budget_id="test-budget",
             )
 
             sources = provider.search("threshold", top_k=1)
@@ -483,7 +490,10 @@ class TavilySearchProviderTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             ledger_path = Path(tmp) / "search_ledger.jsonl"
             ledger_path.write_text(
-                json.dumps({"credit_estimate": 520, "refused": False}) + "\n",
+                json.dumps(
+                    {"credit_estimate": 520, "refused": False, "budget_id": "test-budget"}
+                )
+                + "\n",
                 encoding="utf-8",
             )
             provider = TavilySearchProvider(
@@ -492,9 +502,10 @@ class TavilySearchProviderTests(unittest.TestCase):
                 ledger_path=ledger_path,
                 credit_warning_threshold=450,
                 credit_hard_threshold=520,
+                budget_id="test-budget",
             )
 
-            with self.assertRaisesRegex(RuntimeError, "hard threshold"):
+            with self.assertRaisesRegex(RuntimeError, "credit budget exhausted"):
                 provider.search("blocked", top_k=1)
             rows = [json.loads(line) for line in ledger_path.read_text(encoding="utf-8").splitlines()]
 

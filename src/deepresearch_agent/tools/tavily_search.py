@@ -10,6 +10,7 @@ import tempfile
 from collections.abc import Mapping
 from datetime import date, datetime
 from pathlib import Path
+from uuid import uuid4
 from typing import Any, Protocol
 from urllib.parse import parse_qs, unquote, urljoin, urlsplit
 
@@ -215,8 +216,9 @@ class TavilySearchProvider:
         raw_content_char_limit: int = 40_000,
         pdf_max_pages: int = 100,
         ledger_path: Path | None = None,
-        credit_warning_threshold: int = 450,
-        credit_hard_threshold: int = 520,
+        credit_warning_threshold: int = 20,
+        credit_hard_threshold: int = 30,
+        budget_id: str | None = None,
         sleep_func: Any = time.sleep,
         context: RunToolContext | None = None,
         fetch_policy: FetchPolicy | None = None,
@@ -236,6 +238,12 @@ class TavilySearchProvider:
         self.ledger_path = ledger_path or project_root() / "data" / "runtime" / "search_ledger.jsonl"
         self.credit_warning_threshold = credit_warning_threshold
         self.credit_hard_threshold = credit_hard_threshold
+        # R094: the thresholds bound *this run*, not the project's history. They
+        # used to be compared against the whole append-only ledger, so once the
+        # lifetime total reached the cap every later search was refused for
+        # good -- 12 of 12 in the R093 run, reported only as "search results
+        # unavailable". The ledger stays the audit record; the gate is per run.
+        self.budget_id = budget_id or uuid4().hex
         self._sleep = sleep_func
         self.last_error_type: str | None = None
         self.search_counts_toward_budget = True
@@ -279,7 +287,16 @@ class TavilySearchProvider:
                 refused=True,
                 guardrail_warning=True,
             )
-            raise TavilySearchError("Tavily credit hard threshold reached; stop live recording.")
+            error = TavilySearchError(
+                "Tavily per-run credit budget exhausted: "
+                f"used={self._ledger_credit_total()} "
+                f"hard_threshold={self.credit_hard_threshold}"
+            )
+            error.refused_by = (
+                f"own_credit_guardrail:tavily:used={self._ledger_credit_total()}:"
+                f"threshold={self.credit_hard_threshold}"
+            )
+            raise error
 
         payload: dict[str, Any] = {
             "query": query,
@@ -682,6 +699,7 @@ class TavilySearchProvider:
         row = {
             "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "provider": "tavily",
+            "budget_id": self.budget_id,
             "query": query,
             "search_depth": search_depth,
             "credit_estimate": credit_estimate,
@@ -696,6 +714,8 @@ class TavilySearchProvider:
             handle.write(json.dumps(row, ensure_ascii=False) + "\n")
 
     def _ledger_credit_total(self) -> int:
+        """Credits spent under the current budget id, not over all history."""
+
         if not self.ledger_path.exists():
             return 0
         total = 0
@@ -706,7 +726,7 @@ class TavilySearchProvider:
                 row = json.loads(line)
             except (json.JSONDecodeError, ValueError):
                 continue
-            if row.get("refused"):
+            if row.get("refused") or row.get("budget_id") != self.budget_id:
                 continue
             try:
                 total += int(row.get("credit_estimate", 0) or 0)

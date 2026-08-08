@@ -85,8 +85,8 @@ def build_search_provider(
             timeout_seconds=float(env.get("DEEPRESEARCH_TAVILY_TIMEOUT_SECONDS", "60")),
             raw_content_char_limit=int(env.get("DEEPRESEARCH_TAVILY_RAW_CONTENT_CHAR_LIMIT", "40000")),
             pdf_max_pages=int(env.get("DEEPRESEARCH_PDF_MAX_PAGES", "100")),
-            credit_warning_threshold=int(env.get("DEEPRESEARCH_TAVILY_CREDIT_WARNING_THRESHOLD", "450")),
-            credit_hard_threshold=int(env.get("DEEPRESEARCH_TAVILY_CREDIT_HARD_THRESHOLD", "520")),
+            credit_warning_threshold=int(env.get("DEEPRESEARCH_TAVILY_CREDIT_WARNING_THRESHOLD", "20")),
+            credit_hard_threshold=int(env.get("DEEPRESEARCH_TAVILY_CREDIT_HARD_THRESHOLD", "30")),
         )
         if recording_mode == "record":
             return RecordingSearchProvider(
