@@ -270,7 +270,14 @@ class GroundedSelectionFallbackTests(_MoutaiFixture, unittest.TestCase):
         )
 
         self.assertEqual(len(batch.claims), 1)
-        self.assertIn("未取得可引用的原始披露事实", self._key_findings(guarded))
+        # R109: fail-closed is what this test pins, and it is unchanged -- the
+        # figure is still withheld and the metric is still a gap, asserted by
+        # `grounded_gaps` below. What changed is the sentence: evidence the
+        # report goes on to cite was never "not obtained", and saying so put a
+        # denial in 关键发现 above a 指标覆盖状态 listing it.
+        findings = self._key_findings(guarded)
+        self.assertNotIn(REVENUE_2024, findings)
+        self.assertIn("摘录无法与该指标绑定核验", findings)
         self.assertEqual(
             reporter.last_stats["reader_fidelity_guard"]["grounded_gaps"],
             ["营业收入"],

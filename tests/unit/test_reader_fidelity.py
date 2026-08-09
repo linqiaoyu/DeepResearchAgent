@@ -93,7 +93,12 @@ class ReaderFidelityTests(unittest.TestCase):
         )
 
         self.assertNotIn("2025年归母净利润7,711,054,811.98 元", guarded)
-        self.assertIn("归母净利润：未取得可引用的原始披露事实", guarded)
+        # R109: the degradation this test pins is unchanged -- the mutated
+        # figure is withheld, and the degradation event below is still emitted.
+        # The reader is now told the cited excerpt could not be bound to the
+        # metric, rather than that no disclosure was obtained for it.
+        self.assertIn("归母净利润：已检索到相关披露", guarded)
+        self.assertIn("摘录无法与该指标绑定核验", guarded)
         self.assertIn(
             {
                 "tool": "grounded_fact_renderer",

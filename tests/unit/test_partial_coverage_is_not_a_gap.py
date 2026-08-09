@@ -267,6 +267,139 @@ class SummaryStopsPromisingWhatIsNotThereTests(
         self.assertIn(f"{PROFIT_2024} 亿元", report)
 
 
+class UnverifiableIsNotUnfoundTests(unittest.TestCase):
+    """R109: the same contradiction, reached by the other road.
+
+    A metric can be fully `cited` and still become a gap, because the fidelity
+    guard rejects the rendered claim. That happens whenever a filing's figures
+    arrive as bare digit strings from a PDF table -- the excerpt names no
+    metric, so nothing can bind the number to it. Both live 长江电力 runs that
+    retrieved the filing that way shipped `未取得可引用的原始披露事实` in
+    关键发现 above a 指标覆盖状态 listing thirteen cited values.
+
+    Saying "not obtained" about evidence the report goes on to cite is false.
+    The extraction defect behind it is diagnosed in `docs/decisions/109`; what
+    is fixed here is the report telling the reader something untrue about it.
+    """
+
+    METRIC = "归母净利润"
+    VALUES = {"2023": "27244616815.27", "2024": "32496172808.65"}
+
+    def _state(self) -> ResearchState:
+        state = ResearchState(topic="长江电力2024年度归母净利润")
+        state.plan = ResearchPlan(
+            topic=state.topic,
+            sub_questions=[
+                SubQuestion(
+                    id="fin2024",
+                    question="归母净利润两年如何变化？",
+                    search_queries=["长江电力 2024 年年度报告"],
+                    structured_data_requests=[
+                        StructuredDataRequest(
+                            capability="financial_indicators",
+                            symbol="600900",
+                            periods=["20231231", "20241231"],
+                            metrics=[self.METRIC],
+                        )
+                    ],
+                )
+            ],
+        )
+        state.completed_tasks = ["fin2024"]
+        state.evidence_store = [
+            Evidence(
+                id=f"pdf-{period}",
+                research_id=state.research_id,
+                sub_question_id="fin2024",
+                claim=f"长江电力{period}年归母净利润为{value}元",
+                claim_type="data",
+                source_kind="text",
+                source_url="https://static.cninfo.invalid/1223421172.PDF",
+                source_title="1223421172.PDF",
+                source_page=5,
+                source_tier="primary",
+                # The shape the live runs produced: a table cell, naming nothing.
+                extract_text=f"{int(float(value)):,}.{value.split('.')[1]}",
+                numeric_fields=NumericFields(
+                    entity="长江电力",
+                    metric_name=self.METRIC,
+                    period=period,
+                    dimension="未标注",
+                    value=value,
+                    unit="元",
+                ),
+            )
+            for period, value in self.VALUES.items()
+        ]
+        return state
+
+    def _delivered(self) -> str:
+        state = self._state()
+        ref_map = {
+            evidence.id: index
+            for index, evidence in enumerate(state.evidence_store, start=1)
+        }
+        reporter = ReporterAgent(
+            grounded_fact_renderer=FINANCE.grounded_fact_renderer()
+        )
+        draft = "\n".join(
+            [
+                "# 报告",
+                "",
+                "## 关键发现",
+                "- 占位。 [^1]",
+                "",
+                "## 参考来源",
+                "[^1]: 年报",
+            ]
+        )
+        guarded = reporter._enforce_reader_fidelity(draft, state, ref_map)
+        return reporter._append_metric_coverage(guarded, state, ref_map)
+
+    def test_the_precondition_is_cited_evidence_that_cannot_be_verified(
+        self,
+    ) -> None:
+        state = self._state()
+        coverage = evaluate_metric_coverage(state, FINANCE)
+        batch = FINANCE.grounded_fact_renderer().render(state)
+
+        self.assertEqual(coverage[0].status, "cited")
+        self.assertEqual([c.label for c in batch.claims], [self.METRIC])
+
+    def test_the_reader_is_not_told_the_disclosure_was_never_obtained(
+        self,
+    ) -> None:
+        report = self._delivered()
+
+        self.assertNotIn("未取得可引用的原始披露事实", report)
+
+    def test_the_reader_is_told_what_actually_happened(self) -> None:
+        report = self._delivered()
+
+        self.assertIn("摘录无法与该指标绑定核验", report)
+        self.assertIn("指标覆盖状态", report)
+
+    def test_the_page_no_longer_contradicts_itself(self) -> None:
+        validate_coverage_findings_agreement(self._delivered())
+
+    def test_a_metric_with_no_evidence_still_says_so(self) -> None:
+        """The two gap causes must not collapse into one wording."""
+        state = self._state()
+        state.evidence_store = []
+        ref_map: dict[str, int] = {}
+        reporter = ReporterAgent(
+            grounded_fact_renderer=FINANCE.grounded_fact_renderer()
+        )
+        report = reporter._enforce_reader_fidelity(
+            "# 报告\n\n## 关键发现\n- 占位。\n",
+            state,
+            ref_map,
+        )
+
+        self.assertIn("未取得可引用的原始披露事实", report)
+        self.assertNotIn("摘录无法与该指标绑定核验", report)
+
+
 class UnattributedPeriodStaysAGapTests(_PartialCoverageFixture, unittest.TestCase):
     """Evidence whose period cannot be typed must not become a covered period."""
 

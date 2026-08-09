@@ -404,7 +404,25 @@ class ReporterAgent:
         # above the section performing that derivation is a report contradicting
         # itself, which R102 introduced by fixing only half of it.
         derived_periods = self.domain_pack.derived_metric_periods(state.evidence_store)
+        # R109: a metric the run never found and a metric whose evidence could
+        # not be bound to it are different facts, and only the first is
+        # `未取得可引用的原始披露事实`. Saying the first about the second put
+        # `未取得` in 关键发现 above a 指标覆盖状态 listing thirteen cited values
+        # -- the same contradiction, reached by the other road, in 2 of 7 live
+        # 长江电力 runs this round. The reader is now told which one happened
+        # and where the evidence they were not given is listed.
+        unverifiable = {
+            item["label"]
+            for item in fidelity_degradations
+            if item.get("reason") == "grounded_fact_fidelity_failure"
+        }
         for label in dict.fromkeys(grounded_gaps):
+            if label in unverifiable:
+                grounded_lines.append(
+                    f"- {label}：已检索到相关披露，但其摘录无法与该指标绑定核验，"
+                    "未纳入关键发现；已引用的出处见「指标覆盖状态」。"
+                )
+                continue
             grounded_lines.append(
                 f"- {label}："
                 + self.domain_pack.reader_metric_gap_explanation(
