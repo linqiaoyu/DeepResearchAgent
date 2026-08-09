@@ -117,9 +117,13 @@ class Round083StructuredDataTests(unittest.TestCase):
             [item.metrics for item in nio.sub_questions[0].structured_data_requests],
             [["营业收入"], ["毛利"]],
         )
+        # R102: the English question asks for gross *margin*, which no source
+        # publishes directly, so `毛利` is appended. The Chinese one asks for
+        # `毛利` itself and gains nothing -- the expansion adds the component
+        # exactly when the requested metric needs one.
         self.assertEqual(
             [item.metrics for item in pdd.sub_questions[0].structured_data_requests],
-            [["营业收入"], ["主营业务毛利率"]],
+            [["营业收入"], ["主营业务毛利率"], ["毛利"]],
         )
 
     def test_english_and_chinese_financial_intent_select_structured_data(self) -> None:

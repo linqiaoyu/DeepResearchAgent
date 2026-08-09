@@ -136,18 +136,22 @@ class LLMIntegrationTests(unittest.TestCase):
         requests = plan.sub_questions[0].structured_data_requests
         self.assertEqual(
             [request.capability for request in requests],
-            ["financial_indicators", "financial_indicators"],
+            ["financial_indicators"] * 3,
         )
-        self.assertEqual([request.symbol for request in requests], ["600519", "600519"])
+        self.assertEqual([request.symbol for request in requests], ["600519"] * 3)
         self.assertEqual(
             [request.company_name for request in requests],
-            ["贵州茅台", "贵州茅台"],
+            ["贵州茅台"] * 3,
         )
+        # R102: the third request is `毛利`, the component `主营业务毛利率` is
+        # computed from. Identity and periods must propagate to it exactly as to
+        # the metrics named in the question, which is what the two assertions
+        # above now cover.
         self.assertEqual(
             [request.metrics for request in requests],
-            [["营业收入"], ["主营业务毛利率"]],
+            [["营业收入"], ["主营业务毛利率"], ["毛利"]],
         )
-        self.assertEqual([request.periods for request in requests], [["20251231"]] * 2)
+        self.assertEqual([request.periods for request in requests], [["20251231"]] * 3)
 
     def test_budget_reservation_rejects_before_provider_call(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -863,11 +867,16 @@ class LLMIntegrationTests(unittest.TestCase):
         requests = plan.sub_questions[0].structured_data_requests
         self.assertEqual(
             [request.periods for request in requests],
-            [["20251231", "20241231"]] * 3,
+            [["20251231", "20241231"]] * 4,
         )
+        # R102: `毛利` is appended because no source publishes
+        # `主营业务毛利率` directly and it is exactly `毛利 / 营业收入`. The
+        # literal metrics are still requested; the component is additional, and
+        # the assertion is on the whole ordered list so a silently dropped
+        # request still fails here.
         self.assertEqual(
             [request.metrics for request in requests],
-            [["营业收入"], ["主营业务毛利率"], ["归母净利润"]],
+            [["营业收入"], ["主营业务毛利率"], ["归母净利润"], ["毛利"]],
         )
         metrics = [metric for request in requests for metric in request.metrics]
         self.assertNotIn("净利润", metrics)
@@ -945,21 +954,23 @@ class LLMIntegrationTests(unittest.TestCase):
             )
 
         requests = plan.sub_questions[0].structured_data_requests
-        self.assertEqual([request.symbol for request in requests], ["600519"] * 3)
+        self.assertEqual([request.symbol for request in requests], ["600519"] * 4)
         self.assertEqual(
             [request.company_name for request in requests],
-            ["贵州茅台"] * 3,
+            ["贵州茅台"] * 4,
         )
+        # R102: `毛利` is appended for the same reason as in the deterministic
+        # path, and the identity propagation this test exists for must cover it.
         self.assertEqual(
             [request.metrics for request in requests],
-            [["营业收入"], ["主营业务毛利率"], ["归母净利润"]],
+            [["营业收入"], ["主营业务毛利率"], ["归母净利润"], ["毛利"]],
         )
         metrics = [metric for request in requests for metric in request.metrics]
         self.assertIn("归母净利润", metrics)
         self.assertNotIn("净利润", metrics)
         self.assertIn("主营业务毛利率", metrics)
         self.assertNotIn("毛利率", metrics)
-        self.assertEqual([request.periods for request in requests], [["20251231"]] * 3)
+        self.assertEqual([request.periods for request in requests], [["20251231"]] * 4)
         self.assertEqual(plan.sub_questions[0].search_queries[0], "600519 年度报告")
 
     def test_llm_planner_consolidates_explicit_financial_lookup_branch(

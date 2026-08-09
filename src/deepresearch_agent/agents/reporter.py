@@ -246,17 +246,31 @@ class ReporterAgent:
         metrics = derive(state.evidence_store)
         if not metrics:
             return []
-        metric = metrics[0]
-        evidence_ids = [str(item) for item in metric["evidence_ids"]]
-        if len(evidence_ids) != 2 or any(item not in ref_map for item in evidence_ids):
+        # R102: one line per period. Rendering only `metrics[0]` answered a
+        # question about change across two years with a single year's ratio.
+        lines: list[str] = []
+        for metric in metrics:
+            evidence_ids = [str(item) for item in metric["evidence_ids"]]
+            if len(evidence_ids) != 2 or any(
+                item not in ref_map for item in evidence_ids
+            ):
+                continue
+            period = self._reader_text(str(metric.get("period") or "")).strip()
+            scope = f"{period} " if period else ""
+            # Deduplicate by footnote, not by evidence id: two facts from one
+            # filing share a number, and `[^1] [^1]` tells the reader nothing
+            # twice.
+            citations = " ".join(
+                f"[^{number}]"
+                for number in dict.fromkeys(ref_map[item] for item in evidence_ids)
+            )
+            lines.append(
+                f"- {scope}{metric['label']}（推导值）：{metric['numerator']} / "
+                f"{metric['denominator']} = {metric['value']} {citations}"
+            )
+        if not lines:
             return []
-        return [
-            "## 派生指标",
-            "- "
-            f"{metric['label']}（推导值）：{metric['numerator']} / "
-            f"{metric['denominator']} = {metric['value']} "
-            f"[^{ref_map[evidence_ids[0]]}] [^{ref_map[evidence_ids[1]]}]",
-        ]
+        return ["## 派生指标", *lines]
 
     def _enforce_reader_fidelity(
         self,

@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 
 from deepresearch_agent.domains.finance.issuer_aliases import registered_sec_issuer
+from deepresearch_agent.domains.finance.vocabulary import METRIC_COMPONENTS
 from deepresearch_agent.schemas import ResearchPlan, StructuredDataRequest, SubQuestion
 
 
@@ -152,7 +153,21 @@ class FinancePlanning:
         topic: str,
         metrics: list[str],
     ) -> list[StructuredDataRequest]:
-        """Keep unsupported metrics isolated from mapped annual facts."""
+        """Keep unsupported metrics isolated from mapped annual facts.
+
+        R102: a metric no source publishes directly is still answerable when the
+        source publishes what it is computed from. Asking only for the words in
+        the question left `主营业务毛利率` unrequestable and the reader was told
+        it could be computed and was not, while the filer's `GrossProfit` sat one
+        unmade request away. The components are appended, not substituted: a
+        source that does publish the metric directly still answers it.
+        """
+
+        requested = list(metrics)
+        for metric in metrics:
+            for component in METRIC_COMPONENTS.get(metric, ()):
+                if component not in requested:
+                    requested.append(component)
 
         return [
             StructuredDataRequest(
@@ -162,7 +177,7 @@ class FinancePlanning:
                 periods=self._annual_periods(topic),
                 metrics=[metric],
             )
-            for metric in metrics
+            for metric in requested
         ]
 
     @staticmethod

@@ -77,6 +77,19 @@ SEC_COMPANYFACTS_CONCEPTS = {
     "每股收益": ("EarningsPerShareDiluted",),
 }
 SEC_COMPANYFACTS_UNSUPPORTED_METRICS = ("主营业务毛利率", "市盈率")
+#: R102: what a metric can be computed from when no source publishes it directly.
+#: The filer publishes `GrossProfit` and revenue for every period it reports, and
+#: `derived_metrics.reader_derived_metrics` has always known how to divide them --
+#: but nothing ever asked for `毛利`, because requests were built from the words
+#: in the question and `主营业务毛利率` is listed as unsupported. The reader was
+#: told the metric could be computed and was not.
+#:
+#: Only exact, deterministic identities belong here. A ratio whose inputs need an
+#: estimate is not a derivation, and this table is not the place to pretend
+#: otherwise.
+METRIC_COMPONENTS = {
+    "主营业务毛利率": ("营业收入", "毛利"),
+}
 FINANCIAL_INTENT_TERMS = (
     "annual report",
     "revenue",
