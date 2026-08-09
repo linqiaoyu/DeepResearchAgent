@@ -5,13 +5,11 @@ from __future__ import annotations
 import unittest
 from datetime import date
 from decimal import Decimal
+from unittest import mock
 
 from deepresearch_agent.tools.composite_structured_data import build_composite
 from deepresearch_agent.tools.provider import StructuredDataRecord, SymbolInfo
-from deepresearch_agent.tools.structured_data_factory import (
-    ROUTED_PROVIDER_ORDER,
-    build_structured_data_provider,
-)
+from deepresearch_agent.tools.structured_data_factory import build_structured_data_provider
 
 
 class _Provider:
@@ -165,13 +163,17 @@ class CompositeRoutingTests(unittest.TestCase):
     def test_live_mode_no_longer_pins_the_run_to_one_market(self) -> None:
         """`auto` is what `_configure_mode("live")` sets; it must route, not pin."""
 
-        provider = build_structured_data_provider(
-            {"DEEPRESEARCH_STRUCTURED_DATA_PROVIDER": "auto"}
-        )
+        with mock.patch(
+            "deepresearch_agent.tools.structured_data_factory.AKShareStructuredDataProvider",
+            side_effect=ModuleNotFoundError(name="akshare"),
+        ):
+            provider = build_structured_data_provider(
+                {"DEEPRESEARCH_STRUCTURED_DATA_PROVIDER": "auto"}
+            )
 
         self.assertEqual(
             [item.name for item in provider.providers],
-            list(ROUTED_PROVIDER_ORDER),
+            ["sec"],
         )
 
     def test_an_explicit_single_provider_is_still_exactly_that(self) -> None:

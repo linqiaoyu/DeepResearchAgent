@@ -47,9 +47,17 @@ def build_structured_data_provider(
             "sec": lambda: SecCompanyFactsProvider(domain_pack=domain_pack),
             "akshare": lambda: _akshare(domain_pack),
         }
-        return build_composite(
-            [(name, builders[name]()) for name in ROUTED_PROVIDER_ORDER]
-        )
+        providers = []
+        for name in ROUTED_PROVIDER_ORDER:
+            try:
+                providers.append((name, builders[name]()))
+            except OptionalProviderDependencyError:
+                # `auto` is a best-effort route. An unavailable optional
+                # provider must not prevent the remaining providers from
+                # answering the question; an explicit `akshare` selection
+                # still raises the actionable dependency error above.
+                continue
+        return build_composite(providers)
 
     supported = ", ".join(
         sorted(
