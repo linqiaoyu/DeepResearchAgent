@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
+from deepresearch_agent.rag.retrieval import EmptyRagSearchTool
 from deepresearch_agent.schemas import ResearchState, SubQuestion
 from deepresearch_agent.settings import Settings
 from deepresearch_agent.tools import DeterministicCapabilitySelector
@@ -15,8 +16,14 @@ class RagCapabilityTests(unittest.TestCase):
     def test_rag_capability_is_conditional_and_empty_index_never_fabricates_hits(self) -> None:
         disabled = DeepResearchEngine(Settings(storage_path=Path("artifacts/rag-disabled.db")))
         self.assertNotIn("rag_search", [item.name for item in disabled.capability_registry.query()])
+        # R110: this used to get the pre-index implementation by default,
+        # because `capability_setup` substituted it whenever no backend was
+        # configured -- which is exactly why `RAG_ENABLED=true` could be on and
+        # inert in a live run. The behaviour under test is unchanged; selecting
+        # that implementation is now something a caller asks for.
         enabled = DeepResearchEngine(
-            Settings(storage_path=Path("artifacts/rag-enabled.db"), rag_enabled=True, injection_guard_enabled=True)
+            Settings(storage_path=Path("artifacts/rag-enabled.db"), rag_enabled=True, injection_guard_enabled=True),
+            rag_search=EmptyRagSearchTool(),
         )
         context = RunToolContext.for_run()
         result = enabled.capability_registry.resolve("rag_search").search(

@@ -6,7 +6,7 @@ from typing import Any
 
 from deepresearch_agent.domains.protocols import DomainPack
 from deepresearch_agent.observability import JsonLogger
-from deepresearch_agent.rag.retrieval import EmptyRagSearchTool
+from deepresearch_agent.rag.factory import build_rag_search
 from deepresearch_agent.settings import Settings
 from deepresearch_agent.tools import (
     CapabilityRegistry,
@@ -53,5 +53,15 @@ def build_engine_capability_registry(
         search_provider=configured_search_tool,
         structured_data_provider=configured_structured_provider,
         disclosure_source=configured_disclosure_source,
-        rag_search=(rag_search or EmptyRagSearchTool()) if settings.rag_enabled else None,
+        # R110: this fell back to the pre-index implementation whenever a
+        # caller passed nothing, so enabling retrieval through the engine
+        # could only ever produce an empty index.
+        # The factory is the same boundary the search and structured-data
+        # providers already sit behind; selecting the pre-index implementation
+        # now means asking for it by name.
+        rag_search=(
+            (rag_search or build_rag_search(settings, retrieval_domain=domain_pack))
+            if settings.rag_enabled
+            else None
+        ),
     )

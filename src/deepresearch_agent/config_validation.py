@@ -25,7 +25,10 @@ def validate_security_invariants(settings: Settings) -> None:
         )
 
 
-def validate_capability_invariants(settings: Settings) -> None:
+def validate_capability_invariants(
+    settings: Settings,
+    environ: Mapping[str, str] | None = None,
+) -> None:
     """Refuse a capability that is switched on but cannot take effect.
 
     R109: every guard reads ``Settings.research_loop_active``, which requires
@@ -42,6 +45,11 @@ def validate_capability_invariants(settings: Settings) -> None:
             "RESEARCH_LOOP_ENABLED requires DEEPRESEARCH_RESEARCH_LOOP_MAX_ITERATIONS "
             f"> 1; got {settings.research_loop_max_iterations}"
         )
+    # R110 note: `RAG_ENABLED=true` with no configured backend is refused too,
+    # but by `rag.factory.build_rag_search` rather than here. The engine accepts
+    # an injected retrieval service, and a check at this layer cannot see that
+    # injection -- it would refuse a run whose backend was supplied in code.
+    # The refusal still happens at engine construction, one layer later.
 
 
 def validate_required_configuration(
@@ -66,7 +74,7 @@ def validate_required_configuration(
     ):
         missing.append("DASHSCOPE_API_KEY")
     validate_security_invariants(settings)
-    validate_capability_invariants(settings)
+    validate_capability_invariants(settings, env)
     search_provider = env.get("DEEPRESEARCH_SEARCH_PROVIDER", "fixture").strip().lower()
     if search_provider == "tavily" and not env.get("TAVILY_API_KEY", "").strip():
         missing.append("TAVILY_API_KEY")
