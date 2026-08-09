@@ -6,6 +6,7 @@ from datetime import date
 from difflib import SequenceMatcher
 
 from deepresearch_agent.agents import ReporterAgent
+from deepresearch_agent.domains.registry import load_domain_pack
 from deepresearch_agent.agents.reporter import (
     RESTATEMENT_SIMILARITY,
     _content_key,
@@ -19,6 +20,7 @@ from deepresearch_agent.schemas import (
     ReportDraft,
     ReportSection,
     ResearchPlan,
+    StructuredDataRequest,
     ResearchState,
     SubQuestion,
 )
@@ -474,3 +476,248 @@ class ReportReaderGuardTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AnalysisTopicalityTests(unittest.TestCase):
+    """R100: what makes an analysis claim on topic when nothing is grounded."""
+
+    def test_a_claim_naming_the_metric_is_on_topic_without_shared_evidence(self) -> None:
+        """The four claims R100's live run deleted all named the question's metrics.
+
+        Relatedness was decided by whether a claim cited a key finding's
+        evidence. Every required metric came back a gap in that run, so the
+        reader's `关键发现` cited nothing at all and there was no evidence to
+        share -- four claims about this question's own revenue and margin
+        drivers were filed as off-topic and deleted with `补充事实`.
+        """
+
+        finance = load_domain_pack("finance")
+        required = {"营业收入", "主营业务毛利率"}
+        deleted_by_that_rule = [
+            "2023年6月蔚来全系降价3万元，带动交付量在第三季度回升，对全年营收形成支撑。",
+            "2024年营收和交付量均创历史新高，延续增长态势。",
+            "2023年第四季度整车毛利率为11.9%，连续两个季度达到两位数，显示毛利率逐步修复。",
+            "李斌表示新产品主要承担走量任务，NIO品牌则负责确保毛利率，体现双品牌策略。",
+        ]
+
+        for text in deleted_by_that_rule:
+            self.assertTrue(
+                finance.metrics_mentioned(text, required),
+                f"an on-topic driver was filed as off-topic: {text}",
+            )
+
+    def test_a_claim_naming_no_required_metric_stays_off_topic(self) -> None:
+        finance = load_domain_pack("finance")
+        required = {"营业收入", "主营业务毛利率"}
+
+        self.assertEqual(
+            finance.metrics_mentioned("匈牙利工厂仍处于建设阶段。", required),
+            set(),
+        )
+
+    def test_a_domain_without_a_metric_vocabulary_claims_nothing(self) -> None:
+        from deepresearch_agent.domains.null import NullDomainPack
+
+        self.assertEqual(
+            NullDomainPack().metrics_mentioned("anything at all", {"revenue"}),
+            set(),
+        )
+
+
+class NumericFidelityTests(unittest.TestCase):
+    """R100: the guard must not delete a claim that quotes its own source."""
+
+    def _evidence(self, text: str) -> Evidence:
+        return Evidence(
+            id="e1",
+            research_id="r",
+            sub_question_id="s",
+            claim=text,
+            claim_type="fact",
+            source_url="https://example.com/a",
+            source_title="t",
+            extract_text=text,
+        )
+
+    def _policy(self):
+        return load_domain_pack("finance").numeric_citation_policy()
+
+    def test_a_margin_claim_quoting_its_evidence_word_for_word_is_supported(self) -> None:
+        """R100's live run deleted exactly this pair.
+
+        The claim's generic `毛利率` was rescoped to `主营业务毛利率` whenever that
+        metric was required, while the evidence side rescopes only when a typed
+        total-row field anchors it -- which retrieved web text never carries. The
+        two sides were then compared under different names.
+        """
+
+        evidence = [self._evidence("2024年蔚来的汽车毛利率为12.3%，同比增加2.8个百分点")]
+        claim = "2024年汽车毛利率提升至12.3%，同比增加2.8个百分点，主要因单位物料成本下降。"
+
+        self.assertFalse(
+            self._policy().has_numeric_mismatch(
+                claim, evidence, required_metrics={"营业收入", "主营业务毛利率"}
+            )
+        )
+
+    def test_a_number_the_evidence_never_states_is_still_rejected(self) -> None:
+        evidence = [self._evidence("2024年蔚来的汽车毛利率为12.3%，同比增加2.8个百分点")]
+        claim = "2024年汽车毛利率提升至18.9%。"
+
+        self.assertTrue(
+            self._policy().has_numeric_mismatch(
+                claim, evidence, required_metrics={"营业收入", "主营业务毛利率"}
+            )
+        )
+
+    def test_a_prior_year_level_after_a_comparison_word_is_not_a_change(self) -> None:
+        """`较2022年的10.4%` names last year's margin, not this year's change.
+
+        The same construction was already handled for amounts -- `较2024年的
+        1,708.99亿元` -- and the rule simply did not cover a rate, so a claim
+        whose every number its evidence states was rejected and the reader lost
+        the line.
+        """
+
+        evidence = [self._evidence("2023年公司毛利率为5.5%，2022年为10.4%")]
+        claim = "2023年公司毛利率为5.5%，较2022年的10.4%下降4.9个百分点。"
+
+        self.assertFalse(
+            self._policy().has_numeric_mismatch(
+                claim, evidence, required_metrics={"营业收入", "主营业务毛利率"}
+            )
+        )
+
+    def test_a_change_after_a_comparison_word_is_still_supported(self) -> None:
+        evidence = [self._evidence("2023年公司毛利率为5.5%，2022年为10.4%")]
+        claim = "2023年公司毛利率为5.5%，较2022年下降4.9个百分点。"
+
+        self.assertFalse(
+            self._policy().has_numeric_mismatch(
+                claim, evidence, required_metrics={"营业收入", "主营业务毛利率"}
+            )
+        )
+
+    def test_a_margin_the_evidence_never_states_is_rejected(self) -> None:
+        evidence = [self._evidence("2023年公司毛利率为5.5%，2022年为10.4%")]
+
+        self.assertTrue(
+            self._policy().has_numeric_mismatch(
+                "2023年公司毛利率为9.9%。",
+                evidence,
+                required_metrics={"营业收入", "主营业务毛利率"},
+            )
+        )
+
+
+class AnalysisReachesTheReaderTests(unittest.TestCase):
+    """R100 end to end: an on-topic driver survives the whole render path."""
+
+    def _state(self) -> ResearchState:
+        state = ResearchState(topic="蔚来 2023 与 2024 年营收和毛利率的变化及其驱动因素")
+        state.plan = ResearchPlan(
+            topic=state.topic,
+            sub_questions=[
+                SubQuestion(
+                    id="rev_gm_values",
+                    question="蔚来 2023 与 2024 年营收和毛利率如何变化？",
+                    search_queries=["fixture"],
+                    structured_data_requests=[
+                        StructuredDataRequest(
+                            capability="financial_indicators",
+                            symbol="NIO",
+                            metrics=["营业收入", "主营业务毛利率"],
+                            periods=["20231231", "20241231"],
+                        )
+                    ],
+                )
+            ],
+        )
+        state.evidence_store = [
+            Evidence(
+                id="anchor",
+                research_id=state.research_id,
+                sub_question_id="rev_gm_values",
+                claim="蔚来2024年营业收入为657.3亿元。",
+                claim_type="data",
+                source_url="https://example.com/anchor",
+                source_title="Anchor",
+                source_pub_date=date(2025, 3, 21),
+                extract_text="蔚来2024年营业收入为657.3亿元。",
+            ),
+            Evidence(
+                id="driver",
+                research_id=state.research_id,
+                sub_question_id="rev_gm_values",
+                claim="2023年6月蔚来全系降价3万元，带动交付量回升，对全年营收形成支撑。",
+                claim_type="fact",
+                source_url="https://example.com/driver",
+                source_title="Driver",
+                source_pub_date=date(2025, 3, 21),
+                extract_text="2023年6月蔚来全系降价3万元，带动交付量回升，对全年营收形成支撑。",
+            ),
+            Evidence(
+                id="offtopic",
+                research_id=state.research_id,
+                sub_question_id="rev_gm_values",
+                claim="匈牙利工厂仍处于建设阶段。",
+                claim_type="fact",
+                source_url="https://example.com/offtopic",
+                source_title="Offtopic",
+                source_pub_date=date(2025, 3, 21),
+                extract_text="匈牙利工厂仍处于建设阶段。",
+            ),
+        ]
+        return state
+
+    def test_a_driver_citing_no_key_finding_evidence_still_reaches_the_reader(
+        self,
+    ) -> None:
+        """The exact shape R100's live run deleted four times.
+
+        The key finding cites `anchor`; the driver cites only `driver` and
+        shares no fact key, so the evidence-sharing rule calls it off topic. It
+        names the metric the question asks about, so it is not.
+        """
+
+        state = self._state()
+        draft = ReportDraft(
+            summary="本报告核验营收与毛利率的变化。",
+            key_findings=[
+                ReportClaim(text="蔚来2024年营业收入为657.3亿元。", evidence_ids=["anchor"])
+            ],
+            detailed_analysis=[
+                ReportSection(
+                    sub_question_id="rev_gm_values",
+                    heading="驱动因素",
+                    claims=[
+                        ReportClaim(
+                            text="2023年6月蔚来全系降价3万元，带动交付量回升，对全年营收形成支撑。",
+                            evidence_ids=["driver"],
+                        ),
+                        ReportClaim(
+                            text="匈牙利工厂仍处于建设阶段。",
+                            evidence_ids=["offtopic"],
+                        ),
+                    ],
+                )
+            ],
+        )
+
+        reporter = ReporterAgent()
+        report, _, _ = reporter._render_llm_report(state, draft)
+        flow = reporter.last_stats["analysis_flow"]
+        body = report.split("## 参考来源", 1)[0]
+
+        self.assertIn(
+            "## 详细分析",
+            body,
+            "the reader received no analysis section at all: "
+            f"{reporter.last_stats['dropped_analysis_claims']}",
+        )
+        analysis = body.split("## 详细分析", 1)[1].split("\n## ", 1)[0]
+
+        self.assertEqual(flow["rendered_lines"], 1)
+        self.assertEqual(flow["claims_dropped_unrelated"], 1)
+        self.assertIn("全系降价3万元", analysis)
+        self.assertNotIn("匈牙利工厂", analysis)

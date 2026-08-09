@@ -14,6 +14,26 @@ METRIC_ALIASES = {
     "毛利率": "主营业务毛利率",
     "主营业务毛利率": "主营业务毛利率",
 }
+def metrics_mentioned(text: str, required: set[str]) -> set[str]:
+    """Which required metrics a sentence talks about, by surface form.
+
+    R100: the renderer decided whether an analysis claim was on topic by asking
+    whether it cited a key finding's evidence. When every key finding is a gap
+    notice there is no such evidence, so four claims about this question's own
+    revenue and margin drivers were filed as off-topic and deleted. A sentence
+    naming the metric is on topic whatever it cites, and the alias table already
+    knows that `毛利率` and `整车毛利率` are about `主营业务毛利率`.
+    """
+
+    if not text or not required:
+        return set()
+    mentioned: set[str] = set()
+    for surface, canonical in METRIC_ALIASES.items():
+        if canonical in required and surface in text:
+            mentioned.add(canonical)
+    return mentioned
+
+
 AMOUNT_UNITS: Mapping[str, Decimal] = {
     "元": Decimal("1"),
     "千元": Decimal("1000"),

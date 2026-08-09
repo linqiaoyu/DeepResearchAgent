@@ -636,6 +636,9 @@ class ReporterAgent:
             "uncited_claims": repair_stats["uncited_claims"],
             "claim_provenance": self.last_stats.get("claim_provenance", []),
             "analysis_flow": self.last_stats.get("analysis_flow", {}),
+            "dropped_analysis_claims": self.last_stats.get(
+                "dropped_analysis_claims", []
+            ),
             "repair_attempts": result.repair_attempts,
         }
         return report
@@ -926,9 +929,20 @@ class ReporterAgent:
                     for item in claim.evidence_ids
                     if item in evidence_ids
                 }
+                # R100: sharing evidence with a key finding is a good topicality
+                # signal only while there are grounded key findings to share
+                # with. When every required metric came back a gap, the reader's
+                # `关键发现` is a list of notices citing nothing, and four claims
+                # about this question's own revenue and margin drivers were filed
+                # as off-topic and then deleted with `补充事实`. A sentence that
+                # names the metric the question asks about is on topic whatever
+                # it cites; one that names none still falls through.
                 related = bool(
                     valid_claim_ids & (key_evidence_ids | section_evidence_ids)
                     or fact_keys & key_fact_keys
+                    or self.domain_pack.metrics_mentioned(
+                        claim.text, required_metrics
+                    )
                 )
                 if not related:
                     supplemental.append(

@@ -92,23 +92,6 @@ def has_financial_numeric_mismatch(
     """Return whether a financial number lacks support in the cited Evidence union."""
 
     claimed_values = _extract_text_values(claim_text)
-    if required_metrics and "主营业务毛利率" in required_metrics:
-        claimed_values = [
-            replace(
-                value,
-                metric=(
-                    "gross_margin_main_business:yoy"
-                    if value.metric == "gross_margin:yoy"
-                    else "gross_margin_main_business"
-                ),
-            )
-            if value.metric in {
-                "gross_margin",
-                "gross_margin:yoy",
-            }
-            else value
-            for value in claimed_values
-        ]
     if not claimed_values:
         return False
 
@@ -137,7 +120,48 @@ def has_financial_numeric_mismatch(
                 evidence_values.append(value)
     evidence_values.extend(_derived_yoy_values(evidence_values))
 
+    # R100: a bare `毛利率` in a claim must not pass itself off as the
+    # `主营业务毛利率` the question asked for, which is why the claim's generic
+    # margin values were rescoped whenever that metric was required. But the
+    # evidence side rescopes only when a typed total-row field anchors it, and
+    # retrieved web text never carries one -- so the two sides were compared
+    # under different names and every margin claim citing web text was rejected,
+    # including one quoting its own source word for word. Rescope the claim only
+    # when its evidence was rescoped too, which is the same condition read from
+    # the same data.
+    if required_metrics and "主营业务毛利率" in required_metrics:
+        claimed_values = _scope_margin_claims_to_evidence(
+            claimed_values, evidence_values
+        )
+
     return any(not _value_is_supported(claimed, evidence_values) for claimed in claimed_values)
+
+
+def _scope_margin_claims_to_evidence(
+    claimed_values: list[FinancialValue],
+    evidence_values: list[FinancialValue],
+) -> list[FinancialValue]:
+    """Read a claim's generic margin as main-business only where the evidence is."""
+
+    anchored = any(
+        value.metric.startswith("gross_margin_main_business")
+        for value in evidence_values
+    )
+    if not anchored:
+        return claimed_values
+    return [
+        replace(
+            value,
+            metric=(
+                "gross_margin_main_business:yoy"
+                if value.metric == "gross_margin:yoy"
+                else "gross_margin_main_business"
+            ),
+        )
+        if value.metric in {"gross_margin", "gross_margin:yoy"}
+        else value
+        for value in claimed_values
+    ]
 
 
 def _extract_text_values(text: str) -> list[FinancialValue]:
@@ -545,12 +569,17 @@ def _metric_before(text: str, number_start: int) -> str | None:
     yoy_matches = list(YOY_RE.finditer(window))
     if yoy_matches and yoy_matches[-1].end() >= metric_position:
         trailing = window[yoy_matches[-1].end() :]
-        amount_at_number = re.match(
-            rf"{NUMBER_PATTERN}\s*(?:百万元|千元|亿元|万元|亿|元)",
+        # R100: a rate can be a comparison base exactly as an amount can --
+        # “较2022年的10.4%” names last year's margin, and only the later
+        # “下降4.9个百分点” is the change. Reading that base as the change made a
+        # claim quoting “全年公司毛利率为5.5%，而2022年为10.4%” unsupported by the
+        # sentence it came from, and the reader lost the line.
+        base_at_number = re.match(
+            rf"{NUMBER_PATTERN}\s*(?:百万元|千元|亿元|万元|亿|元|%|％)",
             text[number_start:],
         )
         if (
-            amount_at_number
+            base_at_number
             and re.fullmatch(r"\s*的?\s*", trailing)
         ):
             # “较2024年的1,708.99亿元” names the comparison-base

@@ -161,6 +161,11 @@ class FinanceDomainPack:
 
         return reader_metric_gap_explanation(metric)
 
+    def metrics_mentioned(self, text: str, required: set[str]) -> set[str]:
+        from deepresearch_agent.domains.finance.vocabulary import metrics_mentioned
+
+        return metrics_mentioned(text, required)
+
     def comparison_observed(self, evidence: object) -> bool:
         from deepresearch_agent.domains.finance.metric_coverage import (
             comparison_observed,

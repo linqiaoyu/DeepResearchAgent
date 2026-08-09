@@ -144,6 +144,11 @@ class NullDomainPack:
     def reader_metric_gap_explanation(self, _metric: str) -> str:
         return "No citable source fact was obtained; consult the primary disclosure."
 
+    def metrics_mentioned(self, _text: str, _required: set[str]) -> set[str]:
+        # A domain with no metric vocabulary cannot say what a sentence is
+        # about, so it claims nothing and the evidence-sharing rule decides.
+        return set()
+
     def evidence_matches_metric(self, _evidence: Any, _required_metric: str) -> bool:
         return False
 
