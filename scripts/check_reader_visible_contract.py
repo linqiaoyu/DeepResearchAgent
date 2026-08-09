@@ -113,9 +113,12 @@ def validate_exact_amounts(
     key_findings = section(report, "关键发现")
     for finding in expected:
         expected_match = _NUMBER_RE.search(finding.rendered_value)
+        # R108: a rate is written tight to its percent sign, an amount is
+        # spaced from its currency unit. Reading only the second form made this
+        # check blind to every margin the report delivers.
         observed_match = re.search(
             rf"{re.escape(finding.metric)}[^\n]{{0,180}}?{_NUMBER_RE.pattern}"
-            r"\s+(?:CNY|RMB|元|万元|亿元)",
+            r"(?:\s*%|\s+(?:CNY|RMB|元|万元|亿元))",
             key_findings,
         )
         if not expected_match or not observed_match:
@@ -130,8 +133,14 @@ def validate_exact_amounts(
 
 
 def _validate_amount_rendering(finding: ExpectedFinding) -> None:
+    # R108: this required whitespace before every unit. R107 delivered only
+    # amounts, so the rule was never applied to a rate -- and the first
+    # delivered 毛利率 made it demand `19.438342 %`, which is not how a
+    # percentage is written. A currency unit takes its space; a percent sign
+    # does not.
     match = re.fullmatch(
-        r"(-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)\s+([A-Za-z%]+|元|万元|亿元)",
+        r"(-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)"
+        r"(?:\s*(%)|\s+([A-Za-z]+|元|万元|亿元))",
         finding.rendered_value,
     )
     if not match:
@@ -149,9 +158,11 @@ def _validate_amount_rendering(finding: ExpectedFinding) -> None:
 def _sample_report(mutation: str | None = None) -> tuple[str, tuple[ExpectedFinding, ...]]:
     revenue = "65,731,559,000 CNY"
     gross = "6,492,762,000 CNY"
+    margin = "19.44%"
     key_lines = [
         f"- 营业收入：NIO Inc. 2024年年度营业收入为{revenue}。 [^1]",
         f"- 毛利：NIO Inc. 2024年年度毛利为{gross}。 [^2]",
+        f"- 毛利率：NIO Inc. 2024年年度毛利率为{margin}。 [^2]",
     ]
     definitions = [
         "[^1]: SEC Company Facts. https://www.sec.gov/companyfacts/1736541",
@@ -198,6 +209,7 @@ def _sample_report(mutation: str | None = None) -> tuple[str, tuple[ExpectedFind
     return report, (
         ExpectedFinding("营业收入", expected_revenue),
         ExpectedFinding("毛利", gross),
+        ExpectedFinding("毛利率", margin),
     )
 
 
