@@ -28,7 +28,20 @@ _WORD_RE = re.compile(r"[A-Za-z0-9_]+")
 # extracted 0 claims from them. The run-level bound is now a source count, so
 # every candidate gets its own bounded request.
 EXTRACTOR_LLM_MAX_SOURCES = 10
-EXTRACTOR_LLM_MAX_SOURCE_CHARS = 4_000
+_PAGE_MARKER_RE = re.compile(r"(?=\[\[PDF_PAGE=\d+\]\])")
+
+
+def _page_blocks(content: str) -> list[str]:
+    """Split decoder-marked page text into blocks; one block when unmarked."""
+
+    return [block for block in _PAGE_MARKER_RE.split(content) if block.strip()]
+
+#: R109: 4,000 was too small to hold an answer. Measured on one issuer's annual
+#: filing, whose selected pages are 32,603 characters: at 4,000 the excerpt
+#: carries 3 of the 4 facts the question asks for, at 8,000 still 3, at 12,000
+#: all 4, and 16,000 adds nothing. R093 made the extractor issue one source per
+#: call, so this bounds a single request rather than the whole retrieved set.
+EXTRACTOR_LLM_MAX_SOURCE_CHARS = 12_000
 
 
 class ExtractorAgent:
@@ -41,9 +54,10 @@ class ExtractorAgent:
     ) -> None:
         self.llm_client = llm_client
         self.injection_guard_enabled = injection_guard_enabled
-        self.table_extractors = resolve_domain_capability(
+        self.domain_pack = resolve_domain_capability(
             domain_pack, consumer="ExtractorAgent"
-        ).table_extractors()
+        )
+        self.table_extractors = self.domain_pack.table_extractors()
         self.last_stats: dict[str, int | bool | str] = {}
 
     def extract(self, research_id: str, sub_question: SubQuestion, sources: list[Source]) -> list[Evidence]:
@@ -220,7 +234,9 @@ class ExtractorAgent:
             return []
         assert self.llm_client is not None
         source_by_url = {source.url: source for source in sources}
-        prompt_sources, context_stats = self._llm_prompt_sources(sources)
+        prompt_sources, context_stats = self._llm_prompt_sources(
+            sources, sub_question=sub_question
+        )
         prompt = (project_root() / "prompts" / "extractor.md").read_text(encoding="utf-8")
         # R093: one source per call. A single call over the whole retrieved set
         # made the response scale with the set, and R091/R092 measured the model
@@ -333,6 +349,8 @@ class ExtractorAgent:
     def _llm_prompt_sources(
         self,
         sources: list[Source],
+        *,
+        sub_question: SubQuestion | None = None,
     ) -> tuple[list[dict[str, str]], dict[str, int]]:
         """Bound one extractor request without changing the source evidence set.
 
@@ -355,7 +373,7 @@ class ExtractorAgent:
         for _, source in ordered:
             if len(prompt_sources) >= EXTRACTOR_LLM_MAX_SOURCES:
                 break
-            excerpt = source.content[:EXTRACTOR_LLM_MAX_SOURCE_CHARS]
+            excerpt = self._relevant_excerpt(source.content, sub_question)
             if not excerpt:
                 continue
             prompt_sources.append(
@@ -377,6 +395,67 @@ class ExtractorAgent:
             "llm_context_omitted_source_count": len(sources) - len(prompt_sources),
             "llm_context_content_chars": used_chars,
         }
+
+    def _relevant_excerpt(
+        self,
+        content: str,
+        sub_question: SubQuestion | None,
+    ) -> str:
+        """Spend the source budget on the pages that answer the question.
+
+        R109: this took ``content[:EXTRACTOR_LLM_MAX_SOURCE_CHARS]``. The
+        disclosure path already selects the pages worth reading -- on one
+        measured filing it picked 28 pages, 32,603 characters, holding every
+        figure the question asked for. A prefix cut then kept the first 4,000
+        characters of that, which in such a document is front matter: the
+        definitions section and the issuer's address, telephone and fax. One
+        requested figure sat at character 24,267 and never reached the model;
+        another missed the window by 113 characters. The extractor then
+        reported that the facts were absent from the text it was given, which
+        was true, and was the pipeline's own doing.
+
+        The budget is unchanged. What changes is which characters it buys.
+        """
+
+        limit = EXTRACTOR_LLM_MAX_SOURCE_CHARS
+        if len(content) <= limit:
+            return content
+        blocks = _page_blocks(content)
+        if len(blocks) <= 1:
+            return content[:limit]
+        terms = self._relevance_terms(sub_question)
+        if not terms:
+            return content[:limit]
+        scored = sorted(
+            enumerate(blocks),
+            key=lambda item: (
+                -sum(term in item[1] for term in terms),
+                item[0],
+            ),
+        )
+        chosen: list[int] = []
+        used = 0
+        for index, block in scored:
+            if used + len(block) > limit and chosen:
+                continue
+            chosen.append(index)
+            used += len(block)
+            if used >= limit:
+                break
+        # Reading order, not relevance order: a page's numbers belong under the
+        # heading that names their period and unit.
+        return "\n".join(blocks[index] for index in sorted(chosen))[:limit]
+
+    def _relevance_terms(self, sub_question: SubQuestion | None) -> tuple[str, ...]:
+        if sub_question is None:
+            return ()
+        terms = {
+            metric
+            for request in sub_question.structured_data_requests
+            for metric in request.metrics
+        }
+        terms.update(self.domain_pack.primary_source_terms(financial_intent=True))
+        return tuple(term for term in terms if term)
 
     def _source_page(self, content: str, extract_offset_start: int) -> int | None:
         """Resolve the nearest preceding decoder page marker for one extract."""

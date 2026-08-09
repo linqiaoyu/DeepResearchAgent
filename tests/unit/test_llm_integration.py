@@ -12,6 +12,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 from deepresearch_agent.agents import ExtractorAgent, PlannerAgent, ReporterAgent
+from deepresearch_agent.agents.extractor import EXTRACTOR_LLM_MAX_SOURCE_CHARS
 from deepresearch_agent.agents.researcher import ResearcherAgent
 from deepresearch_agent.llm import (
     BudgetExceededError,
@@ -1240,8 +1241,18 @@ class LLMIntegrationTests(unittest.TestCase):
                 per_call_sources.append(json.loads(user_message["content"])["sources"])
             self.assertEqual([len(item) for item in per_call_sources], [1] * 10)
             prompt_sources = [source for call in per_call_sources for source in call]
+            # R109 contract change: the per-request bound moved 4,000 -> 12,000
+            # on measurement. A prefix cut of 4,000 characters over a filing's
+            # selected pages kept the front matter and dropped the figures the
+            # question asked for; 12,000 is where the measured answer set is
+            # complete. Both properties stay asserted -- the bound is applied,
+            # and the value is pinned so it cannot drift unmeasured.
+            self.assertEqual(EXTRACTOR_LLM_MAX_SOURCE_CHARS, 12_000)
             self.assertTrue(
-                all(len(item["content"]) <= 4_000 for item in prompt_sources)
+                all(
+                    len(item["content"]) <= EXTRACTOR_LLM_MAX_SOURCE_CHARS
+                    for item in prompt_sources
+                )
             )
             self.assertEqual(len(prompt_sources), 10)
             self.assertEqual(extractor.last_stats["llm_context_omitted_source_count"], 10)
