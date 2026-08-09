@@ -320,3 +320,56 @@ class DegradationNoticeRepetitionTests(_MoutaiFixture, unittest.TestCase):
         self.assertNotIn("999,999,999,999.99", guarded)
         self.assertNotIn("888,888,888,888.88", guarded)
         self.assertIn("收入增长的驱动因素", guarded)
+
+
+class ReaderRenderingConsistencyTests(_MoutaiFixture, unittest.TestCase):
+    """R107: one report, one number, one rendering.
+
+    The R107 BYD run selected two annual-report extracts whose claims verify,
+    so `_canonical_text` quoted them verbatim -- and the reader got
+    `777,102,455,000元` in 关键发现 next to `777,102,455,000 元` in
+    指标覆盖状态, the second being the form the reader-visible contract
+    requires. Both extracts came from one filing, so both cited `[^4]`.
+    """
+
+    def _verbatim_state(self) -> ResearchState:
+        state = self._state()
+        state.evidence_store = [
+            evidence
+            for evidence in state.evidence_store
+            if evidence.source_tier == "primary"
+        ]
+        for evidence in state.evidence_store:
+            period = evidence.numeric_fields.period
+            # A claim that verifies against its own excerpt, written the way a
+            # filing writes it: no space before the unit.
+            evidence.claim = f"比亚迪{period}年营业收入为{evidence.extract_text}元"
+            evidence.extract_text = (
+                f"营业收入 {period}年 {evidence.extract_text}元"
+            )
+            # One filing, one source URL, therefore one footnote.
+            evidence.source_url = "https://static.cninfo.com.cn/finalpage/002594.PDF"
+        return state
+
+    def test_currency_unit_spacing_is_uniform(self) -> None:
+        batch = self._renderer().render(self._verbatim_state())
+
+        self.assertEqual(len(batch.claims), 1)
+        text = batch.claims[0].text
+        self.assertIn(f"{PDF_2024} 元", text)
+        self.assertIn(f"{PDF_2023} 元", text)
+        self.assertNotIn(f"{PDF_2024}元", text)
+
+    def test_one_source_is_cited_once(self) -> None:
+        state = self._verbatim_state()
+        ref_map = {evidence.id: 4 for evidence in state.evidence_store}
+
+        guarded = self._reporter()._enforce_reader_fidelity(
+            self._report(),
+            state,
+            ref_map,
+        )
+
+        findings = self._key_findings(guarded)
+        self.assertIn("[^4]", findings)
+        self.assertNotIn("[^4] [^4]", findings)

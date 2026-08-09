@@ -26,6 +26,18 @@ _EXACT_RMB_RE = re.compile(
 _FINANCIAL_ATOM_RE = re.compile(
     r"-?\d[\d,]*(?:\.\d+)?\s*(?:元|万元|亿元|%|个百分点)"
 )
+# R107: `_format_value` writes `602,315,354,000 元`, but the branch that quotes
+# a verified claim verbatim writes whatever the source wrote, and the R107 BYD
+# run put `777,102,455,000元` in 关键发现 while 指标覆盖状态 gave the same
+# figure as `777,102,455,000 元` -- one report, one number, two renderings, and
+# the second is the one `check_reader_visible_contract.py` requires. The space
+# is typography: only whitespace between a figure and its currency unit is
+# touched, never a digit, and percentages keep the tight form readers expect.
+_CURRENCY_SPACING_RE = re.compile(r"(\d)[ \t]*(亿元|万元|元)")
+
+
+def _normalize_currency_spacing(text: str) -> str:
+    return _CURRENCY_SPACING_RE.sub(r"\1 \2", text)
 
 
 class FinanceGroundedFactRenderer:
@@ -144,7 +156,10 @@ class FinanceGroundedFactRenderer:
         return selections[0], self._claim_text(metric, selections[0])
 
     def _claim_text(self, metric: str, selected: list[Evidence]) -> str:
-        parts = [self._canonical_text(item) for item in selected]
+        parts = [
+            _normalize_currency_spacing(self._canonical_text(item))
+            for item in selected
+        ]
         if not any(_COMPARISON_RE.search(part) for part in parts):
             comparison = self._derived_comparison(selected)
             if comparison:

@@ -338,9 +338,15 @@ class ReporterAgent:
                     "grounded fact renderer returned an unbound claim: "
                     f"{claim.label}"
                 )
+            # R107: one footnote covers every Evidence sharing a source, so two
+            # cited records from the same filing both resolve to it and the
+            # reader saw `[^4] [^4]`. Cite each distinct source once, in the
+            # order the evidence was selected.
             citations = " ".join(
-                f"[^{ref_map[evidence_id]}]"
-                for evidence_id in valid_ids
+                f"[^{number}]"
+                for number in dict.fromkeys(
+                    ref_map[evidence_id] for evidence_id in valid_ids
+                )
             )
             rendered = f"{claim.text.rstrip()} {citations}".strip()
             cited_evidence = [
