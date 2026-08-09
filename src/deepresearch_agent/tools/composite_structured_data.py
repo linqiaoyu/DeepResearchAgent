@@ -62,6 +62,29 @@ class CompositeStructuredDataProvider:
     routing_events: list[RoutingEvent] = field(default_factory=list)
     _served_by: dict[str, str] = field(default_factory=dict)
 
+    @property
+    def fidelity(self) -> str:
+        """Declare the provenance of the route, never of one member alone.
+
+        R109: `auto` is what `--live` selects, and `auto` builds this class,
+        which declared no fidelity at all. The first live golden run therefore
+        recorded `structured_data: unknown` -- the field whose entire job is to
+        prove a run used real sources could not classify the provider the live
+        arm selects by default. A route is only as real as its least real
+        member, and a route whose members disagree is `mixed`, which
+        `AGENTS.md` §7 forbids calling a real run.
+        """
+
+        declared = {
+            getattr(item.provider, "fidelity", "unknown")
+            for item in self.providers
+        }
+        if not declared:
+            return "unknown"
+        if len(declared) == 1:
+            return declared.pop()
+        return "mixed"
+
     def supports_request(self, capability: str) -> bool:
         return any(
             self._supports(item.provider, capability) for item in self.providers

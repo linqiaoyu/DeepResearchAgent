@@ -89,7 +89,12 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 def _provider_fidelity(provider: object) -> str:
     """Read the provider's explicit provenance declaration without guessing."""
     fidelity = getattr(provider, "fidelity", "unknown")
-    return fidelity if fidelity in {"real", "fixture", "replay"} else "unknown"
+    # `mixed` is what a routed provider declares when its members disagree.
+    return (
+        fidelity
+        if fidelity in {"real", "fixture", "replay", "mixed"}
+        else "unknown"
+    )
 
 
 def _provider_identity(provider: object) -> str:

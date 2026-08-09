@@ -271,7 +271,11 @@ def _realness(
     if not isinstance(fidelity, dict) or not fidelity:
         return "unknown"
     values = list(fidelity.values())
-    allowed = {"real", "fixture", "replay"}
+    # R109: a routed provider declares `mixed` when its members disagree. That
+    # is a statement about provenance, not an unreadable one, and dropping the
+    # whole run to `unknown` because one layer said so hid the layer that was
+    # real behind the one that was not.
+    allowed = {"real", "fixture", "replay", "mixed"}
     if any(value not in allowed for value in values):
         return "unknown"
     unique = set(values)
