@@ -25,6 +25,25 @@ def validate_security_invariants(settings: Settings) -> None:
         )
 
 
+def validate_capability_invariants(settings: Settings) -> None:
+    """Refuse a capability that is switched on but cannot take effect.
+
+    R109: every guard reads ``Settings.research_loop_active``, which requires
+    ``research_loop_max_iterations > 1``, and that setting defaults to 1. So
+    ``RESEARCH_LOOP_ENABLED=true`` on its own changed nothing at all -- the
+    documented flag table says the capability exists, the operator turns it on,
+    and the run behaves exactly as before with nothing reported. A capability
+    that is on and inert is worse than one that is off, because only the second
+    is honest about it.
+    """
+
+    if settings.research_loop_enabled and settings.research_loop_max_iterations <= 1:
+        raise ConfigurationInvariantError(
+            "RESEARCH_LOOP_ENABLED requires DEEPRESEARCH_RESEARCH_LOOP_MAX_ITERATIONS "
+            f"> 1; got {settings.research_loop_max_iterations}"
+        )
+
+
 def validate_required_configuration(
     settings: Settings,
     environ: Mapping[str, str] | None = None,
@@ -47,6 +66,7 @@ def validate_required_configuration(
     ):
         missing.append("DASHSCOPE_API_KEY")
     validate_security_invariants(settings)
+    validate_capability_invariants(settings)
     search_provider = env.get("DEEPRESEARCH_SEARCH_PROVIDER", "fixture").strip().lower()
     if search_provider == "tavily" and not env.get("TAVILY_API_KEY", "").strip():
         missing.append("TAVILY_API_KEY")
