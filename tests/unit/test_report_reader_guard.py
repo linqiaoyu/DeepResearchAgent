@@ -6,6 +6,7 @@ from datetime import date
 from difflib import SequenceMatcher
 
 from deepresearch_agent.agents import ReporterAgent
+from deepresearch_agent.citations import build_footnote_maps
 from deepresearch_agent.domains.registry import load_domain_pack
 from deepresearch_agent.agents.reporter import (
     RESTATEMENT_SIMILARITY,
@@ -721,3 +722,104 @@ class AnalysisReachesTheReaderTests(unittest.TestCase):
         self.assertEqual(flow["claims_dropped_unrelated"], 1)
         self.assertIn("全系降价3万元", analysis)
         self.assertNotIn("匈牙利工厂", analysis)
+
+
+class FootnoteResolutionTests(unittest.TestCase):
+    """R100: one footnote can stand for several Evidence items."""
+
+    def test_a_line_is_checked_against_every_evidence_behind_its_footnote(self) -> None:
+        """The last blocker between R100's fixes and the reader.
+
+        `build_footnote_maps` gives one number to every Evidence sharing a
+        source, so two extracts from one article share `[^1]`. The downgrade
+        resolved that number through a dict comprehension and kept whichever
+        came last, then checked a margin line against a revenue extract and
+        deleted it as unverifiable -- while it was quoting its own source.
+        """
+
+        state = ResearchState(topic="蔚来 2024 年营收和毛利率")
+        state.plan = ResearchPlan(
+            topic=state.topic,
+            sub_questions=[
+                SubQuestion(
+                    id="rev_gm",
+                    question="蔚来 2024 年营收和毛利率如何变化？",
+                    search_queries=["fixture"],
+                    structured_data_requests=[
+                        StructuredDataRequest(
+                            capability="financial_indicators",
+                            symbol="NIO",
+                            metrics=["营业收入", "主营业务毛利率"],
+                            periods=["20241231"],
+                        )
+                    ],
+                )
+            ],
+        )
+        shared_source = "https://example.com/one-article"
+        state.evidence_store = [
+            Evidence(
+                id="margin",
+                research_id=state.research_id,
+                sub_question_id="rev_gm",
+                claim="整车毛利率12.2%，同比提升6个百分点",
+                claim_type="data",
+                source_url=shared_source,
+                source_title="One article",
+                source_pub_date=date(2025, 3, 21),
+                extract_text="整车毛利率12.2%，同比提升6个百分点",
+            ),
+            Evidence(
+                id="revenue",
+                research_id=state.research_id,
+                sub_question_id="rev_gm",
+                claim="蔚来2024年上半年营收为174.5亿元，同比增长98.9%",
+                claim_type="data",
+                source_url=shared_source,
+                source_title="One article",
+                source_pub_date=date(2025, 3, 21),
+                extract_text="蔚来2024年上半年营收为174.5亿元，同比增长98.9%",
+            ),
+        ]
+        draft = ReportDraft(
+            summary="本报告核验营收与毛利率。",
+            detailed_analysis=[
+                ReportSection(
+                    sub_question_id="rev_gm",
+                    heading="驱动因素",
+                    claims=[
+                        ReportClaim(
+                            text="2024年上半年整车毛利率为12.2%，同比提升6个百分点，改善幅度显著。",
+                            evidence_ids=["margin"],
+                        ),
+                        ReportClaim(
+                            text="2024年上半年营收174.5亿元，同比增长98.9%，增速高于全年。",
+                            evidence_ids=["revenue"],
+                        ),
+                    ],
+                )
+            ],
+        )
+
+        pack = load_domain_pack("finance")
+        reporter = ReporterAgent(
+            grounded_fact_renderer=pack.grounded_fact_renderer(),
+            numeric_citation_policy=pack.numeric_citation_policy(),
+            domain_pack=pack,
+        )
+        rendered, _, _ = reporter._render_llm_report(state, draft)
+        reporter.last_stats["fallback"] = False
+        report = reporter._enforce_reader_fidelity(
+            rendered,
+            state,
+            build_footnote_maps(state.evidence_store).evidence_id_to_footnote,
+        )
+        analysis = report.split("## 详细分析", 1)[1].split("\n## ", 1)[0]
+
+        self.assertNotIn(
+            "未通过 Evidence 保真守卫",
+            analysis,
+            "a line quoting its own source was deleted as unverifiable",
+        )
+        self.assertIn("12.2%", analysis)
+        self.assertIn("174.5亿元", analysis)

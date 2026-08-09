@@ -410,12 +410,19 @@ class ReporterAgent:
             "风险与限制",
             "未验证假设",
         }
-        evidence_by_footnote = {
-            number: evidence
-            for evidence_id, number in ref_map.items()
-            for evidence in state.evidence_store
-            if evidence.id == evidence_id
-        }
+        # R100: one footnote covers every Evidence sharing a source, so this
+        # mapping is one-to-many. Built as a dict comprehension it kept only the
+        # last, and a line was then checked against whichever fact happened to
+        # win -- a margin line citing a footnote whose last entry was a revenue
+        # extract could not be supported by it, and was deleted as unverifiable
+        # while quoting its own source. `has_numeric_mismatch` already reads its
+        # evidence as a union; give it the whole union.
+        evidence_by_footnote: dict[int, list[Evidence]] = defaultdict(list)
+        evidence_by_id = {item.id: item for item in state.evidence_store}
+        for evidence_id, number in ref_map.items():
+            item = evidence_by_id.get(evidence_id)
+            if item is not None:
+                evidence_by_footnote[number].append(item)
         section = ""
         downgraded = 0
         for index, line in enumerate(lines):
@@ -427,9 +434,9 @@ class ReporterAgent:
             if line.startswith("### "):
                 continue
             cited = [
-                evidence_by_footnote[int(number)]
+                item
                 for number in _FOOTNOTE_RE.findall(line)
-                if int(number) in evidence_by_footnote
+                for item in evidence_by_footnote.get(int(number), ())
             ]
             if self.grounded_fact_renderer is None:
                 raise ValueError("reader fidelity policy disappeared mid-run")
