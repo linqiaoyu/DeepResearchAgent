@@ -61,6 +61,13 @@ class FinanceDomainPack:
     def equity_exchange_label(self) -> str:
         return MAINLAND_EQUITY_EXCHANGE
 
+    def equity_listing_sources(self) -> tuple[tuple[str, str, str], ...]:
+        from deepresearch_agent.domains.finance.listing_sources import (
+            EQUITY_LISTING_SOURCES,
+        )
+
+        return EQUITY_LISTING_SOURCES
+
     def structured_issuer_aliases(self) -> Mapping[str, str]:
         """Map public local issuer names to the SEC registrant-name candidate."""
 

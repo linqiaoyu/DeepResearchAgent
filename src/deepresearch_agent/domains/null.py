@@ -93,6 +93,9 @@ class NullDomainPack:
     def structured_metric_unit(self, _metric_name: str) -> str | None:
         return None
 
+    def equity_listing_sources(self) -> tuple[tuple[str, str, str], ...]:
+        return ()
+
     def equity_exchange_label(self) -> str:
         return "unknown"
 

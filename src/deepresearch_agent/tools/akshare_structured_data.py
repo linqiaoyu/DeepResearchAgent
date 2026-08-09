@@ -7,11 +7,17 @@ import time
 from collections.abc import Callable
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from pathlib import Path
 from typing import Any
 
 from deepresearch_agent.domains.protocols import StructuredDataDomain
 from deepresearch_agent.domains.requirements import resolve_domain_capability
 from deepresearch_agent.schemas import StructuredDataRecord, SymbolInfo
+from deepresearch_agent.tools.symbol_table import (
+    DEFAULT_CACHE_PATH,
+    SymbolTable,
+    load_symbol_table,
+)
 
 
 class AKShareStructuredDataError(RuntimeError):
@@ -38,6 +44,7 @@ class AKShareStructuredDataProvider:
         sleep_func: Callable[[float], None] = time.sleep,
         isolate_processes: bool = True,
         domain_pack: StructuredDataDomain | None = None,
+        symbol_cache_path: Path = DEFAULT_CACHE_PATH,
     ) -> None:
         if akshare_module is None:
             import akshare as akshare_module
@@ -50,37 +57,56 @@ class AKShareStructuredDataProvider:
         self._domain_pack = resolve_domain_capability(
             domain_pack, consumer="AKShareStructuredDataProvider"
         )
+        self._symbol_cache_path = symbol_cache_path
+        self._cached_symbol_table: SymbolTable | None = None
 
     def close(self) -> None:
         """Compatibility hook; each bounded attempt owns its own process."""
 
     def symbol_resolve(self, company_name: str) -> SymbolInfo | None:
+        """Resolve an issuer name or code against the cached listing table.
+
+        R111: this used to call `stock_info_a_code_name()` on every request.
+        That endpoint answers correctly and takes 25.2 seconds, against this
+        provider's 15-second call budget -- so it timed out every time, and the
+        authoritative structured layer returned 0 records for 2 of the 3
+        issuers in the golden set across 16 of 16 live runs. The exact-match
+        rule below is unchanged; only where the table comes from has changed.
+        """
+
         query = company_name.strip()
         if not query:
             return None
-        frame = self._call(lambda: self.akshare.stock_info_a_code_name(), "symbol_resolve")
-        records = frame.to_dict("records")
-        normalized = [
-            (str(row.get("code", "")).strip(), str(row.get("name", "")).strip())
-            for row in records
-        ]
-        # A stock code is globally unique in this provider.  A name is not, so
-        # accepting a partial name (or the first duplicate) would silently
-        # attach another issuer's financial data to the request.
-        exact_codes = [(code, name) for code, name in normalized if code == query]
-        exact_names = [(code, name) for code, name in normalized if name == query]
-        matches = exact_codes or exact_names
-        if len(matches) != 1:
+        table = self._symbol_table()
+        if table is None:
             return None
-        code, name = matches[0]
+        match = table.resolve(query)
+        if match is None:
+            return None
+        code, name = match
         return SymbolInfo(
             entity=name,
             symbol=code,
             exchange=self._domain_pack.equity_exchange_label(),
             name=name,
-            data_source="AKShare: stock_info_a_code_name",
+            data_source="AKShare: " + ", ".join(table.sources),
             as_of=date.today(),
         )
+
+    def _symbol_table(self) -> SymbolTable | None:
+        if self._cached_symbol_table is None:
+            try:
+                self._cached_symbol_table = load_symbol_table(
+                    lambda endpoint: self._call(
+                        lambda: getattr(self.akshare, endpoint)(),
+                        "symbol_resolve",
+                    ),
+                    self._domain_pack.equity_listing_sources(),
+                    cache_path=self._symbol_cache_path,
+                )
+            except LookupError:
+                return None
+        return self._cached_symbol_table
 
     def financial_indicators(
         self,
