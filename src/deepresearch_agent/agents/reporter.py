@@ -447,6 +447,7 @@ class ReporterAgent:
                 evidence_by_footnote[number].append(item)
         section = ""
         downgraded = 0
+        notice_emitted = False
         for index, line in enumerate(lines):
             if line.startswith("## "):
                 section = line.removeprefix("## ").strip()
@@ -471,10 +472,18 @@ class ReporterAgent:
                 continue
             prefix = "- " if line.lstrip().startswith("-") else ""
             notice = "该数值表述未通过 Evidence 保真守卫，无法由引用证据核验，已移除；请参阅关键发现中的可核验数值。"
-            if notice in lines:
+            # R107: this said the notice once by testing `notice in lines`, but
+            # the line it writes carries a `- ` bullet prefix, so that test
+            # never matched what it had written and every downgrade printed the
+            # sentence again. R105's and R107's live 详细分析 both opened with
+            # the same 47-character apology twice in a row. Track what was
+            # emitted rather than searching for it in a form it is never
+            # stored in.
+            if notice_emitted:
                 lines[index] = ""
             else:
                 lines[index] = prefix + notice
+                notice_emitted = True
             downgraded += 1
         return downgraded
 

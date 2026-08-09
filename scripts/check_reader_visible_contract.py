@@ -11,7 +11,18 @@ from pathlib import Path
 
 
 _HEADING_RE = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
-_FOOTNOTE_DEF_RE = re.compile(r"^\[\^(\d+)\]:\s+.*?(https?://\S+)", re.MULTILINE)
+# R107: this pattern accepted only `http(s)`, and the gate only ever ran this
+# checker against a sample whose sources are all SEC URLs. Pointed at a real
+# delivered report for the first time, it reported `footnote_misrefs=2
+# missing=['1', '2']` for two footnotes that were defined on the page -- their
+# provider-origin URIs are `akshare://...`, which is what a structured record
+# carries when the provider is an API rather than a document. A closure guard
+# that cannot read half the citations this agent emits reports misses that are
+# not there, and the run's own `audit_citation_closure=ok` disagreed with it.
+_FOOTNOTE_DEF_RE = re.compile(
+    r"^\[\^(\d+)\]:\s+.*?([a-z][a-z0-9+.\-]*://\S+)",
+    re.MULTILINE,
+)
 _FOOTNOTE_REF_RE = re.compile(r"\[\^(\d+)\]")
 _NUMBER_RE = re.compile(r"(?<!\d)(-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)(?!\d)")
 
@@ -140,10 +151,14 @@ def _sample_report(mutation: str | None = None) -> tuple[str, tuple[ExpectedFind
     gross = "6,492,762,000 CNY"
     key_lines = [
         f"- 营业收入：NIO Inc. 2024年年度营业收入为{revenue}。 [^1]",
-        f"- 毛利：NIO Inc. 2024年年度毛利为{gross}。 [^1]",
+        f"- 毛利：NIO Inc. 2024年年度毛利为{gross}。 [^2]",
     ]
     definitions = [
-        "[^1]: SEC Company Facts. https://www.sec.gov/companyfacts/1736541"
+        "[^1]: SEC Company Facts. https://www.sec.gov/companyfacts/1736541",
+        # A structured record from an API provider cites a provider-origin URI,
+        # not a document URL. The sample carries one so this checker is never
+        # again validated only against citations it happens to find readable.
+        "[^2]: AKShare: stock_financial_abstract. akshare://毛利/1736541/20241231",
     ]
     degradation = [
         "## 数据获取降级",
@@ -156,7 +171,7 @@ def _sample_report(mutation: str | None = None) -> tuple[str, tuple[ExpectedFind
         key_lines[0] = "- 营业收入：未取得满足保真合同的事实。"
     elif mutation == "c3":
         definitions.append(
-            "[^2]: Duplicate SEC fact. https://www.sec.gov/companyfacts/1736541"
+            "[^3]: Duplicate SEC fact. https://www.sec.gov/companyfacts/1736541"
         )
     elif mutation == "c4":
         key_lines[0] = key_lines[0].replace(revenue, "6,573,155,900 CNY")
@@ -172,7 +187,7 @@ def _sample_report(mutation: str | None = None) -> tuple[str, tuple[ExpectedFind
             "",
             "## 详细分析",
             f"- 营业收入为{revenue}。 [^1]",
-            f"- 毛利为{gross}。 [^1]",
+            f"- 毛利为{gross}。 [^2]",
             "",
             "## 参考来源",
             *definitions,

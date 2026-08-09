@@ -36,93 +36,8 @@ PDF_2024 = "170,899,152,276.34"
 PDF_2023 = "147,693,604,994.14"
 
 
-class GroundedSelectionFallbackTests(unittest.TestCase):
-    def test_unverifiable_top_ranked_extract_does_not_cost_the_reader_the_metric(
-        self,
-    ) -> None:
-        state = self._state()
-
-        guarded = self._reporter()._enforce_reader_fidelity(
-            self._report(),
-            state,
-            self._ref_map(state),
-        )
-
-        findings = self._key_findings(guarded)
-        self.assertNotIn("未取得可引用的原始披露事实", findings)
-        self.assertIn(f"{REVENUE_2024} 元", findings)
-        self.assertIn(f"{REVENUE_2023} 元", findings)
-
-    def test_reader_gets_the_filed_figure_not_the_unverifiable_one(self) -> None:
-        state = self._state()
-
-        guarded = self._reporter()._enforce_reader_fidelity(
-            self._report(),
-            state,
-            self._ref_map(state),
-        )
-
-        findings = self._key_findings(guarded)
-        # The bare-digit PDF extracts name no metric, so nothing in the run can
-        # confirm what they measure. They must not reach the reader as the
-        # answer just because their source outranks the records that can --
-        # and the reader must get the figure that does verify in their place,
-        # which is what makes dropping the metric a failure here too.
-        self.assertNotIn(PDF_2024, findings)
-        self.assertNotIn(PDF_2023, findings)
-        self.assertIn(f"{REVENUE_2024} 元", findings)
-        self.assertIn(f"{REVENUE_2023} 元", findings)
-
-    def test_both_requested_periods_survive_the_retry(self) -> None:
-        batch = self._renderer().render(self._state())
-
-        self.assertEqual(batch.gaps, ())
-        self.assertEqual(len(batch.claims), 1)
-        claim = batch.claims[0]
-        self.assertEqual(len(claim.evidence_ids), 2)
-        self.assertIn("同比增长15.66%", claim.text)
-
-    def test_verifiable_top_ranked_evidence_is_still_preferred(self) -> None:
-        """The retry must not demote a primary source that does verify."""
-        state = self._state()
-        for evidence in state.evidence_store:
-            if evidence.source_tier == "primary":
-                # Give the PDF extracts the metric name they lacked; they now
-                # ground their own numbers and must win on tier as before.
-                evidence.extract_text = (
-                    f"营业收入 {evidence.numeric_fields.period}年 "
-                    f"{evidence.extract_text}元"
-                )
-
-        batch = self._renderer().render(state)
-
-        self.assertEqual(len(batch.claims), 1)
-        self.assertIn(PDF_2024, batch.claims[0].text)
-        self.assertIn(PDF_2023, batch.claims[0].text)
-
-    def test_metric_stays_a_gap_when_no_selection_verifies(self) -> None:
-        """Fail-closed is unchanged: no verifiable option is still a gap."""
-        state = self._state()
-        state.evidence_store = [
-            evidence
-            for evidence in state.evidence_store
-            if evidence.source_tier == "primary"
-        ]
-
-        batch = self._renderer().render(state)
-        reporter = self._reporter()
-        guarded = reporter._enforce_reader_fidelity(
-            self._report(),
-            state,
-            self._ref_map(state),
-        )
-
-        self.assertEqual(len(batch.claims), 1)
-        self.assertIn("未取得可引用的原始披露事实", self._key_findings(guarded))
-        self.assertEqual(
-            reporter.last_stats["reader_fidelity_guard"]["grounded_gaps"],
-            ["营业收入"],
-        )
+class _MoutaiFixture:
+    """The archived R105 evidence shape, shared by both test classes."""
 
     def _key_findings(self, report: str) -> str:
         lines = report.splitlines()
@@ -271,3 +186,137 @@ class GroundedSelectionFallbackTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GroundedSelectionFallbackTests(_MoutaiFixture, unittest.TestCase):
+    def test_unverifiable_top_ranked_extract_does_not_cost_the_reader_the_metric(
+        self,
+    ) -> None:
+        state = self._state()
+
+        guarded = self._reporter()._enforce_reader_fidelity(
+            self._report(),
+            state,
+            self._ref_map(state),
+        )
+
+        findings = self._key_findings(guarded)
+        self.assertNotIn("未取得可引用的原始披露事实", findings)
+        self.assertIn(f"{REVENUE_2024} 元", findings)
+        self.assertIn(f"{REVENUE_2023} 元", findings)
+
+    def test_reader_gets_the_filed_figure_not_the_unverifiable_one(self) -> None:
+        state = self._state()
+
+        guarded = self._reporter()._enforce_reader_fidelity(
+            self._report(),
+            state,
+            self._ref_map(state),
+        )
+
+        findings = self._key_findings(guarded)
+        # The bare-digit PDF extracts name no metric, so nothing in the run can
+        # confirm what they measure. They must not reach the reader as the
+        # answer just because their source outranks the records that can --
+        # and the reader must get the figure that does verify in their place,
+        # which is what makes dropping the metric a failure here too.
+        self.assertNotIn(PDF_2024, findings)
+        self.assertNotIn(PDF_2023, findings)
+        self.assertIn(f"{REVENUE_2024} 元", findings)
+        self.assertIn(f"{REVENUE_2023} 元", findings)
+
+    def test_both_requested_periods_survive_the_retry(self) -> None:
+        batch = self._renderer().render(self._state())
+
+        self.assertEqual(batch.gaps, ())
+        self.assertEqual(len(batch.claims), 1)
+        claim = batch.claims[0]
+        self.assertEqual(len(claim.evidence_ids), 2)
+        self.assertIn("同比增长15.66%", claim.text)
+
+    def test_verifiable_top_ranked_evidence_is_still_preferred(self) -> None:
+        """The retry must not demote a primary source that does verify."""
+        state = self._state()
+        for evidence in state.evidence_store:
+            if evidence.source_tier == "primary":
+                # Give the PDF extracts the metric name they lacked; they now
+                # ground their own numbers and must win on tier as before.
+                evidence.extract_text = (
+                    f"营业收入 {evidence.numeric_fields.period}年 "
+                    f"{evidence.extract_text}元"
+                )
+
+        batch = self._renderer().render(state)
+
+        self.assertEqual(len(batch.claims), 1)
+        self.assertIn(PDF_2024, batch.claims[0].text)
+        self.assertIn(PDF_2023, batch.claims[0].text)
+
+    def test_metric_stays_a_gap_when_no_selection_verifies(self) -> None:
+        """Fail-closed is unchanged: no verifiable option is still a gap."""
+        state = self._state()
+        state.evidence_store = [
+            evidence
+            for evidence in state.evidence_store
+            if evidence.source_tier == "primary"
+        ]
+
+        batch = self._renderer().render(state)
+        reporter = self._reporter()
+        guarded = reporter._enforce_reader_fidelity(
+            self._report(),
+            state,
+            self._ref_map(state),
+        )
+
+        self.assertEqual(len(batch.claims), 1)
+        self.assertIn("未取得可引用的原始披露事实", self._key_findings(guarded))
+        self.assertEqual(
+            reporter.last_stats["reader_fidelity_guard"]["grounded_gaps"],
+            ["营业收入"],
+        )
+
+
+class DegradationNoticeRepetitionTests(_MoutaiFixture, unittest.TestCase):
+    """R107: the reader is told once that a line was removed, not once per line."""
+
+    NOTICE = (
+        "该数值表述未通过 Evidence 保真守卫，无法由引用证据核验，"
+        "已移除；请参阅关键发现中的可核验数值。"
+    )
+
+    def test_repeated_downgrades_state_the_reason_once(self) -> None:
+        state = self._state()
+        report = "\n".join(
+            [
+                "# 报告",
+                "",
+                "## 关键发现",
+                "- 营业收入两年均有增长。 [^1]",
+                "",
+                "## 详细分析",
+                "- 2024年营业收入为999,999,999,999.99元。 [^3]",
+                "- 2023年营业收入为888,888,888,888.88元。 [^3]",
+                "- 收入增长的驱动因素在现有证据中没有数据。 [^3]",
+                "",
+                "## 参考来源",
+                "[^1]: AKShare 600519",
+            ]
+        )
+
+        reporter = self._reporter()
+        guarded = reporter._enforce_reader_fidelity(
+            report,
+            state,
+            self._ref_map(state),
+        )
+
+        self.assertEqual(
+            reporter.last_stats["reader_fidelity_guard"]["downgraded_numeric_lines"],
+            2,
+        )
+        self.assertEqual(guarded.count(self.NOTICE), 1)
+        # The unverifiable figures are gone; the line with no numbers stays.
+        self.assertNotIn("999,999,999,999.99", guarded)
+        self.assertNotIn("888,888,888,888.88", guarded)
+        self.assertIn("收入增长的驱动因素", guarded)
