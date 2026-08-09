@@ -109,7 +109,7 @@ flowchart LR
 | 被拦截的问题 | 产物级证据 |
 | --- | --- |
 | Judge 变化被误写成模型提升 | 历史分解为 `0.6134 + 0.1865 - 0.0585 = 0.7414`；manifest 现在比较模型、prompt hash、as-of、flags 与依赖，见 [evaluation.md](docs/evaluation.md)。 |
-| Citation resolution 满分掩盖综合退化 | G1/G2/G3 weighted score 为 `0.8337 → 0.7714 → 0.7982`，而 resolution 为 `0.6000 → 1.0000 → 0.9333`；保存态对比阻止把 G2 当成改进，见 [v11_three_point_comparison.json](data/golden_set/v1/results/v11_three_point_comparison.json)。 |
+| Citation resolution 满分掩盖综合退化 | G1/G2/G3 weighted score 为 `0.8337 → 0.7714 → 0.7982`，而 resolution 为 `0.6000 → 1.0000 → 0.9333`；保存态对比阻止把 G2 当成改进。**这三代分数均由 replay 检索 + fixture 结构化数据产生**（Round 109 前 runner 无 live 分支），不能读作交付产物的质量，见 [v11_three_point_comparison.json](data/golden_set/v1/results/v11_three_point_comparison.json)。 |
 | Context packer 静默丢 Evidence | 产物快照曾在 ¥0 fixture 路径发现约 80% Evidence 丢失；修复后两题保留 `12/21` 与 `13/29` 条。Round 087 的受控 live A/B 将 NIO 报告的读者可见行数从 `18` 降至 `15`，因此该开关已默认开启；证据仍仅覆盖金融 SUT，见 [method_limits.md](docs/method_limits.md)。 |
 
 ### Agent 决策不是黑盒日志
@@ -124,7 +124,7 @@ flowchart LR
 
 ### Skill pack 与 DomainPack 分工
 
-金融数值口径表从 `data/` 迁到 [finance-metric-normalization](skills/finance-metric-normalization/SKILL.md)，迁移前后 SHA-256 一致。开启 skill pack 后，系统先读 `SKILL.md` 的 name/description，判定适用后才读取资源并注册能力；非适用用例的 resource reads 为 0。运行时领域策略则由显式 finance `DomainPack` 提供，两者不是同一扩展机制。当前尚无第二个真实 DomainPack，完整边界见 [skills.md](docs/skills.md)。
+金融数值口径表从 `data/` 迁到 [finance-metric-normalization](skills/finance-metric-normalization/SKILL.md)，迁移前后 SHA-256 一致。开启 skill pack 后，系统先读 `SKILL.md` 的 name/description，判定适用后才读取资源并注册能力；非适用用例的 resource reads 为 0。运行时领域策略则由显式 finance `DomainPack` 提供，两者不是同一扩展机制。**当前仍只有 finance 一个产品领域**；Round 111 把新增领域的成本从 51 个方法降到「只重写你有主张的那几个」——`BaseDomainPack` 对每项能力回答“本领域无主张”，实测一个只重写 1 个方法的领域即可跑完整工作流且不继承 finance 的任何词表或口径，见 [test_a_new_domain_is_cheap.py](tests/unit/test_a_new_domain_is_cheap.py) 与 [skills.md](docs/skills.md)。
 
 ## 工程质量
 
@@ -134,7 +134,8 @@ flowchart LR
 | 静态检查 | Ruff 版本由 [pyproject.toml](pyproject.toml) 精确锁定，本地 gate 与 CI 使用同一项目解释器和命令。 |
 | 行为等价 | 2 个规范化题面逐字匹配 [golden_output](tests/golden_output/)；未知 manifest flag fail-closed，见 [manifest.py](src/deepresearch_agent/provenance/manifest.py)。 |
 | 故障演练 | 8 个离线 chaos 场景覆盖认证、限流、超时、连续失败、熔断和部分降级，见 [tests/chaos](tests/chaos/)。 |
-| Golden v1.1 | 30 questions；四键审计 `76 PASS / 0 DEFECT / 3 UNCERTAIN`；G3 weighted `0.7982`、fact accuracy `0.8867`、citation support `0.7376`，见 [Golden results](data/golden_set/v1/results/)。 |
+| 第二存储后端 | Postgres 后端由独立 CI job 对真实服务器执行 `contract.test_storage_contract` 与 `integration.test_postgres_storage_live`；`scripts/check_postgres_job.py` 拒绝“靠跳过而通过”，配置了 DSN 却出现 skip 即判失败。首次运行含 172 秒 schema 迁移，之后约 0.6 秒，故不进默认本地门禁。 |
+| Golden v1.1 | 30 questions；四键审计 `76 PASS / 0 DEFECT / 3 UNCERTAIN`。G3 weighted `0.7982` 等历史分数是 **replay + fixture** 保真度下的量测，`AGENTS.md` §6 不允许据此为 `content_affecting` 开关转正；Round 109 起 `run_golden_round.py --live` 才提供四层真实 provider 的量测，见 [Golden results](data/golden_set/v1/results/) 与 [decisions/109](docs/decisions/109/result.md)。 |
 | Round 087 最终 live 报告 | NIO 中文报告为 13 条读者可见行、0 条样板噪声、2/2 指标回答并含 1 个可追溯派生指标；PDD 英文报告为 11 条读者可见行、0 条样板噪声、1/2 指标回答且对缺口作显式说明。两者均使用 `SecCompanyFactsProvider`，并通过结构化 manifest 与引用闭合检查，见 [087 result](docs/decisions/087/result.md)。 |
 | 公开形态 | [公开地址](https://deepresearch-agent.jacksonyu1109.workers.dev/) 是 `scripts/build_site.py` 生成的静态演示站，不是常驻 API 服务；部署边界见 [deployment.md](docs/deployment.md)。 |
 

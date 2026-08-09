@@ -116,6 +116,12 @@ DeepResearchAgent 是自建 Agent Harness；金融投研是首个被测系统（
   历史状态缺映射时必须显式降级。**风险：** Evidence 重排后引用静默指错来源。
 - 新增或修改的 prompt 放在 `prompts/` 并登记 drift；历史硬编码作为技术债，不得把
   未完成目标写成既成事实。**风险：** prompt 变化无法复现、审查或归因。
+- 开着的能力必须能被该次 run 的产物证明。一个开关为 true 却无法从 state、manifest 或
+  轨迹中判定它是否生效，等同于没有这项能力；`scripts/check_capability_observability.py`
+  为每个声明的开关给出 `ran / active / bypassed / absent`，没有定位器即失败。
+  **依据：** 109 的 `RESEARCH_LOOP_ENABLED` 开了等于没开（`max_iterations` 默认 1），
+  111 的 `RAG_ENABLED` 打开后引擎侧根本没有检索服务可用；两次都是“文档说有、
+  操作者打开、运行毫无变化”，而全量门禁全绿。
 - manifest flag 必须分类为 `content_affecting`、`additive_content` 或 `operational`，
   未知 flag fail closed；改变 Evidence 集合或顺序的能力不得只凭 fixture 指标转正。
   **依据：** 027 的默认翻转需要可比性分类；019-E 证明工程可达不等于一手证据闭合。
@@ -133,6 +139,12 @@ DeepResearchAgent 是自建 Agent Harness；金融投研是首个被测系统（
 - 称为“真实运行”时，LLM、检索、数据源三层必须全部使用真实 provider；任一 fixture
   层都必须明确标为 mixed/fixture。**依据：** 025/026 的构造探针不能证明真实 E2E，
   031 才完成三层真实运行。
+- 量具本身的保真度必须先声明再引用它的数字。评测 runner 必须打印并在产物中记录
+  provider 各层的 fidelity；任何被引用的分数都要能追到那次运行的 fidelity 记录，
+  文档引用历史分数时必须同时写明其保真度。
+  **依据：** 109 发现 `run_golden_round.py` 把 replay 检索 + fixture 结构化数据硬编码，
+  于是 008 轮以来引用了约 100 轮的 g1/g2/g3（0.8337/0.7714/0.7982）全部是 fixture 数字；
+  同一道题在真实保真度下结构化记录从 0 条变成 2 条。
 - 代码改变后的运行是新实验，必须重新验证；禁止在相同代码上反复运行后挑最好结果。
   所有成功、失败和熔断均记录时间、commit、run id、配置、结果、成本和耗时。
   **依据：** 030 修第三处断路后没有新实验，无法证明修复生效。
@@ -161,6 +173,10 @@ DeepResearchAgent 是自建 Agent Harness；金融投研是首个被测系统（
   **依据：** 082–086 五轮管道判据全部转绿（`verdict=PASS`、`footnote_misrefs=0`、
   `off_year_ratio=0.00`），而 086 的读者报告 351 行中可用内容仅 5 行、
   样板噪声 117 行、分析层误报 4 条。
+- 比较必须先给出噪声底再给结论。对照实验要同时报告组间差与同题内差；当同一道题的
+  分差不小于组间分差时，不得据此判定任何能力有效或无效，只能报告该量具在此样本量
+  下无分辨力。**依据：** 109 的八臂 A/B 中，同题内分差 0.948 是臂间分差 0.408 的 2.32 倍，
+  六个臂“高于对照”全部落在噪声内。
 - 每条新增守卫必须说明删掉或变异哪一行会失败，并实际保存该失败的原始输出。
   **风险：** 仅覆盖 happy path 的守卫可能从未真正生效。
 - 默认 CI、demo 和完整单测不得要求付费 key；真实模式另行显式授权。
@@ -184,6 +200,30 @@ DeepResearchAgent 是自建 Agent Harness；金融投研是首个被测系统（
   **依据：** 022/024/029 缺决策记录，重要资产只留在 ignored 目录。
 - 可使用 bounded 子审计并行，但必须由一个执行者对实现、验证和报告端到端负责，不以
   handoff 消解责任。**风险：** 多角色拆分后无人对交付闭环负责。
+
+## 11. 规则的执行面
+
+本文件的每条规则要么由一条可运行的检查强制，要么明确标为“仅靠判断”。没有检查的
+规则会被违反很久而无人察觉，这不是假设：§7 的“真实运行”规则写了约 100 轮，而评测
+量具一直是 fixture；§1 的“不手抄默认值”写在第一节，而 6 处文档陈述与代码相反地通过了
+每一次门禁。
+
+新增或修改规则时必须一并给出它的执行面：要么指出哪一步门禁会因违反而失败，要么写明
+它无法被机械检查、只能靠评审。后者是合法的，隐瞒它不是。
+
+| 规则 | 执行面 |
+|---|---|
+| 核心不得 import 具体领域 | `scripts/check_domain_boundary.py`（`import_sites` 与字面量棘轮） |
+| 默认值不得手抄漂移 | `scripts/sync_agents_settings.py --check`（token）+ `scripts/check_doc_flag_claims.py`（正文陈述） |
+| 开着的能力必须可被证明 | `scripts/check_capability_observability.py` |
+| 读者可见产物不得自相矛盾 | `scripts/check_reader_visible_contract.py` |
+| 指令文件本身不得漂移 | `scripts/check_agent_guidance.py` |
+| 全量门禁是唯一交付入口 | `scripts/gate.py`，且 `tracked_files_unchanged` |
+| 第二存储后端必须真被执行 | CI `postgres-storage` job + `scripts/check_postgres_job.py`（拒绝靠 skip 通过） |
+| 量具保真度必须可追 | runner 打印 `fidelity=`，state 记录 `provider_fidelity` |
+| 轮次范围、停止条件、成本授权 | **仅靠判断**：无机械检查，靠任务卡与报告评审 |
+| 比较必须先给噪声底 | **仅靠判断**：需要执行者自己算并报告 |
+| 不得伪造或猜测数据 | **仅靠判断**：部分由数值守卫覆盖，整体不可机械判定 |
 
 ## 10. 由代码生成的默认开关
 
