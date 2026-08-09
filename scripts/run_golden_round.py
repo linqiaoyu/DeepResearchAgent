@@ -21,6 +21,36 @@ from deepresearch_agent.schemas import ResearchState
 from deepresearch_agent.workflow import DeepResearchEngine
 
 
+def golden_round_environment(args: Any) -> dict[str, str]:
+    """Map the chosen fidelity to provider environment.
+
+    R109: this harness replays recorded search and serves fixture structured
+    data, which makes a scored round reproducible but means its numbers are not
+    a measurement of the delivered product. `AGENTS.md` §6 forbids promoting a
+    content-affecting capability on fixture metrics, and §7 forbids calling a
+    mixed run real -- so an A/B between capability flags needs a live arm. The
+    default is unchanged.
+    """
+
+    environment = {
+        "DEEPRESEARCH_MODE": "llm",
+        "DEEPRESEARCH_SEARCH_PROVIDER": "tavily",
+        "DEEPRESEARCH_AS_OF": args.as_of,
+        "DEEPRESEARCH_LLM_LEDGER_PATH": args.ledger_path,
+        "DEEPRESEARCH_LLM_BUDGET_CNY": str(args.run_budget_cny),
+    }
+    if args.live:
+        environment["DEEPRESEARCH_SEARCH_RECORDING_MODE"] = "off"
+        environment["DEEPRESEARCH_STRUCTURED_DATA_PROVIDER"] = (
+            args.structured_data_provider
+        )
+    else:
+        environment["DEEPRESEARCH_SEARCH_RECORDING_MODE"] = "replay"
+        environment["DEEPRESEARCH_SEARCH_RECORDING_DIR"] = args.recording_dir
+        environment["DEEPRESEARCH_STRUCTURED_DATA_PROVIDER"] = "fixture"
+    return environment
+
+
 def main() -> None:
     args = _parse_args()
     _load_env(Path(args.env_path))
@@ -60,17 +90,13 @@ def main() -> None:
     work_dir = Path(args.work_dir)
     work_dir.mkdir(parents=True, exist_ok=True)
 
-    os.environ.update(
-        {
-            "DEEPRESEARCH_MODE": "llm",
-            "DEEPRESEARCH_SEARCH_PROVIDER": "tavily",
-            "DEEPRESEARCH_SEARCH_RECORDING_MODE": "replay",
-            "DEEPRESEARCH_SEARCH_RECORDING_DIR": args.recording_dir,
-            "DEEPRESEARCH_STRUCTURED_DATA_PROVIDER": "fixture",
-            "DEEPRESEARCH_AS_OF": args.as_of,
-            "DEEPRESEARCH_LLM_LEDGER_PATH": args.ledger_path,
-            "DEEPRESEARCH_LLM_BUDGET_CNY": str(args.run_budget_cny),
-        }
+    environment = golden_round_environment(args)
+    os.environ.update(environment)
+    print(
+        "fidelity="
+        + ("live" if args.live else "replay+fixture")
+        + f" structured_data={environment['DEEPRESEARCH_STRUCTURED_DATA_PROVIDER']}"
+        + f" search_recording={environment['DEEPRESEARCH_SEARCH_RECORDING_MODE']}"
     )
 
     judge_client = JudgeClient(
@@ -407,6 +433,16 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--state-path-map", default="")
     parser.add_argument("--generation", default="")
     parser.add_argument("--validate-only", action="store_true")
+    parser.add_argument(
+        "--live",
+        action="store_true",
+        help=(
+            "Use real search and a real structured-data provider instead of "
+            "replayed recordings and fixtures. Required before any number from "
+            "this runner may be read as a property of the delivered product."
+        ),
+    )
+    parser.add_argument("--structured-data-provider", default="auto")
     parser.add_argument("--judge-samples", type=int, default=3)
     parser.add_argument("--run-budget-cny", type=float, default=3.0)
     parser.add_argument("--judge-budget-cny", type=float, default=3.0)
