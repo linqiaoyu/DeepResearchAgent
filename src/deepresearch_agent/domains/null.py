@@ -8,7 +8,7 @@ composition test fixture for the harness boundary.
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
@@ -141,8 +141,18 @@ class NullDomainPack:
     def reader_assumption_visible(self, _line: str) -> bool:
         return True
 
-    def reader_metric_gap_explanation(self, _metric: str) -> str:
+    def reader_metric_gap_explanation(
+        self, _metric: str, derived_periods: Sequence[str] = ()
+    ) -> str:
+        if derived_periods:
+            return (
+                "Not disclosed directly; derived from its components for "
+                f"{', '.join(derived_periods)} -- see the derived metrics section."
+            )
         return "No citable source fact was obtained; consult the primary disclosure."
+
+    def derived_metric_periods(self, _evidence: list[Any]) -> Mapping[str, tuple[str, ...]]:
+        return {}
 
     def metrics_mentioned(self, _text: str, _required: set[str]) -> set[str]:
         # A domain with no metric vocabulary cannot say what a sentence is

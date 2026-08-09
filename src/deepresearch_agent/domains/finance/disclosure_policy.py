@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from typing import Any
 
 
@@ -83,9 +84,25 @@ def is_legal_disclaimer_template(evidence: Any) -> bool:
     return not reader_assumption_visible(text)
 
 
-def reader_metric_gap_explanation(metric: str) -> str:
-    """Give a professional, finance-specific reason and follow-up path for gaps."""
+def reader_metric_gap_explanation(
+    metric: str,
+    derived_periods: Sequence[str] = (),
+) -> str:
+    """Give a professional, finance-specific reason and follow-up path for gaps.
 
+    R103: this text said `本轮未作推算` unconditionally, and R102 made the report
+    contradict itself -- the notice sat two lines above a `派生指标` section
+    performing exactly that derivation. A metric that was derived is still not
+    directly disclosed, so it is still reported as a disclosure gap; what changes
+    is that the reader is sent to the value instead of being told there is none.
+    """
+
+    if derived_periods:
+        periods = "、".join(derived_periods)
+        return (
+            "结构化年报字段未直接披露该指标；已由营业收入与毛利逐期推导，"
+            f"推导值见「派生指标」（{periods}），其分子分母与出处一并列出。"
+        )
     if metric in {"主营业务毛利率", "毛利率"}:
         return (
             "未在可用的结构化年报字段中找到该指标；可由利润表的营业收入与营业成本推算，"

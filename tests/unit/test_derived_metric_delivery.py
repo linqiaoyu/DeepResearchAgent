@@ -170,3 +170,56 @@ class DerivedMetricDeliveryTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class NoSelfContradictionTests(DerivedMetricDeliveryTests):
+    """R103: a report must not state a gap in the section that fills it."""
+
+    def test_the_gap_notice_points_at_the_derivation_it_performed(self) -> None:
+        """R102 shipped `本轮未作推算` two lines above the 推算.
+
+        The metric is still not directly disclosed, so it is still reported as a
+        gap. What must not survive is telling the reader the computation was not
+        done while printing its result below.
+        """
+
+        reporter = ReporterAgent(
+            grounded_fact_renderer=FINANCE.grounded_fact_renderer(),
+            numeric_citation_policy=FINANCE.numeric_citation_policy(),
+            domain_pack=FINANCE,
+        )
+
+        report = reporter.report(self._state())
+
+        self.assertIn("## 派生指标", report)
+        self.assertNotIn(
+            "本轮未作推算",
+            report,
+            "the report states a gap in the same breath as the value that fills it",
+        )
+        self.assertIn("推导值见「派生指标」", report)
+        # Both sections that carry gap wording must agree.
+        for section in ("关键发现", "指标覆盖状态"):
+            if f"## {section}" not in report:
+                continue
+            body = report.split(f"## {section}", 1)[1].split("\n## ", 1)[0]
+            if "主营业务毛利率" in body:
+                self.assertNotIn("本轮未作推算", body)
+
+    def test_a_metric_with_no_derivation_still_reports_the_gap_plainly(self) -> None:
+        """The notice must not claim a derivation that did not happen."""
+
+        state = self._state()
+        state.evidence_store = [
+            item for item in state.evidence_store if not item.id.startswith("毛利")
+        ]
+        reporter = ReporterAgent(
+            grounded_fact_renderer=FINANCE.grounded_fact_renderer(),
+            numeric_citation_policy=FINANCE.numeric_citation_policy(),
+            domain_pack=FINANCE,
+        )
+
+        report = reporter.report(state)
+
+        self.assertNotIn("## 派生指标", report)
+        self.assertIn("本轮未作推算", report)

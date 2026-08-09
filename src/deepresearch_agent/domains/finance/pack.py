@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from decimal import Decimal
 from pathlib import Path
 
@@ -154,12 +154,33 @@ class FinanceDomainPack:
 
         return reader_assumption_visible(line)
 
-    def reader_metric_gap_explanation(self, metric: str) -> str:
+    def reader_metric_gap_explanation(
+        self, metric: str, derived_periods: Sequence[str] = ()
+    ) -> str:
         from deepresearch_agent.domains.finance.disclosure_policy import (
             reader_metric_gap_explanation,
         )
 
-        return reader_metric_gap_explanation(metric)
+        return reader_metric_gap_explanation(metric, derived_periods)
+
+    def derived_metric_periods(self, evidence: list[object]) -> dict[str, tuple[str, ...]]:
+        """Which requested metrics were derived, and for which periods.
+
+        The derivation labels its result `毛利率`; a question asks for
+        `主营业务毛利率`. The alias table already equates them, and the reporter
+        must not have to know that.
+        """
+
+        from deepresearch_agent.domains.finance.vocabulary import METRIC_ALIASES
+
+        periods: dict[str, list[str]] = {}
+        for item in self.reader_derived_metrics(evidence):
+            label = str(item.get("label") or "")
+            canonical = METRIC_ALIASES.get(label, label)
+            period = str(item.get("period") or "")
+            if canonical and period:
+                periods.setdefault(canonical, []).append(period)
+        return {label: tuple(values) for label, values in periods.items()}
 
     def metrics_mentioned(self, text: str, required: set[str]) -> set[str]:
         from deepresearch_agent.domains.finance.vocabulary import metrics_mentioned

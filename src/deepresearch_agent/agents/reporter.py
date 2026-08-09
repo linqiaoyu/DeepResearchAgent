@@ -374,9 +374,17 @@ class ReporterAgent:
                     "label": claim.label,
                 }
             )
+        # R103: a metric computed from its components is still not directly
+        # disclosed, so it stays a gap -- but saying `本轮未作推算` two lines
+        # above the section performing that derivation is a report contradicting
+        # itself, which R102 introduced by fixing only half of it.
+        derived_periods = self.domain_pack.derived_metric_periods(state.evidence_store)
         for label in dict.fromkeys(grounded_gaps):
             grounded_lines.append(
-                f"- {label}：{self.domain_pack.reader_metric_gap_explanation(label)}"
+                f"- {label}："
+                + self.domain_pack.reader_metric_gap_explanation(
+                    label, derived_periods.get(label, ())
+                )
             )
         lines = lines[:start] + grounded_lines + [""] + lines[end:]
         downgraded = self._downgrade_unsupported_numeric_lines(
@@ -1340,6 +1348,11 @@ class ReporterAgent:
             item.id: item
             for item in state.evidence_store
         }
+        # R103: the coverage section carries the same gap wording as 关键发现 and
+        # must not contradict the derived value either.
+        derived_by_metric = self.domain_pack.derived_metric_periods(
+            state.evidence_store
+        )
         lines = [report.rstrip(), "", "## 指标覆盖状态", ""]
         for item in coverage:
             periods = (
@@ -1392,7 +1405,10 @@ class ReporterAgent:
                 )
                 lines.append(
                     f"- {item.metric}{periods}："
-                    f"{self.domain_pack.reader_metric_gap_explanation(item.metric)}{missing}"
+                    + self.domain_pack.reader_metric_gap_explanation(
+                        item.metric, derived_by_metric.get(item.metric, ())
+                    )
+                    + missing
                 )
             else:
                 lines.append(
