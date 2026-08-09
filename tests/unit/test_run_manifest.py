@@ -95,6 +95,14 @@ class RunManifestTests(unittest.TestCase):
                 "DECISION_WEAVING_ENABLED": settings.decision_weaving_enabled,
                 "NUMERIC_CHECK_ENABLED": settings.numeric_check_enabled,
                 "SEMANTIC_JUDGE_ENABLED": settings.semantic_judge_enabled,
+                # R109: both moved to enabled by default. Neither changes the
+                # Evidence set -- the golden snapshots moved by exactly these
+                # two flag records and nothing else, which is the measurement
+                # behind their `operational` classification.
+                "PROGRESSIVE_DELIVERY_ENABLED": (
+                    settings.progressive_delivery_enabled
+                ),
+                "TRAJECTORY_RECORD_ENABLED": settings.trajectory_record_enabled,
             },
         )
         self.assertEqual(

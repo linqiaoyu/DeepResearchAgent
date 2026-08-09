@@ -133,6 +133,12 @@ class ReflectionSkeletonTest(unittest.TestCase):
                     reflection_enabled=True,
                     procedural_memory_enabled=True,
                     structured_logging_enabled=False,
+                    # R109: this asserts that *reflection* does not persist a
+                    # trace. Reflection creates the recorder; only
+                    # TRAJECTORY_RECORD_ENABLED writes it, and that now defaults
+                    # to true, so the property is stated explicitly rather than
+                    # borrowed from a default that moved.
+                    trajectory_record_enabled=False,
                 ),
                 procedural_memory=memory,
             )

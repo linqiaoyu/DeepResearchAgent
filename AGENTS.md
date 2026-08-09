@@ -206,7 +206,7 @@ capability 默认翻为 `true`，旧 AGENTS 仍写 `false`。
 | `NUMERIC_CHECK_ENABLED` | `true` | `content_affecting` |
 | `PRIOR_MEMORY_ENABLED` | `false` | `content_affecting` |
 | `PROCEDURAL_MEMORY_ENABLED` | `false` | `content_affecting` |
-| `PROGRESSIVE_DELIVERY_ENABLED` | `false` | `operational` |
+| `PROGRESSIVE_DELIVERY_ENABLED` | `true` | `operational` |
 | `RAG_ENABLED` | `false` | `content_affecting` |
 | `REFLECTION_ENABLED` | `false` | `content_affecting` |
 | `RERANK_ENABLED` | `true` | `content_affecting` |
@@ -218,5 +218,5 @@ capability 默认翻为 `true`，旧 AGENTS 仍写 `false`。
 | `STRUCTURED_LOGGING_ENABLED` | `true` | `operational` |
 | `STRUCTURED_OUTPUT_ENABLED` | `true` | `additive_content` |
 | `TOOL_CONTRACT_ENABLED` | `true` | `operational` |
-| `TRAJECTORY_RECORD_ENABLED` | `false` | `operational` |
+| `TRAJECTORY_RECORD_ENABLED` | `true` | `operational` |
 <!-- END GENERATED SETTINGS DEFAULTS -->

@@ -59,8 +59,8 @@ class Settings:
     structured_logging_enabled: bool = True
     config_fail_fast_enabled: bool = True
     structured_output_enabled: bool = True
-    progressive_delivery_enabled: bool = False
-    trajectory_record_enabled: bool = False
+    progressive_delivery_enabled: bool = True
+    trajectory_record_enabled: bool = True
     branch_budget_enabled: bool = True
     branch_total_budget: int = 20
     branch_single_cap: int = 10
@@ -220,8 +220,12 @@ def load_settings() -> Settings:
         structured_logging_enabled=_env_flag("STRUCTURED_LOGGING_ENABLED", default=True),
         config_fail_fast_enabled=_env_flag("CONFIG_FAIL_FAST_ENABLED", default=True),
         structured_output_enabled=_env_flag("STRUCTURED_OUTPUT_ENABLED", default=True),
-        progressive_delivery_enabled=_env_flag("PROGRESSIVE_DELIVERY_ENABLED"),
-        trajectory_record_enabled=_env_flag("TRAJECTORY_RECORD_ENABLED"),
+        progressive_delivery_enabled=_env_flag(
+            "PROGRESSIVE_DELIVERY_ENABLED", default=True
+        ),
+        trajectory_record_enabled=_env_flag(
+            "TRAJECTORY_RECORD_ENABLED", default=True
+        ),
         branch_budget_enabled=_env_flag("BRANCH_BUDGET_ENABLED", default=True),
         branch_total_budget=int(
             os.getenv("DEEPRESEARCH_BRANCH_TOTAL_BUDGET", "20")
