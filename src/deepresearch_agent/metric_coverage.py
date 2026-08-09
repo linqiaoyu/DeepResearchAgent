@@ -45,6 +45,11 @@ def metric_requirements(
         for request in sub_question.structured_data_requests:
             if request.capability != "financial_indicators":
                 continue
+            # R105: a metric fetched only to compute another one is not itself
+            # something the reader asked about, and must not be reported to them
+            # as a covered or missing metric.
+            if request.purpose == "component":
+                continue
             normalized_periods = [
                 _period_key(item, pack) for item in request.periods
             ]

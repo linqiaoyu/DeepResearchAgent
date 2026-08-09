@@ -223,3 +223,53 @@ class NoSelfContradictionTests(DerivedMetricDeliveryTests):
 
         self.assertNotIn("## 派生指标", report)
         self.assertIn("本轮未作推算", report)
+
+
+class ComponentIsNotAnAnswerTests(unittest.TestCase):
+    """R105: what is fetched to compute an answer is not itself an answer."""
+
+    def test_a_component_is_not_reported_to_the_reader_as_a_metric(self) -> None:
+        """The A-share run put `毛利：未取得可引用的原始披露事实` in 关键发现.
+
+        R102 began appending `毛利` so `主营业务毛利率` could be derived. On the
+        first issuer where that component was unavailable, the reader was shown
+        a metric they never asked about, reported as a failure.
+        """
+
+        from deepresearch_agent.metric_coverage import metric_requirements
+
+        plan = FINANCE.deterministic_plan(TOPIC, 2)
+        assert plan is not None
+        state = ResearchState(topic=TOPIC)
+        state.plan = plan
+
+        requested = {
+            metric
+            for sub_question in plan.sub_questions
+            for request in sub_question.structured_data_requests
+            if request.capability == "financial_indicators"
+            for metric in request.metrics
+        }
+        reader_facing = {item.metric for item in metric_requirements(state, FINANCE)}
+
+        # Still fetched ...
+        self.assertIn("毛利", requested)
+        # ... and never presented as something the question asked for.
+        self.assertNotIn("毛利", reader_facing)
+        self.assertIn("主营业务毛利率", reader_facing)
+        self.assertIn("营业收入", reader_facing)
+
+    def test_a_metric_the_question_names_is_reader_facing_even_if_it_is_also_a_component(
+        self,
+    ) -> None:
+        """`蔚来 2024 年年报的营收与毛利情况` asks for 毛利 itself."""
+
+        from deepresearch_agent.metric_coverage import metric_requirements
+
+        topic = "蔚来 2024 年年报的营收与毛利情况"
+        plan = FINANCE.deterministic_plan(topic, 2)
+        assert plan is not None
+        state = ResearchState(topic=topic)
+        state.plan = plan
+
+        self.assertIn("毛利", {item.metric for item in metric_requirements(state, FINANCE)})

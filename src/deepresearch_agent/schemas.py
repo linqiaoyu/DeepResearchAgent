@@ -31,6 +31,13 @@ class StructuredDataRequest(StrictModel):
     metrics: list[str] = Field(default_factory=list)
     start_date: date | None = None
     end_date: date | None = None
+    #: R105: `component` marks a metric fetched only so another one can be
+    #: computed from it. R102 began appending such inputs when no source
+    #: publishes the requested metric directly, and the first run where an input
+    #: was unavailable reported that input to the reader as a missing metric --
+    #: something nobody asked about, presented as a failure. What is fetched to
+    #: compute an answer is not itself an answer.
+    purpose: Literal["requested", "component"] = "requested"
 
     @model_validator(mode="after")
     def require_parseable_financial_periods(self) -> StructuredDataRequest:

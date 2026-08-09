@@ -163,11 +163,13 @@ class FinancePlanning:
         source that does publish the metric directly still answers it.
         """
 
-        requested = list(metrics)
+        requested = [(metric, "requested") for metric in metrics]
+        named = set(metrics)
         for metric in metrics:
             for component in METRIC_COMPONENTS.get(metric, ()):
-                if component not in requested:
-                    requested.append(component)
+                if component not in named:
+                    named.add(component)
+                    requested.append((component, "component"))
 
         return [
             StructuredDataRequest(
@@ -176,8 +178,9 @@ class FinancePlanning:
                 symbol=symbol,
                 periods=self._annual_periods(topic),
                 metrics=[metric],
+                purpose=purpose,
             )
-            for metric in requested
+            for metric, purpose in requested
         ]
 
     @staticmethod
