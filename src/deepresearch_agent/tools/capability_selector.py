@@ -179,9 +179,21 @@ class LLMCapabilitySelector:
     meaning: an executed provider call, never a model suggestion.
     """
 
-    def __init__(self, registry: CapabilityRegistry, llm_client: Any) -> None:
+    def __init__(
+        self,
+        registry: CapabilityRegistry,
+        llm_client: Any,
+        fallback: CapabilitySelector | None = None,
+    ) -> None:
         self.registry = registry
         self.llm_client = llm_client
+        # R109: `_research_one_node` sets a sub-question's capabilities to
+        # exactly what the selection carries whenever dynamic capability is on,
+        # which is the default. A model that returns no tool call therefore left
+        # the branch with no web_search, no structured_data_provider and no
+        # web_fetch -- it researched nothing, and said so nowhere. The
+        # deterministic rules are the floor under that.
+        self.fallback = fallback or DeterministicCapabilitySelector(registry)
 
     def select(self, state: ResearchState, sub_question: SubQuestion) -> CapabilitySelection:
         question_type = classify_subquestion(sub_question)
@@ -225,7 +237,30 @@ class LLMCapabilitySelector:
                     "capabilities": list(unknown),
                 }
             )
-        criterion = "provider-native tool calls restricted to registered applicable capabilities"
+        criterion = _MODEL_SELECTION_CRITERION
+        if not selected:
+            state.metadata.setdefault("degradation_events", []).append(
+                {
+                    "tool": "capability_selector",
+                    "reason": "empty_selection",
+                    "impact": (
+                        "model selected no registered capability; "
+                        "deterministic rules applied"
+                    ),
+                    "attempts": 1,
+                    "capabilities": list(requested),
+                }
+            )
+            deterministic = self.fallback.select(state, sub_question)
+            selected = deterministic.selected_capabilities
+            criterion = (
+                "model selected no registered capability; "
+                "fell back to deterministic rules"
+            )
+        # The decision record and trajectory traces below describe what the
+        # model asked for and what was used, and they must be written on the
+        # fallback path too -- a run that silently swapped selectors is a run
+        # nobody can audit.
         selection = CapabilitySelection(
             sub_question_id=sub_question.id,
             sub_question_type=question_type,
@@ -233,7 +268,7 @@ class LLMCapabilitySelector:
             selected_capabilities=selected,
             rejected_capabilities=tuple(name for name in candidate_names if name not in selected) + unknown,
             criterion=criterion,
-            fallback=False,
+            fallback=criterion != _MODEL_SELECTION_CRITERION,
         )
         recorder = active_trajectory_recorder()
         for name in requested:
@@ -256,6 +291,11 @@ class LLMCapabilitySelector:
                 alternatives_considered=list(candidate_names),
             ))
         return selection
+
+
+_MODEL_SELECTION_CRITERION = (
+    "provider-native tool calls restricted to registered applicable capabilities"
+)
 
 
 def _tool_name(call: dict[str, Any]) -> str:

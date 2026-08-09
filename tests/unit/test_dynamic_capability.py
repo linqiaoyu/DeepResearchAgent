@@ -43,10 +43,27 @@ class DynamicCapabilitySelectionTest(unittest.TestCase):
         selection = LLMCapabilitySelector(_registry(), StubClient()).select(
             state, SubQuestion(id="n", question="分析战略", search_queries=["战略"])
         )
-        self.assertEqual(selection.selected_capabilities, ())
+        # R109 contract change: rejection is unchanged, what follows it is not.
+        # Leaving the selection empty meant `_research_one_node` gave the branch
+        # no web_search, no structured_data_provider and no web_fetch, so the
+        # sub-question researched nothing and said so nowhere. Unknown
+        # capabilities are still refused; the deterministic rules are the floor.
+        self.assertNotIn("unknown_tool", selection.selected_capabilities)
+        self.assertTrue(selection.selected_capabilities)
+        self.assertTrue(selection.fallback)
         self.assertIn("unknown_tool", selection.rejected_capabilities)
         self.assertEqual(state.metadata["degradation_events"][0]["reason"], "unknown_capability")
-        self.assertEqual(len(state.agent_decisions), 1)
+        # Both selectors ran, so both are on the record: the model's rejected
+        # call and the deterministic choice that replaced it. A run that swapped
+        # selectors without saying so would be unauditable.
+        self.assertEqual(
+            [decision.made_by for decision in state.agent_decisions],
+            ["ResearcherAgent", "LLMCapabilitySelector"],
+        )
+        self.assertEqual(
+            {event["reason"] for event in state.metadata["degradation_events"]},
+            {"unknown_capability", "empty_selection"},
+        )
 
     def test_llm_selector_records_one_decision_and_trace_per_tool_call(self) -> None:
         class StubClient:
