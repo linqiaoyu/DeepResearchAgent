@@ -18,10 +18,10 @@ from pathlib import Path
 
 from scripts.check_capability_observability import (
     ABSENT,
+    ACTIVE,
     BYPASSED,
     LOCATORS,
     RAN,
-    UNPROVABLE,
     ObservabilityError,
     classify,
     report,
@@ -75,41 +75,41 @@ class ClassificationTests(unittest.TestCase):
             (directory / "manifest.json").write_text("{}", encoding="utf-8")
             self.assertEqual(classify("RUN_MANIFEST_ENABLED", {}, directory), RAN)
 
-    def test_a_capability_with_no_evidence_is_reported_not_assumed(self) -> None:
-        self.assertEqual(classify("TOOL_CONTRACT_ENABLED", {}, None), UNPROVABLE)
+    def test_a_composed_capability_claims_active_not_ran(self) -> None:
+        """Wired into the run is knowable; having done work is not."""
+        state = {
+            "metadata": {
+                "component_activity": {
+                    "tool_contract": {"completed": 0, "composed": 1}
+                }
+            }
+        }
+
+        self.assertEqual(classify("TOOL_CONTRACT_ENABLED", state, None), ACTIVE)
+
+    def test_a_capability_with_no_record_is_absent_not_assumed(self) -> None:
+        self.assertEqual(classify("TOOL_CONTRACT_ENABLED", {}, None), ABSENT)
 
     def test_an_empty_run_proves_nothing(self) -> None:
         rows = report({"metadata": {}}, None)
 
         self.assertNotIn(RAN, set(rows.values()))
+        self.assertNotIn(ACTIVE, set(rows.values()))
 
 
 class MeasuredGapTests(unittest.TestCase):
-    def test_the_unprovable_set_is_explicit(self) -> None:
-        """A silent shrink of this list would hide a lost signal."""
+    def test_every_declared_capability_is_provable_from_a_run(self) -> None:
+        """R110 measured 9 with no per-run evidence; R111 closed all nine."""
         unprovable = sorted(
             flag for flag, locator in LOCATORS.items() if locator.kind is None
         )
 
-        self.assertEqual(
-            unprovable,
-            [
-                "CONFIG_FAIL_FAST_ENABLED",
-                "INJECTION_GUARD_ENABLED",
-                "NUMERIC_CHECK_ENABLED",
-                "PROGRESSIVE_DELIVERY_ENABLED",
-                "RERANK_ENABLED",
-                "RERANK_FAIL_OPEN",
-                "RESEARCH_LOOP_ENABLED",
-                "STRUCTURED_LOGGING_ENABLED",
-                "TOOL_CONTRACT_ENABLED",
-            ],
-        )
+        self.assertEqual(unprovable, [])
 
-    def test_most_capabilities_are_provable(self) -> None:
+    def test_all_twenty_five_have_a_locator(self) -> None:
         provable = [f for f, loc in LOCATORS.items() if loc.kind is not None]
 
-        self.assertEqual(len(provable), 16)
+        self.assertEqual(len(provable), 25)
 
 
 if __name__ == "__main__":

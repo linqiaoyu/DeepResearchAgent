@@ -28,6 +28,9 @@ from deepresearch_agent.observability import (
     JsonLogger,
     correlation_context,
 )
+from deepresearch_agent.observability.run_composition import (
+    record_run_composition,
+)
 from deepresearch_agent.orchestration import (
     BoundedLoop,
     DecisionGate,
@@ -471,6 +474,11 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
                     state.metadata["retrieval_index_version"] = rag_search.index_version
                 state.metadata["provider_identity"]["rag_search"] = type(rag_search).__name__
                 state.metadata["provider_fidelity"]["rag_search"] = _provider_fidelity(rag_search)
+            # R111: nine declared capabilities are decided here, when the run is
+            # assembled, and have no unit of work to count later. Without this
+            # they left no per-run evidence at all, so an archived run could not
+            # say whether the tool contract or rerank had been active.
+            record_run_composition(state, self.settings)
             research_id = state.research_id
             config = self._config(research_id)
             graph_input = {

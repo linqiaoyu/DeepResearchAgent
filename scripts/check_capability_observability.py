@@ -19,8 +19,10 @@ answer, in one place, checkable against a real run:
                   enabled/completed/bypassed and so distinguishes *ran* from
                   *was switched off*.
 * ``artifact`` -- a file the capability writes under the run directory.
-* ``None``     -- no per-run evidence exists. These are the number to drive
-                  down; they are listed, not hidden.
+* ``None``     -- no per-run evidence exists. R110 measured 9 of 25 here;
+                  R111 drove that to 0 by recording composition-time
+                  capabilities as `composed`. A locator may return to
+                  ``None`` only with the reason written down.
 
 `--self-test` runs the table against a synthetic run so the gate exercises the
 checker without depending on an archived artifact.
@@ -48,32 +50,35 @@ class Locator:
 #: What proves a capability ran, for every flag the project declares.
 LOCATORS: dict[str, Locator] = {
     "BRANCH_BUDGET_ENABLED": Locator("state", "branch_budget"),
-    "CONFIG_FAIL_FAST_ENABLED": Locator(None),
+    "CONFIG_FAIL_FAST_ENABLED": Locator("activity", "config_fail_fast"),
     "CONTEXT_PACKER_ENABLED": Locator("state", "context_events"),
     "CRITIC_ENABLED": Locator("activity", "critic"),
     "DECISION_WEAVING_ENABLED": Locator("state", "run_trace"),
     "DYNAMIC_CAPABILITY_ENABLED": Locator("state", "capability_selections"),
     "EXTRACTOR_ENABLED": Locator("activity", "extractor"),
-    "INJECTION_GUARD_ENABLED": Locator(None),
+    "INJECTION_GUARD_ENABLED": Locator("activity", "injection_guard"),
     "LLM_TOOL_SELECTION_ENABLED": Locator("state", "capability_selections"),
-    "NUMERIC_CHECK_ENABLED": Locator(None),
+    "NUMERIC_CHECK_ENABLED": Locator("activity", "numeric_check"),
     "PRIOR_MEMORY_ENABLED": Locator("activity", "episodic_memory"),
     "PROCEDURAL_MEMORY_ENABLED": Locator("activity", "procedural_memory_read"),
-    "PROGRESSIVE_DELIVERY_ENABLED": Locator(None),
+    "PROGRESSIVE_DELIVERY_ENABLED": Locator("activity", "progressive_delivery"),
     "RAG_ENABLED": Locator("state", "provider_fidelity"),
     "REFLECTION_ENABLED": Locator("activity", "reflector"),
-    "RERANK_ENABLED": Locator(None),
-    "RERANK_FAIL_OPEN": Locator(None),
-    "RESEARCH_LOOP_ENABLED": Locator(None),
+    "RERANK_ENABLED": Locator("activity", "rerank"),
+    "RERANK_FAIL_OPEN": Locator("activity", "rerank_fail_open"),
+    "RESEARCH_LOOP_ENABLED": Locator("activity", "research_loop"),
     "RUN_MANIFEST_ENABLED": Locator("artifact", "manifest.json"),
     "SEMANTIC_JUDGE_ENABLED": Locator("state", "semantic_judge"),
     "SKILL_PACKS_ENABLED": Locator("state", "skill_packs"),
-    "STRUCTURED_LOGGING_ENABLED": Locator(None),
+    "STRUCTURED_LOGGING_ENABLED": Locator("activity", "structured_logging"),
     "STRUCTURED_OUTPUT_ENABLED": Locator("field", "structured_output"),
-    "TOOL_CONTRACT_ENABLED": Locator(None),
+    "TOOL_CONTRACT_ENABLED": Locator("activity", "tool_contract"),
     "TRAJECTORY_RECORD_ENABLED": Locator("artifact", "trajectory.json"),
 }
 
+#: R111: `active` is what a composition-time capability can honestly claim.
+#: It was wired into the run; it has no unit of work to have completed.
+ACTIVE = "active"
 RAN = "ran"
 BYPASSED = "bypassed"
 ABSENT = "absent"
@@ -108,6 +113,8 @@ def classify(
             return ABSENT
         if row.get("completed"):
             return RAN
+        if row.get("composed"):
+            return ACTIVE
         return BYPASSED if row.get("bypassed") else ABSENT
     if locator.kind == "artifact":
         if run_directory is None:
@@ -152,6 +159,10 @@ def _sample_state() -> dict:
                     "completed": 0,
                     "bypassed": 1,
                 },
+                # Composition-time: wired in, with nothing to have completed.
+                "tool_contract": {"enabled": True, "completed": 0, "composed": 1},
+                "config_fail_fast": {"enabled": True, "completed": 0, "composed": 1},
+                "rerank": {"enabled": False, "completed": 0, "bypassed": 1},
             },
         },
         # Top level, not metadata: the distinction the `field` kind exists for.
@@ -173,7 +184,9 @@ def self_test() -> None:
         "REFLECTION_ENABLED": BYPASSED,
         "RUN_MANIFEST_ENABLED": RAN,
         "TRAJECTORY_RECORD_ENABLED": ABSENT,
-        "CONFIG_FAIL_FAST_ENABLED": UNPROVABLE,
+        "CONFIG_FAIL_FAST_ENABLED": ACTIVE,
+        "TOOL_CONTRACT_ENABLED": ACTIVE,
+        "RERANK_ENABLED": BYPASSED,
         "BRANCH_BUDGET_ENABLED": RAN,
         "STRUCTURED_OUTPUT_ENABLED": RAN,
     }
