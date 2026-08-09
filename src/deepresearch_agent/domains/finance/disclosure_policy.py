@@ -120,3 +120,22 @@ def reader_metric_gap_explanation(
             "本轮未作推算，推算值需二次核验后才可进入关键数据。"
         )
     return "未取得可引用的原始披露事实；可查阅对应年度报告或原始披露补充核验。"
+
+
+def reader_metric_partial_note(missing_periods: Sequence[str]) -> str:
+    """State which requested periods a partly covered metric still lacks.
+
+    R109: a metric cited for one of two requested periods was reported to the
+    reader as `未取得可引用的原始披露事实` while the same report's 指标覆盖状态
+    said `部分已引用；已覆盖 2024`. The evidence for 2024 existed, carried an id
+    and a footnote, and was withheld because the other period was missing. The
+    reader now gets the period that was covered, and is told which one was not.
+    """
+
+    periods = "、".join(missing_periods)
+    if not periods:
+        return ""
+    # Deliberately not the `未取得` of a whole-metric gap: this line delivers a
+    # figure and a footnote, and the two states must stay greppable apart --
+    # `--forbid-gap` and the coverage/findings agreement check both read for it.
+    return f"请求报告期 {periods} 无可引用披露，未纳入本条"

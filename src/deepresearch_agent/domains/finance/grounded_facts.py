@@ -4,11 +4,17 @@ import re
 from collections import Counter
 from decimal import Decimal, ROUND_HALF_UP
 
+from deepresearch_agent.domains.finance.disclosure_policy import (
+    reader_metric_partial_note,
+)
 from deepresearch_agent.domains.finance.numeric_citations import (
     has_financial_numeric_mismatch,
 )
 from deepresearch_agent.domains.protocols import ReportingDomain
-from deepresearch_agent.metric_coverage import evaluate_metric_coverage
+from deepresearch_agent.metric_coverage import (
+    MetricCoverageItem,
+    evaluate_metric_coverage,
+)
 from deepresearch_agent.reporting.grounded_facts import (
     GroundedFactBatch,
     GroundedReaderClaim,
@@ -42,6 +48,22 @@ def _normalize_currency_spacing(text: str) -> str:
     return _CURRENCY_SPACING_RE.sub(r"\1 \2", text)
 
 
+def _is_renderable(coverage: MetricCoverageItem) -> bool:
+    """Decide whether 关键发现 owes the reader a value for this metric.
+
+    R109: the answer used to be `status == "cited"`, so a metric covered for
+    2024 but not 2023 produced a `未取得可引用的原始披露事实` line two sections
+    above a 指标覆盖状态 line reading `部分已引用；已覆盖 2024`. One state, two
+    subsystems, opposite conclusions, both printed. The condition below is the
+    exact statement 指标覆盖状态 makes: whenever it names a covered period, the
+    findings section renders that period.
+    """
+
+    if coverage.status == "cited":
+        return True
+    return coverage.status == "partially_cited" and bool(coverage.observed_periods)
+
+
 class FinanceGroundedFactRenderer:
     """Render requested financial facts from typed Evidence and exact values."""
 
@@ -65,7 +87,7 @@ class FinanceGroundedFactRenderer:
                 if metric_counts[coverage.metric] == 1
                 else f"{coverage.sub_question_id} · {coverage.metric}"
             )
-            if coverage.status != "cited":
+            if not _is_renderable(coverage):
                 gaps.append(label)
                 continue
             candidates = [
@@ -80,22 +102,34 @@ class FinanceGroundedFactRenderer:
             if not selections:
                 gaps.append(label)
                 continue
+            partial = coverage.status == "partially_cited"
             selected, text = self._first_supported_selection(
                 selections,
                 metric=coverage.metric,
                 label=label,
                 state=state,
+                missing_periods=(
+                    tuple(coverage.missing_periods) if partial else ()
+                ),
             )
             evidence_ids = tuple(item.id for item in selected)
+            fact_keys = frozenset(
+                key
+                for evidence_id in evidence_ids
+                for key in fact_keys_by_id.get(evidence_id, set())
+            )
+            # The reporter rejects a claim carrying no fact key outright, and a
+            # period can be matched by a bare year in prose that carries none.
+            # A partial metric selected that way degrades to the gap it already
+            # was rather than aborting the report it used to be excluded from.
+            if partial and not fact_keys:
+                gaps.append(label)
+                continue
             rendered.append(
                 GroundedReaderClaim(
                     text=text,
                     evidence_ids=evidence_ids,
-                    fact_keys=frozenset(
-                        key
-                        for evidence_id in evidence_ids
-                        for key in fact_keys_by_id.get(evidence_id, set())
-                    ),
+                    fact_keys=fact_keys,
                     label=label,
                 )
             )
@@ -146,18 +180,28 @@ class FinanceGroundedFactRenderer:
         metric: str,
         label: str,
         state: ResearchState,
+        missing_periods: tuple[str, ...] = (),
     ) -> tuple[list[Evidence], str]:
         for selection in selections:
-            text = self._claim_text(metric, selection)
+            text = self._claim_text(metric, selection, missing_periods)
             if self.is_supported(text, selection, state, labels={label}):
                 return selection, text
         # Nothing survives the guard. Return the top-ranked selection unchanged
         # so the reporter reaches the same rejection it would have reached
         # before, and the metric degrades to a gap rather than to an unchecked
         # claim.
-        return selections[0], self._claim_text(metric, selections[0])
+        return selections[0], self._claim_text(
+            metric,
+            selections[0],
+            missing_periods,
+        )
 
-    def _claim_text(self, metric: str, selected: list[Evidence]) -> str:
+    def _claim_text(
+        self,
+        metric: str,
+        selected: list[Evidence],
+        missing_periods: tuple[str, ...] = (),
+    ) -> str:
         parts = [
             _normalize_currency_spacing(self._canonical_text(item))
             for item in selected
@@ -166,6 +210,11 @@ class FinanceGroundedFactRenderer:
             comparison = self._derived_comparison(selected)
             if comparison:
                 parts.append(comparison)
+        # A bare period carries no measure unit, so naming the uncovered one
+        # adds no value the fidelity guard has to support.
+        note = reader_metric_partial_note(missing_periods)
+        if note:
+            parts.append(note)
         return f"{metric}：" + "；".join(parts) + "。"
 
     def _ranked_selections(

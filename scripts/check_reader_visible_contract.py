@@ -87,6 +87,64 @@ def validate_self_consistency(report: str, metrics: tuple[str, ...]) -> None:
             )
 
 
+#: The findings wordings that tell a reader the fact does not exist. A metric
+#: sent to 「派生指标」 is deliberately excluded: R103 established that a derived
+#: value is still an undisclosed metric, and that line points at a number.
+_FINDINGS_DENIALS = ("未取得", "未在可用的结构化年报字段中找到")
+_COVERAGE_METRIC_RE = re.compile(r"^-\s*(?P<metric>[^（(：:]+)")
+_COVERED_PERIOD_RE = re.compile(r"已覆盖\s*(?!未标注期间)\S")
+
+
+def validate_coverage_findings_agreement(report: str) -> None:
+    """Refuse a report whose two metric sections describe different runs.
+
+    R109: 指标覆盖状态 said `部分已引用；已覆盖 2024`, carrying evidence ids and
+    footnotes, while 关键发现 said `未取得可引用的原始披露事实` for the same four
+    metrics of the same report. Both sections are generated from one state, so
+    disagreement between them is never a judgement call -- one of them is
+    lying to the reader. This needs no expectations and no gold data: it reads
+    the delivered page against itself.
+    """
+
+    try:
+        coverage = section(report, "指标覆盖状态")
+    except ReaderContractError:
+        return
+    findings = section(report, "关键发现")
+    for line in coverage.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("-"):
+            continue
+        # A coverage line asserts evidence when it cites a footnote or names a
+        # period it covered; `已覆盖 未标注期间` asserts neither.
+        if "[^" not in stripped and not _COVERED_PERIOD_RE.search(stripped):
+            continue
+        match = _COVERAGE_METRIC_RE.match(stripped)
+        if not match:
+            continue
+        metric = match.group("metric").strip()
+        if not metric:
+            continue
+        # `营业收入` must not match a `营业总收入` findings line (R109), and a
+        # label disambiguated as `子问题 · 指标` must still match.
+        denial = re.compile(
+            rf"^-\s*(?:[^：:\n]*·\s*)?{re.escape(metric)}\s*[：:](?P<body>[^\n]*)",
+            re.MULTILINE,
+        )
+        found = denial.search(findings)
+        # A findings line carrying a footnote is delivering something, whatever
+        # else it says about a period it could not cover. Only a line citing
+        # nothing at all contradicts a coverage line citing evidence.
+        if (
+            found
+            and "[^" not in found.group("body")
+            and any(marker in found.group("body") for marker in _FINDINGS_DENIALS)
+        ):
+            raise ReaderContractError(
+                f"coverage_cites_evidence_findings_deny_it={metric}"
+            )
+
+
 def validate_footnotes(report: str) -> None:
     definitions = _FOOTNOTE_DEF_RE.findall(report)
     numbers = [number for number, _url in definitions]
@@ -175,6 +233,11 @@ def _sample_report(mutation: str | None = None) -> tuple[str, tuple[ExpectedFind
         "## 数据获取降级",
         "- web_source_governance / permanent: rejected forecast source (attempts=1)",
     ]
+    coverage_lines = [
+        f"- 营业收入（请求报告期：2024）：NIO Inc. 2024年年度营业收入为{revenue} [^1]",
+        f"- 毛利（请求报告期：2024）：NIO Inc. 2024年年度毛利为{gross} [^2]",
+        f"- 毛利率（请求报告期：2024）：NIO Inc. 2024年年度毛利率为{margin} [^2]",
+    ]
     expected_revenue = revenue
     if mutation == "c1":
         key_lines = key_lines[1:]
@@ -188,6 +251,13 @@ def _sample_report(mutation: str | None = None) -> tuple[str, tuple[ExpectedFind
         key_lines[0] = key_lines[0].replace(revenue, "6,573,155,900 CNY")
     elif mutation == "c5":
         degradation = []
+    elif mutation == "c6":
+        # R109's defect verbatim: one section holds the evidence, the other
+        # tells the reader it does not exist.
+        key_lines[0] = "- 营业收入：未取得可引用的原始披露事实；可查阅对应年度报告。"
+        coverage_lines[0] = (
+            "- 营业收入（请求报告期：2023, 2024）：部分已引用；已覆盖 2024，缺少 2023"
+        )
     report = "\n".join(
         [
             "# Offline contract",
@@ -199,6 +269,10 @@ def _sample_report(mutation: str | None = None) -> tuple[str, tuple[ExpectedFind
             "## 详细分析",
             f"- 营业收入为{revenue}。 [^1]",
             f"- 毛利为{gross}。 [^2]",
+            "",
+            "## 指标覆盖状态",
+            "",
+            *coverage_lines,
             "",
             "## 参考来源",
             *definitions,
@@ -217,6 +291,7 @@ def validate_sample(report: str, expected: tuple[ExpectedFinding, ...]) -> None:
     validate_expected_findings(report, expected)
     validate_exact_amounts(report, expected)
     validate_self_consistency(report, tuple(item.metric for item in expected))
+    validate_coverage_findings_agreement(report)
     validate_footnotes(report)
     validate_degradation_notice(report, degradation_expected=True)
 
@@ -234,7 +309,7 @@ def _parse_expected(values: list[str]) -> tuple[ExpectedFinding, ...]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--self-test", action="store_true")
-    parser.add_argument("--mutation", choices=("c1", "c2", "c3", "c4", "c5"))
+    parser.add_argument("--mutation", choices=("c1", "c2", "c3", "c4", "c5", "c6"))
     parser.add_argument("--report", type=Path)
     parser.add_argument("--expect", action="append", default=[])
     parser.add_argument("--forbid-gap", action="store_true")
@@ -250,6 +325,8 @@ def main() -> int:
                 validate_footnotes(report)
             elif args.mutation == "c4":
                 validate_exact_amounts(report, expected)
+            elif args.mutation == "c6":
+                validate_coverage_findings_agreement(report)
             else:
                 validate_degradation_notice(report, degradation_expected=True)
         elif args.self_test:
@@ -267,6 +344,7 @@ def main() -> int:
                 report,
                 tuple(item.metric for item in expected),
             )
+            validate_coverage_findings_agreement(report)
             validate_footnotes(report)
         else:
             parser.error("choose --self-test, --mutation, or --report")
