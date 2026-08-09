@@ -59,22 +59,23 @@ class FinanceGroundedFactRenderer:
                 for evidence_id in coverage.evidence_ids
                 if evidence_id in evidence_by_id
             ]
-            selected = self._select_period_evidence(
+            selections = self._ranked_selections(
                 candidates,
                 coverage.requested_periods,
             )
-            if not selected:
+            if not selections:
                 gaps.append(label)
                 continue
-            parts = [self._canonical_text(item) for item in selected]
-            if not any(_COMPARISON_RE.search(part) for part in parts):
-                comparison = self._derived_comparison(selected)
-                if comparison:
-                    parts.append(comparison)
+            selected, text = self._first_supported_selection(
+                selections,
+                metric=coverage.metric,
+                label=label,
+                state=state,
+            )
             evidence_ids = tuple(item.id for item in selected)
             rendered.append(
                 GroundedReaderClaim(
-                    text=f"{coverage.metric}：" + "；".join(parts) + "。",
+                    text=text,
                     evidence_ids=evidence_ids,
                     fact_keys=frozenset(
                         key
@@ -112,33 +113,85 @@ class FinanceGroundedFactRenderer:
             )
         )
 
-    def _select_period_evidence(
+    # R107: the highest-ranked evidence for a period is not always evidence a
+    # claim can be built on. R105's A-share run ranked two annual-report PDF
+    # extracts above the two AKShare records because `source_tier` outranks
+    # being typed -- but each PDF extract was the bare digit string
+    # `170,899,152,276.34`, which names no metric, so the fidelity guard could
+    # not tell what the number measured and rejected the claim. Selecting once
+    # and rendering blind meant that rejection deleted the metric: the reader
+    # was told `未取得可引用的原始披露事实` for revenue while the same report's
+    # coverage section quoted both years from the records that were discarded.
+    # Rank the whole selection instead, and keep the first one whose rendered
+    # claim the guard actually accepts. A guard rejection now redirects the
+    # selection rather than costing the reader the fact.
+    def _first_supported_selection(
+        self,
+        selections: list[list[Evidence]],
+        *,
+        metric: str,
+        label: str,
+        state: ResearchState,
+    ) -> tuple[list[Evidence], str]:
+        for selection in selections:
+            text = self._claim_text(metric, selection)
+            if self.is_supported(text, selection, state, labels={label}):
+                return selection, text
+        # Nothing survives the guard. Return the top-ranked selection unchanged
+        # so the reporter reaches the same rejection it would have reached
+        # before, and the metric degrades to a gap rather than to an unchecked
+        # claim.
+        return selections[0], self._claim_text(metric, selections[0])
+
+    def _claim_text(self, metric: str, selected: list[Evidence]) -> str:
+        parts = [self._canonical_text(item) for item in selected]
+        if not any(_COMPARISON_RE.search(part) for part in parts):
+            comparison = self._derived_comparison(selected)
+            if comparison:
+                parts.append(comparison)
+        return f"{metric}：" + "；".join(parts) + "。"
+
+    def _ranked_selections(
         self,
         candidates: list[Evidence],
         requested_periods: list[str],
-    ) -> list[Evidence]:
-        selected: list[Evidence] = []
-        seen: set[str] = set()
+    ) -> list[list[Evidence]]:
+        """Return per-period evidence picks, best first, then each next best."""
         periods = sorted(set(requested_periods), reverse=True)
+        ranked_by_period: list[list[Evidence]] = []
         for period in periods:
-            matches = [
-                item
-                for item in candidates
-                if period in self._periods(item)
-            ]
-            if not matches:
-                continue
-            best = max(matches, key=self._evidence_rank)
-            if best.id not in seen:
-                selected.append(best)
-                seen.add(best.id)
-        if not selected:
-            selected = sorted(
+            matches = sorted(
+                (item for item in candidates if period in self._periods(item)),
+                key=self._evidence_rank,
+                reverse=True,
+            )
+            if matches:
+                ranked_by_period.append(matches)
+        if not ranked_by_period:
+            fallback = sorted(
                 candidates,
                 key=self._evidence_rank,
                 reverse=True,
             )[:2]
-        return selected
+            return [fallback] if fallback else []
+        selections: list[list[Evidence]] = []
+        seen: set[tuple[str, ...]] = set()
+        for index in range(max(len(matches) for matches in ranked_by_period)):
+            selection: list[Evidence] = []
+            chosen: set[str] = set()
+            for matches in ranked_by_period:
+                # A period with fewer alternatives keeps its last one rather
+                # than dropping out, so a deeper retry never silently reports
+                # fewer periods than the question asked for.
+                item = matches[min(index, len(matches) - 1)]
+                if item.id not in chosen:
+                    selection.append(item)
+                    chosen.add(item.id)
+            key = tuple(item.id for item in selection)
+            if selection and key not in seen:
+                seen.add(key)
+                selections.append(selection)
+        return selections
 
     def _evidence_rank(self, evidence: Evidence) -> tuple[int, int, str]:
         return (
