@@ -373,3 +373,37 @@ class ReaderRenderingConsistencyTests(_MoutaiFixture, unittest.TestCase):
         findings = self._key_findings(guarded)
         self.assertIn("[^4]", findings)
         self.assertNotIn("[^4] [^4]", findings)
+
+
+class CitationDeduplicationTests(unittest.TestCase):
+    """R107: every citation site cites a distinct source once.
+
+    The dedup rule existed at one of four sites. The R107 BYD runs shipped
+    `[^4] [^4]` from the grounded-fact site and `[^3] [^3]` from the analysis
+    claim site in the same report.
+    """
+
+    def test_every_render_site_shares_one_rule(self) -> None:
+        from deepresearch_agent.agents.reporter import render_citations
+
+        ref_map = {"a": 3, "b": 3, "c": 4}
+
+        self.assertEqual(render_citations(["a", "b"], ref_map), "[^3]")
+        self.assertEqual(render_citations(["a", "c", "b"], ref_map), "[^3] [^4]")
+        self.assertEqual(render_citations([], ref_map), "")
+        # An id with no footnote is skipped, not rendered as a broken marker.
+        self.assertEqual(render_citations(["a", "missing"], ref_map), "[^3]")
+
+    def test_no_render_site_joins_markers_by_evidence_id(self) -> None:
+        """A new site that reintroduces the bug fails here, not in a live run."""
+        import inspect
+
+        from deepresearch_agent.agents import reporter
+
+        source = inspect.getsource(reporter)
+        offenders = [
+            line.strip()
+            for line in source.splitlines()
+            if 'f"[^{ref_map[' in line and "]}]: " not in line
+        ]
+        self.assertEqual(offenders, [])

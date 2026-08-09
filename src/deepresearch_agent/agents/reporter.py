@@ -84,6 +84,25 @@ def restates_an_emitted_line(text: str, emitted: list[str]) -> bool:
     return False
 
 
+def render_citations(evidence_ids: list[str], ref_map: dict[str, int]) -> str:
+    """Cite each distinct source once, in the order its evidence was selected.
+
+    R107: one footnote covers every Evidence sharing a source URL, so two
+    records read out of the same filing both resolve to it. Every site that
+    joined markers per evidence id therefore printed the footnote twice -- the
+    R107 BYD runs shipped `[^4] [^4]` in 关键发现 and `[^3] [^3]` in 详细分析.
+    """
+
+    return " ".join(
+        f"[^{number}]"
+        for number in dict.fromkeys(
+            ref_map[evidence_id]
+            for evidence_id in evidence_ids
+            if evidence_id in ref_map
+        )
+    )
+
+
 REPORTER_LLM_MAX_EVIDENCE = 18
 REPORTER_LLM_MAX_CLAIM_CHARS = 800
 #: The bound the reporter is already held to: `prompts/reporter.md` states it and
@@ -257,13 +276,7 @@ class ReporterAgent:
                 continue
             period = self._reader_text(str(metric.get("period") or "")).strip()
             scope = f"{period} " if period else ""
-            # Deduplicate by footnote, not by evidence id: two facts from one
-            # filing share a number, and `[^1] [^1]` tells the reader nothing
-            # twice.
-            citations = " ".join(
-                f"[^{number}]"
-                for number in dict.fromkeys(ref_map[item] for item in evidence_ids)
-            )
+            citations = render_citations(list(evidence_ids), ref_map)
             lines.append(
                 f"- {scope}{metric['label']}（推导值）：{metric['numerator']} / "
                 f"{metric['denominator']} = {metric['value']} {citations}"
@@ -338,16 +351,7 @@ class ReporterAgent:
                     "grounded fact renderer returned an unbound claim: "
                     f"{claim.label}"
                 )
-            # R107: one footnote covers every Evidence sharing a source, so two
-            # cited records from the same filing both resolve to it and the
-            # reader saw `[^4] [^4]`. Cite each distinct source once, in the
-            # order the evidence was selected.
-            citations = " ".join(
-                f"[^{number}]"
-                for number in dict.fromkeys(
-                    ref_map[evidence_id] for evidence_id in valid_ids
-                )
-            )
+            citations = render_citations(valid_ids, ref_map)
             rendered = f"{claim.text.rstrip()} {citations}".strip()
             cited_evidence = [
                 evidence_by_id[evidence_id]
@@ -1111,10 +1115,8 @@ class ReporterAgent:
                         required_metrics=required_metrics,
                     )
                 ):
-                    citations = " ".join(
-                        f"[^{ref_map[evidence_id]}]"
-                        for evidence_id in claim.evidence_ids
-                        if evidence_id in ref_map
+                    citations = render_citations(
+                        list(claim.evidence_ids), ref_map
                     )
                     rendered = (
                         "该假设原文包含未由所引 Evidence 支持的财务数字，"
@@ -1166,7 +1168,7 @@ class ReporterAgent:
             else:
                 invalid_count += 1
         backfilled = 0
-        citations = " ".join(f"[^{ref_map[evidence_id]}]" for evidence_id in valid_ids)
+        citations = render_citations(valid_ids, ref_map)
         text = self._reader_text(claim.text.strip())
         provenance = {
             "path": path.key,
