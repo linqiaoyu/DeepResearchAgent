@@ -12,6 +12,13 @@ from deepresearch_agent.schemas import ResearchPlan, StructuredDataRequest, SubQ
 _CAPABILITIES = {"symbol_resolve", "financial_indicators", "price_history"}
 _METRIC_TERMS = {
     "营业收入": "营业收入",
+    # R109: `"营业收入" in "营业总收入"` is False -- 总 breaks the substring
+    # match -- so a question naming 营业总收入 requested nothing for it. The
+    # provider vocabulary has known this row as 营业总收入 since AKShare
+    # 1.18.64 and canonicalises it to 营业收入; only planning did not, and
+    # the reader was told the metric was unavailable while the filing text
+    # sat in evidence quoting it.
+    "营业总收入": "营业收入",
     "营收": "营业收入",
     "revenue": "营业收入",
     "营业成本": "营业成本",

@@ -181,3 +181,46 @@ class MarginIsAnsweredTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TotalRevenueIsRequestableTests(unittest.TestCase):
+    """R109: `"营业收入" in "营业总收入"` is False, and the planner used substrings.
+
+    Golden Q01 asks for 营业总收入. The planner requested only 归母净利润, so the
+    metric had no reader-facing slot; the filing text sat in evidence quoting
+    `年度内公司实现营业总收入 1,741.44 亿元，同比增长 15.66%` while the report
+    said the fact was unavailable. The provider vocabulary has canonicalised
+    this row since AKShare 1.18.64; only planning had not.
+    """
+
+    TOPIC = (
+        "解读贵州茅台2024年度业绩：营业总收入、归母净利润及各自同比增速，"
+        "以及茅台酒与系列酒的收入结构。"
+    )
+
+    def _metrics(self, topic: str) -> set[str]:
+        plan = FINANCE.deterministic_plan(topic, 1)
+        assert plan is not None
+        return {
+            metric
+            for sub_question in plan.sub_questions
+            for request in sub_question.structured_data_requests
+            if request.capability == "financial_indicators"
+            for metric in request.metrics
+        }
+
+    def test_a_total_revenue_question_requests_revenue(self) -> None:
+        self.assertIn("营业收入", self._metrics(self.TOPIC))
+
+    def test_it_still_requests_the_other_named_metric(self) -> None:
+        self.assertIn("归母净利润", self._metrics(self.TOPIC))
+
+    def test_the_plain_form_is_unaffected(self) -> None:
+        self.assertIn(
+            "营业收入", self._metrics("贵州茅台2024年营业收入和归母净利润")
+        )
+
+    def test_the_substring_trap_is_stated(self) -> None:
+        """The reason this was missed, kept where it can be read."""
+        self.assertNotIn("营业收入", "营业总收入"[:3])
+        self.assertFalse("营业收入" in "营业总收入")
