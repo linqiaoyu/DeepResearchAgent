@@ -24,7 +24,11 @@ from scripts.check_reader_visible_contract import (
     validate_coverage_findings_agreement,
 )
 
-from deepresearch_agent.agents.reporter import ReporterAgent
+from deepresearch_agent.agents.reporter import (
+    FINANCE_SUMMARY_NO_CITABLE_VALUE,
+    FINANCE_SUMMARY_POINTS_TO_FINDINGS,
+    ReporterAgent,
+)
 from deepresearch_agent.domains.registry import load_domain_pack
 from deepresearch_agent.metric_coverage import evaluate_metric_coverage
 from deepresearch_agent.schemas import (
@@ -199,6 +203,68 @@ class PartialCoverageIsNotAGapTests(_PartialCoverageFixture, unittest.TestCase):
             validate_coverage_findings_agreement(report)
 
         self.assertIn("归母净利润", str(caught.exception))
+
+
+class SummaryStopsPromisingWhatIsNotThereTests(
+    _PartialCoverageFixture,
+    unittest.TestCase,
+):
+    """R109: smoke2 Q01 promised figures two lines above saying it had none.
+
+    `artifacts/109/smoke2/work/Q01/report.md` opens with `具体数值、同比变化与
+    出处见下方带脚注的关键发现`, and its 关键发现 holds exactly one line:
+    `归母净利润：未取得可引用的原始披露事实`. The pointer is boilerplate the
+    reporter substitutes for an unbindable summary; nothing checked that the
+    section it points at had anything to point at.
+    """
+
+    def _draft_with_summary(self) -> str:
+        return "\n".join(
+            [
+                "# 报告",
+                "",
+                "## 摘要",
+                FINANCE_SUMMARY_POINTS_TO_FINDINGS,
+                "",
+                "## 关键发现",
+                "- 归母净利润有所增长。 [^1]",
+                "",
+                "## 参考来源",
+                "[^1]: 第一财经 比亚迪 2024",
+            ]
+        )
+
+    def _rendered(self, state: ResearchState) -> str:
+        reporter = ReporterAgent(
+            grounded_fact_renderer=FINANCE.grounded_fact_renderer()
+        )
+        return reporter._enforce_reader_fidelity(
+            self._draft_with_summary(),
+            state,
+            self._ref_map(state),
+        )
+
+    def _empty_state(self) -> ResearchState:
+        state = self._state()
+        state.evidence_store = []
+        return state
+
+    def test_the_precondition_is_a_run_that_found_nothing(self) -> None:
+        coverage = evaluate_metric_coverage(self._empty_state(), FINANCE)
+
+        self.assertEqual([item.status for item in coverage], ["searched_unavailable"])
+
+    def test_a_report_with_no_value_stops_promising_one(self) -> None:
+        report = self._rendered(self._empty_state())
+
+        self.assertNotIn(FINANCE_SUMMARY_POINTS_TO_FINDINGS, report)
+        self.assertIn(FINANCE_SUMMARY_NO_CITABLE_VALUE, report)
+
+    def test_the_pointer_survives_when_there_is_something_to_point_at(self) -> None:
+        report = self._rendered(self._state())
+
+        self.assertIn(FINANCE_SUMMARY_POINTS_TO_FINDINGS, report)
+        self.assertIn(f"{PROFIT_2024} 亿元", report)
 
 
 class UnattributedPeriodStaysAGapTests(_PartialCoverageFixture, unittest.TestCase):

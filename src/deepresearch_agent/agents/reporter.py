@@ -53,6 +53,21 @@ _FOOTNOTE_RE = re.compile(r"\[\^(\d+)\]")
 # that is what this measures: the claim's content characters against the lines
 # already emitted, ignoring digits, punctuation and spacing.
 _CONTENT_CHARS_RE = re.compile(r"[\s\d\W_]+", re.UNICODE)
+#: Replaces a summary whose figures cannot be bound to Evidence, by sending the
+#: reader to the section that carries the bound ones.
+FINANCE_SUMMARY_POINTS_TO_FINDINGS = (
+    "本报告按权威披露逐项核验题目所列财务指标；"
+    "具体数值、同比变化与出处见下方带脚注的关键发现"
+    "及指标覆盖状态。"
+)
+#: R109: smoke2 Q01 shipped the line above over a 关键发现 holding one gap
+#: notice and no figure at all -- the summary promised the reader values two
+#: lines before the report told them there were none. A pointer to a section is
+#: only honest when that section has something to point at.
+FINANCE_SUMMARY_NO_CITABLE_VALUE = (
+    "本报告按权威披露逐项核验题目所列财务指标，本轮未取得可引用的数值；"
+    "各指标的缺口原因与后续核验路径见下方关键发现及指标覆盖状态。"
+)
 #: Two lines this similar in content characters say the same thing to a reader.
 #: Calibrated on the pair the R090 rule was written for -- a key finding and an
 #: analysis claim stating one metric's value, which score 0.88.
@@ -397,6 +412,14 @@ class ReporterAgent:
                 )
             )
         lines = lines[:start] + grounded_lines + [""] + lines[end:]
+        # Nothing survived to be pointed at, so the summary must stop pointing.
+        if not grounded_provenance:
+            lines = [
+                FINANCE_SUMMARY_NO_CITABLE_VALUE
+                if line.strip() == FINANCE_SUMMARY_POINTS_TO_FINDINGS
+                else line
+                for line in lines
+            ]
         downgraded = self._downgrade_unsupported_numeric_lines(
             lines,
             state,
@@ -848,11 +871,7 @@ class ReporterAgent:
             financial_contract
             and self.numeric_citation_policy.has_numeric_mismatch(summary, [])
         ):
-            summary = (
-                "本报告按权威披露逐项核验题目所列财务指标；"
-                "具体数值、同比变化与出处见下方带脚注的关键发现"
-                "及指标覆盖状态。"
-            )
+            summary = FINANCE_SUMMARY_POINTS_TO_FINDINGS
 
         lines: list[str] = [
             f"# {self._reader_text(state.topic)}",
