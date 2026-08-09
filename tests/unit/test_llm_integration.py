@@ -149,7 +149,7 @@ class LLMIntegrationTests(unittest.TestCase):
         # above now cover.
         self.assertEqual(
             [request.metrics for request in requests],
-            [["营业收入"], ["主营业务毛利率"], ["毛利"]],
+            [["营业收入"], ["毛利率"], ["毛利"]],
         )
         self.assertEqual([request.periods for request in requests], [["20251231"]] * 3)
 
@@ -876,11 +876,11 @@ class LLMIntegrationTests(unittest.TestCase):
         # request still fails here.
         self.assertEqual(
             [request.metrics for request in requests],
-            [["营业收入"], ["主营业务毛利率"], ["归母净利润"], ["毛利"]],
+            [["营业收入"], ["毛利率"], ["归母净利润"], ["毛利"]],
         )
         metrics = [metric for request in requests for metric in request.metrics]
         self.assertNotIn("净利润", metrics)
-        self.assertNotIn("毛利率", metrics)
+        self.assertNotIn("主营业务毛利率", metrics)
 
     def test_llm_planner_discards_invalid_structured_requests(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -963,13 +963,16 @@ class LLMIntegrationTests(unittest.TestCase):
         # path, and the identity propagation this test exists for must cover it.
         self.assertEqual(
             [request.metrics for request in requests],
-            [["营业收入"], ["主营业务毛利率"], ["归母净利润"], ["毛利"]],
+            [["营业收入"], ["毛利率"], ["归母净利润"], ["毛利"]],
         )
         metrics = [metric for request in requests for metric in request.metrics]
         self.assertIn("归母净利润", metrics)
         self.assertNotIn("净利润", metrics)
-        self.assertIn("主营业务毛利率", metrics)
-        self.assertNotIn("毛利率", metrics)
+        # R108 contract change: the topic says 毛利率, so the plan asks for
+        # 毛利率. Escalating it into 主营业务毛利率 asked for a stricter ratio
+        # the question never named and no A-share source publishes.
+        self.assertIn("毛利率", metrics)
+        self.assertNotIn("主营业务毛利率", metrics)
         self.assertEqual([request.periods for request in requests], [["20251231"]] * 4)
         self.assertEqual(plan.sub_questions[0].search_queries[0], "600519 年度报告")
 

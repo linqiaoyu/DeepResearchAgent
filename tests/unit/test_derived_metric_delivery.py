@@ -52,7 +52,13 @@ class ComponentRequestTests(unittest.TestCase):
         self.assertIn("营业收入", requested)
         # Appended, not substituted: a source that publishes the metric directly
         # must still be asked for it.
-        self.assertIn("主营业务毛利率", requested)
+        self.assertIn("毛利率", requested)
+        # R108 contract change: this topic says 毛利率, so the plan asks for
+        # 毛利率. It used to be escalated into 主营业务毛利率 -- a stricter ratio
+        # the question never named, which no A-share source publishes and which
+        # `evidence_matches_metric` correctly refuses to satisfy with a bare
+        # 毛利率 record. The escalation is what made the metric unanswerable.
+        self.assertNotIn("主营业务毛利率", requested)
 
 
 class DerivedMetricDeliveryTests(unittest.TestCase):
@@ -197,7 +203,14 @@ class NoSelfContradictionTests(DerivedMetricDeliveryTests):
             report,
             "the report states a gap in the same breath as the value that fills it",
         )
-        self.assertIn("推导值见「派生指标」", report)
+        self.assertIn("「派生指标」", report)
+        # R108: the derivation divides 毛利 by 营业收入, so it yields the overall
+        # margin. This state requires 主营业务毛利率 explicitly, so the notice
+        # must point at the derivation *and* say the 口径 is not the same. It
+        # must never present the broader ratio as the stricter metric.
+        findings = report.split("## 关键发现", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("不能直接替代主营业务毛利率", findings)
+        self.assertNotIn("主营业务毛利率为", findings)
         # Both sections that carry gap wording must agree.
         for section in ("关键发现", "指标覆盖状态"):
             if f"## {section}" not in report:
@@ -256,7 +269,9 @@ class ComponentIsNotAnAnswerTests(unittest.TestCase):
         self.assertIn("毛利", requested)
         # ... and never presented as something the question asked for.
         self.assertNotIn("毛利", reader_facing)
-        self.assertIn("主营业务毛利率", reader_facing)
+        # R108: the question says 毛利率, so that is the reader-facing metric.
+        self.assertIn("毛利率", reader_facing)
+        self.assertNotIn("主营业务毛利率", reader_facing)
         self.assertIn("营业收入", reader_facing)
 
     def test_a_metric_the_question_names_is_reader_facing_even_if_it_is_also_a_component(

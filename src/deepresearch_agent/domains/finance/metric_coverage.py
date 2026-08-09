@@ -21,8 +21,16 @@ def evidence_matches_metric(evidence: Any, required_metric: str) -> bool:
         if evidence.numeric_fields
         else None
     )
-    if canonical_metric(evidence_metric) != required_metric:
-        return False
+    canonical = canonical_metric(evidence_metric)
+    if canonical != required_metric:
+        # R108: `毛利率` canonicalises to itself now, so a margin that *is*
+        # main-business no longer arrives under the strict name -- it arrives as
+        # 毛利率 carrying a main-business dimension such as 酒类. What makes such
+        # a record answer 主营业务毛利率 has always been that dimension, and the
+        # test for it is below; returning early here put it out of reach and
+        # dropped a filing's own 酒类毛利率 row.
+        if not (required_metric == "主营业务毛利率" and canonical == "毛利率"):
+            return False
     if required_metric != "主营业务毛利率":
         return True
     normalized_metric = re.sub(r"[\s：:（）()]", "", evidence_metric or "")

@@ -123,7 +123,7 @@ class Round083StructuredDataTests(unittest.TestCase):
         # exactly when the requested metric needs one.
         self.assertEqual(
             [item.metrics for item in pdd.sub_questions[0].structured_data_requests],
-            [["营业收入"], ["主营业务毛利率"], ["毛利"]],
+            [["营业收入"], ["毛利率"], ["毛利"]],
         )
 
     def test_english_and_chinese_financial_intent_select_structured_data(self) -> None:

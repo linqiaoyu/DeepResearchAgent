@@ -11,8 +11,23 @@ METRIC_ALIASES = {
     "归属于母公司股东的净利润": "归母净利润",
     "归属于上市公司股东的净利润": "归母净利润",
     "毛利": "毛利",
-    "毛利率": "主营业务毛利率",
+    # R108: `毛利率` is the overall gross margin and is its own metric. It was
+    # canonicalised into `主营业务毛利率`, which made a question saying 毛利率
+    # ask for the stricter main-business ratio -- a name no A-share source
+    # publishes, and one `evidence_matches_metric` correctly refuses to satisfy
+    # with a bare 毛利率 record. AKShare publishes 毛利率 directly for both of
+    # R107's issuers, so the pipeline was declining to deliver a figure it could
+    # read, on every A-share run. Deriving 毛利/营业收入 also yields the overall
+    # ratio, so filing it under the main-business name was never right either.
+    "毛利率": "毛利率",
     "主营业务毛利率": "主营业务毛利率",
+}
+#: Surface forms that are *about* another metric without being able to answer
+#: it. A sentence naming 毛利率 is on topic for a 主营业务毛利率 question (R100),
+#: but a 毛利率 *value* still cannot satisfy it. Topicality and satisfaction were
+#: one table; separating them is what lets 毛利率 be its own metric.
+METRIC_TOPIC_KINSHIP = {
+    "毛利率": ("主营业务毛利率",),
 }
 def metrics_mentioned(text: str, required: set[str]) -> set[str]:
     """Which required metrics a sentence talks about, by surface form.
@@ -29,8 +44,13 @@ def metrics_mentioned(text: str, required: set[str]) -> set[str]:
         return set()
     mentioned: set[str] = set()
     for surface, canonical in METRIC_ALIASES.items():
-        if canonical in required and surface in text:
+        if surface not in text:
+            continue
+        if canonical in required:
             mentioned.add(canonical)
+        mentioned.update(
+            kin for kin in METRIC_TOPIC_KINSHIP.get(canonical, ()) if kin in required
+        )
     return mentioned
 
 
@@ -76,7 +96,11 @@ SEC_COMPANYFACTS_CONCEPTS = {
     "净利润": ("ProfitLoss", "NetIncomeLoss"),
     "每股收益": ("EarningsPerShareDiluted",),
 }
-SEC_COMPANYFACTS_UNSUPPORTED_METRICS = ("主营业务毛利率", "市盈率")
+# R108: `毛利率` reached this list only by being canonicalised into
+# `主营业务毛利率`. It is its own metric now, and Company Facts publishes
+# `GrossProfit` and revenue but no margin ratio, so it is unsupported here
+# on its own account -- and `METRIC_COMPONENTS` supplies the derivation.
+SEC_COMPANYFACTS_UNSUPPORTED_METRICS = ("主营业务毛利率", "毛利率", "市盈率")
 #: R102: what a metric can be computed from when no source publishes it directly.
 #: The filer publishes `GrossProfit` and revenue for every period it reports, and
 #: `derived_metrics.reader_derived_metrics` has always known how to divide them --
@@ -89,6 +113,7 @@ SEC_COMPANYFACTS_UNSUPPORTED_METRICS = ("主营业务毛利率", "市盈率")
 #: otherwise.
 METRIC_COMPONENTS = {
     "主营业务毛利率": ("营业收入", "毛利"),
+    "毛利率": ("营业收入", "毛利"),
 }
 FINANCIAL_INTENT_TERMS = (
     "annual report",

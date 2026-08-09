@@ -180,6 +180,13 @@ class FinanceDomainPack:
             period = str(item.get("period") or "")
             if canonical and period:
                 periods.setdefault(canonical, []).append(period)
+        # R108: a 毛利率 derivation is also the closest thing the run has to a
+        # 主营业务毛利率 that no source published. It is reported under that
+        # label too so the gap notice can point at it -- and
+        # `reader_metric_gap_explanation` states plainly that the two are not
+        # the same 口径.
+        if "毛利率" in periods:
+            periods.setdefault("主营业务毛利率", list(periods["毛利率"]))
         return {label: tuple(values) for label, values in periods.items()}
 
     def metrics_mentioned(self, text: str, required: set[str]) -> set[str]:

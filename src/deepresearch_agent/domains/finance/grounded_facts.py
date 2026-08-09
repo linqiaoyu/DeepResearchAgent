@@ -34,6 +34,8 @@ _FINANCIAL_ATOM_RE = re.compile(
 # is typography: only whitespace between a figure and its currency unit is
 # touched, never a digit, and percentages keep the tight form readers expect.
 _CURRENCY_SPACING_RE = re.compile(r"(\d)[ \t]*(亿元|万元|元)")
+#: Units whose year-on-year change is a difference in points, not a ratio.
+_RATE_UNITS = re.compile(r"%|个百分点")
 
 
 def _normalize_currency_spacing(text: str) -> str:
@@ -292,6 +294,24 @@ class FinanceGroundedFactRenderer:
         prior, prior_unit = by_year[prior_year]
         if prior == 0 or current_unit != prior_unit:
             return None
+        # R108: a margin that moves from 20.21% to 19.44% has fallen 0.78
+        # percentage points, not 3.84%. This divided every metric by its prior
+        # period regardless of unit, so the first run that delivered a rate
+        # stated the relative change in a form readers read as points. It also
+        # put a figure past the fidelity guard unchecked, because
+        # `_derived_yoy_values` derives a rate's year-on-year as the difference
+        # -- the two sides were computing different quantities and only the
+        # unextractable phrasing kept them from disagreeing out loud.
+        if _RATE_UNITS.fullmatch(current_unit):
+            points = (current - prior).quantize(
+                Decimal("0.01"),
+                rounding=ROUND_HALF_UP,
+            )
+            direction = "上升" if points >= 0 else "下降"
+            return (
+                f"由{current_year}/{prior_year}两期原值机械计算同比"
+                f"{direction}{abs(points):.2f}个百分点"
+            )
         change = ((current - prior) / abs(prior) * Decimal("100")).quantize(
             Decimal("0.01"),
             rounding=ROUND_HALF_UP,
@@ -318,6 +338,10 @@ class FinanceGroundedFactRenderer:
         normalized = format(decimal, ",f")
         if "." in normalized:
             normalized = normalized.rstrip("0").rstrip(".")
+        if unit == "%":
+            # R108: `19.43834 %` is not how a rate is written. Currency units
+            # keep their space (R107); a percent sign does not take one.
+            return f"{normalized}%"
         return f"{normalized} {unit}" if unit else normalized
 
     def _exact_currency_values_supported(

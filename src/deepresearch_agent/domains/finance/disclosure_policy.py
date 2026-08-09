@@ -99,6 +99,17 @@ def reader_metric_gap_explanation(
 
     if derived_periods:
         periods = "、".join(derived_periods)
+        if metric == "主营业务毛利率":
+            # R108: the derivation divides 毛利 by 营业收入, which is the overall
+            # margin. Presenting it as the main-business ratio was a conflation
+            # the alias table used to hide. Name the derivation, and name the
+            # difference, so the reader is neither told there is nothing nor
+            # handed a broader ratio under a stricter label.
+            return (
+                "结构化年报字段未披露主营业务口径的该指标；「派生指标」"
+                f"（{periods}）给出的是整体毛利率，由营业收入与毛利相除得到，"
+                "口径较主营业务更宽，不能直接替代主营业务毛利率。"
+            )
         return (
             "结构化年报字段未直接披露该指标；已由营业收入与毛利逐期推导，"
             f"推导值见「派生指标」（{periods}），其分子分母与出处一并列出。"
