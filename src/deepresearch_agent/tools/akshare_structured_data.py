@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import math
 import multiprocessing
 import queue
 import re
 import time
 from collections.abc import Callable
 from datetime import date
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Any
 
 from deepresearch_agent.domains.protocols import StructuredDataDomain
@@ -109,7 +109,7 @@ class AKShareStructuredDataProvider:
             for period in (periods or [])
         }
         records: list[StructuredDataRecord] = []
-        seen_records: set[tuple[str, str, float, str]] = set()
+        seen_records: set[tuple[str, str, Decimal, str]] = set()
         raw_rows = frame.to_dict("records")
         raw_metrics = {str(row.get("指标", "")).strip() for row in raw_rows}
         for row in raw_rows:
@@ -128,7 +128,7 @@ class AKShareStructuredDataProvider:
                 period = str(column)
                 if period_filter and period not in period_filter:
                     continue
-                numeric_value = self._float_or_none(value)
+                numeric_value = self._decimal_or_none(value, unit=unit)
                 if numeric_value is None:
                     continue
                 record_key = (metric_name, period, numeric_value, unit)
@@ -175,7 +175,7 @@ class AKShareStructuredDataProvider:
             if not day:
                 continue
             for source_column, metric_name in (("收盘", "收盘价"), ("最高", "最高价"), ("最低", "最低价")):
-                value = self._float_or_none(row.get(source_column))
+                value = self._decimal_or_none(row.get(source_column), unit="元/股")
                 if value is None:
                     continue
                 records.append(
@@ -258,9 +258,37 @@ class AKShareStructuredDataProvider:
             metric_name,
         )
 
-    def _float_or_none(self, value: Any) -> float | None:
-        try:
-            numeric = float(value)
-        except (TypeError, ValueError):
+    #: The smallest unit any of these currencies is reported in. A figure with
+    #: more decimals than this is arithmetic residue, not disclosure.
+    _CURRENCY_UNITS = frozenset({"元", "元/股", "CNY", "cny", "RMB", "rmb"})
+    _CURRENCY_QUANTUM = Decimal("0.01")
+
+    def _decimal_or_none(self, value: Any, *, unit: str | None = None) -> Decimal | None:
+        """Carry a reported amount as a decimal, without inventing precision.
+
+        R105: this returned a binary float and the record field is a `Decimal`,
+        so the float's binary expansion became the value. Moutai's 2024 revenue
+        reached the reader as `174,144,069,958.24997 元` -- revenue stated to
+        five decimal places of a yuan, four of them wrong. That is the first
+        thing a reader would disbelieve, whatever else the report gets right.
+
+        Two separate faults, so two fixes. Money does not pass through a binary
+        float. And an amount in a currency is quantised to that currency's
+        smallest unit, because no filing reports a fraction of a fen and
+        carrying one forward only launders the provider's arithmetic residue
+        into a figure that looks precise.
+        """
+
+        if value is None or isinstance(value, bool):
             return None
-        return numeric if math.isfinite(numeric) else None
+        try:
+            # `str` first: a pandas float64 renders as its shortest round-trip
+            # decimal, which is the closest thing to the figure the source holds.
+            numeric = Decimal(str(value).strip().replace(",", ""))
+        except (TypeError, ValueError, InvalidOperation):
+            return None
+        if not numeric.is_finite():
+            return None
+        if unit in self._CURRENCY_UNITS and -numeric.as_tuple().exponent > 2:
+            return numeric.quantize(self._CURRENCY_QUANTUM, rounding=ROUND_HALF_UP)
+        return numeric
