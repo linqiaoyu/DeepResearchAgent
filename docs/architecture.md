@@ -223,7 +223,8 @@ Reflector adds two auditable decisions: mechanical signal extraction and procedu
 write. Only deterministic signals enter `DecisionContext`; the placeholder `llm_insight`
 cannot affect behavior. Round 033 observed no adopted procedural strategy, so this seam
 still has no demonstrated reasoning benefit.
-`TRAJECTORY_RECORD_ENABLED=false` is the default. When enabled, new recordings
+`TRAJECTORY_RECORD_ENABLED=true` is the default since Round 109, where it was
+classified `operational`. Recordings
 use schema v4 and persist redacted LLM attempts, supported ToolSpec calls, node
 transitions, decisions, artifacts, and a typed terminal outcome. Verified strict
 replay for completed v4 runs consumes recorded LLM, search/fetch,

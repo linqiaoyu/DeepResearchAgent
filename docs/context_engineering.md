@@ -1,6 +1,6 @@
 # Context engineering
 
-The context packer is implemented behind `CONTEXT_PACKER_ENABLED=false`. The default path still passes the complete evidence list to Reporter.
+The context packer runs behind `CONTEXT_PACKER_ENABLED=true`, the default since Round 087's single-flag live A/B. Setting it to `false` restores the earlier path, which passes the complete evidence list to Reporter.
 
 `ContextBudget` uses 200,000 tokens for Planner, Extractor, and Reporter, matching the current run-level token budget rather than introducing a tighter implicit limit. Reporter can be configured with `DEEPRESEARCH_REPORTER_CONTEXT_TOKEN_BUDGET` only when the packer is enabled.
 

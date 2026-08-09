@@ -1,6 +1,6 @@
 # 数值自洽校验
 
-`NUMERIC_CHECK_ENABLED` 默认关闭。开启后，Critic 会在既有 Evidence 与
+`NUMERIC_CHECK_ENABLED` 默认开启。开启后，Critic 会在既有 Evidence 与
 [`finance_metric_normalization.json`](../skills/finance-metric-normalization/resources/finance_metric_normalization.json)
 归一边界内做确定性算术校验，不访问外部数据源。
 
@@ -27,5 +27,5 @@
 evidence IDs，并进入既有 retry queue。
 
 这些 fixture 测试证明规则按定义执行，不证明规则覆盖真实研究中的全部表达方式。
-后续真实运行已经验证了独立的报告数值护栏，但没有完成
-`NUMERIC_CHECK_ENABLED` 开/关的可比质量实验，因此该开关仍默认关闭。
+该开关已由 Round 087 的单开关 live A/B 转正并默认开启；fixture 覆盖面的限制不变，
+仍不能据此断言规则覆盖真实研究中的全部表达方式。

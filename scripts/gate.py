@@ -95,6 +95,7 @@ def run_gate() -> None:
             [sys.executable, "scripts/build_disclosure_fixture.py", "--check"],
         ),
         ("settings_documentation", [sys.executable, "scripts/sync_agents_settings.py", "--check"]),
+        ("doc_flag_claims", [sys.executable, "scripts/check_doc_flag_claims.py"]),
         ("agent_guidance", [sys.executable, "scripts/check_agent_guidance.py"]),
         ("prompt_drift", [sys.executable, "scripts/check_prompt_drift.py"]),
         (

@@ -141,7 +141,7 @@ flowchart LR
 ## 诚实边界
 
 - `REFLECTION_ENABLED=false`：四类确定性信号、占位推理接口、程序记忆与重规划接线已实现；Round 033 未观察到策略采用，不能宣称具备反思判断力，见 [reflection.md](docs/reflection.md)。
-- `CONTEXT_PACKER_ENABLED=true`、`INJECTION_GUARD_ENABLED=false`、`RESEARCH_LOOP_ENABLED=false`、`DYNAMIC_CAPABILITY_ENABLED=true`、`BRANCH_BUDGET_ENABLED=true`、`SKILL_PACKS_ENABLED=false`：Round 087 的单开关 live A/B 已转正 context packer、numeric check、semantic judge 和 decision weaving；research loop、skill packs、trajectory record 与 progressive delivery 仍未观察到严格增益而保持关闭。开关默认值不等于所有主题的质量结论，见 [method_limits.md](docs/method_limits.md)。
+- `CONTEXT_PACKER_ENABLED=true`、`INJECTION_GUARD_ENABLED=false`、`RESEARCH_LOOP_ENABLED=false`、`DYNAMIC_CAPABILITY_ENABLED=true`、`BRANCH_BUDGET_ENABLED=true`、`SKILL_PACKS_ENABLED=false`：Round 087 的单开关 live A/B 已转正 context packer、numeric check、semantic judge 和 decision weaving；trajectory record 与 progressive delivery 已在 Round 109 作为 `operational` 默认开启（两者不改变 Evidence 集合或顺序）；research loop 与 skill packs 仍未观察到严格增益而保持关闭。开关默认值不等于所有主题的质量结论，见 [method_limits.md](docs/method_limits.md)。
 - MCP 不暴露任意文件读取或命令执行；server 只允许服务端自管运行目录，付费路径需要显式 `allow_paid`，本轮 fixture server 即使确认也拒绝 LLM 执行，见 [server.py](src/deepresearch_agent/mcp/server.py)。
 - 金融仍是当前唯一已实现的领域包；核心侧具体金融 import 由
   [`scripts/check_domain_boundary.py`](scripts/check_domain_boundary.py) 测量并以
