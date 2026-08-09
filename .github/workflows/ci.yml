@@ -36,3 +36,57 @@ jobs:
 
       - name: Run deterministic CI gate
         run: python scripts/gate.py
+
+  postgres-storage:
+    # R110 found three Postgres tests that had skipped on every run since they
+    # were written, because nothing supplied a DSN. They pass in 172 seconds
+    # against a real server -- too slow for the default gate, and no reason at
+    # all to leave the second storage backend unexercised.
+    name: Postgres storage backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: deepresearch
+          POSTGRES_PASSWORD: deepresearch
+          POSTGRES_DB: deepresearch_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      PYTHONPATH: src:tests
+      DEEPRESEARCH_POSTGRES_DSN: postgresql://deepresearch:deepresearch@localhost:5432/deepresearch_ci
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Run the Postgres storage tests
+        run: |
+          python -m unittest \
+            contract.test_storage_contract \
+            integration.test_postgres_storage_live -v
+
+      - name: Refuse a silent skip
+        # A skipped test that reports success is how this went unexercised for
+        # so long. If the DSN stops reaching a server, this job must go red.
+        run: python scripts/check_postgres_job.py
