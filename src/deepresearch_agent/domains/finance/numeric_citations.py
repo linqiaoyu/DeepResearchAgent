@@ -14,9 +14,21 @@ NUMBER_PATTERN = (
 )
 MEASURE_RE = re.compile(
     rf"(?P<number>{NUMBER_PATTERN})\s*"
-    r"(?P<unit>百万元|千元|亿元|万元|亿元|亿|个百分点|个百\s*分点|元|CNY|RMB|%|％|pct)",
+    r"(?P<unit>百万元|千元|亿元|万元|亿元|亿|个百分点|个百\s*分点|元|CNY|RMB"
+    # R104: the primary sources this agent retrieves for a US-listed issuer are
+    # English 20-F filings. Without these scales every figure in them was
+    # invisible to the guard, so an analysis line faithfully restating one was
+    # deleted as unverifiable -- the better the source, the more analysis lost.
+    r"|million|billion|thousand"
+    r"|%|％|pct)",
     re.IGNORECASE,
 )
+#: An amount in these scales is only a CNY amount when the filing says so. A
+#: 20-F prints `RMB9,908.6 million (US$1,372.3 million)` side by side, and
+#: letting the dollar figure support a yuan claim would be a fabrication the
+#: guard exists to catch.
+_ENGLISH_SCALES = {"million", "billion", "thousand"}
+_RMB_PREFIX_RE = re.compile(r"(?:RMB|CNY)\s*$", re.IGNORECASE)
 BARE_COMMA_AMOUNT_RE = re.compile(
     r"(?<![\d.])(?P<number>[+-]?\d{1,3}(?:,\d{3})+(?:\.\d+)?)(?![\d])"
 )
@@ -39,11 +51,18 @@ BASE_METRIC_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("gross_profit", re.compile(r"毛利(?!率)")),
     ("total_revenue", re.compile(r"营业总收入")),
     ("revenue", re.compile(r"(?<!总)营业收入|营收")),
+    # R104: the same metrics as written in an English filing.
+    ("gross_margin", re.compile(r"gross\s+margin", re.IGNORECASE)),
+    ("gross_profit", re.compile(r"gross\s+profit", re.IGNORECASE)),
+    ("revenue", re.compile(r"(?:total\s+)?revenues?\b", re.IGNORECASE)),
     ("net_profit", re.compile(r"净利润|净利")),
     ("operating_cost", re.compile(r"营业成本")),
 )
 
 AMOUNT_MULTIPLIERS = {
+    "million": Decimal("1000000"),
+    "billion": Decimal("1000000000"),
+    "thousand": Decimal("1000"),
     "元": Decimal("1"),
     "万元": Decimal("10000"),
     "亿元": Decimal("100000000"),
@@ -526,12 +545,19 @@ def _value_from_text(
         return None
 
     unit = _normalize_unit(unit_text)
+    if unit in _ENGLISH_SCALES and not _RMB_PREFIX_RE.search(text[:number_start]):
+        # `US$1,372.3 million` and an unqualified `9,908.6 million` are not CNY
+        # amounts. Reading either as one would let a dollar figure support a
+        # yuan claim, which is exactly the fabrication this guard catches.
+        return None
     if unit in AMOUNT_MULTIPLIERS:
         multiplier = AMOUNT_MULTIPLIERS[unit]
         return FinancialValue(
             kind="amount",
             metric=metric,
-            period=period or _period_before(text, number_start),
+            period=period
+            or _english_period_after(text, number_start)
+            or _period_before(text, number_start),
             value=number * multiplier,
             display_step=_display_step(number_text) * multiplier,
         )
@@ -545,7 +571,10 @@ def _value_from_text(
             period=period or (
                 _yoy_result_period(text, number_start)
                 if metric.endswith(":yoy")
-                else _period_before(text, number_start)
+                else (
+                    _english_period_after(text, number_start)
+                    or _period_before(text, number_start)
+                )
             ),
             value=number,
             display_step=_display_step(number_text),
@@ -596,10 +625,38 @@ def _normalize_metric_name(metric_name: str) -> str | None:
     return max(matches)[1] if matches else None
 
 
+_CJK_RE = re.compile(r"[\u4e00-\u9fff]")
+
+
 def _period_before(text: str, number_start: int) -> str | None:
     window = text[max(0, number_start - 28) : number_start]
     periods = re.findall(r"(?:19|20)\d{2}", window)
     return periods[-1] if periods else None
+
+
+def _english_period_after(text: str, number_start: int) -> str | None:
+    """In an English filing the year follows the figure it belongs to.
+
+    R104: `was 4.9% in the first quarter of 2024, compared with 1.5% in the
+    first quarter of 2023` binds each rate to the year printed after it. Reading
+    backwards, as Chinese requires, gave 4.9% no year and 1.5% the year 2024 --
+    the wrong one, and a wrong period rejects a claim that quotes the sentence
+    correctly. The search stops at the next figure so a year can never be taken
+    from the clause that belongs to it.
+    """
+
+    if _CJK_RE.search(text):
+        return None
+    tail = text[number_start:]
+    head = MEASURE_RE.match(tail)
+    tail = tail[head.end() :] if head else tail
+    # Stop at the next *measured* figure, not the next digits: the year being
+    # searched for is itself four digits, and stopping at it found nothing.
+    following = MEASURE_RE.search(tail)
+    if following is not None:
+        tail = tail[: following.start()]
+    match = re.search(r"(?:19|20)\d{2}", tail)
+    return match.group(0) if match else None
 
 
 def _yoy_result_period(
@@ -653,6 +710,8 @@ def _normalize_unit(unit_text: str) -> str | None:
         return "元"
     if normalized in {"cny", "rmb"}:
         return "cny"
+    if normalized in _ENGLISH_SCALES:
+        return normalized
     if "百分点" in normalized:
         return "个百分点"
     if normalized in {"%", "％"}:
