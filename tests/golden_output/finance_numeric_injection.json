@@ -1208,13 +1208,15 @@
         "INJECTION_GUARD_ENABLED": true,
         "NUMERIC_CHECK_ENABLED": true,
         "PROCEDURAL_MEMORY_ENABLED": false,
+        "PROGRESSIVE_DELIVERY_ENABLED": true,
         "RERANK_ENABLED": true,
         "RERANK_FAIL_OPEN": true,
         "RUN_MANIFEST_ENABLED": true,
         "SEMANTIC_JUDGE_ENABLED": true,
         "STRUCTURED_LOGGING_ENABLED": true,
         "STRUCTURED_OUTPUT_ENABLED": true,
-        "TOOL_CONTRACT_ENABLED": true
+        "TOOL_CONTRACT_ENABLED": true,
+        "TRAJECTORY_RECORD_ENABLED": true
       },
       "mode": "deterministic",
       "model_strings": {
