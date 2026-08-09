@@ -301,7 +301,7 @@ def _configure_mode(mode: str, *, as_of: str) -> None:
         # A caller may select the market-compatible real structured provider
         # (for example SEC Company Facts for a 20-F) without changing the
         # historical A-share default.
-        os.environ.setdefault("DEEPRESEARCH_STRUCTURED_DATA_PROVIDER", "akshare")
+        os.environ.setdefault("DEEPRESEARCH_STRUCTURED_DATA_PROVIDER", "auto")
     else:
         os.environ["DEEPRESEARCH_MODE"] = "deterministic"
         os.environ["DEEPRESEARCH_SEARCH_PROVIDER"] = "fixture"
