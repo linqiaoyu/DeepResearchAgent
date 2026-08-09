@@ -372,8 +372,17 @@ class EmptyRagSearchTool:
         *,
         query: str,
         as_of: str,
+        # R109: the caller has passed this since the retrieval filter landed,
+        # and this implementation never accepted it. Nothing noticed because
+        # `Researcher.rag_search` is typed `object` and no test ever ran with
+        # `RAG_ENABLED=true` and no index -- so the first live RAG arm died with
+        # `TypeError: EmptyRagSearchTool.search() got an unexpected keyword
+        # argument 'filter_query'` on its first sub-question. There is nothing
+        # to filter without an index, so it is accepted and discarded.
+        filter_query: str | None = None,
         context: RunToolContext | None = None,
     ) -> dict[str, object]:
+        del filter_query
         degradation = DegradationEvent(
             tool="rag_search",
             reason="not_found",
