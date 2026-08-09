@@ -1,12 +1,51 @@
 from __future__ import annotations
 
 import re
+from decimal import Decimal
 from typing import Any
 
 from deepresearch_agent.domains.finance.vocabulary import canonical_metric
 
 
 _COMPARISON_RE = re.compile(r"同比|较上年|比上年|上年同期|较去年|比去年")
+_PERIOD_YEAR_RE = re.compile(r"(?<!\d)(20\d{2})(?!\d)")
+#: The scales that make two published amounts comparable at all. They are
+#: deliberately not made equal: `324.96 亿元` is a rounding of a filing's exact
+#: 元 figure, and collapsing the two would hide which precision a source
+#: actually published.
+_AMOUNT_SCALES = {
+    "元": Decimal(1),
+    "万元": Decimal(10**4),
+    "亿元": Decimal(10**8),
+}
+
+
+def coverage_figure_key(evidence: Any) -> tuple[str, str]:
+    """Identify one published figure, so a restatement of it is not a second.
+
+    R109: the first live 长江电力 round rendered 指标覆盖状态 for 归母净利润 as
+    one 1,500-character line carrying every matching evidence id -- the same
+    three figures restated thirteen times between them. Deduplication needs to
+    know what makes two amounts the same amount, which is a domain question:
+    the reporter has no business knowing what 亿元 is.
+    """
+
+    record = getattr(evidence, "structured_record", None)
+    fields = getattr(evidence, "numeric_fields", None)
+    raw_period = str(
+        (record.period if record else fields.period if fields else "") or ""
+    )
+    match = _PERIOD_YEAR_RE.search(raw_period)
+    year = match.group(1) if match else raw_period
+    value = record.value if record else fields.value if fields else None
+    unit = (record.unit if record else fields.unit if fields else "") or ""
+    if value is None:
+        # Nothing comparable: keep it rather than dedup on an absent figure.
+        return (year, str(getattr(evidence, "id", "")))
+    scale = _AMOUNT_SCALES.get(unit)
+    if scale is None:
+        return (year, f"{value}{unit}")
+    return (year, format(Decimal(str(value)) * scale, "f"))
 
 
 def comparison_observed(evidence: Any) -> bool:

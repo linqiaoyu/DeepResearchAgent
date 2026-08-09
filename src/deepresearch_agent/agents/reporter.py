@@ -1398,10 +1398,22 @@ class ReporterAgent:
             )
             if item.status == "cited":
                 rendered: list[str] = []
+                # R109: this rendered every matching evidence id. The first live
+                # round put thirteen of them on one 1,500-character line -- three
+                # distinct published figures for one period, restated once per
+                # source that carried them. The domain decides what counts as one
+                # published figure; this keeps one rendering of each, so a real
+                # disagreement between sources survives and an agreement is
+                # stated once.
+                seen_figures: set[tuple[str, str]] = set()
                 for evidence_id in item.evidence_ids:
                     evidence = evidence_by_id.get(evidence_id)
                     if not evidence or evidence_id not in ref_map:
                         continue
+                    figure = self.domain_pack.coverage_figure_key(evidence)
+                    if figure in seen_figures:
+                        continue
+                    seen_figures.add(figure)
                     provenance = (
                         f"，年报 p{evidence.source_page}"
                         if evidence.source_page

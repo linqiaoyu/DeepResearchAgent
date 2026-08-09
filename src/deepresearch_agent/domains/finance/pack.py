@@ -208,6 +208,13 @@ class FinanceDomainPack:
 
         return evidence_matches_metric(evidence, required_metric)
 
+    def coverage_figure_key(self, evidence: object) -> tuple[str, str]:
+        from deepresearch_agent.domains.finance.metric_coverage import (
+            coverage_figure_key,
+        )
+
+        return coverage_figure_key(evidence)
+
     def demo_numeric_claim(self, claims: list[object]) -> object | None:
         from deepresearch_agent.domains.finance.research_snapshot import (
             demo_numeric_claim,

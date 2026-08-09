@@ -103,6 +103,10 @@ class ReportingDomain(MetricCoverageDomain, Protocol):
     #: two claims citing the same evidence id, because that signal is absent
     #: exactly when the reader's key findings are gap notices.
     def metrics_mentioned(self, text: str, required: set[str]) -> set[str]: ...
+    #: What makes two cited amounts the same published figure. The coverage
+    #: section renders one item per key, so the domain -- not the reporter --
+    #: decides whether a restatement in another scale is a second figure.
+    def coverage_figure_key(self, evidence: Any) -> tuple[str, str]: ...
 
 
 class TableExtractionDomain(Protocol):
