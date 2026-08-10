@@ -24,6 +24,7 @@ from deepresearch_agent.tools.reliable_execution import ToolExecutionError
 from deepresearch_agent.tools.reliable_execution import _TOOL_CALL_EXECUTOR
 from deepresearch_agent.trajectory import TrajectoryRecorder, trajectory_recording
 from deepresearch_agent.workflow import DeepResearchEngine
+from support.timing import BLOCKED_FOR_SECONDS, assert_deadline_beat_the_operation
 
 
 class FakeClock:
@@ -107,12 +108,17 @@ class ToolContractTests(unittest.TestCase):
         context = RunToolContext(retry_budget=RetryBudget(max_retries=0))
         started = time.monotonic()
         result = ReliableToolExecutor().execute(
-            spec, lambda: time.sleep(0.3), context
+            spec, lambda: time.sleep(BLOCKED_FOR_SECONDS), context
         )
 
         self.assertFalse(result.ok)
         self.assertEqual(result.error.kind, ToolErrorKind.TIMEOUT)
-        self.assertLess(time.monotonic() - started, 0.15)
+        assert_deadline_beat_the_operation(
+            self,
+            elapsed_seconds=time.monotonic() - started,
+            blocked_for_seconds=BLOCKED_FOR_SECONDS,
+            what="tool timeout enforcement",
+        )
         self.assertEqual(context.breakers[spec.name].consecutive_failures, 1)
 
         class SlowProvider:
@@ -183,7 +189,10 @@ class ToolContractTests(unittest.TestCase):
             nonlocal calls
             calls += 1
             entered.set()
-            release.wait()
+            # R114: an unbounded wait turns a broken deadline into a hung suite,
+            # where the elapsed assertion below never even runs.  Blocking for a
+            # known span makes that regression fail instead of hang.
+            release.wait(timeout=BLOCKED_FOR_SECONDS)
 
         timeout_policy = dict(SEARCH_TOOL_SPEC.retry_policy)
         timeout_policy[ToolErrorKind.TIMEOUT] = ERROR_RETRY_POLICIES[
@@ -222,7 +231,12 @@ class ToolContractTests(unittest.TestCase):
         )
         self.assertEqual(result.attempts, 1)
         self.assertEqual(calls, 1)
-        self.assertLess(time.monotonic() - started, 0.08)
+        assert_deadline_beat_the_operation(
+            self,
+            elapsed_seconds=time.monotonic() - started,
+            blocked_for_seconds=BLOCKED_FOR_SECONDS,
+            what="blocked worker total deadline",
+        )
 
     def test_timeout_executor_reuses_a_bounded_worker_pool(self) -> None:
         before = len(_TOOL_CALL_EXECUTOR._threads)

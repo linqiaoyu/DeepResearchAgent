@@ -28,6 +28,7 @@ from deepresearch_agent.tools.disclosure_source import (
     CNINFO_STOCK_ENDPOINT,
     DISCLOSURE_TOOL_SPEC,
 )
+from support.timing import BLOCKED_FOR_SECONDS, assert_deadline_beat_the_operation
 from deepresearch_agent.workflow import DeepResearchEngine
 
 
@@ -121,7 +122,9 @@ class BlockingThenEmptyClient:
         self._stock_calls += 1
         if self._stock_calls == 1:
             self.entered.set()
-            self.release.wait()
+            # R114: bounded so a deadline that stops firing fails the test
+            # instead of hanging the suite on a release that never comes.
+            self.release.wait(timeout=BLOCKED_FOR_SECONDS)
             self.first_returned.set()
         return FaultResponse(
             {"stockList": [{"code": "600519", "orgId": "gssh0600519"}]},
@@ -241,9 +244,12 @@ class DisclosureDegradationTests(unittest.TestCase):
     def test_timeout_retries_inside_total_deadline_then_degrades(self) -> None:
         source, context, _client = self._direct_failure("timeout")
         self.assertEqual(source.last_result.attempts, 3)
+        # R114: this ceiling was the literal 120_000, which silently means
+        # "whatever the spec said when this was written".  Reading it off the
+        # spec keeps the two from drifting apart.
         self.assertLessEqual(
             source.last_result.elapsed_ms,
-            120_000,
+            DISCLOSURE_TOOL_SPEC.total_timeout_s * 1_000,
         )
         self.assertEqual(
             context.degradation_events[-1].reason,
@@ -274,7 +280,12 @@ class DisclosureDegradationTests(unittest.TestCase):
 
         self.assertEqual(first_result, [])
         self.assertTrue(client.entered.is_set())
-        self.assertLess(first_elapsed, 0.1)
+        assert_deadline_beat_the_operation(
+            self,
+            elapsed_seconds=first_elapsed,
+            blocked_for_seconds=BLOCKED_FOR_SECONDS,
+            what="cninfo blocked-worker quarantine",
+        )
         self.assertTrue(source.timed_out_operation_pending)
         self.assertEqual(source.last_result.attempts, 1)
         self.assertEqual(

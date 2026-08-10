@@ -34,6 +34,11 @@ from deepresearch_agent.tools import (
 )
 from deepresearch_agent.tools.structured_data_factory import OptionalProviderDependencyError
 from deepresearch_agent.workflow import DeepResearchEngine
+from support.timing import (
+    BLOCKED_FOR_SECONDS,
+    assert_deadline_beat_the_operation,
+    process_spawn_cost_seconds,
+)
 
 
 class StructuredDataProviderTests(unittest.TestCase):
@@ -390,18 +395,30 @@ class StructuredDataProviderTests(unittest.TestCase):
             max_retries=0,
         )
         baseline = {process.pid for process in multiprocessing.active_children()}
+        attempts = 20
 
-        def block_forever() -> None:
-            while True:
-                time.sleep(1)
+        def block_for_a_known_span() -> None:
+            time.sleep(BLOCKED_FOR_SECONDS)
 
+        # R114: the bound here was a flat 10.2s for 20 process spawns -- about
+        # 0.5s of headroom each, which is the same order as spawning a fresh
+        # interpreter.  The unavoidable cost is now measured rather than
+        # guessed; a deadline that stops firing leaves every attempt waiting out
+        # its operation, which no amount of spawn overhead can hide.
+        spawn_overhead_seconds = attempts * process_spawn_cost_seconds()
         started = time.monotonic()
-        for _ in range(20):
+        for _ in range(attempts):
             with self.assertRaisesRegex(Exception, "timeout after"):
-                provider._call(block_forever, "probe")
+                provider._call(block_for_a_known_span, "probe")
         elapsed = time.monotonic() - started
 
-        self.assertLess(elapsed, 10.2)
+        assert_deadline_beat_the_operation(
+            self,
+            elapsed_seconds=elapsed,
+            blocked_for_seconds=BLOCKED_FOR_SECONDS,
+            overhead_seconds=spawn_overhead_seconds,
+            what=f"akshare timeout across {attempts} blocked workers",
+        )
         self.assertEqual(
             baseline,
             {process.pid for process in multiprocessing.active_children()},

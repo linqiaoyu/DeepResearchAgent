@@ -1,0 +1,17 @@
+{
+  "_comment": "R114: every upper bound on a clock-derived value under tests/. Enforced by scripts/check_wall_clock_assertions.py as an exact-match ratchet in both directions -- a new bound fails, and so does a stale entry. Anything not listed here must go through support.timing.assert_deadline_beat_the_operation, which makes the bound name the operation it discriminates.",
+  "bounds": {
+    "tests/support/timing.py::assert_deadline_beat_the_operation": {
+      "count": 1,
+      "why": "The sanctioned chokepoint itself. Its bound is the caller's declared blocked-operation duration plus measured overhead, never a literal, so this is the one place the comparison is allowed to live."
+    },
+    "tests/unit/test_tool_contracts.py::ToolContractTests.test_total_deadline_bounds_the_complete_retry_envelope": {
+      "count": 1,
+      "why": "result.elapsed_ms is driven by an injected FakeClock that only advances when the test advances it. No real clock is read, so the value is identical on every machine and cannot race the scheduler."
+    },
+    "tests/chaos/test_disclosure_degradation.py::DisclosureDegradationTests.test_timeout_retries_inside_total_deadline_then_degrades": {
+      "count": 1,
+      "why": "Asserts the retry envelope respects DISCLOSURE_TOOL_SPEC.total_timeout_s, and reads the ceiling off that spec rather than restating it. The bound is a contract value, not a guess about machine speed, and the operations under it fail instantly."
+    }
+  }
+}

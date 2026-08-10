@@ -107,6 +107,13 @@ def run_gate() -> None:
             "service_jobs_declared",
             [sys.executable, "scripts/check_service_job.py", "--verify-workflow"],
         ),
+        # R114: a test that bounds a real clock from above is measuring machine
+        # load, not behaviour. It passes alone and fails in a full suite, which
+        # is the shape that wastes a round diagnosing a green product.
+        (
+            "wall_clock_assertions",
+            [sys.executable, "scripts/check_wall_clock_assertions.py", "--self-test"],
+        ),
         (
             "disclosure_fixture",
             [sys.executable, "scripts/build_disclosure_fixture.py", "--check"],

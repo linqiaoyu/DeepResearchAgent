@@ -40,6 +40,11 @@ from deepresearch_agent.tools import (
 from deepresearch_agent.tools.capability_selector import (
     DeterministicCapabilitySelector,
 )
+from support.timing import (
+    BLOCKED_FOR_SECONDS,
+    assert_deadline_beat_the_operation,
+    process_spawn_cost_seconds,
+)
 
 
 class MockCompletion:
@@ -72,21 +77,35 @@ class MockCompletion:
 
 def blocking_subprocess_worker(kwargs: dict[str, object], _result_queue: object) -> None:
     Path(str(kwargs["pid_path"])).write_text(str(os.getpid()), encoding="utf-8")
-    time.sleep(5)
+    time.sleep(float(kwargs["blocked_for"]))
 
 
 class LLMIntegrationTests(unittest.TestCase):
     def test_production_subprocess_timeout_terminates_worker(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             pid_path = Path(tmp) / "child.pid"
+            # R114: this deadline was a flat 1.0s, which raced `spawn` interpreter
+            # startup.  Under full-suite load terminate() landed while the child
+            # was still booting, so it never recorded its pid and the read below
+            # failed.  Both numbers are now derived from measured startup, so the
+            # 10x gap between them holds on a fast laptop and a loaded runner
+            # alike: the call must come back at its deadline, and the child
+            # cannot reach the end of its sleep to end the call for it.
+            deadline_seconds = process_spawn_cost_seconds() + 1.0
+            blocked_for_seconds = deadline_seconds * 10
             started = time.perf_counter()
             with self.assertRaisesRegex(TimeoutError, "provider subprocess terminated"):
                 LLMClient._call_litellm_in_subprocess(
-                    kwargs={"pid_path": str(pid_path)},
-                    timeout_seconds=1.0,
+                    kwargs={"pid_path": str(pid_path), "blocked_for": blocked_for_seconds},
+                    timeout_seconds=deadline_seconds,
                     worker_target=blocking_subprocess_worker,
                 )
-            self.assertLess(time.perf_counter() - started, 2.5)
+            assert_deadline_beat_the_operation(
+                self,
+                elapsed_seconds=time.perf_counter() - started,
+                blocked_for_seconds=blocked_for_seconds,
+                what="production subprocess deadline",
+            )
             child_pid = int(pid_path.read_text(encoding="utf-8"))
             with self.assertRaises(ProcessLookupError):
                 os.kill(child_pid, 0)
@@ -308,7 +327,7 @@ class LLMIntegrationTests(unittest.TestCase):
 
             def blocking_completion(**_: object) -> dict:
                 entered.set()
-                release.wait(timeout=2)
+                release.wait(timeout=BLOCKED_FOR_SECONDS)
                 return {
                     "choices": [{"message": {"content": "late"}}],
                     "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
@@ -336,7 +355,12 @@ class LLMIntegrationTests(unittest.TestCase):
                 )
 
             self.assertTrue(entered.is_set())
-            self.assertLess(time.perf_counter() - started, 0.5)
+            assert_deadline_beat_the_operation(
+                self,
+                elapsed_seconds=time.perf_counter() - started,
+                blocked_for_seconds=BLOCKED_FOR_SECONDS,
+                what="main-thread hard timeout",
+            )
             self.assertNotIn("timeout-run", client._pending_costs_cny)
             self.assertFalse(
                 any(thread.name == "deepresearch-llm-call" for thread in threading.enumerate())
