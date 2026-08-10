@@ -63,7 +63,8 @@ sed -n '1,120p' _collab/package-demo/report.md
 | 多 Agent 研究流程 | Planner、Researcher、Extractor、Critic、Reporter、Evaluator 由 LangGraph `StateGraph` 编排；Researcher 按子问题 fan-out，见 [architecture.md](docs/architecture.md)。 |
 | 引用与证据闭合 | Reporter 固化 footnote → Evidence ID 映射，Evaluator 与审计导出复用同一契约，见 [citations.py](src/deepresearch_agent/citations.py) 和 [audit_bundle.py](src/deepresearch_agent/audit_bundle.py)。 |
 | 有界研究循环与预算 | Critic retry、轮次、调用预算和连续无进展均有显式边界；分支预算默认开启，多轮研究默认关闭，且预算状态按 run 隔离，见 [orchestration_contracts.md](docs/orchestration_contracts.md)。 |
-| 显式领域边界 | composition root 注入 finance `DomainPack`；核心对具体 finance pack 的 import 为 0，剩余金融字面量由 3 文件/8 处 allowlist 棘轮约束，见 [architecture.md](docs/architecture.md)。 |
+| 显式领域边界 | composition root 注入 finance `DomainPack`；核心对具体 finance pack 的 import 为 0，剩余金融字面量由 5 文件/10 处 allowlist 棘轮约束（Round 112 起棘轮同时扫描 `src/` 与 `prompts/`），见 [architecture.md](docs/architecture.md)。 |
+| Point-in-time 检索 | 文档同时记录报告期末与**披露日**；披露日由 SEC EDGAR submissions 索引解析，60/60 文档全部实解析，见 [disclosure_dates.py](src/deepresearch_agent/domains/finance/disclosure_dates.py) 与 [finance_v3.json](data/corpus/finance_v3.json)。 |
 | 可审计工具选择 | 默认确定性 selector 只从 `CapabilityRegistry` 选择 search、fetch、structured data 与 disclosure；LLM tool selection 默认关闭且复用相同授权与预算边界，见 [dynamic_capabilities.md](docs/dynamic_capabilities.md)。 |
 | 可审计决策面 | 策略选择统一写入 `AgentDecision`、trace、manifest 和读者可见报告；缺失决策会被 `DecisionGate` 拦截，见 [agent_decisions.md](docs/agent_decisions.md)。 |
 | 跨期研究 | `ResearchSnapshot` 区分新增、消失、数值、证据、置信度与口径 6 类变化，见 [change_tracking.md](docs/change_tracking.md)。 |
@@ -131,10 +132,12 @@ flowchart LR
 | 检查面 | 已验证状态 |
 | --- | --- |
 | 全量回归 | 本地 deterministic + fixture 完整门禁；唯一标准入口为 `PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/gate.py`。 |
-| 静态检查 | Ruff 版本由 [pyproject.toml](pyproject.toml) 精确锁定，本地 gate 与 CI 使用同一项目解释器和命令。 |
+| 静态检查 | Ruff 与 mypy 版本由 [pyproject.toml](pyproject.toml) 精确锁定，本地 gate 与 CI 使用同一项目解释器和命令。Round 112 起 `mypy --strict` 覆盖 `storage/`、`domains/protocols.py`、`domains/base.py`、`domains/registry.py` 与 `rag/ingest.py`——即多实现必须彼此一致的那几个面；文件清单是只增棘轮。 |
 | 行为等价 | 2 个规范化题面逐字匹配 [golden_output](tests/golden_output/)；未知 manifest flag fail-closed，见 [manifest.py](src/deepresearch_agent/provenance/manifest.py)。 |
 | 故障演练 | 8 个离线 chaos 场景覆盖认证、限流、超时、连续失败、熔断和部分降级，见 [tests/chaos](tests/chaos/)。 |
-| 第二存储后端 | Postgres 后端由独立 CI job 对真实服务器执行 `contract.test_storage_contract` 与 `integration.test_postgres_storage_live`；`scripts/check_postgres_job.py` 拒绝“靠跳过而通过”，配置了 DSN 却出现 skip 即判失败。首次运行含 172 秒 schema 迁移，之后约 0.6 秒，故不进默认本地门禁。 |
+| 第二存储后端 | Postgres 后端由独立 CI job 对真实服务器执行 `contract.test_storage_contract` 与 `integration.test_postgres_storage_live`。契约对两个后端断言 `StorageProtocol` 的**全部 8 个方法**（Round 112 之前只覆盖 4 个，漂移恰好全在未覆盖的 4 个里）；`scripts/check_storage_schema_parity.py` 逐列比对 SQLite schema 与 `migrations/`，未声明的差异即失败。 |
+| 向量索引后端 | Qdrant 由独立 CI job 对真实服务执行写入、查询、实体过滤与 as-of 可见性 4 项断言。Round 112 之前该文件仅有 1 条断言且没有任何 job 提供 `DEEPRESEARCH_QDRANT_URL`，向量索引从未真实执行过。 |
+| 不得靠跳过而通过 | `scripts/check_no_silent_skips.py` 在门禁内执行全量 unittest，并要求每个 skip 都在 [allowed_test_skips.json](data/allowed_test_skips.json) 登记触发变量与负责的 CI job；未登记的 skip、或变量已配置却仍 skip，均判失败。`scripts/check_service_job.py --verify-workflow` 反向校验：登记的 job 必须真实存在于 workflow。 |
 | Golden v1.1 | 30 questions；四键审计 `76 PASS / 0 DEFECT / 3 UNCERTAIN`。G3 weighted `0.7982` 等历史分数是 **replay + fixture** 保真度下的量测，`AGENTS.md` §6 不允许据此为 `content_affecting` 开关转正；Round 109 起 `run_golden_round.py --live` 才提供四层真实 provider 的量测，见 [Golden results](data/golden_set/v1/results/) 与 [decisions/109](docs/decisions/109/result.md)。 |
 | Round 087 最终 live 报告 | NIO 中文报告为 13 条读者可见行、0 条样板噪声、2/2 指标回答并含 1 个可追溯派生指标；PDD 英文报告为 11 条读者可见行、0 条样板噪声、1/2 指标回答且对缺口作显式说明。两者均使用 `SecCompanyFactsProvider`，并通过结构化 manifest 与引用闭合检查，见 [087 result](docs/decisions/087/result.md)。 |
 | 公开形态 | [公开地址](https://deepresearch-agent.jacksonyu1109.workers.dev/) 是 `scripts/build_site.py` 生成的静态演示站，不是常驻 API 服务；部署边界见 [deployment.md](docs/deployment.md)。 |
@@ -146,10 +149,17 @@ flowchart LR
 - MCP 不暴露任意文件读取或命令执行；server 只允许服务端自管运行目录，付费路径需要显式 `allow_paid`，本轮 fixture server 即使确认也拒绝 LLM 执行，见 [server.py](src/deepresearch_agent/mcp/server.py)。
 - 金融仍是当前唯一已实现的领域包；核心侧具体金融 import 由
   [`scripts/check_domain_boundary.py`](scripts/check_domain_boundary.py) 测量并以
-  初始 `import_sites=6` 已迁移至当前 `import_sites=0`。剩余金融字面量为 3 个文件、
-  9 行，均有受测 allowlist 与移除条件；尚无第二个真实领域实现，因此不能宣称框架已经
-  领域通用，见 [architecture.md](docs/architecture.md)。
-- Docker/Compose 资产存在，但当前验证主机没有 Docker/Podman，因此没有本机引擎级构建证据；现状见 [production_readiness.md](docs/production_readiness.md)。
+  初始 `import_sites=6` 已迁移至当前 `import_sites=0`。剩余金融字面量为 5 个文件、
+  10 行（Round 112 把 `prompts/` 纳入扫描，暴露出 `planner.md` 与 `reporter.md` 各 1 行
+  此前不被任何检查覆盖的金融词汇），均有受测 allowlist 与移除条件；尚无第二个真实领域
+  实现，因此不能宣称框架已经领域通用，见 [architecture.md](docs/architecture.md)。
+- `data/corpus/finance_v1.json` 与 `finance_v2.json` 的披露日不可用：v1 完全没有
+  `published_at`，v2 的 60 条全部是抓取日 `retrieved_at_fallback`。二者作为不可变历史保留，
+  但 `scripts/check_disclosure_lookahead.py` 只承认 `finance_v3.json`；用 v1/v2 建的索引
+  无法诚实回答 as-of 问题，见 [decisions/112](docs/decisions/112/result.md)。
+- Docker/Compose 资产存在；Round 112 在验证主机上用 Docker 实际起了 Postgres 16 与
+  Qdrant v1.12.4 并跑通两个后端的测试，但这是**测试服务**级证据，仍不是本项目自身镜像的
+  引擎级构建证据；现状见 [production_readiness.md](docs/production_readiness.md)。
 - 分析师仍负责问题定义、来源许可、材料性、预测审批、发布和最终投资判断；本项目不构成投资建议，见 [use_case.md](docs/use_case.md)。
 
 ## 深入阅读

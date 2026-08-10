@@ -114,6 +114,19 @@ DeepResearchAgent 是自建 Agent Harness；金融投研是首个被测系统（
   伪造调用。
 - `report_footnote_evidence` 是引用解析合同；消费者不得按当前 Evidence 顺序重建脚注，
   历史状态缺映射时必须显式降级。**风险：** Evidence 重排后引用静默指错来源。
+- 同一协议的多个实现必须共享行映射、序列化与前置校验，只允许 SQL/协议方言不同；
+  重复实现的分支必须由一条同时跑遍所有实现的契约测试覆盖，且契约必须覆盖协议的
+  **全部**方法，不得只覆盖易测子集。禁止实现间用继承复用（一个后端继承另一个后端时，
+  未覆写的方法会被静默继承并执行错误方言）。
+  **依据：** 112 发现 `PostgresStore` 继承 `SQLiteStore` 且不调 `super().__init__()`；
+  8 个协议方法只有 4 个被契约覆盖，漂移恰好全部落在未覆盖的 4 个里——Postgres 缺
+  `file_sha256` 校验，且 `filing_date` 恒返回空。
+- 一份文档有两个日期：**报告期末**（`effective_date`）与**披露日**（`filing_date` /
+  `published_at`）。point-in-time 检索必须用披露日；任何一层在披露日缺失时回退到报告期末
+  都是前视偏差，必须显式拒绝或显式降级，不得静默替代。语料条目必须声明
+  `published_at_source`，用抓取时间或报告期末充数的条目视为未定日期。
+  **依据：** 112 实测该回退在 shipped 语料上的中位敞口为 **109 天**；`filing_date` 自 085
+  加列起从无任何写入路径，四层 `or effective_date` 静默兜底把它掩盖了 27 轮。
 - 新增或修改的 prompt 放在 `prompts/` 并登记 drift；历史硬编码作为技术债，不得把
   未完成目标写成既成事实。**风险：** prompt 变化无法复现、审查或归因。
 - 开着的能力必须能被该次 run 的产物证明。一个开关为 true 却无法从 state、manifest 或
@@ -179,6 +192,15 @@ DeepResearchAgent 是自建 Agent Harness；金融投研是首个被测系统（
   六个臂“高于对照”全部落在噪声内。
 - 每条新增守卫必须说明删掉或变异哪一行会失败，并实际保存该失败的原始输出。
   **风险：** 仅覆盖 happy path 的守卫可能从未真正生效。
+- 修复必须针对缺陷的**类**而不是当次实例。当一个缺陷的成因是“某类资源缺少某种保障”时，
+  修复必须枚举该类的全部成员；只修被发现的那一个，等于把同一个 bug 留给下一轮重新发现。
+  **依据：** 110 发现 Postgres 测试从未运行，111 加的守卫把模块名硬编码成两个 postgres
+  模块；112 在 Qdrant 上发现一字不差的同一缺陷——测试恒 skip、无 CI job、向量索引从未
+  执行过一次。教训被应用到了实例而不是类。
+- 测试可以 skip，但不得静默 skip。每个 skip 必须在 `data/allowed_test_skips.json` 登记
+  其触发变量与负责它的 CI job；未登记的 skip、以及“变量已配置却仍然 skip”都必须失败。
+  登记一条 skip 是一项承诺：对应 CI job 必须真实提供该服务。
+  **依据：** 110 与 112 两次证明 `OK (skipped=N)` 可以掩盖整个后端从未执行。
 - 默认 CI、demo 和完整单测不得要求付费 key；真实模式另行显式授权。
   **依据：** 030 的完整门禁可离线复现。
 - 工具与运行依赖必须精确锁定；CI 与本地使用 `sys.executable` 语义，脚本不得写死
@@ -213,14 +235,21 @@ DeepResearchAgent 是自建 Agent Harness；金融投研是首个被测系统（
 
 | 规则 | 执行面 |
 |---|---|
-| 核心不得 import 具体领域 | `scripts/check_domain_boundary.py`（`import_sites` 与字面量棘轮） |
+| 核心不得 import 具体领域 | `scripts/check_domain_boundary.py`（`import_sites` 与字面量棘轮，覆盖 `src/` 与 `prompts/`） |
 | 默认值不得手抄漂移 | `scripts/sync_agents_settings.py --check`（token）+ `scripts/check_doc_flag_claims.py`（正文陈述） |
 | 开着的能力必须可被证明 | `scripts/check_capability_observability.py` |
 | 读者可见产物不得自相矛盾 | `scripts/check_reader_visible_contract.py` |
 | 指令文件本身不得漂移 | `scripts/check_agent_guidance.py` |
 | 全量门禁是唯一交付入口 | `scripts/gate.py`，且 `tracked_files_unchanged` |
-| 第二存储后端必须真被执行 | CI `postgres-storage` job + `scripts/check_postgres_job.py`（拒绝靠 skip 通过） |
+| 多后端 schema 不得漂移 | `scripts/check_storage_schema_parity.py`（未声明差异即失败） |
+| 协议实现必须全方法契约覆盖 | `tests/contract/test_storage_contract.py`（同一断言跑遍所有后端，覆盖 8/8 方法） |
+| 检索不得看到未披露的文件 | `scripts/check_disclosure_lookahead.py`（语料 provenance + 端到端 as-of 探针） |
+| 服务型后端必须真被执行 | CI `postgres-storage` / `qdrant-vector-index` job + `scripts/check_service_job.py --job`（拒绝靠 skip 通过） |
+| 测试不得静默 skip | `scripts/check_no_silent_skips.py`（未登记 skip 即失败）+ `--verify-workflow`（登记的 job 必须存在） |
+| 存储与领域协议类型不得漂移 | `mypy --strict`（`storage/`、`domains/protocols.py`、`domains/base.py`、`domains/registry.py`、`rag/ingest.py`；文件清单是只增棘轮） |
 | 量具保真度必须可追 | runner 打印 `fidelity=`，state 记录 `provider_fidelity` |
+| 修复必须针对缺陷的类 | **仅靠判断**：需要执行者自己枚举同类成员并在报告中列出 |
+| 每轮必须发布决策记录 | **仅靠判断**：无机械检查。108 轮跑完却从未写 report，`docs/decisions/108/` 因此缺失两轮 |
 | 轮次范围、停止条件、成本授权 | **仅靠判断**：无机械检查，靠任务卡与报告评审 |
 | 比较必须先给噪声底 | **仅靠判断**：需要执行者自己算并报告 |
 | 不得伪造或猜测数据 | **仅靠判断**：部分由数值守卫覆盖，整体不可机械判定 |
