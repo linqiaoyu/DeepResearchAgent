@@ -14,6 +14,13 @@ from deepresearch_agent.schemas import BoundingBox, TextBoundingBox
 from deepresearch_agent.storage import StorageProtocol, StoredChunk
 
 
+#: A disclosure date the manifest did not actually establish. Entries carrying
+#: one of these are dated by substitution, not by a registry, and retrieval that
+#: trusts them is exposed to lookahead bias. R112 measured the exposure on the
+#: shipped corpus at a median of 109 days.
+SUBSTITUTED_DISCLOSURE_SOURCES = frozenset({"", "retrieved_at_fallback", "effective_date_fallback"})
+
+
 @dataclass(frozen=True)
 class CorpusEntry:
     path: str
@@ -24,6 +31,13 @@ class CorpusEntry:
     public_accessibility: str
     effective_date: str
     published_at: str = ""
+    published_at_source: str = ""
+
+    @property
+    def disclosure_is_substituted(self) -> bool:
+        """True when nothing established this document's publication date."""
+
+        return not self.published_at or self.published_at_source in SUBSTITUTED_DISCLOSURE_SOURCES
 
 
 @dataclass(frozen=True)
@@ -33,6 +47,10 @@ class IngestReport:
     superseded_chunks: int
     added_chunks: int
     removed_chunks: int
+    #: Documents whose disclosure date was substituted rather than established.
+    #: An index built from these cannot answer an as-of question honestly, so
+    #: the number is reported rather than left for a reader to infer.
+    substituted_disclosure_documents: int = 0
 
 
 def load_corpus(path: Path) -> dict[str, CorpusEntry]:
@@ -45,7 +63,11 @@ def load_corpus(path: Path) -> dict[str, CorpusEntry]:
     for value in entries:
         if not isinstance(value, dict) or required - value.keys():
             raise ValueError(f"invalid corpus entry; required={sorted(required)}")
-        entry = CorpusEntry(**{name: value[name] for name in required}, published_at=str(value.get("published_at", "")))
+        entry = CorpusEntry(
+            **{name: value[name] for name in required},
+            published_at=str(value.get("published_at", "")),
+            published_at_source=str(value.get("published_at_source", "")),
+        )
         date.fromisoformat(entry.effective_date)
         if entry.published_at:
             date.fromisoformat(entry.published_at)
@@ -133,6 +155,9 @@ def ingest_and_persist(
         superseded_chunks=superseded_chunks,
         added_chunks=len(after_chunk_ids - before_chunk_ids),
         removed_chunks=len(before_chunk_ids - after_chunk_ids),
+        substituted_disclosure_documents=sum(
+            1 for entry in manifest.values() if entry.disclosure_is_substituted
+        ),
     )
 
 
