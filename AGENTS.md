@@ -219,6 +219,16 @@ DeepResearchAgent 是自建 Agent Harness；金融投研是首个被测系统（
   其触发变量与负责它的 CI job；未登记的 skip、以及“变量已配置却仍然 skip”都必须失败。
   登记一条 skip 是一项承诺：对应 CI job 必须真实提供该服务。
   **依据：** 110 与 112 两次证明 `OK (skipped=N)` 可以掩盖整个后端从未执行。
+- 测试不得给真实时钟设上界。deadline 类测试要区分的只有两件事——deadline 触发了，
+  还是调用把被阻塞操作等完了——所以唯一有意义的界是**该操作阻塞多久**，必须经
+  `support.timing.assert_deadline_beat_the_operation` 显式声明；被阻塞的等待也必须有界，
+  否则 deadline 失效时是挂起而不是失败。常数上界只在两种情况下可登记：值由注入的假时钟
+  驱动，或界本身读自合同（如 `ToolSpec.total_timeout_s`）。放宽常数不是修复，只是把阈值挪走。
+  **依据：** 113 合并时 `test_production_subprocess_timeout_terminates_worker` 用 1.0s 赌
+  `spawn` 解释器启动，单独跑 3/3 过、1078 个测试满载时红；AST 扫描发现同类共 8 处，
+  其中一处 `assertLessEqual` 跨行书写，逐行 grep 的人工枚举漏掉了它。
+  **执行面：** `scripts/check_wall_clock_assertions.py`（登记制双向棘轮，每条登记必须写明
+  为何不会 race）。
 - 默认 CI、demo 和完整单测不得要求付费 key；真实模式另行显式授权。
   **依据：** 030 的完整门禁可离线复现。
 - 工具与运行依赖必须精确锁定；CI 与本地使用 `sys.executable` 语义，脚本不得写死
@@ -265,6 +275,7 @@ DeepResearchAgent 是自建 Agent Harness；金融投研是首个被测系统（
 | 检索不得看到未披露的文件 | `scripts/check_disclosure_lookahead.py`（语料 provenance + 端到端 as-of 探针 + `undated_withheld`） |
 | 服务型后端必须真被执行 | CI `postgres-storage` / `qdrant-vector-index` job + `scripts/check_service_job.py --job`（拒绝靠 skip 通过） |
 | 测试不得静默 skip | `scripts/check_no_silent_skips.py`（未登记 skip 即失败）+ `--verify-workflow`（登记的 job 必须存在） |
+| 测试不得给真实时钟设上界 | `scripts/check_wall_clock_assertions.py`（AST 枚举 + 双向棘轮，登记须写明理由） |
 | 存储与领域协议类型不得漂移 | `mypy --strict`（`storage/`、`domains/protocols.py`、`domains/base.py`、`domains/registry.py`、`rag/ingest.py`；文件清单是只增棘轮） |
 | 量具保真度必须可追 | runner 打印 `fidelity=`，state 记录 `provider_fidelity` |
 | 修复必须针对缺陷的类 | **仅靠判断**：需要执行者自己枚举同类成员并在报告中列出 |
