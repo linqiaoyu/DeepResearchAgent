@@ -383,3 +383,66 @@ class FloorRankingTests(unittest.TestCase):
             line for line in section.splitlines() if line.startswith("- ")
         )
         self.assertIn("市场份额排名第一", first)
+
+
+class ReferencePruneTests(unittest.TestCase):
+    """R118: the first live run under R117 shipped markers with no reference.
+
+    R117 filtered the reference list inside the two renderers, which is one step
+    too early: `_append_metric_coverage` adds a section *after* the reference
+    list is written, and the delivered page cited `[^1]` and `[^4]` from
+    指标覆盖状态 with neither defined. The gate missed it because the demo topic
+    requests no metrics and never renders that section.
+    """
+
+    def test_a_reference_cited_only_below_the_heading_is_kept(self) -> None:
+        from deepresearch_agent.agents.reporter import prune_reference_list
+
+        report = (
+            "## 摘要\n见 [^2]。\n\n## 参考来源\n"
+            "[^1]: A. https://a.invalid\n[^2]: B. https://b.invalid\n"
+            "\n## 指标覆盖状态\n- 值 [^1]\n"
+        )
+        pruned = prune_reference_list(report)
+        self.assertIn("[^1]: A.", pruned)
+        self.assertIn("[^2]: B.", pruned)
+
+    def test_a_reference_nothing_cites_is_dropped(self) -> None:
+        from deepresearch_agent.agents.reporter import prune_reference_list
+
+        report = (
+            "## 摘要\n见 [^2]。\n\n## 参考来源\n"
+            "[^1]: A. https://a.invalid\n[^2]: B. https://b.invalid\n"
+        )
+        pruned = prune_reference_list(report)
+        self.assertNotIn("[^1]: A.", pruned)
+        self.assertIn("[^2]: B.", pruned)
+
+    def test_a_report_without_references_is_unchanged(self) -> None:
+        from deepresearch_agent.agents.reporter import prune_reference_list
+
+        report = "## 摘要\n无引用。\n"
+        self.assertEqual(prune_reference_list(report), report.rstrip("\n"))
+
+    def test_pruning_never_orphans_a_marker(self) -> None:
+        """The property the R117 regression violated, stated directly."""
+
+        import importlib.util
+
+        from deepresearch_agent.agents.reporter import prune_reference_list
+
+        spec = importlib.util.spec_from_file_location(
+            "check_reference_list_hygiene",
+            project_root() / "scripts" / "check_reference_list_hygiene.py",
+        )
+        assert spec is not None and spec.loader is not None
+        guard = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(guard)
+
+        report = (
+            "## 摘要\n见 [^2]。\n\n## 参考来源\n"
+            "[^1]: A. https://a.invalid\n[^2]: B. https://b.invalid\n"
+            "[^3]: C. https://c.invalid\n"
+            "\n## 指标覆盖状态\n- 值 [^1] [^3]\n"
+        )
+        self.assertEqual(guard.errors_for(prune_reference_list(report)), [])

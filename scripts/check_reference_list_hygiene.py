@@ -38,12 +38,24 @@ _REF_RE = re.compile(r"\[\^(\d+)\]")
 
 
 def audit(report: str) -> dict[str, object]:
-    head, separator, tail = report.partition(_REFERENCES_HEADING)
-    body = head if separator else report
-    defined = {int(match) for match in _DEF_RE.findall(tail if separator else "")}
-    cited = {int(match) for match in _REF_RE.findall(body)}
-    reference_lines = len([line for line in tail.splitlines() if _DEF_RE.match(line)])
-    body_lines = len([line for line in body.splitlines() if line.strip()])
+    # R118: this split the page at the reference heading and counted citations
+    # only above it. `_append_metric_coverage` adds its section *below* the
+    # reference list, so a page can and does cite from there, and the split
+    # reported those references as uncited. Definitions are identified by their
+    # own shape instead, which does not depend on where anything sits.
+    lines = report.splitlines()
+    definition_lines = [line for line in lines if _DEF_RE.match(line)]
+    defined = {int(_DEF_RE.match(line).group(1)) for line in definition_lines}  # type: ignore[union-attr]
+    cited = {
+        int(match)
+        for line in lines
+        if not _DEF_RE.match(line)
+        for match in _REF_RE.findall(line)
+    }
+    reference_lines = len(definition_lines)
+    body_lines = len(
+        [line for line in lines if line.strip() and not _DEF_RE.match(line)]
+    )
     return {
         "defined": sorted(defined),
         "cited": sorted(cited),
@@ -76,6 +88,18 @@ def _self_test() -> int:
         "## 摘要\n见 [^1]。\n\n## 参考来源\n"
         "[^1]: A. https://a.invalid (2026-01-01)\n"
     )
+    below = (
+        "## 摘要\n见 [^1]。\n\n## 参考来源\n"
+        "[^1]: A. https://a.invalid (2026-01-01)\n"
+        "[^2]: B. https://b.invalid (2026-01-01)\n"
+        "\n## 指标覆盖状态\n- 值 [^2]\n"
+    )
+    if errors_for(below):
+        print(
+            "[self-test] FAIL: a reference cited below the heading was called uncited",
+            file=sys.stderr,
+        )
+        failures += 1
     if errors_for(clean):
         print("[self-test] FAIL: a clean report was rejected", file=sys.stderr)
         failures += 1
@@ -134,7 +158,7 @@ def _self_test() -> int:
         )
         failures += 1
 
-    print(f"reference_list_self_test={'PASS' if not failures else 'FAIL'} cases=5")
+    print(f"reference_list_self_test={'PASS' if not failures else 'FAIL'} cases=6")
     return 1 if failures else 0
 
 

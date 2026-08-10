@@ -101,6 +101,45 @@ def restates_an_emitted_line(text: str, emitted: list[str]) -> bool:
     return False
 
 
+def prune_reference_list(report: str) -> str:
+    """Drop reference lines the finished page has no marker for.
+
+    R118. R117 filtered inside the two renderers, which is one step too early:
+    `_append_metric_coverage` adds a whole section *after* the reference list is
+    written, and the first live run under R117 delivered a page citing `[^1]`
+    and `[^4]` from 指标覆盖状态 with neither defined. The gate had not caught
+    it because the demo topic requests no metrics and never renders that
+    section.
+
+    Pruning once, over the assembled page, cannot be ordered wrongly: whatever
+    sections exist by then are the sections the reader gets. Markers are left
+    alone -- a reference is dropped only when nothing points at it, so no marker
+    can be orphaned by this pass.
+    """
+
+    lines = report.splitlines()
+    # Citations are counted from every line that is not itself a definition,
+    # not from the text above the heading: `_append_metric_coverage` adds its
+    # section *after* the reference list, so a page can and does cite from
+    # below it. Splitting on the heading was the first version of this and it
+    # dropped exactly those references.
+    cited = {
+        int(match)
+        for line in lines
+        if not _FOOTNOTE_DEF_RE.match(line)
+        for match in _FOOTNOTE_RE.findall(line)
+    }
+    kept = [
+        line
+        for line in lines
+        if not (
+            (definition := _FOOTNOTE_DEF_RE.match(line))
+            and int(definition.group(1)) not in cited
+        )
+    ]
+    return "\n".join(kept)
+
+
 def render_citations(evidence_ids: list[str], ref_map: dict[str, int]) -> str:
     """Cite each distinct source once, in the order its evidence was selected.
 
@@ -227,9 +266,13 @@ class ReporterAgent:
         if self.domain_pack.name != "finance":
             from deepresearch_agent.decisions import append_decision_record
 
-            return append_decision_record(report, state.agent_decisions)
-        return self._compact_reader_report(
-            report, state, footnotes.evidence_id_to_footnote
+            return prune_reference_list(
+                append_decision_record(report, state.agent_decisions)
+            )
+        return prune_reference_list(
+            self._compact_reader_report(
+                report, state, footnotes.evidence_id_to_footnote
+            )
         )
 
     def _compact_reader_report(
@@ -294,12 +337,7 @@ class ReporterAgent:
         # That is a second, independent source of the 83% orphan rate measured
         # in R116, and it is why filtering inside the renderer alone left the
         # demo printing 5 references for 3 citations.
-        cited = {int(match) for match in _FOOTNOTE_RE.findall("\n".join(lines))}
-        references = [
-            line
-            for line in section("参考来源")
-            if any(int(number) in cited for number in _FOOTNOTE_DEF_RE.findall(line))
-        ]
+        references = section("参考来源")
         if references:
             lines.extend(["", "## 参考来源", *references])
         return "\n".join(lines).rstrip()
@@ -667,7 +705,6 @@ class ReporterAgent:
             self._reference_lines(
                 footnotes,
                 ref_map,
-                body_lines=lines,
                 show_source_tiers=show_source_tiers,
             )
         )
@@ -1239,7 +1276,6 @@ class ReporterAgent:
             self._reference_lines(
                 footnotes,
                 ref_map,
-                body_lines=lines,
                 show_source_tiers=show_source_tiers,
             )
         )
@@ -1253,7 +1289,6 @@ class ReporterAgent:
         footnotes: FootnoteMaps,
         ref_map: dict[str, int],
         *,
-        body_lines: list[str],
         show_source_tiers: bool,
     ) -> list[str]:
         """Render 参考来源 once, for both report paths.
@@ -1263,12 +1298,9 @@ class ReporterAgent:
         contract; two copies of a reference renderer is how one path acquires a
         fix the other does not.
 
-        Only footnotes the body cites are printed. Across the 30 R113 live
-        reports the reference lists ran to 1269 lines and the body cited 213 of
-        them: 83% of every reference line delivered was a line the reader had no
-        marker for. A reference nothing points to is not a citation, it is a log
-        of what the run touched, and that record lives in the run state, the
-        manifest and the trajectory rather than on the reader's page.
+        This renders every reference; ``prune_reference_list`` drops the ones
+        the assembled page has no marker for, which R118 moved out of here
+        because sections are still being appended when this runs.
 
         Numbers are not reassigned. A gap in the sequence is visible and
         harmless; renumbering would mean rewriting markers already rendered
@@ -1282,12 +1314,9 @@ class ReporterAgent:
         marker stands for more than that line.
         """
 
-        cited = {int(match) for match in _FOOTNOTE_RE.findall("\n".join(body_lines))}
         lines: list[str] = []
         for item in footnotes.unique_refs:
             number = ref_map[item.id]
-            if number not in cited:
-                continue
             provenance = (
                 f" [source_tier={item.source_tier}]"
                 + (
