@@ -578,24 +578,31 @@ class StructuredDataProviderTests(unittest.TestCase):
         class Frame:
             def to_dict(self, _orient: str) -> list[dict[str, object]]:
                 return [
-                    {"code": "000001", "name": "平安银行"},
-                    {"code": "601318", "name": "中国平安"},
-                    {"code": "000002", "name": "平安"},
-                    {"code": "000003", "name": "平安"},
+                    {"证券代码": "000001", "证券简称": "平安银行"},
+                    {"证券代码": "601318", "证券简称": "中国平安"},
+                    {"证券代码": "000002", "证券简称": "平安"},
+                    {"证券代码": "000003", "证券简称": "平安"},
                 ]
 
         class AKShareStub:
-            def stock_info_a_code_name(self) -> Frame:
+            def stock_info_sh_name_code(self) -> Frame:
                 return Frame()
 
-        provider = AKShareStructuredDataProvider(
-            akshare_module=AKShareStub(), max_retries=0, isolate_processes=False
-        )
+            def stock_info_sz_name_code(self) -> Frame:
+                return Frame()
 
-        self.assertEqual(provider.symbol_resolve("601318").name, "中国平安")
-        self.assertEqual(provider.symbol_resolve("平安银行").symbol, "000001")
-        self.assertIsNone(provider.symbol_resolve("平安"))
-        self.assertIsNone(provider.symbol_resolve("平安银"))
+        with tempfile.TemporaryDirectory() as tmp:
+            provider = AKShareStructuredDataProvider(
+                akshare_module=AKShareStub(),
+                max_retries=0,
+                isolate_processes=False,
+                symbol_cache_path=Path(tmp) / "symbols.json",
+            )
+
+            self.assertEqual(provider.symbol_resolve("601318").name, "中国平安")
+            self.assertEqual(provider.symbol_resolve("平安银行").symbol, "000001")
+            self.assertIsNone(provider.symbol_resolve("平安"))
+            self.assertIsNone(provider.symbol_resolve("平安银"))
 
     def test_fixture_symbol_resolve_and_financial_indicator_normalization(self) -> None:
         provider = FixtureStructuredDataProvider()

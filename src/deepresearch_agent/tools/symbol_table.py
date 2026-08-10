@@ -33,6 +33,7 @@ from typing import Any
 ListingSource = tuple[str, str, str]
 DEFAULT_CACHE_PATH = Path("data/runtime/a_share_symbols.json")
 DEFAULT_TTL = timedelta(days=7)
+CACHE_SCHEMA_VERSION = 2
 
 
 @dataclass(frozen=True)
@@ -40,6 +41,8 @@ class SymbolTable:
     """Issuer name to listing code, with the provenance of the fetch."""
 
     codes_by_name: Mapping[str, str]
+    names_by_code: Mapping[str, str]
+    ambiguous_names: frozenset[str]
     sources: tuple[str, ...]
     fetched_at: datetime
 
@@ -55,22 +58,22 @@ class SymbolTable:
         text = query.strip()
         if not text:
             return None
-        by_code = {code: name for name, code in self.codes_by_name.items()}
-        if text in by_code:
-            return text, by_code[text]
-        matches = [
-            (code, name)
-            for name, code in self.codes_by_name.items()
-            if name == text
-        ]
-        return matches[0] if len(matches) == 1 else None
+        if text in self.names_by_code:
+            return text, self.names_by_code[text]
+        if text in self.ambiguous_names:
+            return None
+        code = self.codes_by_name.get(text)
+        return (code, text) if code is not None else None
 
     def to_json(self) -> str:
         return json.dumps(
             {
+                "schema_version": CACHE_SCHEMA_VERSION,
                 "sources": list(self.sources),
                 "fetched_at": self.fetched_at.isoformat(),
                 "codes_by_name": dict(self.codes_by_name),
+                "names_by_code": dict(self.names_by_code),
+                "ambiguous_names": sorted(self.ambiguous_names),
             },
             ensure_ascii=False,
         )
@@ -78,8 +81,12 @@ class SymbolTable:
     @classmethod
     def from_json(cls, payload: str) -> SymbolTable:
         data = json.loads(payload)
+        if data.get("schema_version") != CACHE_SCHEMA_VERSION:
+            raise ValueError("unsupported symbol-table cache schema")
         return cls(
             codes_by_name=dict(data["codes_by_name"]),
+            names_by_code=dict(data["names_by_code"]),
+            ambiguous_names=frozenset(data["ambiguous_names"]),
             sources=tuple(data.get("sources", ())),
             fetched_at=datetime.fromisoformat(data["fetched_at"]),
         )
@@ -103,6 +110,8 @@ def build_symbol_table(
     """
 
     codes: dict[str, str] = {}
+    names_by_code: dict[str, str] = {}
+    ambiguous_names: set[str] = set()
     used: list[str] = []
     for endpoint, code_column, name_column in sources:
         try:
@@ -116,15 +125,26 @@ def build_symbol_table(
         for row in rows:
             name = str(row.get(name_column, "")).strip()
             code = str(row.get(code_column, "")).strip()
-            if name and code and name not in codes:
+            if not name or not code:
+                continue
+            names_by_code[code] = name
+            if name in ambiguous_names:
+                continue
+            existing_code = codes.get(name)
+            if existing_code is None:
                 codes[name] = code
                 added = True
+            elif existing_code != code:
+                codes.pop(name)
+                ambiguous_names.add(name)
         if added:
             used.append(endpoint)
-    if not codes:
+    if not names_by_code:
         raise LookupError("no exchange listing endpoint returned a usable table")
     return SymbolTable(
         codes_by_name=codes,
+        names_by_code=names_by_code,
+        ambiguous_names=frozenset(ambiguous_names),
         sources=tuple(used),
         fetched_at=now or datetime.now(UTC),
     )

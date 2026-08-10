@@ -112,6 +112,18 @@ class ResolutionRulesTests(unittest.TestCase):
     def test_an_exact_name_resolves(self) -> None:
         self.assertEqual(self.table.resolve("长江电力"), ("600900", "长江电力"))
 
+    def test_an_ambiguous_name_never_resolves_to_the_last_code_seen(self) -> None:
+        table = build_symbol_table(
+            lambda _endpoint: _Frame([
+                {"code": "000002", "name": "平安"},
+                {"code": "000003", "name": "平安"},
+            ]),
+            (("listings", "code", "name"),),
+        )
+
+        self.assertIsNone(table.resolve("平安"))
+        self.assertEqual(table.resolve("000003"), ("000003", "平安"))
+
     def test_a_partial_name_resolves_to_nothing(self) -> None:
         """Attaching another issuer's financials to a prefix is the harm."""
         self.assertIsNone(self.table.resolve("长江"))
@@ -172,11 +184,32 @@ class CachingTests(unittest.TestCase):
 
         self.assertEqual(table.resolve("贵州茅台"), ("600519", "贵州茅台"))
 
+    def test_a_pre_ambiguity_cache_is_rebuilt(self) -> None:
+        self.cache.write_text(
+            json.dumps({
+                "sources": ["stock_info_sh_name_code"],
+                "fetched_at": datetime.now(UTC).isoformat(),
+                "codes_by_name": {"平安": "000003"},
+            }),
+            encoding="utf-8",
+        )
+        calls: list[str] = []
+
+        def counting(endpoint: str) -> _Frame:
+            calls.append(endpoint)
+            return _fetch(endpoint)
+
+        table = load_symbol_table(counting, EQUITY_LISTING_SOURCES, cache_path=self.cache)
+
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(table.resolve("贵州茅台"), ("600519", "贵州茅台"))
+
     def test_the_cache_records_where_it_came_from(self) -> None:
         load_symbol_table(_fetch, EQUITY_LISTING_SOURCES, cache_path=self.cache)
         payload = json.loads(self.cache.read_text(encoding="utf-8"))
 
         self.assertEqual(len(payload["sources"]), 2)
+        self.assertEqual(payload["schema_version"], 2)
         self.assertTrue(datetime.fromisoformat(payload["fetched_at"]))
 
     def test_a_round_trip_preserves_the_table(self) -> None:
