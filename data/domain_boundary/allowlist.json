@@ -1,4 +1,6 @@
 {
+  "prompts/planner.md": 1,
+  "prompts/reporter.md": 1,
   "src/deepresearch_agent/agents/reporter.py": 4,
   "src/deepresearch_agent/evaluation/gold_audit.py": 3,
   "src/deepresearch_agent/schemas.py": 1

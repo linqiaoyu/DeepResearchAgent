@@ -25,7 +25,17 @@ class DomainBoundaryTests(unittest.TestCase):
             stdin=subprocess.DEVNULL,
         )
         self.assertEqual(completed.returncode, 0, completed.stderr)
-        self.assertIn("import_sites=0 literal_files=3 literal_hits=8", completed.stdout)
+        # R112 widened the ratchet from `src/` to `src/` + `prompts/`, which
+        # raised the measurement from 3 files / 8 hits to 5 / 10. The two new
+        # hits are not new debt; they are debt that was never being counted.
+        self.assertIn("import_sites=0 literal_files=5 literal_hits=10", completed.stdout)
+
+    def test_the_ratchet_scans_prompts_not_only_source(self) -> None:
+        from scripts.check_domain_boundary import _scanned_files
+
+        scanned = {path.relative_to(ROOT).as_posix() for path in _scanned_files()}
+        self.assertIn("prompts/planner.md", scanned)
+        self.assertIn("prompts/reporter.md", scanned)
 
     def test_import_site_count_is_measured_from_source(self) -> None:
         self.assertEqual(_concrete_domain_import_sites(), 0)

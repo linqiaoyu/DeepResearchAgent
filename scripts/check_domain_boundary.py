@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 LEXICON_PATH = ROOT / "data/domain_boundary/finance_lexicon.json"
 ALLOWLIST_PATH = ROOT / "data/domain_boundary/allowlist.json"
 SOURCE_ROOT = ROOT / "src/deepresearch_agent"
+PROMPT_ROOT = ROOT / "prompts"
 DOMAIN_IMPORT = "deepresearch_agent.domains.finance"
 
 
@@ -19,11 +20,27 @@ def _load_json(path: Path) -> object:
         return json.load(handle)
 
 
+def _scanned_files() -> list[Path]:
+    """Every core surface the ratchet covers.
+
+    R112: this used to scan Python under ``src`` only, so ``prompts/`` was a
+    blind spot -- core prompts could name any amount of finance vocabulary while
+    ``import_sites=0`` still read clean. A prompt is core behaviour, not a
+    comment, so it is measured the same way.
+    """
+
+    files = [
+        path
+        for path in SOURCE_ROOT.rglob("*.py")
+        if "domains" not in path.relative_to(SOURCE_ROOT).parts
+    ]
+    files.extend(path for path in PROMPT_ROOT.rglob("*") if path.is_file())
+    return files
+
+
 def _literal_lines(lexicon: tuple[str, ...]) -> dict[str, int]:
     hits: dict[str, int] = {}
-    for path in SOURCE_ROOT.rglob("*.py"):
-        if "domains" in path.relative_to(SOURCE_ROOT).parts:
-            continue
+    for path in _scanned_files():
         lines = path.read_text(encoding="utf-8").splitlines()
         count = sum(1 for line in lines if any(word in line for word in lexicon))
         if count:
