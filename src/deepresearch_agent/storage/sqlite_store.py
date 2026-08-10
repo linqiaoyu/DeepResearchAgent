@@ -10,6 +10,7 @@ from uuid import NAMESPACE_URL, uuid5
 from deepresearch_agent.schemas import EvaluationResult, Evidence
 from deepresearch_agent.storage.mapping import (
     EVIDENCE_COLUMNS,
+    AS_OF_PREDICATE,
     RESOLVED_CHUNK_COLUMNS,
     RESOLVED_CHUNK_JOIN,
     evidence_fields,
@@ -133,7 +134,6 @@ class SQLiteStore:
             self._ensure_column(conn, "chunk", "entity_id", "TEXT NOT NULL DEFAULT ''")
             self._ensure_column(conn, "chunk", "published_at", "TEXT NOT NULL DEFAULT ''")
             self._ensure_column(conn, "document_version", "filing_date", "TEXT NOT NULL DEFAULT ''")
-            conn.execute("UPDATE chunk SET published_at = effective_date WHERE published_at = ''")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_chunk_published_at ON chunk(published_at)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_chunk_entity_id ON chunk(entity_id)")
 
@@ -273,7 +273,7 @@ class SQLiteStore:
                         chunk.char_end,
                         chunk.page_number,
                         chunk.effective_date,
-                        chunk.published_at or effective_date,
+                        published_at,
                         chunk.content,
                         json.dumps([item.model_dump(mode="json") for item in chunk.bbox_index]),
                         chunk.entity_id,
@@ -306,7 +306,7 @@ class SQLiteStore:
         with self._connection() as conn:
             rows = conn.execute(
                 f"SELECT {RESOLVED_CHUNK_COLUMNS} {RESOLVED_CHUNK_JOIN} "
-                "WHERE chunk.status = 'ready' AND chunk.published_at <= ? "
+                f"WHERE {AS_OF_PREDICATE}? "
                 "ORDER BY chunk.id",
                 (as_of,),
             ).fetchall()
@@ -319,7 +319,7 @@ class SQLiteStore:
         with self._connection() as conn:
             rows = conn.execute(
                 f"SELECT {RESOLVED_CHUNK_COLUMNS} {RESOLVED_CHUNK_JOIN} "
-                "WHERE chunk.status = 'ready' AND chunk.published_at <= ? "
+                f"WHERE {AS_OF_PREDICATE}? "
                 f"AND chunk.id IN ({placeholders})",
                 (as_of, *chunk_ids),
             ).fetchall()

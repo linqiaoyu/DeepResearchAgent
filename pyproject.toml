@@ -94,10 +94,12 @@ extend-select = ["TID251"]
 "scripts/run_eval.py" = ["E402"]
 # Existing domain-boundary debt.  This list is a ratchet: it may only shrink.
 "src/deepresearch_agent/domains/**" = ["TID251"]
-# A build tool for the finance corpus, not core. It resolves SEC EDGAR filing
-# dates, which is finance-registry knowledge by definition; the agent core never
-# imports it, and check_domain_boundary.py measures core separately.
+# Build and migration tools for the finance corpus, not core. They resolve SEC
+# EDGAR filing dates, which is finance-registry knowledge by definition; the
+# agent core never imports them, and check_domain_boundary.py measures core
+# separately.
 "scripts/build_corpus_v3.py" = ["TID251"]
+"scripts/backfill_disclosure_dates.py" = ["TID251"]
 # This characterization test verifies the concrete finance renderer itself;
 # new tests must use an injected pack instead.
 "tests/unit/test_reader_fidelity.py" = ["TID251"]

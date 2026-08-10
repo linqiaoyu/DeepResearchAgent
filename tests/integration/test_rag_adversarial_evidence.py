@@ -72,6 +72,9 @@ class RagAdversarialEvidenceTests(unittest.TestCase):
             char_start=0,
             char_end=len(content),
             source_url=f"https://example.test/{identifier}.html",
+            # Declared, not inferred: R113 removed the period-end fallback, so a
+            # chunk without a disclosure date is withheld rather than shown.
+            published_at=effective_date or date(2025, 12, 31),
         )
 
     def test_irrelevant_retrieval_chunk_cannot_enter_final_report(self) -> None:

@@ -35,6 +35,8 @@ class RagIngestTests(unittest.TestCase):
                 "retrieved_at": "2026-07-29T00:00:00Z",
                 "public_accessibility": "public",
                 "effective_date": "2025-12-31",
+                "published_at": "2026-01-01",
+                "published_at_source": "test_fixture",
             }]
         }
 

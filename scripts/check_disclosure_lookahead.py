@@ -160,6 +160,56 @@ def check_lookahead(*, honour_disclosure_date: bool = True) -> list[str]:
         return failures
 
 
+def check_undated_is_withheld() -> list[str]:
+    """A document with no disclosure date must be withheld, not back-dated.
+
+    R112 removed the fallback at read time; R113 found the same substitution
+    still happening at write time, where `record_document_version` stored the
+    period end as though it were a disclosure date whenever none was declared.
+    That is not a smaller bug -- it materialises the lookahead in the database,
+    where it looks like data rather than a default.
+
+    An unknown date must therefore make a chunk invisible at every as-of. The
+    empty string sorts before every real date, so the failure mode this guards
+    is specifically that undated chunks become the ones that are *always*
+    visible.
+    """
+
+    with tempfile.TemporaryDirectory() as directory:
+        store = SQLiteStore(Path(directory) / "undated.db")
+        store.record_document_version(
+            canonical_url="https://example.test/undated/report",
+            file_sha256="e" * 64,
+            effective_date=_PERIOD_END,
+            chunks=[
+                StoredChunk(
+                    id="undated-chunk",
+                    char_start=0,
+                    char_end=40,
+                    page_number=1,
+                    effective_date=_PERIOD_END,
+                    content="annual revenue disclosure statement text",
+                    entity_id="undatedco",
+                )
+            ],
+        )
+        failures: list[str] = []
+        for as_of in (_BEFORE_DISCLOSURE, _AFTER_DISCLOSURE, "9999-12-31"):
+            visible = [chunk.id for chunk in store.list_ready_chunks(as_of=as_of)]
+            if visible:
+                failures.append(
+                    f"a document with no disclosure date was visible as of {as_of}: {visible}"
+                )
+            resolved = store.resolve_ready_chunks(["undated-chunk"], as_of=as_of)
+            if resolved:
+                failures.append(
+                    f"resolve_ready_chunks returned an undated chunk as of {as_of}"
+                )
+        if not failures:
+            print("undated_withheld=PASS invisible_at_every_as_of=true")
+        return failures
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--self-test", action="store_true")
@@ -172,7 +222,7 @@ def main() -> int:
         )
         return 1
 
-    failures = check_corpus(CURRENT_CORPUS) + check_lookahead()
+    failures = check_corpus(CURRENT_CORPUS) + check_lookahead() + check_undated_is_withheld()
     if failures:
         for failure in failures:
             print(f"disclosure_lookahead=FAIL {failure}", file=sys.stderr)

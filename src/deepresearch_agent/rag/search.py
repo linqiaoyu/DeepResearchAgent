@@ -12,7 +12,7 @@ from deepresearch_agent.rag.retrieval import (
     rerank_or_degrade,
     rrf_fuse,
 )
-from deepresearch_agent.tools.contracts import DegradationEvent
+from deepresearch_agent.tools.contracts import DegradationEvent, ToolErrorKind
 from deepresearch_agent.tools.capability_registry import RAG_SEARCH_TOOL_SPEC
 from deepresearch_agent.tools.reliable_execution import (
     ReliableToolExecutor,
@@ -204,11 +204,31 @@ class RagSearchService:
             }
             self._record_trace(query=query, as_of=as_of, filters=effective_filters, result=result)
             return result
+        # A chunk is visible once it was disclosed -- never because its
+        # reporting period ended. The previous `published_at or effective_date`
+        # admitted anything with an unknown disclosure date by pretending the
+        # period end was one, which on the shipped corpus meant a median of 109
+        # days of not-yet-public filings. An unknown date is a reason to
+        # withhold, and withholding is counted rather than silent.
+        candidates = [*lexical, *dense]
         permitted = {
             chunk.chunk_id: chunk
-            for chunk in [*lexical, *dense]
-            if (chunk.published_at or chunk.effective_date) <= effective_filters.as_of
+            for chunk in candidates
+            if chunk.published_at is not None and chunk.published_at <= effective_filters.as_of
         }
+        undated = {
+            chunk.chunk_id for chunk in candidates if chunk.published_at is None
+        } - set(permitted)
+        if undated:
+            run_context.degradation_events.append(
+                DegradationEvent(
+                    tool="rag_search",
+                    reason=ToolErrorKind.NOT_FOUND,
+                    impact=f"withheld_chunks_without_disclosure_date={len(undated)}",
+                    attempts=0,
+                    refused_by="as_of_disclosure_guard",
+                )
+            )
         preferred_periods = domain_values.preferred_period_labels if domain_values else ()
         if preferred_periods:
             preferred = {

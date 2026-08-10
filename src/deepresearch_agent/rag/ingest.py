@@ -130,7 +130,10 @@ def ingest_and_persist(
             canonical_url=entry.url,
             file_sha256=actual_hash,
             effective_date=entry.effective_date,
-            published_at=entry.published_at or entry.effective_date,
+            # Not `or entry.effective_date`. A manifest that does not state a
+            # disclosure date has not established one, and substituting the
+            # period end here is the same lookahead bias one layer up.
+            published_at=entry.published_at,
             chunks=[
                 StoredChunk(
                     id=chunk.id,

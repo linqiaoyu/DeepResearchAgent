@@ -71,8 +71,8 @@ class RagSearchTests(unittest.TestCase):
         self.assertEqual(all_real.fidelity, "real")
         self.assertEqual(mixed.fidelity, "mixed")
     def test_requires_as_of_and_filters_future_chunks(self) -> None:
-        old = SearchChunk("old", "答案", date(2025, 1, 1), "v1", 0, 2)
-        future = SearchChunk("future", "未来答案", date(2027, 1, 1), "v2", 0, 4)
+        old = SearchChunk("old", "答案", date(2025, 1, 1), "v1", 0, 2, published_at=date(2025, 3, 1))
+        future = SearchChunk("future", "未来答案", date(2027, 1, 1), "v2", 0, 4, published_at=date(2027, 3, 1))
         service = RagSearchService(
             lexical=StaticBackend([old, future]),
             dense=StaticBackend([future, old]),
@@ -90,7 +90,7 @@ class RagSearchTests(unittest.TestCase):
         self.assertEqual(result["trace"].rerank_status, "ok")
 
     def test_disabled_rerank_does_not_require_a_provider(self) -> None:
-        chunk = SearchChunk("a", "文本", date(2025, 1, 1), "v1", 0, 2)
+        chunk = SearchChunk("a", "文本", date(2025, 1, 1), "v1", 0, 2, published_at=date(2025, 3, 1))
         service = RagSearchService(
             lexical=StaticBackend([chunk]),
             dense=StaticBackend([]),
@@ -105,7 +105,7 @@ class RagSearchTests(unittest.TestCase):
         self.assertEqual([item["chunk_id"] for item in result["candidates"]], ["a"])
 
     def test_service_uses_configured_index_version_when_call_has_none(self) -> None:
-        chunk = SearchChunk("a", "文本", date(2025, 1, 1), "v1", 0, 2)
+        chunk = SearchChunk("a", "文本", date(2025, 1, 1), "v1", 0, 2, published_at=date(2025, 3, 1))
         backend = RecordingBackend([chunk])
         service = RagSearchService(
             lexical=backend,
@@ -123,7 +123,7 @@ class RagSearchTests(unittest.TestCase):
         self.assertEqual(backend.filters[0].index_version, "finance-v1")
 
     def test_search_records_a_redacted_index_version_trace_for_replay(self) -> None:
-        chunk = SearchChunk("a", "文本", date(2025, 1, 1), "v1", 0, 2)
+        chunk = SearchChunk("a", "文本", date(2025, 1, 1), "v1", 0, 2, published_at=date(2025, 3, 1))
         service = RagSearchService(
             lexical=StaticBackend([chunk]), dense=StaticBackend([]), reranker=None,
             retrieval_top_k=10, rerank_top_n=5, rerank_enabled=False,
@@ -140,7 +140,7 @@ class RagSearchTests(unittest.TestCase):
         self.assertNotIn("不可写入轨迹的明文问题", str(call.inputs))
 
     def test_missing_reranker_fails_closed_when_fail_open_is_disabled(self) -> None:
-        chunk = SearchChunk("a", "文本", date(2025, 1, 1), "v1", 0, 2)
+        chunk = SearchChunk("a", "文本", date(2025, 1, 1), "v1", 0, 2, published_at=date(2025, 3, 1))
         service = RagSearchService(
             lexical=StaticBackend([chunk]),
             dense=StaticBackend([]),
@@ -155,7 +155,7 @@ class RagSearchTests(unittest.TestCase):
         self.assertEqual(result["trace"].degradation.impact, "empty_result")
 
     def test_domain_values_are_injected_without_domain_logic_in_the_service(self) -> None:
-        chunk = SearchChunk("a", "text", date(2025, 1, 1), "v1", 0, 4)
+        chunk = SearchChunk("a", "text", date(2025, 1, 1), "v1", 0, 4, published_at=date(2025, 3, 1))
         backend = RecordingBackend([chunk])
         domain = FinanceLikeRetrievalDomain()
         service = RagSearchService(
@@ -177,8 +177,8 @@ class RagSearchTests(unittest.TestCase):
         self.assertEqual(backend.filters[0].period_labels, ("2024",))
 
     def test_returned_candidate_retains_all_backend_scores(self) -> None:
-        lexical = SearchChunk("a", "文本", date(2025, 1, 1), "v1", 0, 2, score=0.25)
-        dense = SearchChunk("a", "文本", date(2025, 1, 1), "v1", 0, 2, score=0.75)
+        lexical = SearchChunk("a", "文本", date(2025, 1, 1), "v1", 0, 2, score=0.25, published_at=date(2025, 3, 1))
+        dense = SearchChunk("a", "文本", date(2025, 1, 1), "v1", 0, 2, score=0.75, published_at=date(2025, 3, 1))
         service = RagSearchService(
             lexical=StaticBackend([lexical]),
             dense=StaticBackend([dense]),
@@ -214,7 +214,7 @@ class RagSearchTests(unittest.TestCase):
         self.assertEqual(result["trace"].degradation.reason, ToolErrorKind.TIMEOUT)
 
     def test_external_request_budget_refusal_returns_explicit_empty_degradation(self) -> None:
-        chunk = SearchChunk("a", "文本", date(2025, 1, 1), "v1", 0, 2)
+        chunk = SearchChunk("a", "文本", date(2025, 1, 1), "v1", 0, 2, published_at=date(2025, 3, 1))
         context = RunToolContext(
             retry_budget=RetryBudget(max_retries=0),
             external_request_budget=ExternalRequestBudget(

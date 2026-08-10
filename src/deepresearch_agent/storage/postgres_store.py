@@ -9,6 +9,7 @@ from uuid import NAMESPACE_URL, uuid5
 
 from deepresearch_agent.schemas import EvaluationResult, Evidence
 from deepresearch_agent.storage.mapping import (
+    AS_OF_PREDICATE,
     EVIDENCE_COLUMNS,
     RESOLVED_CHUNK_COLUMNS,
     RESOLVED_CHUNK_JOIN,
@@ -197,7 +198,7 @@ class PostgresStore:
                         chunk.char_end,
                         chunk.page_number,
                         chunk.effective_date,
-                        chunk.published_at or effective_date,
+                        published_at,
                         chunk.content,
                         json.dumps([item.model_dump(mode="json") for item in chunk.bbox_index]),
                         chunk.entity_id,
@@ -234,7 +235,7 @@ class PostgresStore:
         ) as cursor:
             rows = cursor.execute(
                 f"SELECT {RESOLVED_CHUNK_COLUMNS} {RESOLVED_CHUNK_JOIN} "
-                "WHERE chunk.status = 'ready' AND chunk.published_at <= %s ORDER BY chunk.id",
+                f"WHERE {AS_OF_PREDICATE}%s ORDER BY chunk.id",
                 (as_of,),
             ).fetchall()
         return [resolved_chunk_from_row(row) for row in rows]
@@ -247,8 +248,7 @@ class PostgresStore:
         ) as cursor:
             rows = cursor.execute(
                 f"SELECT {RESOLVED_CHUNK_COLUMNS} {RESOLVED_CHUNK_JOIN} "
-                "WHERE chunk.status = 'ready' AND chunk.published_at <= %s "
-                "AND chunk.id = ANY(%s)",
+                f"WHERE {AS_OF_PREDICATE}%s AND chunk.id = ANY(%s)",
                 (as_of, chunk_ids),
             ).fetchall()
         resolved = {str(row["id"]): resolved_chunk_from_row(row) for row in rows}

@@ -185,6 +185,13 @@ RESOLVED_CHUNK_JOIN = (
     "JOIN document ON document.id = document_version.document_id"
 )
 
+#: The as-of predicate, shared so the two backends cannot disagree about what
+#: "visible at this date" means. An empty ``published_at`` is an *unknown*
+#: disclosure date, not an early one -- and an empty string sorts before every
+#: real date, so a naive ``published_at <= as_of`` would make precisely the
+#: chunks we cannot vouch for the ones that are always visible.
+AS_OF_PREDICATE = "chunk.status = 'ready' AND chunk.published_at <> '' AND chunk.published_at <= "
+
 
 def validate_document_version(
     *,
@@ -198,6 +205,13 @@ def validate_document_version(
     Every backend enforces the same preconditions by calling this. When they
     each kept their own copy, Postgres lost the ``file_sha256`` check and would
     have accepted a digest SQLite refused.
+
+    Returns ``""`` when no disclosure date was declared. R112 removed the
+    read-time fallback to the period end and R113 removed the write-time one:
+    this used to return ``published_at or effective_date``, which did not fix
+    the lookahead so much as move it earlier, materialising the period end in
+    the database as though it were a disclosure date. An unknown date stays
+    unknown, and retrieval refuses to show a chunk it cannot prove was public.
     """
 
     if not chunks:
@@ -210,7 +224,9 @@ def validate_document_version(
         raise ValueError("chunk page numbers must be positive when present")
     if any(chunk.effective_date != effective_date for chunk in chunks):
         raise ValueError("every chunk must use the document effective_date")
-    resolved = published_at or effective_date
-    if any((chunk.published_at or effective_date) != resolved for chunk in chunks):
+    resolved = published_at or ""
+    if any((chunk.published_at or "") != resolved for chunk in chunks):
         raise ValueError("every chunk must use the document published_at")
+    if resolved and resolved < effective_date:
+        raise ValueError("a document cannot be disclosed before the period it reports on")
     return resolved

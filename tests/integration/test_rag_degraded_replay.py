@@ -66,11 +66,13 @@ class RagDegradedReplayTest(unittest.TestCase):
                 page_number=None,
                 effective_date="2025-12-31",
                 content=content,
+                published_at="2025-12-31",
             )
             store.record_document_version(
                 canonical_url="https://example.test/report.html",
                 file_sha256="a" * 64,
                 effective_date="2025-12-31",
+                published_at="2025-12-31",
                 chunks=[stored],
             )
             chunk = SearchChunk(
@@ -81,6 +83,7 @@ class RagDegradedReplayTest(unittest.TestCase):
                 char_start=0,
                 char_end=len(content),
                 source_url="https://example.test/report.html",
+                published_at=date(2025, 12, 31),
             )
             rag = RagSearchService(
                 lexical=_StaticBackend([chunk]),

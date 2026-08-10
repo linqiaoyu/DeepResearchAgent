@@ -32,14 +32,19 @@ class RagBackendsTests(unittest.TestCase):
             canonical_url="https://example.test/report",
             file_sha256="a" * 64,
             effective_date="2025-01-01",
+            published_at="2025-03-01",
             chunks=[
                 StoredChunk(
                     "matched", 0, 10, 1, "2025-01-01", "营业收入增长明显",
                     (TextBoundingBox(
                         text="营业收入", bbox=BoundingBox(page=1, x0=1, top=2, x1=3, bottom=4)
                     ),),
+                    published_at="2025-03-01",
                 ),
-                StoredChunk("other", 10, 20, 1, "2025-01-01", "风险因素说明"),
+                StoredChunk(
+                    "other", 10, 20, 1, "2025-01-01", "风险因素说明",
+                    published_at="2025-03-01",
+                ),
             ],
         )
         return store
@@ -80,11 +85,13 @@ class RagBackendsTests(unittest.TestCase):
             canonical_url="https://example.test/alibaba",
             file_sha256="b" * 64,
             effective_date="2025-01-01",
+            published_at="2025-03-01",
             chunks=[
                 StoredChunk(
                     "alibaba", 0, 60, 1, "2025-01-01",
                     "Alibaba Group Holding Limited reported Total revenue.",
                     entity_id="baba",
+                    published_at="2025-03-01",
                 )
             ],
         )
