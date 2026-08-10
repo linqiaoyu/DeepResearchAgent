@@ -294,6 +294,7 @@ DeepResearchAgent 是自建 Agent Harness；金融投研是首个被测系统（
 | 测试不得给真实时钟设上界 | `scripts/check_wall_clock_assertions.py`（AST 枚举 + 双向棘轮，登记须写明理由） |
 | 评测的行为判据必须可被真实报告证伪 | `scripts/check_behavioral_criteria.py`（`gold.behavioral` 未登记即失败；implemented 判据必须有一份它拒绝的报告和一份它接受的报告；deferred 计数只减不增） |
 | 有证据的子问题不得以沉默交付 | `scripts/check_evidence_reaches_reader.py`（子问题有 Evidence 却无一条读者可追的引用即失败；self-test 拒绝"渲染为空"的 floor） |
+| 参考来源不得印正文不引用的行 | `scripts/check_reference_list_hygiene.py`（self-test + 对门禁刚产出的 demo 报告实测；provider 序列必须聚合成一条，独立文档必须保持独立） |
 | 存储与领域协议类型不得漂移 | `mypy --strict`（`storage/`、`domains/protocols.py`、`domains/base.py`、`domains/registry.py`、`rag/ingest.py`；文件清单是只增棘轮） |
 | 量具保真度必须可追 | runner 打印 `fidelity=`，state 记录 `provider_fidelity` |
 | 修复必须针对缺陷的类 | **仅靠判断**：需要执行者自己枚举同类成员并在报告中列出 |
