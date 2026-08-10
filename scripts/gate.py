@@ -118,6 +118,19 @@ def run_gate() -> None:
             "disclosure_fixture",
             [sys.executable, "scripts/build_disclosure_fixture.py", "--check"],
         ),
+        # R115: the golden set freezes behavioural requirements that no scoring
+        # code read. The one metric that claimed to cover `refute_premise`
+        # substring-matched a prose behaviour description, so it could not
+        # return True, and R113 published 0/30 for a report that asserted the
+        # premise in its first sentence.
+        (
+            "behavioral_criteria",
+            [sys.executable, "scripts/check_behavioral_criteria.py", "--self-test"],
+        ),
+        (
+            "behavioral_criteria_registered",
+            [sys.executable, "scripts/check_behavioral_criteria.py"],
+        ),
         ("settings_documentation", [sys.executable, "scripts/sync_agents_settings.py", "--check"]),
         ("doc_flag_claims", [sys.executable, "scripts/check_doc_flag_claims.py"]),
         (

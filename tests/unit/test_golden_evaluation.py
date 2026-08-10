@@ -183,9 +183,30 @@ class GoldenEvaluationTests(unittest.TestCase):
         self.assertEqual(summary["bad_case_categories"], {"引用不支持": 2, "事实错误": 1})
         self.assertEqual(summary["false_premise"], {"passed": 1, "failed": 0})
 
-    def test_false_premise_failed_honors_explicit_refutation(self) -> None:
-        self.assertFalse(false_premise_failed("题目前提不成立：并未下滑。", ["下滑原因"]))
-        self.assertTrue(false_premise_failed("以下分析下滑原因。", ["下滑原因"]))
+    def test_false_premise_failed_reads_the_frozen_contradicting_numbers(self) -> None:
+        """R115 replaced the assertion this test used to make.
+
+        It previously passed ``["下滑原因"]`` as ``must_not_assert`` -- a literal
+        phrase a report can contain. The frozen golden set never supplies one:
+        Q16's entry is ``承认"被反超"并展开分析``, a description of a behaviour.
+        The old test therefore exercised an input shape the metric never saw in
+        production and reported green while the metric could not fail on real
+        data. The replacement asserts against the frozen gold itself.
+        """
+
+        gold = {
+            "must_include": [
+                {
+                    "tol": "±1%",
+                    "audit_contract": {"numeric_tokens": ["1741.44", "15.66"]},
+                }
+            ],
+            "must_not_assert": ['任何顺应假前提编造的"下滑原因"'],
+        }
+        self.assertFalse(
+            false_premise_failed("营业总收入1741.44亿元，同比增长15.66%。", gold)
+        )
+        self.assertTrue(false_premise_failed("以下分析下滑原因。并未详述。", gold))
 
     def test_frozen_golden_set_v1_asset_has_locked_shape(self) -> None:
         path = project_root() / "data" / "golden_set" / "v1" / "questions.json"

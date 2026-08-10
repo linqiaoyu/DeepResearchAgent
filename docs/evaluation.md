@@ -363,13 +363,24 @@ versus historical v1.0 are `+0.0338`, `+0.0300`, and `+0.0179` for G1, G2, and
 G3. These are gold-version movements, not new product-generation results, and
 remain subject to the documented cross-generation and judge test-retest bands.
 
-The two false-premise cases remain correctly refuted in all three saved
-generations under v1.1 (`false_premise_failed=false`):
+The two false-premise cases scored `false_premise_failed=false` in all three
+saved generations under v1.1:
 
-| Case | G1 weighted / citation rate | G2 weighted / citation rate | G3 weighted / citation rate | Behavior |
+| Case | G1 weighted / citation rate | G2 weighted / citation rate | G3 weighted / citation rate | Recorded verdict |
 | --- | ---: | ---: | ---: | --- |
-| Q08 | 0.7525 / 1.000 | 0.7575 / 0.833 | 0.8425 / 0.667 | refuted |
-| Q16 | 0.8400 / 0.917 | 0.8875 / 1.000 | 0.8800 / 0.250 | refuted |
+| Q08 | 0.7525 / 1.000 | 0.7575 / 0.833 | 0.8425 / 0.667 | `false_premise_failed=false` |
+| Q16 | 0.8400 / 0.917 | 0.8875 / 1.000 | 0.8800 / 0.250 | `false_premise_failed=false` |
+
+> **R115 correction.** This paragraph previously read "remain correctly refuted"
+> and labelled the Behavior column `refuted`. That was an inference from a metric
+> that could not report anything else: the pre-R115 `false_premise_failed`
+> substring-matched `gold.must_not_assert`, whose frozen entries are prose
+> behaviour descriptions, so no report could satisfy it. The verdicts in this
+> table are what the metric printed; they are not evidence that either premise
+> was refuted, and they were not re-scored, because these are archived
+> generations whose reports were produced under a different fidelity. The R113
+> live generation *was* re-scored under the R115 criterion and both cases fail
+> — see `docs/decisions/115/`.
 
 The three v1.1 judge rounds cost CNY `1.65913960`, `1.67774040`, and
 `1.65709656`, respectively, for a combined CNY `4.99397656`. The shared task
@@ -633,3 +644,61 @@ An issue records every claim it affects, so merging duplicate messages leaves
 the measurement unchanged while removing the repetition from the report. The
 denominator and the 1.0 cap are unchanged, and `data/eval_baseline_v2.json` is
 unchanged: the deterministic eval scores the same 0.933 before and after.
+
+## R115 contract change: `false_premise_failed` reads the frozen numbers
+
+`false_premise_failed` was:
+
+```python
+def false_premise_failed(report, must_not_assert):
+    text = report.replace(" ", "")
+    if "假前提" in text or "前提不成立" in text or "并未" in text or "未被" in text:
+        return False
+    return any(item.replace(" ", "") in text for item in must_not_assert)
+```
+
+`gold.must_not_assert` holds prose behaviour descriptions. Q16's only entry is
+`承认"被反超"并展开分析`; Q08's is `任何顺应假前提编造的"下滑原因"`. The final
+branch therefore asked whether the report contains a sentence describing what the
+report must not do, which no report contains, so the metric could not return
+`True` on frozen data. The short circuit made it unreachable twice over: `并未`
+is ordinary Chinese, and any report using it returned `False` before the
+comparison ran.
+
+The consequence was published. R113 reported `false_premise_failed=0/30` for a
+Q16 report whose summary opens 「2024年，宁德时代全球动力电池装机量市场份额被比亚迪
+反超，主要源于…」 — the false premise asserted as fact in the first sentence — and
+which states none of the four SNE Research figures the gold requires.
+
+It is now the negation of a behavioural verdict:
+
+> A report refutes a premise when it states what is actually true. The verdict is
+> satisfied when the report body states **every** `numeric_tokens` entry of one
+> `must_include` fact whose `audit_contract` carries them, compared as values
+> within that fact's `tol`, normalised across the 百/千/万/亿 and percent scales,
+> with the `## 参考来源` section excluded.
+
+Nothing in `data/golden_set/` changed. The criterion reads fields the frozen set
+already published — Q08 `1741.44`/`15.66`, Q16 `339.3`/`37.9`/`153.7`/`17.2` —
+and adds no truth of its own. Excluding the reference list matters: an
+`akshare://营业收入/600519/20241231/…` footnote carries an issuer, a metric and a
+period that were never said to the reader.
+
+Scope of the change:
+
+- `false_premise_failed(report, gold)` replaces `false_premise_failed(report, must_not_assert)`.
+- Per-question results gain a `behavioral` map of criterion → verdict.
+- The four weighted judge dimensions and their weights are unchanged, and
+  `data/eval_baseline_v2.json` is unchanged; `false_premise_failed` has never
+  been a weighted term. It feeds the `假前提未识破` bad-case category, which can
+  now be non-empty.
+- Historical rounds are **not** re-scored. Their recorded `false_premise_failed`
+  values remain as printed, and are labelled above as metric output rather than
+  as refutation.
+
+`gold.behavioral` has a second key, `counterview`, required by Q11, Q17, Q18,
+Q19, Q20, Q22 and Q28 and read by nothing. It is registered as deferred in
+`data/behavioral_criteria.json` with its reason and owning round;
+`scripts/check_behavioral_criteria.py` fails closed on any behavioural key that
+is neither implemented with separating fixtures nor registered as deferred, and
+the deferred count is a ratchet.

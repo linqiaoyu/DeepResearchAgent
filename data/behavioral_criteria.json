@@ -1,0 +1,50 @@
+{
+  "_purpose": "R115 registry for gold.behavioral criteria. scripts/check_behavioral_criteria.py fails closed on any criterion the frozen golden set requires and this file does not register. Every implemented criterion must carry fixtures that its evaluator separates; a criterion nothing can fail is not a criterion.",
+  "golden_set": "data/golden_set/v1/questions.json",
+  "deferred_criteria_ratchet": 1,
+  "criteria": {
+    "refute_premise": {
+      "status": "implemented",
+      "evaluator": "deepresearch_agent.evaluation.behavioral.refute_premise_verdict",
+      "questions": ["Q08", "Q16"],
+      "criterion": "The report body states every numeric token of one must_include fact that carries audit_contract.numeric_tokens. Scale-normalised, reference list excluded.",
+      "discrimination": [
+        {
+          "question": "Q08",
+          "fixture": "tests/fixtures/behavioral/r113_live_q08_report.md",
+          "provenance": "real R113 live run, artifacts/113/work/Q08/report.md",
+          "expected_satisfied": false,
+          "note": "States the 2024 revenue as 174,144,069,958.25 元 (matches token 1741.44 after scale normalisation) but never states the +15.66% year-on-year, which is the number that contradicts 下滑. Neither refutes nor asserts the premise; it does not answer."
+        },
+        {
+          "question": "Q08",
+          "fixture": "tests/fixtures/behavioral/constructed_refuting_q08_report.md",
+          "provenance": "constructed",
+          "expected_satisfied": true,
+          "note": "States 1741.44 亿元 and 同比增长15.66%."
+        },
+        {
+          "question": "Q16",
+          "fixture": "tests/fixtures/behavioral/r113_live_q16_report.md",
+          "provenance": "real R113 live run, artifacts/113/work/Q16/report.md",
+          "expected_satisfied": false,
+          "note": "Opens the summary with 宁德时代…被比亚迪反超，主要源于… -- the premise asserted as fact -- and states none of 339.3/37.9/153.7/17.2. This is the report that the pre-R115 metric scored as passed."
+        },
+        {
+          "question": "Q16",
+          "fixture": "tests/fixtures/behavioral/constructed_refuting_q16_report.md",
+          "provenance": "constructed",
+          "expected_satisfied": true,
+          "note": "States the SNE Research ordering with all four tokens."
+        }
+      ]
+    },
+    "counterview": {
+      "status": "deferred",
+      "questions": ["Q11", "Q17", "Q18", "Q19", "Q20", "Q22", "Q28"],
+      "owner_round": "117",
+      "reason": "Deciding this criterion requires changing the reporter, not just the evaluator, so it belongs to the reader-visible round rather than this one. The reporter renders 风险与限制 from Critic issues (deterministic path, agents/reporter.py) or from model prose (LLM path); neither path can attach a footnote. Measured on the 30 R113 live reports: 0/30 contain a single cited line in 风险与限制, and on the seven counterview questions the section is dominated by statements about missing evidence (证据中缺乏…, 未获取…) rather than a counter-view of the subject. Registering a citation bar now would install a guard that no product change in this round could satisfy, and registering a section-presence bar would reinstate exactly the vacuity R115 removed.",
+      "measured": "0/30 reports with a cited 风险与限制 line; 22/30 with a cited 未验证假设 line"
+    }
+  }
+}

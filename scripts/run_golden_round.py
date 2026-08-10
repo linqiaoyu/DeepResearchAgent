@@ -11,6 +11,7 @@ from deepresearch_agent.evaluation import (
     JudgeClient,
     aggregate_round_results,
     classify_bad_case,
+    evaluate_behavioral,
     extract_report_claims,
     false_premise_failed,
     judge_sample_spread,
@@ -216,11 +217,18 @@ def _score_case(
         evidence=evidence,
     )
     mechanical = _mechanical_metrics(state)
+    gold = case.get("gold", {})
     fp_failed = (
-        false_premise_failed(report, case.get("gold", {}).get("must_not_assert", []))
+        false_premise_failed(report, gold if isinstance(gold, dict) else {})
         if case.get("false_premise") is True
         else False
     )
+    behavioral = {
+        name: verdict.model_dump()
+        for name, verdict in evaluate_behavioral(
+            report, gold if isinstance(gold, dict) else {}
+        ).items()
+    }
     categories = classify_bad_case(
         median_score,
         citation_result.support_rate,
@@ -236,6 +244,7 @@ def _score_case(
         "difficulty": case["difficulty"],
         "false_premise": bool(case.get("false_premise", False)),
         "false_premise_failed": fp_failed,
+        "behavioral": behavioral,
         "source_count": len(state.sources),
         "evidence_count": len(state.evidence_store),
         "judge": {

@@ -8,6 +8,7 @@ from typing import Any
 
 import yaml
 
+from deepresearch_agent.evaluation.behavioral import refute_premise_verdict
 from deepresearch_agent.evaluation.judge import JudgeScore
 from deepresearch_agent.domains.protocols import DomainPack
 from deepresearch_agent.domains.requirements import resolve_domain_capability
@@ -209,8 +210,20 @@ def aggregate_round_results(results: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def false_premise_failed(report: str, must_not_assert: list[str]) -> bool:
-    text = report.replace(" ", "")
-    if "假前提" in text or "前提不成立" in text or "并未" in text or "未被" in text:
-        return False
-    return any(item.replace(" ", "") in text for item in must_not_assert)
+def false_premise_failed(report: str, gold: dict[str, Any]) -> bool:
+    """Whether a false-premise question was answered without refuting the premise.
+
+    R115 replaced a substring test over ``gold.must_not_assert``. Those entries
+    are prose behaviour descriptions -- Q16's is ``承认"被反超"并展开分析`` -- so
+    asking whether a report contains one asks whether the report quotes its own
+    grading note. It could not return ``True``, and a short circuit on ``并未``
+    returned ``False`` before the comparison for any report using an ordinary
+    Chinese adverb. R113 published ``0/30`` from it while its Q16 report asserted
+    the premise in the first sentence of the summary.
+
+    A premise is refuted by stating what is actually true, so the verdict now
+    reads the contradicting numbers the golden set already froze. See
+    ``deepresearch_agent.evaluation.behavioral``.
+    """
+
+    return not refute_premise_verdict(report, gold).satisfied

@@ -47,6 +47,15 @@ DeepResearchAgent 是自建 Agent Harness；金融投研是首个被测系统（
   期望结果而没有限定作用域或失败条件的自然语言判据不算验收。
   **依据：** 085 的任务卡要求“关键发现”同时出现营收与毛利，但全文数字计数仍为 2，
   使关键发现仅有 1/2 且与后文自相矛盾的报告通过了全部门禁。
+- 反例必须取自真实产物，不得自造一份生产数据里不会出现的输入形状。判据把散文行为
+  描述当字面串匹配时，它在真实数据上恒为假；此时单测若喂进一个"恰好能匹配"的合成
+  串，会同时给出绿灯和零覆盖。**依据：** 115 查明 `false_premise_failed` 拿
+  `gold.must_not_assert` 做子串匹配，而冻结真值里那两条是行为描述（Q16 是
+  `承认"被反超"并展开分析`），该判据结构上不可能为真；其单测传的是 `["下滑原因"]`
+  这种真实数据中不存在的字面串，于是 R113 在 Q16 报告首句承接假前提的情况下
+  发布了 `false_premise_failed=0/30`，`docs/evaluation.md` 据此记了两轮“refuted”。
+  **执行面：** `scripts/check_behavioral_criteria.py` 要求每条 implemented 判据同时
+  登记一份它拒绝的真实报告与一份它接受的报告。
 - 执行范围由任务目标、验收和硬边界共同限定；步骤列表是建议路径。发现 in-scope
   缺口时实施最小完整修复，无需因任务未逐字列出该代码改动而停下。
   **依据：** 028 的“只执行明确事项”直接阻塞主目标。
@@ -276,6 +285,7 @@ DeepResearchAgent 是自建 Agent Harness；金融投研是首个被测系统（
 | 服务型后端必须真被执行 | CI `postgres-storage` / `qdrant-vector-index` job + `scripts/check_service_job.py --job`（拒绝靠 skip 通过） |
 | 测试不得静默 skip | `scripts/check_no_silent_skips.py`（未登记 skip 即失败）+ `--verify-workflow`（登记的 job 必须存在） |
 | 测试不得给真实时钟设上界 | `scripts/check_wall_clock_assertions.py`（AST 枚举 + 双向棘轮，登记须写明理由） |
+| 评测的行为判据必须可被真实报告证伪 | `scripts/check_behavioral_criteria.py`（`gold.behavioral` 未登记即失败；implemented 判据必须有一份它拒绝的报告和一份它接受的报告；deferred 计数只减不增） |
 | 存储与领域协议类型不得漂移 | `mypy --strict`（`storage/`、`domains/protocols.py`、`domains/base.py`、`domains/registry.py`、`rag/ingest.py`；文件清单是只增棘轮） |
 | 量具保真度必须可追 | runner 打印 `fidelity=`，state 记录 `provider_fidelity` |
 | 修复必须针对缺陷的类 | **仅靠判断**：需要执行者自己枚举同类成员并在报告中列出 |

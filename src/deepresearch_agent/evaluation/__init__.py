@@ -1,3 +1,10 @@
+from deepresearch_agent.evaluation.behavioral import (
+    BEHAVIORAL_EVALUATORS,
+    BehavioralVerdict,
+    contradicting_facts,
+    evaluate_behavioral,
+    refute_premise_verdict,
+)
 from deepresearch_agent.evaluation.judge import (
     CitationSupportResult,
     CitationSupportVerdict,
@@ -21,6 +28,8 @@ from deepresearch_agent.evaluation.runner import (
 )
 
 __all__ = [
+    "BEHAVIORAL_EVALUATORS",
+    "BehavioralVerdict",
     "CitationSupportResult",
     "CitationSupportVerdict",
     "EvaluationHarness",
@@ -29,8 +38,11 @@ __all__ = [
     "aggregate_round_results",
     "classify_bad_case",
     "compare_metric_summaries",
+    "contradicting_facts",
+    "evaluate_behavioral",
     "extract_report_claims",
     "false_premise_failed",
+    "refute_premise_verdict",
     "format_metric_comparison",
     "judge_sample_spread",
     "load_metric_summary",
