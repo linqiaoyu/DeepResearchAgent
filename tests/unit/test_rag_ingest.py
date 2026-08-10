@@ -119,12 +119,16 @@ class RagIngestTests(unittest.TestCase):
     def test_reingest_replaces_stale_derived_chunk_layout(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             store = SQLiteStore(Path(directory) / "research.db")
+            # This test is about re-ingest replacing a stale chunk layout, not
+            # about disclosure dates, so it declares one rather than relying on
+            # the period-end substitution R113 removed.
             first = StoredChunk(
                 id="old-layout",
                 char_start=0,
                 char_end=3,
                 page_number=None,
                 effective_date="2025-12-31",
+                published_at="2026-03-20",
                 content="old",
             )
             replacement = StoredChunk(
@@ -133,21 +137,24 @@ class RagIngestTests(unittest.TestCase):
                 char_end=6,
                 page_number=None,
                 effective_date="2025-12-31",
+                published_at="2026-03-20",
                 content="newest",
             )
             store.record_document_version(
                 canonical_url="https://example.test/document",
                 file_sha256="a" * 64,
                 effective_date="2025-12-31",
+                published_at="2026-03-20",
                 chunks=[first],
             )
             store.record_document_version(
                 canonical_url="https://example.test/document",
                 file_sha256="a" * 64,
                 effective_date="2025-12-31",
+                published_at="2026-03-20",
                 chunks=[replacement],
             )
-            chunks = store.list_ready_chunks(as_of="2025-12-31")
+            chunks = store.list_ready_chunks(as_of="2026-04-01")
 
         self.assertEqual([chunk.id for chunk in chunks], ["new-layout"])
 
