@@ -38,11 +38,30 @@ _PACKS: dict[str, Callable[[], DomainPack]] = {
     "null": _null,
 }
 
+#: Packs that exist to exercise the harness rather than to serve a user. They
+#: are registered, loadable and tested, but they are not a product domain and
+#: must never be counted as evidence that the framework is domain-general.
+HARNESS_ONLY_PACKS = frozenset({"null"})
+
 
 def installed_domain_packs() -> tuple[str, ...]:
     """Names `DEEPRESEARCH_DOMAIN_PACK` accepts."""
 
     return tuple(sorted(_PACKS))
+
+
+def product_domain_packs() -> tuple[str, ...]:
+    """Packs that are actually built for a user of this system.
+
+    R113 made the scope an explicit product decision rather than an open gap:
+    finance is the one domain being finished, the `DomainPack` seam stays and
+    keeps carrying dependency inversion, and no second domain is started. This
+    function is what `scripts/check_domain_boundary.py` asserts against, so
+    adding a second product domain fails the gate and has to be a decision
+    somebody makes on purpose instead of a drift nobody noticed.
+    """
+
+    return tuple(name for name in installed_domain_packs() if name not in HARNESS_ONLY_PACKS)
 
 
 def load_domain_pack(name: str) -> DomainPack:

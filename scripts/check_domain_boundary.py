@@ -14,6 +14,21 @@ SOURCE_ROOT = ROOT / "src/deepresearch_agent"
 PROMPT_ROOT = ROOT / "prompts"
 DOMAIN_IMPORT = "deepresearch_agent.domains.finance"
 
+#: R113 turned "there is only one domain" from an open gap into a stated scope:
+#: finance is the domain being finished, the `DomainPack` seam stays and keeps
+#: carrying dependency inversion, and no second product domain is started. The
+#: check runs in both directions -- a second product domain fails, and so does
+#: losing this one -- so the scope cannot drift without somebody deciding to
+#: change it.
+DECLARED_PRODUCT_DOMAINS = {"finance"}
+
+
+def _product_domain_packs() -> tuple[str, ...]:
+    sys.path.insert(0, str(ROOT / "src"))
+    from deepresearch_agent.domains.registry import product_domain_packs
+
+    return product_domain_packs()
+
 
 def _load_json(path: Path) -> object:
     with path.open(encoding="utf-8") as handle:
@@ -91,9 +106,18 @@ def main() -> None:
             )
 
     import_sites = _concrete_domain_import_sites()
+    product_domains = _product_domain_packs()
+    if set(product_domains) != DECLARED_PRODUCT_DOMAINS:
+        failures.append(
+            f"product domains are {sorted(product_domains)}, declared "
+            f"{sorted(DECLARED_PRODUCT_DOMAINS)}. AGENTS.md section 1 says finance is "
+            "the one domain being finished and no second product domain is started. "
+            "Changing that is a product decision: record it there first."
+        )
     print(
         f"import_sites={import_sites} literal_files={len(hits)} "
-        f"literal_hits={sum(hits.values())} lexicon_terms={len(lexicon)}"
+        f"literal_hits={sum(hits.values())} lexicon_terms={len(lexicon)} "
+        f"product_domains={len(product_domains)}"
     )
     if failures:
         print("\n".join(failures), file=sys.stderr)
