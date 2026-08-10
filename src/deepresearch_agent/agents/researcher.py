@@ -104,6 +104,16 @@ class ResearcherAgent:
         run_scope = run_scope or RunScope(
             RunToolContext.for_run(), SearchQuota(self.max_searches_per_run)
         )
+        # R119: `seen` is also what decides whether an exhausted external budget
+        # degrades or terminates. The gate used to be `authority_returned` --
+        # whether a first-party disclosure had come back -- and R113's Q03 and
+        # Q05 hit the run-wide fetch cap (20/20) with six searches and twenty
+        # fetches already spent and no disclosure among them. The exception
+        # unwound the whole graph, so the sources those branches had already
+        # collected never reached `research_join`: both questions delivered zero
+        # evidence, and ten of the twelve gold facts the golden set never saw
+        # are theirs. A budget that refuses the next request is not a reason to
+        # discard the work already done for it.
         seen: dict[str, Source] = {}
         records: list[SearchRecord] = []
         original_candidates: list[Source] = []
@@ -318,7 +328,9 @@ class ResearcherAgent:
             except ToolExecutionError as exc:
                 if exc.kind != ToolErrorKind.BUDGET_EXCEEDED:
                     raise
-                if not authority_returned:
+                if not seen:
+                    # Nothing was obtained before the budget refused: the run
+                    # could not begin, and terminating says so accurately.
                     raise
                 branch_exhausted = True
                 records.append(
@@ -372,7 +384,7 @@ class ResearcherAgent:
                 except ToolExecutionError as exc:
                     if exc.kind != ToolErrorKind.BUDGET_EXCEEDED:
                         raise
-                    if not authority_returned:
+                    if not seen:
                         raise
                     branch_exhausted = True
                     records.append(

@@ -1,0 +1,36 @@
+{
+  "_purpose": "R119 registry of external request budgets. scripts/check_budget_degradation.py fails closed on any budget in Settings that is not registered here. A budget that terminates a run must say why; a budget that degrades must name the test that proves it keeps the work already done.",
+  "terminate_allowed_ratchet": 0,
+  "budgets": {
+    "max_external_search_requests_per_run": {
+      "disposition": "degrade",
+      "surface": "ResearcherAgent.research_with_budget, search branch",
+      "proof": "tests/unit/test_budget_degradation.py::SearchBudgetDegradationTests::test_an_exhausted_search_budget_keeps_earlier_results",
+      "note": "Records `[external_search_budget_exceeded] <query>` and stops the branch. Re-raises only when nothing was obtained at all, which is a run that could not begin rather than one whose work is being discarded."
+    },
+    "max_external_fetch_requests_per_run": {
+      "disposition": "degrade",
+      "surface": "ResearcherAgent.research_with_budget, fetch branch",
+      "proof": "tests/unit/test_budget_degradation.py::FetchBudgetDegradationTests::test_an_exhausted_fetch_budget_keeps_the_sources_already_found",
+      "note": "This is the budget that emptied R113's Q03 and Q05: 20/20 spent, the twenty-first refused, the exception unwound the graph, and the sources already collected never reached research_join."
+    },
+    "max_authority_search_requests_per_run": {
+      "disposition": "degrade",
+      "surface": "ResearcherAgent.research_with_budget, search branch",
+      "proof": "tests/unit/test_budget_degradation.py::SearchBudgetDegradationTests::test_an_exhausted_search_budget_keeps_earlier_results",
+      "note": "Refused through the same ToolErrorKind.BUDGET_EXCEEDED path as the general search budget, so the same degradation applies."
+    },
+    "max_authority_fetch_requests_per_run": {
+      "disposition": "degrade",
+      "surface": "ResearcherAgent.research_with_budget, fetch branch",
+      "proof": "tests/unit/test_budget_degradation.py::FetchBudgetDegradationTests::test_an_exhausted_fetch_budget_keeps_the_sources_already_found",
+      "note": "Same path as the general fetch budget."
+    },
+    "max_searches_per_run": {
+      "disposition": "degrade",
+      "surface": "SearchQuota.consume, consulted by ResearcherAgent._consume_search_budget_if_needed",
+      "proof": "tests/unit/test_budget_degradation.py::SearchQuotaDegradationTests::test_an_exhausted_search_quota_keeps_earlier_results",
+      "note": "Returns False rather than raising, so it degrades by construction. Registered so a change to that -- turning the quota into an exception -- has to pass this guard first."
+    }
+  }
+}

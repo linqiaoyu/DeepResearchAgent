@@ -145,6 +145,17 @@ def run_gate() -> None:
             "reference_list_hygiene",
             [sys.executable, "scripts/check_reference_list_hygiene.py", "--self-test"],
         ),
+        # R119: an exhausted external request budget used to unwind the graph,
+        # discarding the sources the run had already collected. Two of the 30
+        # R113 questions delivered zero evidence that way.
+        (
+            "budget_degradation",
+            [sys.executable, "scripts/check_budget_degradation.py", "--self-test"],
+        ),
+        (
+            "budget_degradation_registered",
+            [sys.executable, "scripts/check_budget_degradation.py", "--run-proofs"],
+        ),
         ("settings_documentation", [sys.executable, "scripts/sync_agents_settings.py", "--check"]),
         ("doc_flag_claims", [sys.executable, "scripts/check_doc_flag_claims.py"]),
         (

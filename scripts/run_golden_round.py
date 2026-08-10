@@ -325,7 +325,12 @@ def _reader_reach_metrics(state: ResearchState) -> dict[str, Any]:
 
 def _mechanical_metrics(state: ResearchState) -> dict[str, Any]:
     if not state.evaluation:
-        return {}
+        # R119: this returned {} and took the reader metrics with it. They read
+        # the report and the footnote map, not `state.evaluation`, and a run
+        # that finished without an evaluation is exactly the run whose delivered
+        # page is worth measuring. The R119 Q03 validation reported
+        # `orphaned=None` for that reason while Q05 reported a number.
+        return _reader_reach_metrics(state)
     reporter_stats = state.metadata.get("llm_stats", {}).get("reporter", {})
     if not isinstance(reporter_stats, dict):
         reporter_stats = {}
