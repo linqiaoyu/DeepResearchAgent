@@ -138,6 +138,13 @@ def run_gate() -> None:
             "evidence_reaches_reader",
             [sys.executable, "scripts/check_evidence_reaches_reader.py", "--self-test"],
         ),
+        # R117: 83% of every reference line the R113 reports delivered was a
+        # line the body never pointed to, and 969 of them were single records
+        # of a provider series.
+        (
+            "reference_list_hygiene",
+            [sys.executable, "scripts/check_reference_list_hygiene.py", "--self-test"],
+        ),
         ("settings_documentation", [sys.executable, "scripts/sync_agents_settings.py", "--check"]),
         ("doc_flag_claims", [sys.executable, "scripts/check_doc_flag_claims.py"]),
         (
@@ -178,6 +185,18 @@ def run_gate() -> None:
             ],
         ),
         ("demo_smoke", [sys.executable, "scripts/run_demo.py", "--output", "artifacts/ci_demo/report.md"]),
+        # Asserted against the artifact the run just produced, not only against
+        # the self test: R116's rule is that a reader-visible criterion must
+        # measure what the reader receives.
+        (
+            "demo_reference_list",
+            [
+                sys.executable,
+                "scripts/check_reference_list_hygiene.py",
+                "--report",
+                "artifacts/ci_demo/report.md",
+            ],
+        ),
         (
             "eval_smoke",
             [

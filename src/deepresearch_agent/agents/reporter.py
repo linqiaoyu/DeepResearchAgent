@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from difflib import SequenceMatcher
 
-from deepresearch_agent.citations import build_footnote_maps
+from deepresearch_agent.citations import FootnoteMaps, build_footnote_maps
 from deepresearch_agent.llm import (
     LLMClient,
     LLMClientError,
@@ -42,6 +42,7 @@ _RMB_RE = re.compile(
     re.IGNORECASE,
 )
 _FOOTNOTE_RE = re.compile(r"\[\^(\d+)\]")
+_FOOTNOTE_DEF_RE = re.compile(r"^\[\^(\d+)\]:")
 # `prompts/reporter.md` requires each numeric fact to be emitted once, and tells
 # the reporter not to repeat a key finding *verbatim* in the analysis. R090
 # moved the test off the evidence a claim cites and onto the text it states,
@@ -285,7 +286,20 @@ class ReporterAgent:
         ]
         if assumptions and "本轮报告未单独引入" not in assumptions[0]:
             lines.extend(["", "## 未验证假设", *assumptions])
-        references = section("参考来源")
+        # R117: this pass rebuilds the page from the sections it keeps, and it
+        # drops some -- a risk line the domain judges invisible, an assumption
+        # section, an analysis section on fallback. It used to copy the
+        # reference list across untouched, so every footnote cited only from a
+        # dropped section survived as a reference with nothing pointing at it.
+        # That is a second, independent source of the 83% orphan rate measured
+        # in R116, and it is why filtering inside the renderer alone left the
+        # demo printing 5 references for 3 citations.
+        cited = {int(match) for match in _FOOTNOTE_RE.findall("\n".join(lines))}
+        references = [
+            line
+            for line in section("参考来源")
+            if any(int(number) in cited for number in _FOOTNOTE_DEF_RE.findall(line))
+        ]
         if references:
             lines.extend(["", "## 参考来源", *references])
         return "\n".join(lines).rstrip()
@@ -649,22 +663,14 @@ class ReporterAgent:
             lines.append("- 本轮报告未单独引入低置信度预测性结论。")
 
         lines.extend(["", "## 参考来源"])
-        for item in footnotes.unique_refs:
-            provenance = (
-                f" [source_tier={item.source_tier}]"
-                + (
-                    " [content_truncated=true]"
-                    if item.content_truncated
-                    else ""
-                )
-                if show_source_tiers
-                else ""
+        lines.extend(
+            self._reference_lines(
+                footnotes,
+                ref_map,
+                body_lines=lines,
+                show_source_tiers=show_source_tiers,
             )
-            lines.append(
-                f"[^{ref_map[item.id]}]: {item.source_title}. {item.source_url} "
-                f"({item.source_pub_date.isoformat() if item.source_pub_date else 'unknown'})"
-                f"{f' [page={item.source_page}]' if item.source_page else ''}{provenance}"
-            )
+        )
         return "\n".join(lines)
 
     def _llm_report(
@@ -1229,7 +1235,59 @@ class ReporterAgent:
             lines.append("- 本轮报告未单独引入低置信度预测性结论。")
 
         lines.extend(["", "## 参考来源"])
+        lines.extend(
+            self._reference_lines(
+                footnotes,
+                ref_map,
+                body_lines=lines,
+                show_source_tiers=show_source_tiers,
+            )
+        )
+        self.last_stats["claim_provenance"] = claim_provenance
+        self.last_stats["analysis_flow"] = analysis_flow
+        self.last_stats["dropped_analysis_claims"] = dropped_claims
+        return "\n".join(lines), invalid_references, missing_reference_backfills
+
+    @staticmethod
+    def _reference_lines(
+        footnotes: FootnoteMaps,
+        ref_map: dict[str, int],
+        *,
+        body_lines: list[str],
+        show_source_tiers: bool,
+    ) -> list[str]:
+        """Render 参考来源 once, for both report paths.
+
+        R117: this block was written out twice, identically, in the two render
+        paths. AGENTS.md section 6 requires one implementation of a shared
+        contract; two copies of a reference renderer is how one path acquires a
+        fix the other does not.
+
+        Only footnotes the body cites are printed. Across the 30 R113 live
+        reports the reference lists ran to 1269 lines and the body cited 213 of
+        them: 83% of every reference line delivered was a line the reader had no
+        marker for. A reference nothing points to is not a citation, it is a log
+        of what the run touched, and that record lives in the run state, the
+        manifest and the trajectory rather than on the reader's page.
+
+        Numbers are not reassigned. A gap in the sequence is visible and
+        harmless; renumbering would mean rewriting markers already rendered
+        above and republishing ``report_footnote_evidence`` to match, and a
+        mapping that disagrees with the page is the failure that contract
+        exists to prevent.
+
+        ``[records=N]`` is new. A footnote now covers a provider series rather
+        than one record of it, and the URI printed beside it names the record
+        that happened to arrive first, so the count is what tells the reader the
+        marker stands for more than that line.
+        """
+
+        cited = {int(match) for match in _FOOTNOTE_RE.findall("\n".join(body_lines))}
+        lines: list[str] = []
         for item in footnotes.unique_refs:
+            number = ref_map[item.id]
+            if number not in cited:
+                continue
             provenance = (
                 f" [source_tier={item.source_tier}]"
                 + (
@@ -1240,15 +1298,15 @@ class ReporterAgent:
                 if show_source_tiers
                 else ""
             )
+            records = footnotes.footnote_record_counts.get(number, 1)
+            record_note = f" [records={records}]" if records > 1 else ""
             lines.append(
-                f"[^{ref_map[item.id]}]: {item.source_title}. {item.source_url} "
+                f"[^{number}]: {item.source_title}. {item.source_url} "
                 f"({item.source_pub_date.isoformat() if item.source_pub_date else 'unknown'})"
-                f"{f' [page={item.source_page}]' if item.source_page else ''}{provenance}"
+                f"{f' [page={item.source_page}]' if item.source_page else ''}"
+                f"{record_note}{provenance}"
             )
-        self.last_stats["claim_provenance"] = claim_provenance
-        self.last_stats["analysis_flow"] = analysis_flow
-        self.last_stats["dropped_analysis_claims"] = dropped_claims
-        return "\n".join(lines), invalid_references, missing_reference_backfills
+        return lines
 
     @staticmethod
     def _question_overlap(sub_question: SubQuestion, item: Evidence) -> int:
