@@ -210,6 +210,13 @@ DeepResearchAgent 是自建 Agent Harness；金融投研是首个被测系统（
 - 读者可见产物的验收判据必须直接度量**读者拿到的东西**（版面构成、指标完整性、
   噪声行数、误报条数），不得以管道属性（引用闭合、召回比例、provider 真实性）
   代替。管道判据全绿不构成产物可用的证据。
+- 检索到并抽取出的证据，不等于读者拿到的证据。度量交付质量必须同时报告**留存率**
+  ——被引用可追的证据 / 已抽取的证据——否则上游改进会被下游选择静默吃掉。
+  **依据：** 116 实测 R113 的 30 份真实报告：抽取 2844 条证据、读者可追 782 条
+  (27%)；金标 50 条数值事实里 12 条从未检索到、13 条检索到并抽取后在报告环节丢失。
+  Q16 的四个反驳数字全部在证据库里，报告却写"未获取该数据"。
+  **执行面：** `scripts/check_evidence_reaches_reader.py` + golden runner 的
+  `evidence_reachable_rate` / `orphaned_sub_questions`。
   **依据：** 082–086 五轮管道判据全部转绿（`verdict=PASS`、`footnote_misrefs=0`、
   `off_year_ratio=0.00`），而 086 的读者报告 351 行中可用内容仅 5 行、
   样板噪声 117 行、分析层误报 4 条。
@@ -286,6 +293,7 @@ DeepResearchAgent 是自建 Agent Harness；金融投研是首个被测系统（
 | 测试不得静默 skip | `scripts/check_no_silent_skips.py`（未登记 skip 即失败）+ `--verify-workflow`（登记的 job 必须存在） |
 | 测试不得给真实时钟设上界 | `scripts/check_wall_clock_assertions.py`（AST 枚举 + 双向棘轮，登记须写明理由） |
 | 评测的行为判据必须可被真实报告证伪 | `scripts/check_behavioral_criteria.py`（`gold.behavioral` 未登记即失败；implemented 判据必须有一份它拒绝的报告和一份它接受的报告；deferred 计数只减不增） |
+| 有证据的子问题不得以沉默交付 | `scripts/check_evidence_reaches_reader.py`（子问题有 Evidence 却无一条读者可追的引用即失败；self-test 拒绝"渲染为空"的 floor） |
 | 存储与领域协议类型不得漂移 | `mypy --strict`（`storage/`、`domains/protocols.py`、`domains/base.py`、`domains/registry.py`、`rag/ingest.py`；文件清单是只增棘轮） |
 | 量具保真度必须可追 | runner 打印 `fidelity=`，state 记录 `provider_fidelity` |
 | 修复必须针对缺陷的类 | **仅靠判断**：需要执行者自己枚举同类成员并在报告中列出 |
