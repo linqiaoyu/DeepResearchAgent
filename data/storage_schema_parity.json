@@ -1,0 +1,29 @@
+{
+  "_comment": [
+    "Declared, justified differences between the SQLite schema built by",
+    "SQLiteStore._setup() and the Postgres schema built by migrations/*.sql.",
+    "Anything not declared here fails scripts/check_storage_schema_parity.py.",
+    "R112 added this file because document_version.filing_date drifted for 27",
+    "rounds: it existed only in SQLite, and the Postgres read path hid the gap",
+    "by not selecting the column."
+  ],
+  "table_map": {
+    "evaluations": "evaluation_result"
+  },
+  "table_map_reasons": {
+    "evaluations": "Same logical table under two historical names. Renaming either side rewrites a shipped schema for cosmetics; the mapping is declared instead."
+  },
+  "postgres_only_tables": {
+    "research_session": "Declared in 001 and never referenced by any code path. Dead schema, kept because dropping it is a destructive migration against deployed databases.",
+    "index_job": "Declared in 001 and never referenced by any code path. Dead schema, see research_session.",
+    "retrieval_trace": "Declared in 001 and never referenced by any code path. Dead schema, see research_session."
+  },
+  "sqlite_only_tables": {},
+  "column_exceptions": {
+    "evidence": {
+      "postgres_only": ["position"],
+      "sqlite_only": [],
+      "reason": "SQLite preserves evidence insertion order through its implicit rowid, which list_evidence orders by. Postgres has no such column, so the same ordering guarantee needs an explicit position."
+    }
+  }
+}

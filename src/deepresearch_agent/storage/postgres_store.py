@@ -7,17 +7,36 @@ from pathlib import Path
 from typing import Any, Iterator
 from uuid import NAMESPACE_URL, uuid5
 
-from deepresearch_agent.schemas import EvaluationResult, Evidence, TextBoundingBox
-from deepresearch_agent.storage.sqlite_store import SQLiteStore
+from deepresearch_agent.schemas import EvaluationResult, Evidence
+from deepresearch_agent.storage.mapping import (
+    EVIDENCE_COLUMNS,
+    RESOLVED_CHUNK_COLUMNS,
+    RESOLVED_CHUNK_JOIN,
+    evidence_fields,
+    evidence_from_row,
+    resolved_chunk_from_row,
+    validate_document_version,
+)
 from deepresearch_agent.storage.protocol import DocumentIngestResult, ResolvedChunk, StoredChunk
 
 
-class PostgresStore(SQLiteStore):
+class PostgresStore:
     """Postgres implementation of the stable workflow storage contract.
 
+    This deliberately does **not** inherit from ``SQLiteStore``. It used to, and
+    the inheritance was a trap: ``__init__`` never called ``super().__init__()``,
+    so ``self.path`` did not exist and every SQLite method was one call away
+    from ``AttributeError``. It survived only because all eight protocol methods
+    happened to be overridden -- meaning any method later added to
+    ``SQLiteStore`` would have been silently inherited here and executed SQLite
+    SQL against Postgres. Row mapping and precondition checks that genuinely are
+    shared now live in ``storage.mapping`` and are imported by both backends.
+
     The driver is imported lazily so the deterministic SQLite-only CI path does
-    not require a running Postgres service.  Schema evolution is exclusively
-    through the versioned SQL files in ``migrations/``.
+    not require a running Postgres service. Schema evolution is exclusively
+    through the versioned SQL files in ``migrations/``, and
+    ``scripts/check_storage_schema_parity.py`` fails when those stop matching
+    what ``SQLiteStore`` builds.
     """
 
     def __init__(self, dsn: str, *, migrations_dir: Path) -> None:
@@ -72,46 +91,26 @@ class PostgresStore(SQLiteStore):
         return applied
 
     def add_evidence_many(self, items: list[Evidence]) -> None:
+        columns = ("position", *EVIDENCE_COLUMNS)
+        placeholders = ", ".join(f"%({name})s" for name in columns)
+        assignments = ", ".join(f"{name} = EXCLUDED.{name}" for name in columns)
         with self._connection() as conn, conn.cursor() as cursor:
             for position, item in enumerate(items):
                 cursor.execute(
-                    """
-                    INSERT INTO evidence (
-                        id, research_id, position, sub_question_id, claim, claim_type,
-                        source_kind, source_url, source_title, source_pub_date,
-                        extract_text, structured_record_json, numeric_fields_json,
-                        numeric_fields_incomplete, source_tier, content_truncated,
-                        bbox_json, retrieval_ref_json, confidence
-                    ) VALUES (
-                        %(id)s, %(research_id)s, %(position)s, %(sub_question_id)s,
-                        %(claim)s, %(claim_type)s, %(source_kind)s, %(source_url)s,
-                        %(source_title)s, %(source_pub_date)s, %(extract_text)s,
-                        %(structured_record_json)s, %(numeric_fields_json)s,
-                        %(numeric_fields_incomplete)s, %(source_tier)s,
-                        %(content_truncated)s, %(bbox_json)s, %(retrieval_ref_json)s, %(confidence)s
-                    ) ON CONFLICT (id) DO UPDATE SET
-                        research_id = EXCLUDED.research_id, position = EXCLUDED.position,
-                        sub_question_id = EXCLUDED.sub_question_id, claim = EXCLUDED.claim,
-                        claim_type = EXCLUDED.claim_type, source_kind = EXCLUDED.source_kind,
-                        source_url = EXCLUDED.source_url, source_title = EXCLUDED.source_title,
-                        source_pub_date = EXCLUDED.source_pub_date, extract_text = EXCLUDED.extract_text,
-                        structured_record_json = EXCLUDED.structured_record_json,
-                        numeric_fields_json = EXCLUDED.numeric_fields_json,
-                        numeric_fields_incomplete = EXCLUDED.numeric_fields_incomplete,
-                        source_tier = EXCLUDED.source_tier, content_truncated = EXCLUDED.content_truncated,
-                        bbox_json = EXCLUDED.bbox_json,
-                        retrieval_ref_json = EXCLUDED.retrieval_ref_json,
-                        confidence = EXCLUDED.confidence
-                    """,
-                    _evidence_row(item, position),
+                    f"INSERT INTO evidence ({', '.join(columns)}) VALUES ({placeholders}) "
+                    f"ON CONFLICT (id) DO UPDATE SET {assignments}",
+                    {"position": position, **evidence_fields(item)},
                 )
 
     def list_evidence(self, research_id: str) -> list[Evidence]:
-        with self._connection() as conn, conn.cursor(row_factory=self._psycopg.rows.dict_row) as cursor:
+        with self._connection() as conn, conn.cursor(
+            row_factory=self._psycopg.rows.dict_row
+        ) as cursor:
             rows = cursor.execute(
-                "SELECT * FROM evidence WHERE research_id = %s ORDER BY position, id", (research_id,)
+                "SELECT * FROM evidence WHERE research_id = %s ORDER BY position, id",
+                (research_id,),
             ).fetchall()
-        return [self._evidence_from_row(row) for row in rows]
+        return [evidence_from_row(row) for row in rows]
 
     def save_evaluation(self, result: EvaluationResult) -> None:
         with self._connection() as conn, conn.cursor() as cursor:
@@ -141,17 +140,12 @@ class PostgresStore(SQLiteStore):
         chunks: list[StoredChunk],
         published_at: str | None = None,
     ) -> DocumentIngestResult:
-        if not chunks:
-            raise ValueError("document version must contain at least one located chunk")
-        if any(chunk.char_start < 0 or chunk.char_end <= chunk.char_start for chunk in chunks):
-            raise ValueError("chunk character ranges must be non-empty and non-negative")
-        if any(chunk.page_number is not None and chunk.page_number < 1 for chunk in chunks):
-            raise ValueError("chunk page numbers must be positive when present")
-        if any(chunk.effective_date != effective_date for chunk in chunks):
-            raise ValueError("every chunk must use the document effective_date")
-        published_at = published_at or effective_date
-        if any((chunk.published_at or effective_date) != published_at for chunk in chunks):
-            raise ValueError("every chunk must use the document published_at")
+        published_at = validate_document_version(
+            file_sha256=file_sha256,
+            effective_date=effective_date,
+            chunks=chunks,
+            published_at=published_at,
+        )
         document_id = str(uuid5(NAMESPACE_URL, canonical_url))
         version_id = str(uuid5(NAMESPACE_URL, f"{document_id}:{file_sha256}"))
         with self._connection() as conn, conn.cursor() as cursor:
@@ -177,12 +171,15 @@ class PostgresStore(SQLiteStore):
                 "(SELECT id FROM document_version WHERE document_id = %s AND file_sha256 <> %s)",
                 (document_id, file_sha256),
             )
+            # `filing_date` is the document's disclosure date and the input to
+            # the as-of guard. Until R112 the column did not exist here at all.
             cursor.execute(
-                "INSERT INTO document_version (id, document_id, file_sha256, effective_date, status) "
-                "VALUES (%s, %s, %s, %s, 'ready') "
+                "INSERT INTO document_version "
+                "(id, document_id, file_sha256, effective_date, filing_date, status) "
+                "VALUES (%s, %s, %s, %s, %s, 'ready') "
                 "ON CONFLICT (document_id, file_sha256) DO UPDATE SET status = 'ready', "
-                "effective_date = EXCLUDED.effective_date",
-                (version_id, document_id, file_sha256, effective_date),
+                "effective_date = EXCLUDED.effective_date, filing_date = EXCLUDED.filing_date",
+                (version_id, document_id, file_sha256, effective_date, published_at),
             )
             # Chunks are a rebuildable derived index.  Refresh an unchanged
             # document version too, so a deterministic chunking-policy change
@@ -190,7 +187,8 @@ class PostgresStore(SQLiteStore):
             cursor.execute("DELETE FROM chunk WHERE document_version_id = %s", (version_id,))
             cursor.executemany(
                 "INSERT INTO chunk (id, document_version_id, char_start, char_end, page_number, "
-                "effective_date, published_at, status, content, bbox_index_json, entity_id) VALUES (%s, %s, %s, %s, %s, %s, %s, 'ready', %s, %s::jsonb, %s)",
+                "effective_date, published_at, status, content, bbox_index_json, entity_id) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, 'ready', %s, %s::jsonb, %s)",
                 [
                     (
                         chunk.id,
@@ -231,75 +229,27 @@ class PostgresStore(SQLiteStore):
         }
 
     def list_ready_chunks(self, *, as_of: str) -> list[ResolvedChunk]:
-        with self._connection() as conn, conn.cursor(row_factory=self._psycopg.rows.dict_row) as cursor:
+        with self._connection() as conn, conn.cursor(
+            row_factory=self._psycopg.rows.dict_row
+        ) as cursor:
             rows = cursor.execute(
-                "SELECT chunk.id, chunk.document_version_id, document.canonical_url, chunk.char_start, "
-                "chunk.char_end, chunk.page_number, chunk.effective_date, chunk.published_at, chunk.content, chunk.bbox_index_json, chunk.entity_id "
-                "FROM chunk JOIN document_version ON document_version.id = chunk.document_version_id "
-                "JOIN document ON document.id = document_version.document_id "
+                f"SELECT {RESOLVED_CHUNK_COLUMNS} {RESOLVED_CHUNK_JOIN} "
                 "WHERE chunk.status = 'ready' AND chunk.published_at <= %s ORDER BY chunk.id",
                 (as_of,),
             ).fetchall()
-        return [self._resolved_chunk_from_row(row) for row in rows]
+        return [resolved_chunk_from_row(row) for row in rows]
 
     def resolve_ready_chunks(self, chunk_ids: list[str], *, as_of: str) -> list[ResolvedChunk]:
         if not chunk_ids:
             return []
-        with self._connection() as conn, conn.cursor(row_factory=self._psycopg.rows.dict_row) as cursor:
+        with self._connection() as conn, conn.cursor(
+            row_factory=self._psycopg.rows.dict_row
+        ) as cursor:
             rows = cursor.execute(
-                "SELECT chunk.id, chunk.document_version_id, document.canonical_url, chunk.char_start, "
-                "chunk.char_end, chunk.page_number, chunk.effective_date, chunk.published_at, chunk.content, chunk.bbox_index_json, chunk.entity_id "
-                "FROM chunk JOIN document_version ON document_version.id = chunk.document_version_id "
-                "JOIN document ON document.id = document_version.document_id "
-                "WHERE chunk.status = 'ready' AND chunk.published_at <= %s AND chunk.id = ANY(%s)",
+                f"SELECT {RESOLVED_CHUNK_COLUMNS} {RESOLVED_CHUNK_JOIN} "
+                "WHERE chunk.status = 'ready' AND chunk.published_at <= %s "
+                "AND chunk.id = ANY(%s)",
                 (as_of, chunk_ids),
             ).fetchall()
-        resolved = {str(row["id"]): self._resolved_chunk_from_row(row) for row in rows}
+        resolved = {str(row["id"]): resolved_chunk_from_row(row) for row in rows}
         return [resolved[chunk_id] for chunk_id in chunk_ids if chunk_id in resolved]
-
-    @staticmethod
-    def _resolved_chunk_from_row(row: dict[str, object]) -> ResolvedChunk:
-        bbox_value = row["bbox_index_json"]
-        if isinstance(bbox_value, str):
-            bbox_items = json.loads(bbox_value)
-        else:
-            bbox_items = bbox_value
-        if not isinstance(bbox_items, list):
-            raise ValueError("chunk bbox_index_json must be a list")
-        return ResolvedChunk(
-            id=str(row["id"]),
-            document_version_id=str(row["document_version_id"]),
-            canonical_url=str(row["canonical_url"]),
-            char_start=int(row["char_start"]),
-            char_end=int(row["char_end"]),
-            page_number=None if row["page_number"] is None else int(row["page_number"]),
-            effective_date=str(row["effective_date"]),
-            published_at=str(row["published_at"]),
-            content=str(row["content"]),
-            bbox_index=tuple(TextBoundingBox.model_validate(item) for item in bbox_items),
-            entity_id=str(row["entity_id"]),
-        )
-
-
-def _evidence_row(item: Evidence, position: int) -> dict[str, object]:
-    return {
-        "id": item.id,
-        "research_id": item.research_id,
-        "position": position,
-        "sub_question_id": item.sub_question_id,
-        "claim": item.claim,
-        "claim_type": item.claim_type,
-        "source_kind": item.source_kind,
-        "source_url": item.source_url,
-        "source_title": item.source_title,
-        "source_pub_date": item.source_pub_date,
-        "extract_text": item.extract_text,
-        "structured_record_json": item.structured_record.model_dump_json() if item.structured_record else None,
-        "numeric_fields_json": item.numeric_fields.model_dump_json() if item.numeric_fields else None,
-        "numeric_fields_incomplete": item.numeric_fields_incomplete,
-        "source_tier": item.source_tier,
-        "content_truncated": item.content_truncated,
-        "bbox_json": item.bbox.model_dump_json() if item.bbox else None,
-        "retrieval_ref_json": item.retrieval_ref.model_dump_json() if item.retrieval_ref else None,
-        "confidence": item.confidence,
-    }

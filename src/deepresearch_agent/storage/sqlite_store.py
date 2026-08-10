@@ -1,21 +1,21 @@
 from __future__ import annotations
 
 import json
-import re
 import sqlite3
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from uuid import NAMESPACE_URL, uuid5
 
-from deepresearch_agent.schemas import (
-    BoundingBox,
-    EvaluationResult,
-    Evidence,
-    NumericFields,
-    RetrievalReference,
-    StructuredDataRecord,
-    TextBoundingBox,
+from deepresearch_agent.schemas import EvaluationResult, Evidence
+from deepresearch_agent.storage.mapping import (
+    EVIDENCE_COLUMNS,
+    RESOLVED_CHUNK_COLUMNS,
+    RESOLVED_CHUNK_JOIN,
+    evidence_fields,
+    evidence_from_row,
+    resolved_chunk_from_row,
+    validate_document_version,
 )
 from deepresearch_agent.storage.protocol import (
     DocumentIngestResult,
@@ -167,36 +167,10 @@ class SQLiteStore:
     def add_evidence_many(self, items: list[Evidence]) -> None:
         with self._connection() as conn:
             conn.executemany(
-                """
-                INSERT OR REPLACE INTO evidence (
-                    id, research_id, sub_question_id, claim, claim_type, source_kind, source_url,
-                    source_title, source_pub_date, extract_text, structured_record_json,
-                    numeric_fields_json, numeric_fields_incomplete, source_tier,
-                    content_truncated, bbox_json, retrieval_ref_json, confidence
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
+                f"INSERT OR REPLACE INTO evidence ({', '.join(EVIDENCE_COLUMNS)}) "
+                f"VALUES ({', '.join('?' for _ in EVIDENCE_COLUMNS)})",
                 [
-                    (
-                        item.id,
-                        item.research_id,
-                        item.sub_question_id,
-                        item.claim,
-                        item.claim_type,
-                        item.source_kind,
-                        item.source_url,
-                        item.source_title,
-                        item.source_pub_date.isoformat() if item.source_pub_date else "unknown",
-                        item.extract_text,
-                        item.structured_record.model_dump_json() if item.structured_record else None,
-                        item.numeric_fields.model_dump_json() if item.numeric_fields else None,
-                        int(item.numeric_fields_incomplete),
-                        item.source_tier,
-                        int(item.content_truncated),
-                        item.bbox.model_dump_json() if item.bbox else None,
-                        item.retrieval_ref.model_dump_json() if item.retrieval_ref else None,
-                        item.confidence,
-                    )
+                    tuple(evidence_fields(item)[name] for name in EVIDENCE_COLUMNS)
                     for item in items
                 ],
             )
@@ -207,66 +181,7 @@ class SQLiteStore:
                 "SELECT * FROM evidence WHERE research_id = ? ORDER BY rowid",
                 (research_id,),
             ).fetchall()
-        return [self._evidence_from_row(row) for row in rows]
-
-    def _evidence_from_row(self, row: Mapping[str, object]) -> Evidence:
-        source_pub_date = row["source_pub_date"]
-        return Evidence(
-            id=str(row["id"]),
-            research_id=str(row["research_id"]),
-            sub_question_id=str(row["sub_question_id"]),
-            claim=str(row["claim"]),
-            claim_type=str(row["claim_type"]),
-            source_kind=str(row["source_kind"]),
-            source_url=str(row["source_url"]),
-            source_title=str(row["source_title"]),
-            source_pub_date=None if source_pub_date in {None, "unknown"} else str(source_pub_date),
-            extract_text=str(row["extract_text"]),
-            structured_record=self._structured_record(_as_json_text(row["structured_record_json"])),
-            numeric_fields=self._numeric_fields(_as_json_text(row["numeric_fields_json"])),
-            numeric_fields_incomplete=bool(row["numeric_fields_incomplete"]),
-            source_tier=str(row["source_tier"]),
-            content_truncated=bool(row["content_truncated"]),
-            bbox=self._bbox(_as_json_text(row["bbox_json"])),
-            retrieval_ref=self._retrieval_ref(_as_json_text(row["retrieval_ref_json"])),
-            confidence=float(row["confidence"]),
-        )
-
-    def _structured_record(self, value: str | None) -> StructuredDataRecord | None:
-        if not value:
-            return None
-        try:
-            payload = json.loads(value)
-        except json.JSONDecodeError:
-            return None
-        return StructuredDataRecord.model_validate(payload)
-
-    def _numeric_fields(self, value: str | None) -> NumericFields | None:
-        if not value:
-            return None
-        try:
-            payload = json.loads(value)
-        except json.JSONDecodeError:
-            return None
-        return NumericFields.model_validate(payload)
-
-    def _bbox(self, value: str | None) -> BoundingBox | None:
-        if not value:
-            return None
-        try:
-            payload = json.loads(value)
-        except json.JSONDecodeError:
-            return None
-        return BoundingBox.model_validate(payload)
-
-    def _retrieval_ref(self, value: str | None) -> RetrievalReference | None:
-        if not value:
-            return None
-        try:
-            payload = json.loads(value)
-        except json.JSONDecodeError:
-            return None
-        return RetrievalReference.model_validate(payload)
+        return [evidence_from_row(row) for row in rows]
 
     def save_evaluation(self, result: EvaluationResult) -> None:
         with self._connection() as conn:
@@ -297,19 +212,12 @@ class SQLiteStore:
         chunks: list[StoredChunk],
         published_at: str | None = None,
     ) -> DocumentIngestResult:
-        if not chunks:
-            raise ValueError("document version must contain at least one located chunk")
-        if re.fullmatch(r"[0-9a-f]{64}", file_sha256) is None:
-            raise ValueError("document file SHA-256 must be a lowercase 64-character digest")
-        if any(chunk.char_start < 0 or chunk.char_end <= chunk.char_start for chunk in chunks):
-            raise ValueError("chunk character ranges must be non-empty and non-negative")
-        if any(chunk.page_number is not None and chunk.page_number < 1 for chunk in chunks):
-            raise ValueError("chunk page numbers must be positive when present")
-        if any(chunk.effective_date != effective_date for chunk in chunks):
-            raise ValueError("every chunk must use the document effective_date")
-        published_at = published_at or effective_date
-        if any((chunk.published_at or effective_date) != published_at for chunk in chunks):
-            raise ValueError("every chunk must use the document published_at")
+        published_at = validate_document_version(
+            file_sha256=file_sha256,
+            effective_date=effective_date,
+            chunks=chunks,
+            published_at=published_at,
+        )
         document_id = str(uuid5(NAMESPACE_URL, canonical_url))
         version_id = str(uuid5(NAMESPACE_URL, f"{document_id}:{file_sha256}"))
         with self._connection() as conn:
@@ -337,12 +245,17 @@ class SQLiteStore:
                 "(SELECT id FROM document_version WHERE document_id = ? AND file_sha256 <> ?)",
                 (document_id, file_sha256),
             )
+            # `filing_date` is the document's disclosure date and the input to
+            # the as-of guard. R085 added the column and no write path ever set
+            # it, so retrieval fell back to the period end and admitted filings
+            # that had not been published yet.
             conn.execute(
-                "INSERT INTO document_version (id, document_id, file_sha256, effective_date, status) "
-                "VALUES (?, ?, ?, ?, 'ready') "
+                "INSERT INTO document_version "
+                "(id, document_id, file_sha256, effective_date, filing_date, status) "
+                "VALUES (?, ?, ?, ?, ?, 'ready') "
                 "ON CONFLICT(document_id, file_sha256) DO UPDATE SET status = 'ready', "
-                "effective_date = excluded.effective_date",
-                (version_id, document_id, file_sha256, effective_date),
+                "effective_date = excluded.effective_date, filing_date = excluded.filing_date",
+                (version_id, document_id, file_sha256, effective_date, published_at),
             )
             # Chunks are a derived index, not immutable source evidence.  A
             # re-ingest of an unchanged document version must therefore refresh
@@ -392,15 +305,12 @@ class SQLiteStore:
     def list_ready_chunks(self, *, as_of: str) -> list[ResolvedChunk]:
         with self._connection() as conn:
             rows = conn.execute(
-                "SELECT chunk.id, chunk.document_version_id, document.canonical_url, chunk.char_start, "
-                "chunk.char_end, chunk.page_number, chunk.effective_date, chunk.published_at, document_version.filing_date, chunk.content, chunk.bbox_index_json, chunk.entity_id "
-                "FROM chunk JOIN document_version ON document_version.id = chunk.document_version_id "
-                "JOIN document ON document.id = document_version.document_id "
+                f"SELECT {RESOLVED_CHUNK_COLUMNS} {RESOLVED_CHUNK_JOIN} "
                 "WHERE chunk.status = 'ready' AND chunk.published_at <= ? "
                 "ORDER BY chunk.id",
                 (as_of,),
             ).fetchall()
-        return [self._resolved_chunk_from_row(row) for row in rows]
+        return [resolved_chunk_from_row(row) for row in rows]
 
     def resolve_ready_chunks(self, chunk_ids: list[str], *, as_of: str) -> list[ResolvedChunk]:
         if not chunk_ids:
@@ -408,35 +318,10 @@ class SQLiteStore:
         placeholders = ", ".join("?" for _ in chunk_ids)
         with self._connection() as conn:
             rows = conn.execute(
-                "SELECT chunk.id, chunk.document_version_id, document.canonical_url, chunk.char_start, "
-                "chunk.char_end, chunk.page_number, chunk.effective_date, chunk.published_at, document_version.filing_date, chunk.content, chunk.bbox_index_json, chunk.entity_id "
-                "FROM chunk JOIN document_version ON document_version.id = chunk.document_version_id "
-                "JOIN document ON document.id = document_version.document_id "
-                f"WHERE chunk.status = 'ready' AND chunk.published_at <= ? AND chunk.id IN ({placeholders})",
+                f"SELECT {RESOLVED_CHUNK_COLUMNS} {RESOLVED_CHUNK_JOIN} "
+                "WHERE chunk.status = 'ready' AND chunk.published_at <= ? "
+                f"AND chunk.id IN ({placeholders})",
                 (as_of, *chunk_ids),
             ).fetchall()
-        resolved = {str(row["id"]): self._resolved_chunk_from_row(row) for row in rows}
+        resolved = {str(row["id"]): resolved_chunk_from_row(row) for row in rows}
         return [resolved[chunk_id] for chunk_id in chunk_ids if chunk_id in resolved]
-
-    @staticmethod
-    def _resolved_chunk_from_row(row: Mapping[str, object]) -> ResolvedChunk:
-        return ResolvedChunk(
-            id=str(row["id"]),
-            document_version_id=str(row["document_version_id"]),
-            canonical_url=str(row["canonical_url"]),
-            char_start=int(row["char_start"]),
-            char_end=int(row["char_end"]),
-            page_number=None if row["page_number"] is None else int(row["page_number"]),
-            effective_date=str(row["effective_date"]),
-            published_at=str(row["published_at"]),
-            filing_date=str(row["filing_date"]),
-            content=str(row["content"]),
-            bbox_index=tuple(TextBoundingBox.model_validate(item) for item in json.loads(str(row["bbox_index_json"]))),
-            entity_id=str(row["entity_id"]),
-        )
-
-
-def _as_json_text(value: object) -> str | None:
-    if value is None or isinstance(value, str):
-        return value
-    return json.dumps(value, ensure_ascii=False)
