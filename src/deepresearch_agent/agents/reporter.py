@@ -4,7 +4,7 @@ import json
 import re
 from collections import defaultdict
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from difflib import SequenceMatcher
 
 from deepresearch_agent.citations import build_footnote_maps
@@ -28,6 +28,7 @@ from deepresearch_agent.schemas import (
     ReportDraft,
     ResearchState,
     StructuredResearchOutput,
+    SubQuestion,
 )
 from deepresearch_agent.settings import project_root
 from deepresearch_agent.structured_output import (
@@ -127,6 +128,25 @@ REPORTER_LLM_MAX_CLAIM_CHARS = 800
 #: was the only thing cutting claims: the second R099 live run lost 3 of 6
 #: analysis claims to it after the sections were merged.
 MAX_ANALYSIS_CLAIMS_PER_SECTION = MAX_REPORT_SECTION_CLAIMS
+#: R116: how much Evidence the floor prints for a sub-question the draft passed
+#: over. It is a floor, not a dump -- the reference-list explosion R117 handles
+#: is what happens when a report prints everything it holds. Measured on the 30
+#: R113 states: 2 costs 2.5 reader lines per report against a 32-line body.
+MAX_EVIDENCE_FLOOR_CLAIMS = 2
+#: Scales a claim may quote a typed value in (raw, 百, 千, 万, 亿, percent).
+_FLOOR_SCALE_FACTORS = (
+    Decimal(1),
+    Decimal("0.01"),
+    Decimal(100),
+    Decimal(1000),
+    Decimal(10000),
+    Decimal(100000000),
+)
+_FLOOR_VALUE_TOLERANCE = Decimal("0.0001")
+_CLAIM_NUMBER_RE = re.compile(r"\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?")
+#: Punctuation and interrogatives carry no topic, and every sub-question ends in
+#: some of them, so counting them would score every item alike.
+_OVERLAP_STOP_CHARACTERS = frozenset("？?，,。.、；;：:（）()「」“”\"'的了是有和与在对及其如何哪些什么多少怎样为")
 
 
 @dataclass(frozen=True)
@@ -882,6 +902,11 @@ class ReporterAgent:
         emitted_reader_lines: list[str] = []
         key_fact_keys: set[tuple[str, str, str, str]] = set()
         key_evidence_ids: set[str] = set()
+        # R116: every Evidence id the reader can actually follow, across all
+        # authored sections. `key_evidence_ids` is a topicality signal scoped to
+        # 关键发现; this is the coverage question, and the two must not share a
+        # variable.
+        cited_evidence_ids: set[str] = set()
         supplemental: list[tuple[str, int, ReportClaim]] = []
         financial_contract = bool(metric_requirements(state, self.domain_pack))
         summary = self._reader_text(draft.summary.strip())
@@ -923,6 +948,9 @@ class ReporterAgent:
             seen_fact_keys.update(fact_keys)
             key_fact_keys.update(fact_keys)
             key_evidence_ids.update(
+                item for item in claim.evidence_ids if item in evidence_ids
+            )
+            cited_evidence_ids.update(
                 item for item in claim.evidence_ids if item in evidence_ids
             )
 
@@ -1066,33 +1094,67 @@ class ReporterAgent:
                 section_lines.append(f"- {rendered}")
                 emitted_reader_lines.append(rendered)
                 seen_fact_keys.update(fact_keys)
+                cited_evidence_ids.update(valid_claim_ids)
                 rendered_count += 1
             if rendered_count:
                 detailed_lines.extend(section_lines)
                 analysis_flow["rendered_lines"] += rendered_count
 
+        # R116: the draft the model writes is the report -- rendering drops
+        # nothing. Measured over the 30 R113 live reports, 8 of 80
+        # sub-questions produced evidence and reached the reader with none of
+        # it, and 10 of the 50 gold facts were retrieved, extracted, and then
+        # never cited. Q16 is the shape of it: nine SNE Research items sat under
+        # `share_2024` while the model wrote 「未获取SNE Research等第三方机构的
+        # 官方装机量数据」 and answered from revenue instead.
+        #
+        # The model chooses what to say; it may not choose to say nothing about
+        # a question it has evidence for. This floor renders that sub-question's
+        # own evidence when none of it was cited, and never competes with an
+        # authored claim that did cite it.
+        # 补充事实 is rendered before the floor is computed, not before it is
+        # printed: a sub-question whose only surviving citation landed here has
+        # been answered, and the floor must not repeat it.
+        supplemental_lines: list[str] = []
+        for sub_question_id, index, claim in supplemental:
+            path = _ClaimPath(
+                "supplemental_facts",
+                index,
+                sub_question_id,
+            )
+            rendered, invalid, backfilled, provenance = self._render_claim(
+                claim,
+                ref_map,
+                evidence_ids,
+                path=path,
+                repaired_claim_keys=repaired_claim_keys,
+            )
+            invalid_references += invalid
+            missing_reference_backfills += backfilled
+            claim_provenance.append(provenance)
+            cited_evidence_ids.update(
+                item for item in claim.evidence_ids if item in evidence_ids
+            )
+            supplemental_lines.append(f"- {rendered}")
+            emitted_reader_lines.append(rendered)
+
+        floor_sections, floor_count = self._render_evidence_floor(
+            state,
+            evidence,
+            ref_map,
+            cited_evidence_ids=cited_evidence_ids,
+            claim_provenance=claim_provenance,
+        )
+        analysis_flow["evidence_floor_lines"] = floor_count
+        analysis_flow["evidence_floor_sub_questions"] = len(floor_sections)
+        for section_lines in floor_sections:
+            detailed_lines.extend(section_lines)
+
         if detailed_lines:
             lines.extend(["", "## 详细分析", *detailed_lines])
 
-        if supplemental:
-            lines.extend(["", "## 补充事实"])
-            for sub_question_id, index, claim in supplemental:
-                path = _ClaimPath(
-                    "supplemental_facts",
-                    index,
-                    sub_question_id,
-                )
-                rendered, invalid, backfilled, provenance = self._render_claim(
-                    claim,
-                    ref_map,
-                    evidence_ids,
-                    path=path,
-                    repaired_claim_keys=repaired_claim_keys,
-                )
-                invalid_references += invalid
-                missing_reference_backfills += backfilled
-                claim_provenance.append(provenance)
-                lines.append(f"- {rendered}")
+        if supplemental_lines:
+            lines.extend(["", "## 补充事实", *supplemental_lines])
 
         lines.extend(["", "## 风险与限制"])
         if draft.risks:
@@ -1187,6 +1249,148 @@ class ReporterAgent:
         self.last_stats["analysis_flow"] = analysis_flow
         self.last_stats["dropped_analysis_claims"] = dropped_claims
         return "\n".join(lines), invalid_references, missing_reference_backfills
+
+    @staticmethod
+    def _question_overlap(sub_question: SubQuestion, item: Evidence) -> int:
+        """How many of the sub-question's content characters the claim repeats.
+
+        Deliberately lexical and language-agnostic: the sub-question is the
+        agent's own wording, and an item that repeats more of it is more likely
+        to be about it. This is a tie-break inside one sub-question's own
+        evidence, not a relevance model.
+        """
+
+        question = {
+            character
+            for character in sub_question.question
+            if character.strip() and character not in _OVERLAP_STOP_CHARACTERS
+        }
+        if not question:
+            return 0
+        return len(question & set(item.claim))
+
+    def _floor_claim_text(self, item: Evidence) -> str:
+        """The extractor's own sentence when its number agrees with the typed field.
+
+        R116. `_evidence_claim_text` replaces a data claim with a typed
+        re-rendering so a paraphrase can never display a wrong value. It does
+        that by discarding the sentence, which also discards everything the
+        sentence said besides the value. On the R113 Q08 state the floor pulled
+        in an extracted sentence that gave the period total, its change against
+        the prior period, and an explicit statement that the question's premise
+        did not hold. The typed rendering kept the total and dropped the other
+        two -- the parts that answer a question premised on a decline.
+
+        The guarantee that rule protects is that a *disagreeing* value is never
+        shown. When the claim's own numbers contain the typed value, there is
+        nothing to disagree about, so the sentence is shown as extracted. When
+        they do not, the typed rendering still wins.
+        """
+
+        typed_value = None
+        if item.structured_record is not None:
+            typed_value = item.structured_record.value
+        elif item.numeric_fields is not None:
+            typed_value = item.numeric_fields.value
+        if typed_value is None:
+            return self._evidence_claim_text(item)
+        target = Decimal(str(typed_value))
+        for candidate in _CLAIM_NUMBER_RE.finditer(item.claim):
+            try:
+                stated = Decimal(candidate.group(0).replace(",", ""))
+            except InvalidOperation:  # pragma: no cover - regex admits numerals
+                continue
+            if target == 0:
+                if stated == 0:
+                    return item.claim
+                continue
+            for factor in _FLOOR_SCALE_FACTORS:
+                # The typed value is scaled, not the stated one: a claim
+                # quoting raw units states the same fact as a typed value
+                # carrying a magnitude unit.
+                scaled = target * factor
+                if abs(stated - scaled) <= abs(scaled) * _FLOOR_VALUE_TOLERANCE:
+                    return item.claim
+        return self._evidence_claim_text(item)
+
+    def _render_evidence_floor(
+        self,
+        state: ResearchState,
+        evidence: list[Evidence],
+        ref_map: dict[str, int],
+        *,
+        cited_evidence_ids: set[str],
+        claim_provenance: list[dict[str, object]],
+    ) -> tuple[list[list[str]], int]:
+        """Render a sub-question's own Evidence when the draft cited none of it.
+
+        R116. The reporter model receives every packed Evidence item and decides
+        what to write, and a sub-question it says nothing about is
+        indistinguishable, to the reader, from one that returned nothing. On the
+        R113 live set that happened to 8 of 80 sub-questions, and it is how the
+        four figures that refute Q16's premise were retrieved, extracted, packed
+        into the reporter's context, and never printed.
+
+        The floor does not rank, summarise, or reword. It prints the Evidence
+        this sub-question already has, highest confidence first, so a question
+        with evidence can never reach the reader as silence.
+        """
+
+        if not state.plan:
+            return [], 0
+        by_sub_question: dict[str, list[Evidence]] = defaultdict(list)
+        for item in evidence:
+            by_sub_question[item.sub_question_id].append(item)
+        sections: list[list[str]] = []
+        rendered_total = 0
+        for sub_question in state.plan.sub_questions:
+            items = by_sub_question.get(sub_question.id) or []
+            if not items:
+                continue
+            # R116: confidence alone ranks by how much the provider is trusted,
+            # not by whether the item answers this sub-question. Every AKShare
+            # row carries 0.98 and every extracted sentence 0.85--0.95, so on
+            # the Q16 state a market-share question's floor was two net-profit
+            # rows while the SNE Research share figures sat below them. Overlap
+            # with the sub-question's own wording is the tie-break the reader
+            # needs; confidence still orders items that answer it equally well.
+            # Deterministic throughout: overlap, then confidence, then id.
+            ordered = sorted(
+                items,
+                key=lambda item: (
+                    -self._question_overlap(sub_question, item),
+                    -item.confidence,
+                    item.id,
+                ),
+            )
+            # Not "did this sub-question get cited at all" -- that version of
+            # the rule closed all 8 orphans on the R113 states and recovered
+            # zero gold facts, because the losses were in sub-questions the
+            # draft had cited, just not for the evidence that answered them.
+            # Q16 cited `share_2024` and still told the reader the SNE figures
+            # were not obtained. What the reader is owed is this sub-question's
+            # best evidence, whatever else was said about it.
+            missing = [
+                item
+                for item in ordered[:MAX_EVIDENCE_FLOOR_CLAIMS]
+                if item.id not in cited_evidence_ids
+            ]
+            if not missing:
+                continue
+            section_lines = [f"### {self._reader_text(sub_question.question)}"]
+            for item in missing:
+                text = self._floor_claim_text(item)
+                section_lines.append(f"- {text} [^{ref_map[item.id]}]")
+                claim_provenance.append(
+                    {
+                        "path": f"evidence_floor[{sub_question.id}]",
+                        "has_citation": True,
+                        "evidence_floor": True,
+                    }
+                )
+                rendered_total += 1
+            sections.append(section_lines)
+        return sections, rendered_total
 
     def _render_claim(
         self,

@@ -1359,8 +1359,22 @@ class LLMIntegrationTests(unittest.TestCase):
 
         self.assertEqual(invalid, 0)
         self.assertEqual(backfilled, 0)
-        self.assertIn("- Advisor productivity improved 18% after AI triage.", report)
-        self.assertNotIn("- Advisor productivity improved 18% after AI triage. [^1]", report)
+        # The claim the model wrote carries no citation, because it named no
+        # evidence and the reporter does not invent one.
+        findings = report.split("## 关键发现", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("- Advisor productivity improved 18% after AI triage.\n", findings)
+        self.assertNotIn("[^", findings)
+        # R116: this used to assert the cited form appeared nowhere in the
+        # report. It now appears under 详细分析, put there by the evidence floor:
+        # the draft cited none of `sq`'s evidence, so without the floor this
+        # sub-question's two evidence items would reach the reader only as one
+        # uncited sentence. The assertion above -- that a claim with no evidence
+        # ids is never given a citation -- is what this test is for, and it is
+        # unchanged.
+        analysis = report.split("## 详细分析", 1)[1].split("\n## ", 1)[0]
+        self.assertIn(
+            "- Advisor productivity improved 18% after AI triage. [^1]", analysis
+        )
 
     def test_reporter_bounds_llm_evidence_without_mutating_canonical_evidence(self) -> None:
         evidence = [

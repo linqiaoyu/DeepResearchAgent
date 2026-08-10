@@ -220,7 +220,15 @@ class ReportReaderGuardTests(unittest.TestCase):
         self.assertEqual(flow["sections_merged_by_shared_id"], 1)
         self.assertEqual(flow["rendered_lines"], 2)
         self.assertEqual(flow["claims_over_section_cap"], 0)
-        self.assertEqual(len(cited_lines), 2)
+        # R116: this asserted `len(cited_lines) == 2`, which held only while the
+        # authored claims were the sole source of 详细分析 lines. The evidence
+        # floor now adds this sub-question's uncited top evidence, so the count
+        # is stated as its two parts. What this test is for -- that neither
+        # authored section is lost to the shared id -- is `rendered_lines == 2`
+        # above and the two assertions below, all unchanged.
+        self.assertEqual(
+            len(cited_lines), flow["rendered_lines"] + flow["evidence_floor_lines"]
+        )
         self.assertIn("收入下降与利润增长并存", analysis)
         self.assertIn("毛利率变化需与营业收入一并解读", analysis)
         self._assert_counters_close(flow)

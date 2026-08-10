@@ -18,6 +18,10 @@ from deepresearch_agent.evaluation import (
     median_judge_score,
 )
 from deepresearch_agent.llm import LLMClient
+from deepresearch_agent.reporting.reader_reach import (
+    evidence_the_reader_can_follow,
+    orphaned_sub_questions,
+)
 from deepresearch_agent.schemas import ResearchState
 from deepresearch_agent.workflow import DeepResearchEngine
 
@@ -297,6 +301,28 @@ def _judge_score_payload(score: Any) -> dict[str, Any]:
     return payload
 
 
+def _reader_reach_metrics(state: ResearchState) -> dict[str, Any]:
+    """How much of what the agent found the reader can actually follow."""
+
+    report = state.final_report or ""
+    if not report:
+        return {}
+    orphans = orphaned_sub_questions(state, report)
+    reachable = evidence_the_reader_can_follow(state, report)
+    sub_question_count = len(state.plan.sub_questions) if state.plan else 0
+    return {
+        "orphaned_sub_questions": len(orphans),
+        "orphaned_sub_question_ids": [item for item, _count in orphans],
+        "sub_question_count": sub_question_count,
+        "evidence_reachable_by_reader": len(reachable),
+        "evidence_reachable_rate": (
+            round(len(reachable) / len(state.evidence_store), 4)
+            if state.evidence_store
+            else 0.0
+        ),
+    }
+
+
 def _mechanical_metrics(state: ResearchState) -> dict[str, Any]:
     if not state.evaluation:
         return {}
@@ -318,6 +344,11 @@ def _mechanical_metrics(state: ResearchState) -> dict[str, Any]:
         "uncited_claim_rate": round(uncited_claims / claim_count, 4) if claim_count else 0.0,
         "uncited_claims": uncited_claims,
         "report_claim_count": claim_count,
+        # R116: citation_resolution_rate says the markers resolve; it says
+        # nothing about whether a sub-question reached the reader at all. Eight
+        # of 80 sub-questions on the R113 live set were researched, produced
+        # Evidence, and arrived as silence while every citation metric was green.
+        **_reader_reach_metrics(state),
         "critic_catch_rate": state.evaluation.critic_catch_rate,
         "token_used": state.evaluation.token_used,
         "price_source": state.evaluation.price_source,

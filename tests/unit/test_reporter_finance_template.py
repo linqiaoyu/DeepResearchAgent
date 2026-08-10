@@ -508,9 +508,18 @@ class ReporterFinanceTemplateTests(unittest.TestCase):
             "假设公司未来仍能维持当前产品结构。",
             assumptions,
         )
-        provenance = reporter.last_stats["claim_provenance"]
-        self.assertTrue(provenance[0]["numeric_downgraded"])
-        self.assertNotIn("numeric_downgraded", provenance[1])
+        # R116: selected by path rather than by position. This asserts which
+        # claim was downgraded, which is what the test is about; the positional
+        # form asserted that plus "and it is the first entry", and broke when
+        # the R116 evidence floor added an entry ahead of it.
+        provenance = {
+            str(item["path"]): item
+            for item in reporter.last_stats["claim_provenance"]
+        }
+        self.assertTrue(provenance["unverified_assumptions:0"]["numeric_downgraded"])
+        self.assertNotIn(
+            "numeric_downgraded", provenance["unverified_assumptions:1"]
+        )
 
     def test_large_structured_value_stays_exact_and_evaluates_cleanly(
         self,

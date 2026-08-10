@@ -131,6 +131,13 @@ def run_gate() -> None:
             "behavioral_criteria_registered",
             [sys.executable, "scripts/check_behavioral_criteria.py"],
         ),
+        # R116: the reporter model decides what to write from every packed
+        # Evidence item, so a sub-question it passes over reaches the reader as
+        # silence. 8 of 80 sub-questions on the R113 live set arrived that way.
+        (
+            "evidence_reaches_reader",
+            [sys.executable, "scripts/check_evidence_reaches_reader.py", "--self-test"],
+        ),
         ("settings_documentation", [sys.executable, "scripts/sync_agents_settings.py", "--check"]),
         ("doc_flag_claims", [sys.executable, "scripts/check_doc_flag_claims.py"]),
         (
