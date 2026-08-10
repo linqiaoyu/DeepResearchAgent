@@ -16,3 +16,4 @@ data/raw/
 _collab/
 site/dist/
 runs/
+.mypy_cache/

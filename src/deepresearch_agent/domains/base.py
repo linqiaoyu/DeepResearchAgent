@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from deepresearch_agent.decisions import record_agent_decision
-from deepresearch_agent.domains.protocols import RetrievalFilterValues
+from deepresearch_agent.domains.protocols import NumericCitationPolicy, RetrievalFilterValues
 from deepresearch_agent.reporting.grounded_facts import GroundedFactBatch
 from deepresearch_agent.schemas import AgentDecision
 
@@ -65,10 +65,24 @@ class _NullNumericChecker:
 
 @dataclass(frozen=True)
 class _NullCitationPolicy:
-    def has_numeric_mismatch(self, _claim_text: str, _cited_evidence: list[Any], *, required_metrics: set[str] | None = None) -> bool:
+    # R112: parameter names and types must match `NumericCitationPolicy`
+    # exactly. They did not -- the names carried leading underscores and
+    # `cited_evidence` was declared `list[Any]` against a protocol that promises
+    # `Sequence[Any]` -- so the null pack was not actually substitutable for the
+    # protocol it claimed to satisfy. Nothing caught it because no type checker
+    # ran here.
+    def has_numeric_mismatch(
+        self,
+        claim_text: str,
+        cited_evidence: Sequence[Any],
+        *,
+        required_metrics: set[str] | None = None,
+    ) -> bool:
+        del claim_text, cited_evidence
         return bool(required_metrics)
 
-    def is_main_business_margin_dimension(self, _dimension: str | None) -> bool:
+    def is_main_business_margin_dimension(self, dimension: str | None) -> bool:
+        del dimension
         return False
 
 
@@ -228,7 +242,7 @@ class BaseDomainPack:
         del relative_tolerance, absolute_tolerance
         return _NullNumericChecker()
 
-    def numeric_citation_policy(self) -> _NullCitationPolicy:
+    def numeric_citation_policy(self) -> NumericCitationPolicy:
         return _NullCitationPolicy()
 
     def deterministic_plan(self, _topic: str, _depth_level: int) -> None:

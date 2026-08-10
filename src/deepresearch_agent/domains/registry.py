@@ -10,13 +10,15 @@ from deepresearch_agent.domains.protocols import DomainPack
 def _finance() -> DomainPack:
     from deepresearch_agent.domains.finance import FinanceDomainPack
 
-    return FinanceDomainPack()
+    pack: DomainPack = FinanceDomainPack()
+    return pack
 
 
 def _null() -> DomainPack:
     from deepresearch_agent.domains.null import NullDomainPack
 
-    return NullDomainPack()
+    pack: DomainPack = NullDomainPack()
+    return pack
 
 
 #: R110: this registry knew exactly one name, so `DEEPRESEARCH_DOMAIN_PACK`
