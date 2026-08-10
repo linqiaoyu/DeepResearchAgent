@@ -1,0 +1,27 @@
+{
+  "_comment": [
+    "Every test module allowed to skip, and the environment variable that makes",
+    "it run. scripts/check_no_silent_skips.py fails on any skip missing from",
+    "this file, and fails again if a declared variable IS configured and the",
+    "test skipped anyway.",
+    "Adding an entry here is a commitment: the CI job named below must supply",
+    "the variable, or the code stays unexercised -- which is exactly how the",
+    "Postgres backend (R110) and the Qdrant index (R112) each went years",
+    "without executing while the suite reported OK."
+  ],
+  "contract.test_storage_contract": {
+    "requires_env": "DEEPRESEARCH_POSTGRES_DSN|DEEPRESEARCH_PG_DSN",
+    "covered_by_ci_job": "postgres-storage",
+    "reason": "Postgres half of the storage contract; needs a live server."
+  },
+  "integration.test_postgres_storage_live": {
+    "requires_env": "DEEPRESEARCH_POSTGRES_DSN|DEEPRESEARCH_PG_DSN",
+    "covered_by_ci_job": "postgres-storage",
+    "reason": "Postgres migrations, cascade behaviour and checkpoint resume."
+  },
+  "integration.test_qdrant_integration": {
+    "requires_env": "DEEPRESEARCH_QDRANT_URL",
+    "covered_by_ci_job": "qdrant-vector-index",
+    "reason": "Vector index round trip; needs a live Qdrant service."
+  }
+}

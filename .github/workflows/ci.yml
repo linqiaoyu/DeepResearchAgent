@@ -39,9 +39,9 @@ jobs:
 
   postgres-storage:
     # R110 found three Postgres tests that had skipped on every run since they
-    # were written, because nothing supplied a DSN. They pass in 172 seconds
-    # against a real server -- too slow for the default gate, and no reason at
-    # all to leave the second storage backend unexercised.
+    # were written, because nothing supplied a DSN. There is no reason to leave
+    # the second storage backend unexercised, and a service the default gate
+    # cannot start belongs in its own job.
     name: Postgres storage backend
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -81,12 +81,54 @@ jobs:
           python -m pip install -e ".[dev]"
 
       - name: Run the Postgres storage tests
-        run: |
-          python -m unittest \
-            contract.test_storage_contract \
-            integration.test_postgres_storage_live -v
-
-      - name: Refuse a silent skip
         # A skipped test that reports success is how this went unexercised for
-        # so long. If the DSN stops reaching a server, this job must go red.
-        run: python scripts/check_postgres_job.py
+        # so long. The guard runs the modules data/allowed_test_skips.json says
+        # this job owns -- contract.test_storage_contract and
+        # integration.test_postgres_storage_live -- and fails if any of them
+        # skips while the DSN is configured.
+        run: python scripts/check_service_job.py --job postgres-storage
+
+  qdrant-vector-index:
+    # R112 found integration.test_qdrant_integration skipping for exactly the
+    # reason R110 documented for Postgres: no job supplied the URL, so the
+    # vector index had never executed against a real service even once.
+    name: Qdrant vector index
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      qdrant:
+        image: qdrant/qdrant:v1.12.4
+        ports:
+          - 6333:6333
+
+    env:
+      PYTHONPATH: src:tests
+      DEEPRESEARCH_QDRANT_URL: http://localhost:6333
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Wait for Qdrant
+        run: |
+          for _ in $(seq 1 60); do
+            curl -sf http://localhost:6333/readyz > /dev/null && exit 0
+            sleep 1
+          done
+          echo "qdrant did not become ready" >&2
+          exit 1
+
+      - name: Run the Qdrant vector index tests
+        run: python scripts/check_service_job.py --job qdrant-vector-index

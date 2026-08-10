@@ -86,9 +86,26 @@ def run_gate() -> None:
     storage_path.unlink(missing_ok=True)
     commands = (
         ("ruff", [sys.executable, "-m", "ruff", "check", "src", "tests", "scripts"]),
+        # Scoped to the surfaces where two implementations must agree; the file
+        # list in pyproject.toml is a ratchet that may only grow. Ruff cannot
+        # see the class of defect this catches -- a backend that inherits
+        # another's __init__ without calling it, or drops a protocol method.
+        ("mypy", [sys.executable, "-m", "mypy"]),
         (
             "domain_boundary",
             [sys.executable, "scripts/check_domain_boundary.py"],
+        ),
+        (
+            "storage_schema_parity",
+            [sys.executable, "scripts/check_storage_schema_parity.py", "--self-test"],
+        ),
+        (
+            "disclosure_lookahead",
+            [sys.executable, "scripts/check_disclosure_lookahead.py", "--self-test"],
+        ),
+        (
+            "service_jobs_declared",
+            [sys.executable, "scripts/check_service_job.py", "--verify-workflow"],
         ),
         (
             "disclosure_fixture",
@@ -116,7 +133,11 @@ def run_gate() -> None:
             [sys.executable, "scripts/check_provider_worker.py", "--self-test"],
         ),
         ("readme_facts", [sys.executable, "scripts/check_087_readme_facts.py", "--self-test"]),
-        ("unittest", [sys.executable, "-m", "unittest", "discover", "-s", "tests"]),
+        # This runs the suite once and asserts two things about the same result:
+        # every test passed, and every test that skipped was declared in
+        # data/allowed_test_skips.json with the CI job that runs it. A bare
+        # `unittest discover` reports OK when a whole backend never executed.
+        ("unittest", [sys.executable, "scripts/check_no_silent_skips.py", "--self-test"]),
         ("site_build", [sys.executable, "scripts/build_site.py"]),
         (
             "site_current_facts",
