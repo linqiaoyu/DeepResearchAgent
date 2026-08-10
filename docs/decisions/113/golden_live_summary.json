@@ -1,0 +1,324 @@
+{
+  "round_id": "113-live-merged",
+  "gold_version": "v1.1",
+  "evaluation_as_of": "2026-07-09",
+  "judge_samples": 3,
+  "fidelity": "live",
+  "execution": "serial phase Q01-Q10, then four concurrent shards Q11-Q30",
+  "expected_questions": 30,
+  "scored_questions": 30,
+  "coverage": "30/30",
+  "error_questions": [],
+  "structured_failures": 0,
+  "superseded_failures": [
+    {
+      "id": "Q09",
+      "replaced_status": "error",
+      "replaced_error_type": "LLMRetryExhaustedError",
+      "replaced_error": "LLM call failed for role=judge: InternalServerError: litellm.InternalServerError: InternalServerError: OpenAIException - Connection error.",
+      "source": "shard_serial.json"
+    }
+  ],
+  "per_question": [
+    {
+      "id": "Q01",
+      "status": "done",
+      "type": "财报解读",
+      "difficulty": "易",
+      "source_count": 2,
+      "evidence_count": 7,
+      "cost_cny": 0.11362776,
+      "latency_seconds": 811.547
+    },
+    {
+      "id": "Q02",
+      "status": "done",
+      "type": "财报解读",
+      "difficulty": "易",
+      "source_count": 10,
+      "evidence_count": 27,
+      "cost_cny": 0.19852472,
+      "latency_seconds": 754.411
+    },
+    {
+      "id": "Q03",
+      "status": "done",
+      "type": "财报解读",
+      "difficulty": "易",
+      "source_count": 0,
+      "evidence_count": 0,
+      "cost_cny": 0.0,
+      "latency_seconds": 185.236
+    },
+    {
+      "id": "Q04",
+      "status": "done",
+      "type": "财报解读",
+      "difficulty": "中",
+      "source_count": 3,
+      "evidence_count": 4,
+      "cost_cny": 0.07863232,
+      "latency_seconds": 429.452
+    },
+    {
+      "id": "Q05",
+      "status": "done",
+      "type": "财报解读",
+      "difficulty": "中",
+      "source_count": 0,
+      "evidence_count": 0,
+      "cost_cny": 0.0,
+      "latency_seconds": 166.682
+    },
+    {
+      "id": "Q06",
+      "status": "done",
+      "type": "财报解读",
+      "difficulty": "难",
+      "source_count": 4,
+      "evidence_count": 31,
+      "cost_cny": 0.21067664,
+      "latency_seconds": 690.55
+    },
+    {
+      "id": "Q07",
+      "status": "done",
+      "type": "财报解读",
+      "difficulty": "难",
+      "source_count": 23,
+      "evidence_count": 164,
+      "cost_cny": 0.64880992,
+      "latency_seconds": 2147.102
+    },
+    {
+      "id": "Q08",
+      "status": "done",
+      "type": "财报解读",
+      "difficulty": "中",
+      "source_count": 2,
+      "evidence_count": 5,
+      "cost_cny": 0.09019728,
+      "latency_seconds": 399.681
+    },
+    {
+      "id": "Q09",
+      "status": "done",
+      "type": "对比研究",
+      "difficulty": "难",
+      "source_count": 18,
+      "evidence_count": 105,
+      "cost_cny": 0.4356508,
+      "latency_seconds": 246.025
+    },
+    {
+      "id": "Q10",
+      "status": "done",
+      "type": "对比研究",
+      "difficulty": "易",
+      "source_count": 2,
+      "evidence_count": 4,
+      "cost_cny": 0.09790076,
+      "latency_seconds": 486.485
+    },
+    {
+      "id": "Q11",
+      "status": "done",
+      "type": "对比研究",
+      "difficulty": "易",
+      "source_count": 19,
+      "evidence_count": 122,
+      "cost_cny": 0.41249728,
+      "latency_seconds": 1381.779
+    },
+    {
+      "id": "Q12",
+      "status": "done",
+      "type": "对比研究",
+      "difficulty": "难",
+      "source_count": 16,
+      "evidence_count": 40,
+      "cost_cny": 0.26018432,
+      "latency_seconds": 989.377
+    },
+    {
+      "id": "Q13",
+      "status": "done",
+      "type": "对比研究",
+      "difficulty": "中",
+      "source_count": 22,
+      "evidence_count": 142,
+      "cost_cny": 0.0,
+      "latency_seconds": 1793.347
+    },
+    {
+      "id": "Q14",
+      "status": "done",
+      "type": "对比研究",
+      "difficulty": "易",
+      "source_count": 25,
+      "evidence_count": 101,
+      "cost_cny": 0.0,
+      "latency_seconds": 1278.147
+    },
+    {
+      "id": "Q15",
+      "status": "done",
+      "type": "对比研究",
+      "difficulty": "易",
+      "source_count": 3,
+      "evidence_count": 4,
+      "cost_cny": 0.07841588,
+      "latency_seconds": 420.583
+    },
+    {
+      "id": "Q16",
+      "status": "done",
+      "type": "对比研究",
+      "difficulty": "中",
+      "source_count": 20,
+      "evidence_count": 155,
+      "cost_cny": 0.4388996,
+      "latency_seconds": 1436.686
+    },
+    {
+      "id": "Q17",
+      "status": "done",
+      "type": "行业研究",
+      "difficulty": "中",
+      "source_count": 16,
+      "evidence_count": 78,
+      "cost_cny": 0.2317378,
+      "latency_seconds": 897.465
+    },
+    {
+      "id": "Q18",
+      "status": "done",
+      "type": "行业研究",
+      "difficulty": "难",
+      "source_count": 19,
+      "evidence_count": 104,
+      "cost_cny": 0.39160852,
+      "latency_seconds": 1294.56
+    },
+    {
+      "id": "Q19",
+      "status": "done",
+      "type": "行业研究",
+      "difficulty": "中",
+      "source_count": 16,
+      "evidence_count": 71,
+      "cost_cny": 0.37103732,
+      "latency_seconds": 1125.868
+    },
+    {
+      "id": "Q20",
+      "status": "done",
+      "type": "行业研究",
+      "difficulty": "中",
+      "source_count": 9,
+      "evidence_count": 51,
+      "cost_cny": 0.16281016,
+      "latency_seconds": 658.05
+    },
+    {
+      "id": "Q21",
+      "status": "done",
+      "type": "行业研究",
+      "difficulty": "中",
+      "source_count": 16,
+      "evidence_count": 131,
+      "cost_cny": 0.5776804,
+      "latency_seconds": 2137.568
+    },
+    {
+      "id": "Q22",
+      "status": "done",
+      "type": "行业研究",
+      "difficulty": "中",
+      "source_count": 14,
+      "evidence_count": 125,
+      "cost_cny": 0.32776856,
+      "latency_seconds": 1174.689
+    },
+    {
+      "id": "Q23",
+      "status": "done",
+      "type": "行业研究",
+      "difficulty": "易",
+      "source_count": 9,
+      "evidence_count": 48,
+      "cost_cny": 0.22915696,
+      "latency_seconds": 888.453
+    },
+    {
+      "id": "Q24",
+      "status": "done",
+      "type": "事件时间线",
+      "difficulty": "易",
+      "source_count": 12,
+      "evidence_count": 30,
+      "cost_cny": 0.185573,
+      "latency_seconds": 699.351
+    },
+    {
+      "id": "Q25",
+      "status": "done",
+      "type": "事件时间线",
+      "difficulty": "易",
+      "source_count": 10,
+      "evidence_count": 137,
+      "cost_cny": 0.18257048,
+      "latency_seconds": 602.488
+    },
+    {
+      "id": "Q26",
+      "status": "done",
+      "type": "事件时间线",
+      "difficulty": "中",
+      "source_count": 22,
+      "evidence_count": 170,
+      "cost_cny": 0.39277736,
+      "latency_seconds": 1320.523
+    },
+    {
+      "id": "Q27",
+      "status": "done",
+      "type": "事件时间线",
+      "difficulty": "中",
+      "source_count": 22,
+      "evidence_count": 93,
+      "cost_cny": 0.29141456,
+      "latency_seconds": 1079.848
+    },
+    {
+      "id": "Q28",
+      "status": "done",
+      "type": "事件时间线",
+      "difficulty": "中",
+      "source_count": 12,
+      "evidence_count": 91,
+      "cost_cny": 0.2731838,
+      "latency_seconds": 913.326
+    },
+    {
+      "id": "Q29",
+      "status": "done",
+      "type": "事件时间线",
+      "difficulty": "中",
+      "source_count": 16,
+      "evidence_count": 31,
+      "cost_cny": 0.27235604,
+      "latency_seconds": 1047.938
+    },
+    {
+      "id": "Q30",
+      "status": "done",
+      "type": "事件时间线",
+      "difficulty": "难",
+      "source_count": 12,
+      "evidence_count": 773,
+      "cost_cny": 0.41919576,
+      "latency_seconds": 1116.759
+    }
+  ]
+}
