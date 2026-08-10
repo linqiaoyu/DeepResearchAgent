@@ -64,7 +64,7 @@ sed -n '1,120p' _collab/package-demo/report.md
 | 引用与证据闭合 | Reporter 固化 footnote → Evidence ID 映射，Evaluator 与审计导出复用同一契约，见 [citations.py](src/deepresearch_agent/citations.py) 和 [audit_bundle.py](src/deepresearch_agent/audit_bundle.py)。 |
 | 有界研究循环与预算 | Critic retry、轮次、调用预算和连续无进展均有显式边界；分支预算默认开启，多轮研究默认关闭，且预算状态按 run 隔离，见 [orchestration_contracts.md](docs/orchestration_contracts.md)。 |
 | 显式领域边界 | composition root 注入 finance `DomainPack`；核心对具体 finance pack 的 import 为 0，剩余金融字面量由 5 文件/10 处 allowlist 棘轮约束（Round 112 起棘轮同时扫描 `src/` 与 `prompts/`），见 [architecture.md](docs/architecture.md)。 |
-| Point-in-time 检索 | 文档同时记录报告期末与**披露日**；披露日由 SEC EDGAR submissions 索引解析，60/60 文档全部实解析，见 [disclosure_dates.py](src/deepresearch_agent/domains/finance/disclosure_dates.py) 与 [finance_v3.json](data/corpus/finance_v3.json)。 |
+| Point-in-time 检索 | 文档同时记录报告期末与**披露日**；披露日由 SEC EDGAR submissions 索引解析，60/60 文档全部实解析。披露日未知时**扣留该 chunk 并计入 degradation**，不以报告期末补值，见 [disclosure_dates.py](src/deepresearch_agent/domains/finance/disclosure_dates.py) 与 [finance_v3.json](data/corpus/finance_v3.json)。既有库用 [backfill_disclosure_dates.py](scripts/backfill_disclosure_dates.py) 迁移。 |
 | 可审计工具选择 | 默认确定性 selector 只从 `CapabilityRegistry` 选择 search、fetch、structured data 与 disclosure；LLM tool selection 默认关闭且复用相同授权与预算边界，见 [dynamic_capabilities.md](docs/dynamic_capabilities.md)。 |
 | 可审计决策面 | 策略选择统一写入 `AgentDecision`、trace、manifest 和读者可见报告；缺失决策会被 `DecisionGate` 拦截，见 [agent_decisions.md](docs/agent_decisions.md)。 |
 | 跨期研究 | `ResearchSnapshot` 区分新增、消失、数值、证据、置信度与口径 6 类变化，见 [change_tracking.md](docs/change_tracking.md)。 |
@@ -147,12 +147,18 @@ flowchart LR
 - `REFLECTION_ENABLED=false`：四类确定性信号、占位推理接口、程序记忆与重规划接线已实现；Round 033 未观察到策略采用，不能宣称具备反思判断力，见 [reflection.md](docs/reflection.md)。
 - `CONTEXT_PACKER_ENABLED=true`、`INJECTION_GUARD_ENABLED=false`、`RESEARCH_LOOP_ENABLED=false`、`DYNAMIC_CAPABILITY_ENABLED=true`、`BRANCH_BUDGET_ENABLED=true`、`SKILL_PACKS_ENABLED=false`：Round 087 的单开关 live A/B 已转正 context packer、numeric check、semantic judge 和 decision weaving；trajectory record 与 progressive delivery 已在 Round 109 作为 `operational` 默认开启（两者不改变 Evidence 集合或顺序）；research loop 与 skill packs 仍未观察到严格增益而保持关闭。开关默认值不等于所有主题的质量结论，见 [method_limits.md](docs/method_limits.md)。
 - MCP 不暴露任意文件读取或命令执行；server 只允许服务端自管运行目录，付费路径需要显式 `allow_paid`，本轮 fixture server 即使确认也拒绝 LLM 执行，见 [server.py](src/deepresearch_agent/mcp/server.py)。
-- 金融仍是当前唯一已实现的领域包；核心侧具体金融 import 由
+- **金融投研是唯一在建领域，这是既定产品范围而不是缺口。** Round 113 明确裁定：先把第一个
+  被测系统做好，`DomainPack` 接口保留并继续承担依赖倒置，暂不做第二个领域。
+  `scripts/check_domain_boundary.py` 的 `product_domains` 双向断言锁住这条范围——多一个
+  产品领域会失败，少一个也会失败，改变范围必须先改 `AGENTS.md`。
+  因此**不能宣称框架已经领域通用**：倒置只证明金融本身可替换、可测试、可审计。
+- 范围收窄不放松任何边界：核心侧具体金融 import 由
   [`scripts/check_domain_boundary.py`](scripts/check_domain_boundary.py) 测量并以
   初始 `import_sites=6` 已迁移至当前 `import_sites=0`。剩余金融字面量为 5 个文件、
   10 行（Round 112 把 `prompts/` 纳入扫描，暴露出 `planner.md` 与 `reporter.md` 各 1 行
-  此前不被任何检查覆盖的金融词汇），均有受测 allowlist 与移除条件；尚无第二个真实领域
-  实现，因此不能宣称框架已经领域通用，见 [architecture.md](docs/architecture.md)。
+  此前不被任何检查覆盖的金融词汇）。这 10 行现在是**已接受的产品债**，棘轮的作用是防止
+  它增长而不是催促偿还，移除条件见
+  [domain-boundary-residual.md](docs/decisions/043/domain-boundary-residual.md)。
 - `data/corpus/finance_v1.json` 与 `finance_v2.json` 的披露日不可用：v1 完全没有
   `published_at`，v2 的 60 条全部是抓取日 `retrieved_at_fallback`。二者作为不可变历史保留，
   但 `scripts/check_disclosure_lookahead.py` 只承认 `finance_v3.json`；用 v1/v2 建的索引

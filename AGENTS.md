@@ -8,6 +8,17 @@ DeepResearchAgent 是自建 Agent Harness；金融投研是首个被测系统（
 手抄项目状态、依赖版本或历史路线。**依据：** 031 审计发现手抄默认值与依赖说明
 已经漂移。
 
+- **产品范围：金融投研是唯一在建领域，本阶段不做第二个领域。** `DomainPack` 接口保留
+  并继续承担依赖倒置——接口留着，领域不做。判断项目完成度时，"只有一个领域"是既定范围
+  而不是缺陷；核心 prompt 中已登记的金融词汇是**已接受的产品债**，棘轮的作用从"催促偿还"
+  变为"防止增长"。新增第二个产品领域是产品决策，必须先改本节并说明理由。
+  **依据：** 用户在 113 轮明确裁定"先做好第一个被测系统金融投研，其他领域暂且先不做，
+  可以先留个接口"。**执行面：** `scripts/check_domain_boundary.py` 的 `product_domains`
+  双向断言（多一个或少一个都失败）。
+- 上一条不放松任何边界规则。核心仍不得 import 具体领域，字面量棘轮仍只减不增：范围收窄
+  的是"要做几个领域"，不是"核心可以耦合领域"。倒置是为了让金融本身可替换、可测试、
+  可审计，不是为了兑现通用化承诺。
+  **风险：** 把"只做金融"误读为"可以把金融写回核心"，会直接退回 020-I 的耦合状态。
 - 新领域必须通过显式领域接口接入，不得继续把领域判断写入 Agent 核心。核心对具体领域的
   import 以 Ruff `TID251` 与 `scripts/check_domain_boundary.py` 的输出为准；任何轮次不得
   增加 `import_sites` 或 ratchet 计数。
@@ -127,6 +138,13 @@ DeepResearchAgent 是自建 Agent Harness；金融投研是首个被测系统（
   `published_at_source`，用抓取时间或报告期末充数的条目视为未定日期。
   **依据：** 112 实测该回退在 shipped 语料上的中位敞口为 **109 天**；`filing_date` 自 085
   加列起从无任何写入路径，四层 `or effective_date` 静默兜底把它掩盖了 27 轮。
+- **披露日未知的处理只有一种：扣留（withhold），并把扣留计入 degradation。** 不得写库时
+  用报告期末补一个值——那不是更小的 bug，而是把前视偏差从默认值变成数据。空披露日在字符串
+  序中排在所有真实日期之前，所以"未知即永远可见"是这条规则真正要防的失败模式。
+  **依据：** 113 发现 112 只拆掉了读路径的兜底，写路径仍在 `record_document_version`
+  与 chunk INSERT 两处把 `effective_date` 落库当披露日；守卫加上"未知必须在任何 as_of
+  下都不可见"这一条后立刻报红。**执行面：**
+  `scripts/check_disclosure_lookahead.py` 的 `undated_withheld` 断言。
 - 新增或修改的 prompt 放在 `prompts/` 并登记 drift；历史硬编码作为技术债，不得把
   未完成目标写成既成事实。**风险：** prompt 变化无法复现、审查或归因。
 - 开着的能力必须能被该次 run 的产物证明。一个开关为 true 却无法从 state、manifest 或
@@ -236,6 +254,7 @@ DeepResearchAgent 是自建 Agent Harness；金融投研是首个被测系统（
 | 规则 | 执行面 |
 |---|---|
 | 核心不得 import 具体领域 | `scripts/check_domain_boundary.py`（`import_sites` 与字面量棘轮，覆盖 `src/` 与 `prompts/`） |
+| 金融是唯一在建领域 | `scripts/check_domain_boundary.py` 的 `product_domains` 双向断言 |
 | 默认值不得手抄漂移 | `scripts/sync_agents_settings.py --check`（token）+ `scripts/check_doc_flag_claims.py`（正文陈述） |
 | 开着的能力必须可被证明 | `scripts/check_capability_observability.py` |
 | 读者可见产物不得自相矛盾 | `scripts/check_reader_visible_contract.py` |
@@ -243,7 +262,7 @@ DeepResearchAgent 是自建 Agent Harness；金融投研是首个被测系统（
 | 全量门禁是唯一交付入口 | `scripts/gate.py`，且 `tracked_files_unchanged` |
 | 多后端 schema 不得漂移 | `scripts/check_storage_schema_parity.py`（未声明差异即失败） |
 | 协议实现必须全方法契约覆盖 | `tests/contract/test_storage_contract.py`（同一断言跑遍所有后端，覆盖 8/8 方法） |
-| 检索不得看到未披露的文件 | `scripts/check_disclosure_lookahead.py`（语料 provenance + 端到端 as-of 探针） |
+| 检索不得看到未披露的文件 | `scripts/check_disclosure_lookahead.py`（语料 provenance + 端到端 as-of 探针 + `undated_withheld`） |
 | 服务型后端必须真被执行 | CI `postgres-storage` / `qdrant-vector-index` job + `scripts/check_service_job.py --job`（拒绝靠 skip 通过） |
 | 测试不得静默 skip | `scripts/check_no_silent_skips.py`（未登记 skip 即失败）+ `--verify-workflow`（登记的 job 必须存在） |
 | 存储与领域协议类型不得漂移 | `mypy --strict`（`storage/`、`domains/protocols.py`、`domains/base.py`、`domains/registry.py`、`rag/ingest.py`；文件清单是只增棘轮） |
