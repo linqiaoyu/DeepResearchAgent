@@ -26,6 +26,7 @@ from deepresearch_agent.tools.capability_registry import (
 from deepresearch_agent.tools.contracts import ToolSpec
 
 SkillApplicability = Callable[["SkillMetadata", str], bool]
+SUPPORTED_SKILL_API_VERSION = "1"
 
 SKILL_SELECTION_NODE_CONTRACT = NodeContract(
     name="skill_selection",
@@ -48,6 +49,8 @@ SKILL_LOAD_NODE_CONTRACT = NodeContract(
 class SkillMetadata(StrictModel):
     name: str
     description: str
+    version: str
+    harness_api_version: str
     root: Path
 
 
@@ -162,13 +165,22 @@ class SkillPackLoader:
             return SkillLoadOutcome()
 
         before_load = state.model_copy(deep=True)
-        loaded: list[LoadedSkill] = []
+        loaded = [self._load_resources(metadata) for metadata in selected]
         registered: list[str] = []
         existing = {item.name for item in registry.query()}
-        for metadata in selected:
-            skill = self._load_resources(metadata)
+        incoming = [skill.capability.name for skill in loaded]
+        collisions = sorted(
+            name
+            for name in set(incoming)
+            if name in existing or incoming.count(name) > 1
+        )
+        if collisions:
+            raise ValueError(
+                "Skill capability collision: " + ", ".join(collisions)
+            )
+        for skill in loaded:
             capability = skill.capability
-            if capability.name in existing:
+            if capability.name in existing:  # pragma: no cover - preflight invariant
                 raise ValueError(
                     f"Skill capability collision: {capability.name}"
                 )
@@ -186,7 +198,6 @@ class SkillPackLoader:
             )
             existing.add(capability.name)
             registered.append(capability.name)
-            loaded.append(skill)
 
         load_decision = AgentDecision(
             decision_type="skill_load",
@@ -228,6 +239,7 @@ class SkillPackLoader:
         )
 
     def _read_metadata(self, skill_file: Path) -> SkillMetadata:
+        self._require_within(skill_file, self.root, "Skill metadata escapes root")
         self.metadata_reads.append(skill_file)
         with skill_file.open("r", encoding="utf-8") as handle:
             if handle.readline().rstrip("\r\n") != "---":
@@ -246,14 +258,25 @@ class SkillPackLoader:
                 raise ValueError(
                     f"SKILL.md frontmatter is not closed: {skill_file}"
                 )
-        if set(fields) != {"name", "description"}:
+        required_fields = {
+            "name",
+            "description",
+            "version",
+            "harness_api_version",
+        }
+        if set(fields) != required_fields:
             raise ValueError(
-                "SKILL.md frontmatter must contain only name and "
-                f"description: {skill_file}"
+                "SKILL.md frontmatter must contain exactly name, description, "
+                f"version and harness_api_version: {skill_file}"
             )
-        if not fields["name"] or not fields["description"]:
+        if any(not fields[name] for name in required_fields):
             raise ValueError(
                 f"SKILL.md metadata values must be non-empty: {skill_file}"
+            )
+        if fields["harness_api_version"] != SUPPORTED_SKILL_API_VERSION:
+            raise ValueError(
+                "Incompatible Skill harness API version: "
+                f"{fields['harness_api_version']}"
             )
         if skill_file.parent.name != fields["name"]:
             raise ValueError(
@@ -263,6 +286,8 @@ class SkillPackLoader:
         return SkillMetadata(
             name=fields["name"],
             description=fields["description"],
+            version=fields["version"],
+            harness_api_version=fields["harness_api_version"],
             root=skill_file.parent,
         )
 
@@ -274,13 +299,13 @@ class SkillPackLoader:
             )
         resources: dict[str, str] = {}
         for path in sorted(resource_root.iterdir()):
-            if not path.is_file() or path.is_symlink():
-                continue
-            resolved = path.resolve()
-            if resource_root.resolve() not in resolved.parents:
+            if path.is_symlink():
                 raise ValueError(
-                    f"Skill resource escapes its pack: {path}"
+                    f"Skill resource symlinks are forbidden: {path}"
                 )
+            if not path.is_file():
+                continue
+            self._require_within(path, resource_root, "Skill resource escapes its pack")
             self.resource_reads.append(path)
             resources[path.name] = path.read_text(encoding="utf-8")
         raw_definition = resources.get("capability.json")
@@ -316,6 +341,13 @@ class SkillPackLoader:
             resources=resources,
             capability=capability,
         )
+
+    @staticmethod
+    def _require_within(path: Path, root: Path, message: str) -> None:
+        resolved_root = root.resolve()
+        resolved_path = path.resolve()
+        if resolved_path != resolved_root and resolved_root not in resolved_path.parents:
+            raise ValueError(f"{message}: {path}")
 
 
 def load_skills_if_enabled(

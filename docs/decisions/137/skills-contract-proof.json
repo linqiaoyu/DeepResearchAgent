@@ -1,0 +1,19 @@
+{
+  "round": 137,
+  "task": "H13",
+  "status": "pass",
+  "metrics": {
+    "metadata_first_read_rate": 1.0,
+    "unselected_resource_reads": 0,
+    "path_escape_rejection_rate": 1.0,
+    "version_incompatibility_rejection_rate": 1.0,
+    "incompatible_resource_reads": 0,
+    "capability_conflict_rejection_rate": 1.0,
+    "partial_registrations_after_conflict": 0,
+    "skill_tool_spec_match_rate": 1.0,
+    "unauthorized_skill_executions": 0
+  },
+  "command": "PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/check_skills_contract.py --self-test",
+  "product_default_changed": false,
+  "paid_cost_cny": 0
+}

@@ -34,6 +34,8 @@ def _write_demo_skill(root: Path) -> Path:
         "---\n"
         "name: demo-rules\n"
         "description: Use for demo numeric normalization research.\n"
+        "version: 1.0.0\n"
+        "harness_api_version: 1\n"
         "---\n"
         "\n"
         "# Demo rules\n"

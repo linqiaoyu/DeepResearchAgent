@@ -154,6 +154,10 @@ def run_gate() -> None:
             [sys.executable, "scripts/check_mcp_safety.py", "--self-test"],
         ),
         (
+            "skills_contract",
+            [sys.executable, "scripts/check_skills_contract.py", "--self-test"],
+        ),
+        (
             "storage_schema_parity",
             [sys.executable, "scripts/check_storage_schema_parity.py", "--self-test"],
         ),
