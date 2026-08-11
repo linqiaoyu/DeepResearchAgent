@@ -76,6 +76,38 @@ _ISSUE_DIRECTIONS = {
     "contradicts_prior": "前后期官方披露 口径对比",
     "numeric_inconsistency": "官方数据 计算口径 单位 核验",
 }
+class ReplanQueryUnavailable(RuntimeError):
+    """No entity and no metric were available to assemble a replan query.
+
+    R124: the caller drops the query rather than issuing a placeholder that
+    spends the second pass's budget and returns nothing.
+    """
+
+
+def _terms_from_planned_queries(sub_question: SubQuestion) -> list[str]:
+    """Entity-like terms from the planner's own queries, not from the title.
+
+    R124: a sub-question with no structured request used to assemble
+    `研究主体 事项 <doctype>` -- a query naming nothing, which R121's live run
+    issued four times and which returned nothing. The planner's `search_queries`
+    already went through its own validation and carry the issuer, metric and
+    period; drawing terms from them keeps the refinement specific without ever
+    reading the sub-question's prose.
+    """
+
+    terms: list[str] = []
+    for query in sub_question.search_queries:
+        for token in query.split():
+            token = token.strip()
+            if not token or _QUESTION_STYLE_TERMS.search(token):
+                continue
+            if token not in terms:
+                terms.append(token)
+        if terms:
+            break
+    return terms[:3]
+
+
 def build_replan_query(
     question: str | SubQuestion,
     document_type: str,
@@ -104,8 +136,30 @@ def build_replan_query(
     # Non-financial legacy plans have no structured request.  Do not fall back
     # to their prose title: retain a neutral structured entity placeholder so
     # the query remains a field assembly and is visibly low-specificity.
-    if not identifiers:
-        identifiers.append("研究主体")
+    #
+    # R124: "visibly low-specificity" was the intent and the query was still
+    # issued. R121's first live run with a working loop shows what that costs:
+    # four of the six refined queries were `研究主体 事项 公告` and `研究主体
+    # 事项 报告` -- placeholder, placeholder, document type -- naming no entity,
+    # no metric and no period. They were sent to a live search engine, spent the
+    # branch budget R121 had just rationed for the second pass, and returned
+    # nothing. A field assembly with no fields is not a low-specificity query,
+    # it is an absent one, and `ReplanQueryUnavailable` says so to the caller.
+    if not identifiers and not metrics:
+        # The planner's own search queries are already field assemblies that
+        # passed its validation -- entities, metrics and periods, not prose --
+        # so they are a legitimate source of terms where a structured request is
+        # absent. This is not the forbidden fallback: the sub-question's title
+        # is still never read, and `_validate_replan_query` below still rejects
+        # anything that copies too much of it.
+        identifiers.extend(_terms_from_planned_queries(sub_question))
+        borrowed_terms = bool(identifiers)
+    else:
+        borrowed_terms = False
+    if not identifiers and not metrics:
+        raise ReplanQueryUnavailable(
+            "replan query has neither an entity nor a metric to assemble"
+        )
     # The domain boundary supplies the target document type; no title
     # words, critic prose, or question text is allowed to enter the query.
     if not document_type.strip():
@@ -125,7 +179,19 @@ def build_replan_query(
     query = _INTERNAL_QUERY_TERMS.sub(" ", query)
     query = " ".join(query.split())
     query = query[:MAX_REPLAN_QUERY_CHARS].rstrip()
-    _validate_replan_query(query, question_text)
+    try:
+        _validate_replan_query(query, question_text)
+    except ValueError:
+        # Terms borrowed from the planner's queries can echo the title, which
+        # this guard exists to refuse. Refusing is right; crashing the graph
+        # over it is not, so a borrowed assembly becomes an absent query and
+        # the caller drops it. A structured request that trips the guard is a
+        # real defect and still raises.
+        if not borrowed_terms:
+            raise
+        raise ReplanQueryUnavailable(
+            "borrowed replan terms echo the sub-question title"
+        ) from None
     return query
 
 
@@ -387,11 +453,23 @@ def refine_research_plan(
         for item in sufficiency.by_sub_question
     }
     refined: dict[str, list[str]] = {}
-    def query(sub_question: SubQuestion, direction: str) -> str:
-        return build_replan_query(
-            sub_question,
-            domain_pack.document_type_for_direction(direction),
-        )
+    unassemblable: list[str] = []
+
+    def _extend(target: list[str], value: str | None) -> None:
+        """Drop a refinement that could not be assembled rather than issue it."""
+
+        if value is not None:
+            target.append(value)
+
+    def query(sub_question: SubQuestion, direction: str) -> str | None:
+        try:
+            return build_replan_query(
+                sub_question,
+                domain_pack.document_type_for_direction(direction),
+            )
+        except ReplanQueryUnavailable:
+            unassemblable.append(sub_question.id)
+            return None
 
     gaps_by_id: dict[str, list[str]] = {}
     for sub_question in state.plan.sub_questions:
@@ -408,22 +486,22 @@ def refine_research_plan(
             and sub_question.id
             in reflection.persistently_weak_subquestions
         ):
-            queries.append(
+            _extend(queries,
                 query(sub_question, "官方来源 补充核验")
             )
         if reflection and reflection.repeatedly_ineffective_sources:
-            queries.append(
+            _extend(queries,
                 query(sub_question, "其他一手来源 交叉验证")
             )
         if reflection and reflection.repeated_critic_issue_types:
-            queries.append(
+            _extend(queries,
                 query(sub_question, "官方来源 定向补充证据")
             )
         if (
             reflection
             and reflection.ineffective_replanning_iterations
         ):
-            queries.append(
+            _extend(queries,
                 query(sub_question, "不同一手来源 新证据角度")
             )
         targeted_issues = (
@@ -436,7 +514,7 @@ def refine_research_plan(
             else []
         )
         for issue in targeted_issues:
-            queries.append(
+            _extend(queries,
                 query(
                     sub_question,
                     _ISSUE_DIRECTIONS.get(
@@ -457,35 +535,35 @@ def refine_research_plan(
                     for item in request.metrics
                     if canonical_metric(item) in missing
                 ]
-            queries.append(
+            _extend(queries,
                 query(targeted, domain_pack.metric_gap_direction())
             )
         if "independent_source_domains" in metrics.gaps:
-            queries.append(
+            _extend(queries,
                 query(sub_question, "独立一手来源 交叉验证")
             )
         if "counterargument" in metrics.gaps:
-            queries.append(
+            _extend(queries,
                 query(sub_question, "风险 限制 反方证据")
             )
         if "freshness" in metrics.gaps:
-            queries.append(
+            _extend(queries,
                 query(sub_question, f"截至 {as_of.isoformat()} 最新官方披露")
             )
         if "evidence_count" in metrics.gaps:
-            queries.append(
+            _extend(queries,
                 query(sub_question, domain_pack.evidence_gap_direction())
             )
         if "average_confidence" in metrics.gaps:
-            queries.append(
+            _extend(queries,
                 query(sub_question, "一手来源 原始披露 核验")
             )
         if "unresolved_critic_issues" in metrics.gaps:
-            queries.append(
+            _extend(queries,
                 query(sub_question, "官方来源 补充核验")
             )
         if not queries:
-            queries.append(
+            _extend(queries,
                 query(sub_question, "一手来源 新证据角度")
             )
         sub_question.search_queries = list(dict.fromkeys(queries))[:3]
@@ -530,7 +608,14 @@ def refine_research_plan(
                     else ""
                 )
             ),
-            outcome=f"refined_queries={refined}",
+            outcome=(
+                f"refined_queries={refined}"
+                + (
+                    f"; unassemblable={sorted(set(unassemblable))}"
+                    if unassemblable
+                    else ""
+                )
+            ),
             alternatives_considered=[
                 "repeat_previous_queries",
                 "stop_with_current_coverage",
