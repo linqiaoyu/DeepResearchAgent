@@ -50,13 +50,17 @@
       }
     },
     "rag": {
-      "status": "wired",
+      "status": "h2_ready",
       "objective": "Provide provenance-safe ingestion and bounded lexical, dense, and rerank retrieval.",
       "boundary": "Finance disclosure policy is injected; H2 does not claim reader-visible quality benefit.",
       "criteria": [
         {"metric": "indexed_chunk_provenance_rate", "operator": "==", "target": 1.0, "measured_by": "scripts/check_harness_acceptance.py --technology rag"},
         {"metric": "undated_visible_documents", "operator": "==", "target": 0, "measured_by": "scripts/check_harness_acceptance.py --technology rag"}
-      ]
+      ],
+      "proof": {
+        "round": 134,
+        "artifact": "docs/decisions/134/rag-h2-proof.json"
+      }
     },
     "mcp": {
       "status": "wired",

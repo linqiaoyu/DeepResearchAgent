@@ -142,6 +142,10 @@ def run_gate() -> None:
             [sys.executable, "scripts/check_rag_ingestion.py", "--self-test"],
         ),
         (
+            "rag_retrieval",
+            [sys.executable, "scripts/check_rag_retrieval.py", "--self-test"],
+        ),
+        (
             "storage_schema_parity",
             [sys.executable, "scripts/check_storage_schema_parity.py", "--self-test"],
         ),

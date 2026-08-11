@@ -1,0 +1,18 @@
+{
+  "technology": "rag",
+  "status": "h2_ready",
+  "round": 134,
+  "metrics": {
+    "retrieval_layers_available": 3,
+    "retrieval_layers_exercised": 3,
+    "missing_config_silent_startups": 0,
+    "rerank_fail_open_candidates": 1,
+    "rerank_fail_closed_candidates": 0,
+    "search_trajectory_coverage": 1,
+    "provider_cost_coverage": 1.0,
+    "provider_trajectory_coverage": 1.0,
+    "indexed_chunk_provenance_rate": 1.0,
+    "undated_visible_documents": 0
+  },
+  "command": "PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python scripts/check_rag_retrieval.py --self-test"
+}
