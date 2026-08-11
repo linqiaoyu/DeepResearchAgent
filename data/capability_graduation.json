@@ -17,12 +17,18 @@
       "deferrals": []
     },
     "MCP_CLIENT_ENABLED": {
-      "status": "pending",
+      "status": "opt_in",
       "graduation_criterion": "3/3 configured external MCP server probes discover, register and execute a tool with budget and trajectory records present",
       "measured_by": "scripts/check_capability_observability.py plus scripts/mcp_stdio_client.py",
       "initial_decision_round": 151,
       "decision_round": 151,
-      "deferrals": []
+      "deferrals": [],
+      "design_reason": "Finance has no registered product-quality hypothesis for arbitrary external MCP servers; keeping the client off prevents unconfigured process, trust, cost, and side-effect boundaries from entering the default SUT while preserving explicit interoperable use.",
+      "proof": {
+        "round": 136,
+        "artifact": "docs/decisions/136/mcp-h2-proof.json",
+        "command": "scripts/check_mcp_safety.py --self-test"
+      }
     },
     "PRIOR_MEMORY_ENABLED": {
       "status": "pending",

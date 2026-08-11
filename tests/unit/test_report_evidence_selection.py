@@ -5,6 +5,11 @@ import unittest
 from pydantic import ValidationError
 
 from deepresearch_agent.agents import ReporterAgent
+from deepresearch_agent.citations import build_footnote_maps
+from deepresearch_agent.reporting.reader_reach import (
+    evidence_the_reader_can_follow,
+    orphaned_sub_questions,
+)
 from deepresearch_agent.schemas import (
     Evidence,
     ReportEvidenceSelection,
@@ -74,6 +79,30 @@ class ReportEvidenceSelectionTests(unittest.TestCase):
                 delivery_mode="none",
                 reason="contradiction",
             )
+
+    def test_selected_evidence_is_delivered_after_report_compaction(self) -> None:
+        state = self._state()
+        state.report_evidence_selections = ReporterAgent._select_report_evidence(
+            state,
+            context_evidence=[],
+        )
+        footnotes = build_footnote_maps(state.evidence_store)
+        state.report_footnote_evidence = {
+            number: item.id
+            for number, item in footnotes.footnote_to_evidence.items()
+        }
+        original = "# report\n\n## 参考来源\n"
+
+        report = ReporterAgent()._enforce_selected_evidence_coverage(
+            original,
+            state,
+            footnotes.evidence_id_to_footnote,
+        )
+
+        selected = set(state.report_evidence_selections[0].evidence_ids)
+        self.assertLessEqual(selected, evidence_the_reader_can_follow(state, report))
+        self.assertEqual(orphaned_sub_questions(state, report), [])
+        self.assertLess(report.index("## 选择证据补充"), report.index("## 参考来源"))
 
 
 if __name__ == "__main__":

@@ -12,16 +12,17 @@ Reachability here is deliberately strict in one direction and generous in the
 other. A footnote *defined* in the reference list and never cited does not
 count: 83% of the reference lines in those reports were never referenced, so
 counting definitions would score them as fully covered. A footnote that *is*
-cited counts for every Evidence item sharing its source, because R107 gives one
-footnote to a source and ``report_footnote_evidence`` records only that
-footnote's representative -- a reader following the marker reaches the siblings
-too.
+cited counts for every Evidence item sharing its reference key, because R107
+gives one footnote to a document and R116 extends that rule to a provider
+series. ``report_footnote_evidence`` records only the representative; a reader
+following its marker reaches every record grouped behind that same footnote.
 """
 
 from __future__ import annotations
 
 import re
 
+from deepresearch_agent.citations import footnote_key
 from deepresearch_agent.schemas import ResearchState
 
 _FOOTNOTE_REF_RE = re.compile(r"\[\^(\d+)\]")
@@ -43,13 +44,15 @@ def evidence_the_reader_can_follow(state: ResearchState, report: str) -> set[str
     }
     cited = {int(match) for match in _FOOTNOTE_REF_RE.findall(reader_body(report))}
     representatives = {footnotes[number] for number in cited if number in footnotes}
-    reached_sources = {
-        item.source_url for item in state.evidence_store if item.id in representatives
+    reached_reference_keys = {
+        footnote_key(item)
+        for item in state.evidence_store
+        if item.id in representatives
     }
     return {
         item.id
         for item in state.evidence_store
-        if item.id in representatives or item.source_url in reached_sources
+        if item.id in representatives or footnote_key(item) in reached_reference_keys
     }
 
 

@@ -780,3 +780,17 @@ Context omission is distinguished from absence of canonical Evidence and is
 routed to the mechanical evidence floor. The selection contract is diagnostic
 and does not change a golden truth or product threshold. Reader-visible
 coverage of the selected IDs is measured separately in F03.
+
+# R151 selected-Evidence delivery
+
+After report compaction, each preselected Evidence item must either already be
+reader-reachable or be rendered in a bounded cited supplement before reference
+pruning. The 28 successful R149 states form the recorded regression cohort;
+Q13 and Q21 are not filled. This regression requires zero orphaned
+sub-questions, full selected-Evidence coverage, and zero footnote misreferences.
+
+Reader reach expands a cited representative by the same `footnote_key` used by
+reference aggregation. This matters for provider series: multiple periods have
+different record URIs but one series footnote. The persisted
+`report_footnote_evidence` remains the numbering fact source; reachability does
+not reconstruct numbers from Evidence order.

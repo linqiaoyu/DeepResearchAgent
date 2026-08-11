@@ -258,6 +258,28 @@ class ReaderReachabilityTests(unittest.TestCase):
             {"ev-shared", "ev-sibling"},
         )
 
+    def test_provider_series_records_behind_one_footnote_are_reachable(self) -> None:
+        first = _evidence("first", "one", "2023 value.", 0.9).model_copy(
+            update={
+                "source_url": "akshare://revenue/600519/20231231/a",
+                "source_title": "AKShare revenue series",
+            }
+        )
+        second = _evidence("second", "one", "2024 value.", 0.9).model_copy(
+            update={
+                "source_url": "akshare://revenue/600519/20241231/b",
+                "source_title": "AKShare revenue series",
+            }
+        )
+        state = _state([first, second], ["one"])
+        state.report_footnote_evidence = {1: "ev-first"}
+        report = "## 摘要\nSeries [^1]\n\n## 参考来源\n[^1]: series"
+
+        self.assertEqual(
+            evidence_the_reader_can_follow(state, report),
+            {"ev-first", "ev-second"},
+        )
+
     def test_self_test_passes(self) -> None:
         self.assertEqual(_guard()._self_test(), 0)
 

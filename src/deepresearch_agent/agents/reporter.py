@@ -19,6 +19,7 @@ from deepresearch_agent.metric_coverage import (
     metric_requirements,
 )
 from deepresearch_agent.reporting import GroundedFactRenderer
+from deepresearch_agent.reporting.reader_reach import evidence_the_reader_can_follow
 from deepresearch_agent.domains.protocols import NumericCitationPolicy, ReportingDomain
 from deepresearch_agent.domains.requirements import resolve_domain_capability
 from deepresearch_agent.schemas import (
@@ -271,12 +272,16 @@ class ReporterAgent:
         if self.domain_pack.name != "finance":
             from deepresearch_agent.decisions import append_decision_record
 
-            return prune_reference_list(
-                append_decision_record(report, state.agent_decisions)
+            assembled = append_decision_record(report, state.agent_decisions)
+        else:
+            assembled = self._compact_reader_report(
+                report, state, footnotes.evidence_id_to_footnote
             )
         return prune_reference_list(
-            self._compact_reader_report(
-                report, state, footnotes.evidence_id_to_footnote
+            self._enforce_selected_evidence_coverage(
+                assembled,
+                state,
+                footnotes.evidence_id_to_footnote,
             )
         )
 
@@ -329,6 +334,92 @@ class ReporterAgent:
                 )
             )
         return selections
+
+    def _enforce_selected_evidence_coverage(
+        self,
+        report: str,
+        state: ResearchState,
+        ref_map: dict[str, int],
+    ) -> str:
+        """Deliver every preselected Evidence item or state the missing support."""
+
+        reachable = evidence_the_reader_can_follow(state, report)
+        evidence_by_id = {item.id: item for item in state.evidence_store}
+        sub_questions = {
+            item.id: item for item in (state.plan.sub_questions if state.plan else [])
+        }
+        additions: list[str] = []
+        delivered_ids: list[str] = []
+        degraded_ids: list[str] = []
+        for selection in state.report_evidence_selections:
+            sub_question = sub_questions.get(selection.sub_question_id)
+            if sub_question is None:
+                raise ValueError(
+                    "report Evidence selection references unknown sub-question: "
+                    f"{selection.sub_question_id}"
+                )
+            if selection.status == "degraded":
+                degraded_ids.append(selection.sub_question_id)
+                additions.extend(
+                    [
+                        f"### {self._reader_text(sub_question.question)}",
+                        "- 当前没有可用于回答该子问题的 Evidence，结论保持不足。",
+                    ]
+                )
+                continue
+            missing = [
+                evidence_id
+                for evidence_id in selection.evidence_ids
+                if evidence_id not in reachable
+            ]
+            if not missing:
+                delivered_ids.extend(selection.evidence_ids)
+                continue
+            additions.append(f"### {self._reader_text(sub_question.question)}")
+            for evidence_id in missing:
+                item = evidence_by_id.get(evidence_id)
+                if item is None or item.sub_question_id != selection.sub_question_id:
+                    raise ValueError(
+                        "report Evidence selection is not owned by its sub-question: "
+                        f"{selection.sub_question_id}/{evidence_id}"
+                    )
+                if evidence_id not in ref_map:
+                    raise ValueError(
+                        f"report Evidence selection has no footnote: {evidence_id}"
+                    )
+                additions.append(
+                    f"- {self._floor_claim_text(item)} "
+                    f"{render_citations([evidence_id], ref_map)}"
+                )
+                delivered_ids.append(evidence_id)
+                reachable.update(
+                    candidate.id
+                    for candidate in state.evidence_store
+                    if candidate.source_url == item.source_url
+                )
+        self.last_stats["selection_coverage"] = {
+            "decisions": len(state.report_evidence_selections),
+            "selected_evidence": sum(
+                len(item.evidence_ids) for item in state.report_evidence_selections
+            ),
+            "delivered_evidence": len(set(delivered_ids)),
+            "degraded_sub_questions": degraded_ids,
+        }
+        if not additions:
+            return report
+        block = ["## 选择证据补充", *additions]
+        marker = "## 参考来源"
+        before, separator, after = report.partition(marker)
+        if separator:
+            return (
+                before.rstrip()
+                + "\n\n"
+                + "\n".join(block)
+                + "\n\n"
+                + marker
+                + after
+            )
+        return report.rstrip() + "\n\n" + "\n".join(block)
 
     def _compact_reader_report(
         self,
