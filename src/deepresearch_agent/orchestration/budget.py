@@ -32,6 +32,15 @@ class BranchBudget:
 
     total_budget: int
     per_branch_cap: int
+    #: How many research iterations `total_budget` is meant to cover. R121: the
+    #: initial allocation handed out the whole pool, and `reallocate` draws from
+    #: what is left, so a first pass sized to spend the pool left nothing for a
+    #: second. R120 measured the consequence -- with the loop enabled and
+    #: `max_iterations=2`, no refinement pass ran on either question, because
+    #: the first pass ended either at the loop's ceiling (20/20) or under the
+    #: 20% remaining-budget threshold (17/20). A pool that must cover N
+    #: iterations may not be spent by the first one.
+    planned_iterations: int = 1
     allocations: dict[str, BranchAllocation] = field(default_factory=dict)
     _lock: Lock = field(default_factory=Lock, repr=False)
 
@@ -40,6 +49,8 @@ class BranchBudget:
             raise ValueError("total_budget must be non-negative")
         if self.per_branch_cap < 1:
             raise ValueError("per_branch_cap must be at least 1")
+        if self.planned_iterations < 1:
+            raise ValueError("planned_iterations must be at least 1")
 
     @property
     def total_used(self) -> int:
@@ -64,8 +75,16 @@ class BranchBudget:
                 branch_id: BranchAllocation(branch_id=branch_id, allocated=0)
                 for branch_id in ordered
             }
+            # R121: the first iteration takes its share, not the pool. Integer
+            # division floors, and at least one call per branch must remain
+            # reachable, so the share is never allowed below the branch count.
+            iteration_share = max(
+                len(ordered),
+                self.total_budget // self.planned_iterations,
+            )
             distributable = min(
                 self.total_budget,
+                iteration_share,
                 self.per_branch_cap * len(ordered),
             )
             quotient, remainder = divmod(distributable, len(ordered))

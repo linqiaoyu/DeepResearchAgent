@@ -116,6 +116,11 @@ class ResearchNodes:
             run_scope.branch_budget = BranchBudget(
                 total_budget=total_budget,
                 per_branch_cap=self.settings.branch_single_cap,
+                planned_iterations=(
+                    self.settings.research_loop_max_iterations
+                    if self.settings.research_loop_active
+                    else 1
+                ),
             )
             allocations = run_scope.branch_budget.allocate(branch_ids, state)
             state.metadata["branch_budget"] = {
