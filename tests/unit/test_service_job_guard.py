@@ -51,6 +51,20 @@ class ServiceJobGuardTests(unittest.TestCase):
             with mock.patch("unittest.TextTestRunner.run", return_value=_Result()):
                 self.assertEqual(check_service_job.run_job("qdrant-vector-index"), 0)
 
+    def test_it_refuses_a_green_result_that_ran_zero_tests(self) -> None:
+        class _Result:
+            testsRun = 0
+            skipped: list[tuple[object, str]] = []
+
+            def wasSuccessful(self) -> bool:
+                return True
+
+        failures = check_service_job.evaluate_job_result(
+            "qdrant-vector-index",
+            _Result(),  # type: ignore[arg-type]
+        )
+        self.assertEqual(failures, ["job 'qdrant-vector-index' executed zero tests"])
+
     def test_it_refuses_a_job_name_nothing_declares(self) -> None:
         self.assertEqual(check_service_job.run_job("no-such-job"), 1)
 

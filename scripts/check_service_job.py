@@ -67,6 +67,22 @@ def verify_workflow() -> list[str]:
     return failures
 
 
+def evaluate_job_result(job: str, result: unittest.TestResult) -> list[str]:
+    """Reject green-looking service runs that executed no usable tests."""
+
+    failures: list[str] = []
+    if result.testsRun <= 0:
+        failures.append(f"job {job!r} executed zero tests")
+    if result.skipped:
+        failures.append(
+            f"{len(result.skipped)} test(s) skipped with the service configured: "
+            + "; ".join(reason for _test, reason in result.skipped)
+        )
+    if not result.wasSuccessful():
+        failures.append(f"job {job!r} tests did not pass")
+    return failures
+
+
 def run_job(job: str) -> int:
     modules = modules_for(job)
     if not modules:
@@ -87,15 +103,10 @@ def run_job(job: str) -> int:
 
     suite = unittest.defaultTestLoader.loadTestsFromNames(modules)
     result = unittest.TextTestRunner(verbosity=1).run(suite)
-    if result.skipped:
-        print(
-            f"service_job=FAIL {len(result.skipped)} test(s) skipped with the service "
-            "configured: " + "; ".join(reason for _test, reason in result.skipped),
-            file=sys.stderr,
-        )
-        return 1
-    if not result.wasSuccessful():
-        print(f"service_job=FAIL job {job!r} tests did not pass", file=sys.stderr)
+    failures = evaluate_job_result(job, result)
+    if failures:
+        for failure in failures:
+            print(f"service_job=FAIL {failure}", file=sys.stderr)
         return 1
     print(f"service_job=PASS job={job} modules={len(modules)} tests_run={result.testsRun} skipped=0")
     return 0

@@ -186,6 +186,10 @@ def run_gate() -> None:
             [sys.executable, "scripts/check_storage_schema_parity.py", "--self-test"],
         ),
         (
+            "storage_services",
+            [sys.executable, "scripts/check_storage_services.py", "--self-test"],
+        ),
+        (
             "disclosure_lookahead",
             [sys.executable, "scripts/check_disclosure_lookahead.py", "--self-test"],
         ),

@@ -1,0 +1,14 @@
+{
+  "technology": "storage_backends",
+  "status": "h2_ready",
+  "metrics": {
+    "storage_protocol_method_coverage": 1.0,
+    "undeclared_schema_differences": 0,
+    "shared_backend_contract_entrypoints": 2,
+    "declared_service_jobs": 2,
+    "service_jobs_with_nonzero_tests": 2,
+    "configured_skip_rejection_rate": 1.0,
+    "zero_test_green_result_rejected": 1,
+    "workflow_wiring_failures": 0
+  }
+}

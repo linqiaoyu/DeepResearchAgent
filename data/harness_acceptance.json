@@ -141,13 +141,17 @@
       }
     },
     "storage_backends": {
-      "status": "wired",
+      "status": "h2_ready",
       "objective": "Keep storage protocols, schemas, and service-backed execution in parity.",
       "boundary": "SQLite and Postgres share contracts; Qdrant remains the configured vector service.",
       "criteria": [
         {"metric": "storage_protocol_method_coverage", "operator": "==", "target": 1.0, "measured_by": "scripts/check_harness_acceptance.py --technology storage_backends"},
         {"metric": "undeclared_schema_differences", "operator": "==", "target": 0, "measured_by": "scripts/check_harness_acceptance.py --technology storage_backends"}
-      ]
+      ],
+      "proof": {
+        "round": 145,
+        "artifact": "docs/decisions/145/storage-backends-h2-proof.json"
+      }
     }
   }
 }
