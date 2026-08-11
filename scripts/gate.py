@@ -122,6 +122,10 @@ def run_gate() -> None:
             [sys.executable, "scripts/check_external_call_closure.py", "--self-test"],
         ),
         (
+            "tool_lifecycle",
+            [sys.executable, "scripts/check_tool_lifecycle.py", "--self-test"],
+        ),
+        (
             "storage_schema_parity",
             [sys.executable, "scripts/check_storage_schema_parity.py", "--self-test"],
         ),

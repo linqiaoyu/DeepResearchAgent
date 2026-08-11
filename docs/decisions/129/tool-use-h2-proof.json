@@ -1,0 +1,17 @@
+{
+  "technology": "tool_use",
+  "status": "h2_ready",
+  "round": 129,
+  "metrics": {
+    "external_call_contract_coverage": 1.0,
+    "tool_error_kinds_exercised": 7,
+    "timeout_operation_calls": 1,
+    "timeout_attempts": 1,
+    "resource_warnings": 0,
+    "budget_state_preserved": 1
+  },
+  "commands": [
+    "PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/check_external_call_closure.py --self-test --json",
+    "PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python scripts/check_tool_lifecycle.py --self-test"
+  ]
+}

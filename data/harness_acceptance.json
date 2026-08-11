@@ -11,13 +11,17 @@
       ]
     },
     "tool_use": {
-      "status": "wired",
+      "status": "h2_ready",
       "objective": "Route external tools through bounded reliability and budget contracts.",
       "boundary": "Provider implementations stay behind ToolSpec and LLMClient boundaries.",
       "criteria": [
         {"metric": "external_call_contract_coverage", "operator": "==", "target": 1.0, "measured_by": "scripts/check_harness_acceptance.py --technology tool_use"},
         {"metric": "tool_error_kinds_exercised", "operator": "==", "target": 7, "measured_by": "scripts/check_harness_acceptance.py --technology tool_use"}
-      ]
+      ],
+      "proof": {
+        "round": 129,
+        "artifact": "docs/decisions/129/tool-use-h2-proof.json"
+      }
     },
     "tool_calling": {
       "status": "wired",
