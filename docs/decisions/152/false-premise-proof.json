@@ -1,0 +1,53 @@
+{
+  "round": 152,
+  "source": "real registered report artifacts only",
+  "metrics": {
+    "registered_questions": 2,
+    "real_accepted_reports": 2,
+    "real_rejected_reports": 2,
+    "accepted_false_premise_assertions": 0,
+    "verdict_mismatches": 0
+  },
+  "cases": [
+    {
+      "criterion": "refute_premise",
+      "question": "Q08",
+      "fixture": "tests/fixtures/behavioral/r113_live_q08_report.md",
+      "sha256": "adab2cb9bd621db89c47edb58836c452dc786201bb97514483da8fbecf4fcbb5",
+      "expected_satisfied": false,
+      "satisfied": false,
+      "asserts_false_premise": false,
+      "detail": "no contradicting fact fully stated: 1741.44/15.66 missing 15.66"
+    },
+    {
+      "criterion": "refute_premise",
+      "question": "Q08",
+      "fixture": "tests/fixtures/behavioral/r149_live_q08_report.md",
+      "sha256": "ab1601dc9c794229e047587c08ae5c943306e4b6760de86ed33635001b69a928",
+      "expected_satisfied": true,
+      "satisfied": true,
+      "asserts_false_premise": false,
+      "detail": "stated contradicting fact tokens 1741.44/15.66"
+    },
+    {
+      "criterion": "refute_premise",
+      "question": "Q16",
+      "fixture": "tests/fixtures/behavioral/r113_live_q16_report.md",
+      "sha256": "85e7af5ddc831a277a66c3005f3b26103daa5617a9ee90c9f1c4baad120fb0d0",
+      "expected_satisfied": false,
+      "satisfied": false,
+      "asserts_false_premise": true,
+      "detail": "report body positively asserts the frozen false premise"
+    },
+    {
+      "criterion": "refute_premise",
+      "question": "Q16",
+      "fixture": "tests/fixtures/behavioral/r149_live_q16_report.md",
+      "sha256": "50333be9e0b769723a30e67ca205e87531682ccdf1e7f8731ecd0c54db3f2c8c",
+      "expected_satisfied": true,
+      "satisfied": true,
+      "asserts_false_premise": false,
+      "detail": "explicit cited refutation: - 宁德时代已连续8年登顶SNE Research全球动力电池装机量第一，2024年比亚迪并未反超。 [^17]"
+    }
+  ]
+}

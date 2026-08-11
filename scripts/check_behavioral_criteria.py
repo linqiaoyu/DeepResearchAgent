@@ -32,6 +32,7 @@ fixture check and requiring both to be rejected.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -44,6 +45,8 @@ if str(PROJECT_ROOT / "src") not in sys.path:
 from deepresearch_agent.evaluation.behavioral import (  # noqa: E402
     BEHAVIORAL_EVALUATORS,
     BehavioralVerdict,
+    asserts_false_premise,
+    report_body,
 )
 
 REGISTRY_PATH = PROJECT_ROOT / "data" / "behavioral_criteria.json"
@@ -109,6 +112,7 @@ def check_criterion_fixtures(
     if not isinstance(fixtures, list) or not fixtures:
         return [f"criterion {name} is implemented with no discrimination fixtures"]
     outcomes: list[bool] = []
+    outcomes_by_question: dict[str, list[bool]] = {}
     for fixture in fixtures:
         path = PROJECT_ROOT / str(fixture["fixture"])
         qid = str(fixture["question"])
@@ -121,6 +125,13 @@ def check_criterion_fixtures(
             continue
         verdict = evaluator(path.read_text(encoding="utf-8"), questions[qid]["gold"])
         outcomes.append(expected)
+        outcomes_by_question.setdefault(qid, []).append(expected)
+        if entry.get("require_real_discrimination") is True and not str(
+            fixture.get("provenance", "")
+        ).startswith("real "):
+            errors.append(
+                f"criterion {name} fixture {fixture['fixture']} is not a real-run artifact"
+            )
         if verdict.satisfied is not expected:
             errors.append(
                 f"criterion {name} fixture {fixture['fixture']} expected "
@@ -134,6 +145,13 @@ def check_criterion_fixtures(
             f"satisfied={outcomes[0] if outcomes else None}; a criterion needs one "
             "report it accepts and one it rejects"
         )
+    if entry.get("require_real_discrimination") is True:
+        for qid in entry.get("questions", []):
+            question_outcomes = outcomes_by_question.get(str(qid), [])
+            if not (any(question_outcomes) and not all(question_outcomes)):
+                errors.append(
+                    f"criterion {name} question {qid} needs real accepted and rejected reports"
+                )
     return errors
 
 
@@ -203,6 +221,7 @@ def _self_test(registry: dict[str, Any], questions: dict[str, dict[str, Any]]) -
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--self-test", action="store_true")
+    parser.add_argument("--proof-out", type=Path)
     args = parser.parse_args()
 
     registry = json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
@@ -226,6 +245,54 @@ def main() -> int:
         f"deferred={len(deferred)}{deferred} "
         f"ratchet={registry['deferred_criteria_ratchet']}"
     )
+    if args.proof_out is not None:
+        cases: list[dict[str, Any]] = []
+        for name, entry in sorted(registry["criteria"].items()):
+            evaluator = BEHAVIORAL_EVALUATORS.get(name)
+            if evaluator is None:
+                continue
+            for fixture in entry.get("discrimination", []):
+                if not str(fixture.get("provenance", "")).startswith("real "):
+                    continue
+                path = PROJECT_ROOT / str(fixture["fixture"])
+                report = path.read_text(encoding="utf-8")
+                qid = str(fixture["question"])
+                verdict = evaluator(report, questions[qid]["gold"])
+                cases.append(
+                    {
+                        "criterion": name,
+                        "question": qid,
+                        "fixture": str(fixture["fixture"]),
+                        "sha256": hashlib.sha256(report.encode()).hexdigest(),
+                        "expected_satisfied": bool(fixture["expected_satisfied"]),
+                        "satisfied": verdict.satisfied,
+                        "asserts_false_premise": asserts_false_premise(report_body(report)),
+                        "detail": verdict.detail,
+                    }
+                )
+        accepted = [item for item in cases if item["expected_satisfied"]]
+        rejected = [item for item in cases if not item["expected_satisfied"]]
+        proof = {
+            "round": 152,
+            "source": "real registered report artifacts only",
+            "metrics": {
+                "registered_questions": len({item["question"] for item in cases}),
+                "real_accepted_reports": len(accepted),
+                "real_rejected_reports": len(rejected),
+                "accepted_false_premise_assertions": sum(
+                    bool(item["asserts_false_premise"]) for item in accepted
+                ),
+                "verdict_mismatches": sum(
+                    item["satisfied"] is not item["expected_satisfied"] for item in cases
+                ),
+            },
+            "cases": cases,
+        }
+        args.proof_out.parent.mkdir(parents=True, exist_ok=True)
+        args.proof_out.write_text(
+            json.dumps(proof, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
+        print(f"behavioral_criteria_proof={args.proof_out}")
     return 1 if errors else 0
 
 

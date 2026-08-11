@@ -794,3 +794,19 @@ reference aggregation. This matters for provider series: multiple periods have
 different record URIs but one series footnote. The persisted
 `report_footnote_evidence` remains the numbering fact source; reachability does
 not reconstruct numbers from Evidence order.
+
+# R152 false-premise behavior contract
+
+R152 replaces the remaining overly narrow part of the R115 contract. A report
+may now refute a false premise by stating the complete contradicting numeric
+fact **or** by giving an explicit evidence-cited denial using the frozen fact's
+scope. Assertive prose that positively adopts the premise takes precedence and
+fails the report. Titles, questions, and conditional discussion do not count as
+assertions.
+
+The discrimination registry now uses only real reports for `refute_premise`,
+with an accepted and rejected report for each of Q08 and Q16. On those four
+registered artifacts, verdict mismatches are 0 and accepted false-premise
+assertions are 0. This changes the behavior evaluator, not the frozen golden
+truth, cohort, or product threshold. Historical published metrics are not
+rewritten.

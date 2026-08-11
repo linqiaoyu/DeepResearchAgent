@@ -60,7 +60,7 @@ class RefutePremiseVerdictTests(unittest.TestCase):
             _fixture("r113_live_q16_report.md"), _gold("Q16")
         )
         self.assertFalse(verdict.satisfied)
-        self.assertIn("339.3", verdict.detail)
+        self.assertIn("positively asserts", verdict.detail)
 
     def test_real_q08_report_is_rejected_for_the_missing_year_on_year(self) -> None:
         """The absolute revenue is stated; the number that refutes 下滑 is not."""
@@ -79,6 +79,24 @@ class RefutePremiseVerdictTests(unittest.TestCase):
             with self.subTest(question=question_id):
                 verdict = refute_premise_verdict(_fixture(fixture), _gold(question_id))
                 self.assertTrue(verdict.satisfied, verdict.detail)
+
+    def test_real_r149_refuting_reports_are_accepted(self) -> None:
+        for question_id, fixture in (
+            ("Q08", "r149_live_q08_report.md"),
+            ("Q16", "r149_live_q16_report.md"),
+        ):
+            with self.subTest(question=question_id):
+                verdict = refute_premise_verdict(_fixture(fixture), _gold(question_id))
+                self.assertTrue(verdict.satisfied, verdict.detail)
+
+    def test_a_late_denial_cannot_cancel_an_asserted_false_premise(self) -> None:
+        report = (
+            "## 摘要\n宁德时代被比亚迪反超，主要源于客户结构变化。\n"
+            "## 分析\n宁德时代仍居全球第一，比亚迪并未反超。 [^1]\n"
+        )
+        verdict = refute_premise_verdict(report, _gold("Q16"))
+        self.assertFalse(verdict.satisfied)
+        self.assertIn("positively asserts", verdict.detail)
 
     def test_a_value_in_other_units_still_counts(self) -> None:
         """174,144,069,958.25 元 and 1741.44 亿元 are the same disclosure."""
@@ -214,6 +232,28 @@ class BehavioralCriteriaGuardTests(unittest.TestCase):
         )
         self.assertTrue(any("do not separate it" in item for item in errors), errors)
 
+    def test_each_false_premise_question_needs_real_two_sided_examples(self) -> None:
+        registry = copy.deepcopy(self.registry)
+        entries = registry["criteria"]["refute_premise"]["discrimination"]
+        registry["criteria"]["refute_premise"]["discrimination"] = [
+            item
+            for item in entries
+            if not (item["question"] == "Q16" and item["expected_satisfied"] is True)
+        ]
+        errors = self.guard.check_criteria(
+            registry, self.questions, BEHAVIORAL_EVALUATORS
+        )
+        self.assertTrue(any("question Q16 needs real accepted" in item for item in errors))
+
+    def test_constructed_fixture_cannot_satisfy_real_discrimination(self) -> None:
+        registry = copy.deepcopy(self.registry)
+        entry = registry["criteria"]["refute_premise"]["discrimination"][1]
+        entry["provenance"] = "constructed"
+        errors = self.guard.check_criteria(
+            registry, self.questions, BEHAVIORAL_EVALUATORS
+        )
+        self.assertTrue(any("not a real-run artifact" in item for item in errors))
+
     def test_a_deferred_criterion_must_name_a_reason_and_an_owner(self) -> None:
         registry = copy.deepcopy(self.registry)
         registry["criteria"]["counterview"]["reason"] = "  "
@@ -248,7 +288,7 @@ class ArchivedFixtureProvenanceTests(unittest.TestCase):
         entries = registry["criteria"]["refute_premise"]["discrimination"]
         for entry in entries:
             with self.subTest(fixture=entry["fixture"]):
-                is_live = "r113_live" in entry["fixture"]
+                is_live = "_live_" in entry["fixture"]
                 self.assertEqual(is_live, entry["provenance"].startswith("real"))
 
 

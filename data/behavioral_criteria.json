@@ -5,9 +5,10 @@
   "criteria": {
     "refute_premise": {
       "status": "implemented",
+      "require_real_discrimination": true,
       "evaluator": "deepresearch_agent.evaluation.behavioral.refute_premise_verdict",
       "questions": ["Q08", "Q16"],
-      "criterion": "The report body states every numeric token of one must_include fact that carries audit_contract.numeric_tokens. Scale-normalised, reference list excluded.",
+      "criterion": "The report body either states every numeric token of one contradicting must_include fact, or gives an explicit evidence-cited denial using that fact's scope terms. A positive assertion of the false premise anywhere in assertive body prose rejects the report. Reference list excluded.",
       "discrimination": [
         {
           "question": "Q08",
@@ -18,10 +19,10 @@
         },
         {
           "question": "Q08",
-          "fixture": "tests/fixtures/behavioral/constructed_refuting_q08_report.md",
-          "provenance": "constructed",
+          "fixture": "tests/fixtures/behavioral/r149_live_q08_report.md",
+          "provenance": "real R149 live run, artifacts/149/shard2/work/Q08/report.md",
           "expected_satisfied": true,
-          "note": "States 1741.44 亿元 and 同比增长15.66%."
+          "note": "States the equivalent raw revenue and +15.66%, then explicitly corrects the premise with a cited annual-report line."
         },
         {
           "question": "Q16",
@@ -32,10 +33,10 @@
         },
         {
           "question": "Q16",
-          "fixture": "tests/fixtures/behavioral/constructed_refuting_q16_report.md",
-          "provenance": "constructed",
+          "fixture": "tests/fixtures/behavioral/r149_live_q16_report.md",
+          "provenance": "real R149 live run, artifacts/149/shard4/work/Q16/report.md",
           "expected_satisfied": true,
-          "note": "States the SNE Research ordering with all four tokens."
+          "note": "Explicitly and with a citation states that CATL remained first and BYD did not overtake; the report need not repeat all four SNE figures to perform the required behavior."
         }
       ]
     },

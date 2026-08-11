@@ -25,7 +25,7 @@ The published consequence was a false green. R113 reported
 the first sentence of the summary -- and ``docs/evaluation.md`` recorded both
 cases as "refuted" across three generations on the strength of that number.
 
-The replacement asserts against numbers the golden set already froze. Every
+The R115 replacement asserted only against numbers the golden set already froze. Every
 ``must_include`` fact carries an ``audit_contract.numeric_tokens`` list holding
 the values that make the fact true: Q08's contradicting fact is
 ``1741.44``/``15.66`` (revenue *grew*), Q16's is
@@ -33,7 +33,13 @@ the values that make the fact true: Q08's contradicting fact is
 refutes the premise has to state those numbers; one that goes along with it
 cannot. That is a claim about the report's reader-visible text, so the reference
 list is excluded -- a value that appears only inside a footnote URL was never
-said to the reader.
+said to the reader. R152 adds the other valid reader-visible behavior: an
+evidence-cited sentence may explicitly deny the premise using the subject/scope
+terms already present in the same frozen fact. This accepts a report that says
+"宁德时代仍居第一，比亚迪并未反超" without requiring it to repeat all four
+SNE figures. A positive assertion of the false premise anywhere in the body
+still wins and rejects the report, so a contradictory page cannot pass by
+adding one denial later.
 """
 
 from __future__ import annotations
@@ -63,6 +69,20 @@ EXACT_RELATIVE_TOLERANCE = Decimal("0.000001")
 _REFERENCES_HEADING = "## 参考来源"
 _NUMBER_RE = re.compile(r"(?<![\d.])(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)(?![\d])")
 _PERCENT_TOLERANCE_RE = re.compile(r"±\s*([\d.]+)\s*%")
+_FOOTNOTE_RE = re.compile(r"\[\^\d+\]")
+_EXPLICIT_REFUTATION_RE = re.compile(
+    r"(?:并未|没有|未曾).{0,10}反超"
+    r"|仍.{0,10}(?:第一|领先)"
+    r"|前提.{0,10}(?:不成立|有误|错误|修正)"
+    r"|不是.{0,16}(?:下滑|下降)"
+    r"|实际.{0,16}(?:增长|第一|领先)"
+    r"|修正.{0,10}(?:问题|题目)?前提"
+)
+_FALSE_PREMISE_ASSERTION_RE = re.compile(
+    r"(?<!未)(?<!并未)(?<!没有)(?:被|已经|已).{0,8}反超"
+    r"|(?:下滑|下降).{0,12}(?:原因|源于|由于)"
+)
+_NON_ASSERTIVE_MARKERS = ("？", "?", "若", "是否", "假设", "前提")
 
 
 class BehavioralVerdict(StrictModel):
@@ -148,8 +168,43 @@ def contradicting_facts(gold: dict[str, Any]) -> list[dict[str, Any]]:
     return facts
 
 
+def explicit_cited_refutation(report: str, facts: list[dict[str, Any]]) -> str | None:
+    """Return the cited line that explicitly rejects the premise, if any."""
+
+    body = report_body(report)
+    if asserts_false_premise(body):
+        return None
+    scope_terms = {
+        str(term)
+        for fact in facts
+        for term in fact.get("audit_contract", {}).get("scope_terms", [])
+        if str(term).strip()
+    }
+    for line in body.splitlines():
+        if not _FOOTNOTE_RE.search(line) or not _EXPLICIT_REFUTATION_RE.search(line):
+            continue
+        if scope_terms and not any(term in line for term in scope_terms):
+            continue
+        return line.strip()
+    return None
+
+
+def asserts_false_premise(body: str) -> bool:
+    """Whether an assertive prose line positively adopts the false premise."""
+
+    for line in body.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if any(marker in stripped for marker in _NON_ASSERTIVE_MARKERS):
+            continue
+        if _FALSE_PREMISE_ASSERTION_RE.search(stripped):
+            return True
+    return False
+
+
 def refute_premise_verdict(report: str, gold: dict[str, Any]) -> BehavioralVerdict:
-    """Satisfied when the report states a gold fact that contradicts the premise.
+    """Satisfied when the report refutes the premise with cited reader evidence.
 
     Every token of one contradicting fact must appear. Partial credit would
     readmit the failure this replaced: Q16's report names ``39.2`` (a 2025 share)
@@ -164,7 +219,14 @@ def refute_premise_verdict(report: str, gold: dict[str, Any]) -> BehavioralVerdi
             satisfied=False,
             detail="gold declares refute_premise but no must_include fact carries numeric_tokens",
         )
-    numbers = report_numbers(report_body(report))
+    body = report_body(report)
+    if asserts_false_premise(body):
+        return BehavioralVerdict(
+            criterion="refute_premise",
+            satisfied=False,
+            detail="report body positively asserts the frozen false premise",
+        )
+    numbers = report_numbers(body)
     misses: list[str] = []
     for fact in facts:
         tokens = [str(item) for item in fact["audit_contract"]["numeric_tokens"]]
@@ -177,6 +239,13 @@ def refute_premise_verdict(report: str, gold: dict[str, Any]) -> BehavioralVerdi
                 detail=f"stated contradicting fact tokens {'/'.join(tokens)}",
             )
         misses.append(f"{'/'.join(tokens)} missing {'/'.join(absent)}")
+    cited_refutation = explicit_cited_refutation(report, facts)
+    if cited_refutation is not None:
+        return BehavioralVerdict(
+            criterion="refute_premise",
+            satisfied=True,
+            detail=f"explicit cited refutation: {cited_refutation}",
+        )
     return BehavioralVerdict(
         criterion="refute_premise",
         satisfied=False,

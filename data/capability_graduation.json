@@ -71,12 +71,18 @@
       "deferrals": []
     },
     "SKILL_PACKS_ENABLED": {
-      "status": "pending",
+      "status": "opt_in",
       "graduation_criterion": "30/30 paired finance cases use at least 1 located skill pack and improve metric-normalization errors by >= 20% beyond noise",
       "measured_by": "scripts/run_golden_round.py plus scripts/check_capability_observability.py",
       "initial_decision_round": 152,
       "decision_round": 152,
-      "deferrals": []
+      "deferrals": [],
+      "design_reason": "The finance metric-normalization Skill is mechanism-ready, but no powered paired finance experiment demonstrates the registered >=20% error reduction. The R149 live diagnostic ran with Skills bypassed, so it cannot support a default-on claim. Permanent opt-in preserves explicit operator use without changing the evidence-selected default SUT.",
+      "proof": {
+        "round": 138,
+        "artifact": "docs/decisions/138/skills-h2-proof.json",
+        "command": "scripts/check_skills_runtime.py --self-test"
+      }
     }
   }
 }
