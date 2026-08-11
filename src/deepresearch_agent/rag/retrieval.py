@@ -181,6 +181,8 @@ class DashScopeEmbeddingProvider:
                         self.endpoint,
                         {"Authorization": f"Bearer {self.api_key}"},
                         {"model": DASHSCOPE_EMBEDDING_MODEL, "input": batch, "dimensions": self.dimensions},
+                        context=self.tool_context,
+                        tool=RAG_EMBEDDING_TOOL_SPEC.name,
                     ),
                     self.tool_context,
                 )
@@ -271,6 +273,8 @@ class DashScopeRerankerProvider:
                         "documents": [candidate.text for candidate in candidates],
                         "top_n": top_n,
                     },
+                    context=self.tool_context,
+                    tool=RAG_RERANK_TOOL_SPEC.name,
                 ),
                 self.tool_context,
             )
@@ -319,7 +323,15 @@ class DashScopeRerankerProvider:
         return RerankResult(ranked[:top_n], len(candidates), tokens, round(latency * 1000))
 
 
-def _post_json(endpoint: str, headers: dict[str, str], payload: dict[str, object]) -> dict[str, object]:
+def _post_json(
+    endpoint: str,
+    headers: dict[str, str],
+    payload: dict[str, object],
+    *,
+    context: RunToolContext,
+    tool: str,
+) -> dict[str, object]:
+    context.consume_external_request("fetch", tool=tool)
     response = httpx.post(endpoint, headers=headers, json=payload, timeout=60.0)
     response.raise_for_status()
     value = response.json()

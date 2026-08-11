@@ -18,6 +18,7 @@ from deepresearch_agent.tools.symbol_table import (
     SymbolTable,
     load_symbol_table,
 )
+from deepresearch_agent.tools.reliable_execution import RunToolContext
 
 
 class AKShareStructuredDataError(RuntimeError):
@@ -45,6 +46,7 @@ class AKShareStructuredDataProvider:
         isolate_processes: bool = True,
         domain_pack: StructuredDataDomain | None = None,
         symbol_cache_path: Path = DEFAULT_CACHE_PATH,
+        context: RunToolContext | None = None,
     ) -> None:
         if akshare_module is None:
             import akshare as akshare_module
@@ -59,9 +61,15 @@ class AKShareStructuredDataProvider:
         )
         self._symbol_cache_path = symbol_cache_path
         self._cached_symbol_table: SymbolTable | None = None
+        self.context = context or RunToolContext.for_run()
 
     def close(self) -> None:
         """Compatibility hook; each bounded attempt owns its own process."""
+
+    def set_run_context(self, context: RunToolContext) -> None:
+        """Bind all opaque SDK egress to the workflow's request budget."""
+
+        self.context = context
 
     def symbol_resolve(self, company_name: str) -> SymbolInfo | None:
         """Resolve an issuer name or code against the cached listing table.
@@ -222,9 +230,15 @@ class AKShareStructuredDataProvider:
 
     def _call(self, func: Callable[[], Any], capability: str) -> Any:
         if not self._isolate_processes:
+            self.context.consume_external_request(
+                "fetch", tool="akshare_structured_data"
+            )
             return func()
         last_error: Exception | None = None
         for attempt in range(self.max_retries + 1):
+            self.context.consume_external_request(
+                "fetch", tool="akshare_structured_data"
+            )
             context = multiprocessing.get_context("fork")
             result_queue = context.Queue(maxsize=1)
             process = context.Process(target=_call_in_child, args=(func, result_queue))

@@ -118,6 +118,10 @@ def run_gate() -> None:
             [sys.executable, "scripts/check_domain_boundary.py", "--self-test"],
         ),
         (
+            "external_call_closure",
+            [sys.executable, "scripts/check_external_call_closure.py", "--self-test"],
+        ),
+        (
             "storage_schema_parity",
             [sys.executable, "scripts/check_storage_schema_parity.py", "--self-test"],
         ),

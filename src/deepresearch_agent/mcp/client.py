@@ -28,7 +28,6 @@ from deepresearch_agent.tools.contracts import (
 )
 from deepresearch_agent.tools.reliable_execution import (
     ReliableToolExecutor,
-    RetryBudget,
     RunToolContext,
     ToolExecutionError,
 )
@@ -441,9 +440,7 @@ class ExternalMCPTool:
         context: RunToolContext | None = None,
         degrade: bool = True,
     ) -> ToolResult:
-        run_context = context or RunToolContext(
-            retry_budget=RetryBudget(max_retries=2)
-        )
+        run_context = context or RunToolContext.for_run(max_retries=2)
 
         def operation() -> Any:
             if self.may_charge and not allow_paid:
@@ -452,6 +449,7 @@ class ExternalMCPTool:
                     "external MCP tool may charge; explicit "
                     "allow_paid=true is required",
                 )
+            run_context.consume_external_request("fetch", tool=self.spec.name)
             return self.client.call_tool(
                 self.remote_name,
                 dict(arguments),

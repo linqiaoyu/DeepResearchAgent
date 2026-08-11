@@ -301,6 +301,7 @@ DeepResearchAgent 是在 LangGraph 图运行时之上自建 Agent 合同、预�
 | 规则 | 执行面 |
 |---|---|
 | 核心不得 import 具体领域 | `scripts/check_domain_boundary.py`（`import_sites` 与字面量棘轮，覆盖 `src/` 与 `prompts/`） |
+| 外部调用不得旁路 Harness 控制面 | `scripts/check_external_call_closure.py`（生产边界双向登记、LLMClient 独占与 timeout/retry/request-budget/degradation 证据） |
 | 金融是唯一在建领域 | `scripts/check_domain_boundary.py` 的 `product_domains` 双向断言 |
 | 默认值不得手抄漂移 | `scripts/sync_agents_settings.py --check`（token）+ `scripts/check_doc_flag_claims.py`（正文陈述） |
 | 开着的能力必须可被证明 | `scripts/check_capability_observability.py` |

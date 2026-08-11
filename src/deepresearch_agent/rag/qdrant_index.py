@@ -1,11 +1,31 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 from uuid import NAMESPACE_URL, uuid5
 
 import httpx
 
-from deepresearch_agent.tools import ToolErrorKind, ToolExecutionError
+from deepresearch_agent.tools import (
+    ReliableToolExecutor,
+    RunToolContext,
+    ToolErrorKind,
+    ToolExecutionError,
+    ToolSpec,
+)
+
+
+QDRANT_HTTP_TOOL_SPEC = ToolSpec(
+    name="qdrant_http",
+    version="1",
+    input_schema={"type": "object"},
+    output_schema={"type": "object"},
+    timeout_s=10.0,
+    total_timeout_s=30.0,
+    cost_class="free",
+    idempotent=True,
+    has_side_effect=True,
+)
 
 
 @dataclass(frozen=True)
@@ -34,7 +54,14 @@ class QdrantIndex:
     fidelity = "real"
 
     def __init__(
-        self, *, url: str, api_key: str, collection: str, timeout_seconds: float = 10.0
+        self,
+        *,
+        url: str,
+        api_key: str,
+        collection: str,
+        timeout_seconds: float = 10.0,
+        executor: ReliableToolExecutor | None = None,
+        context: RunToolContext | None = None,
     ) -> None:
         if not url or not collection:
             raise ValueError("Qdrant url and collection are required")
@@ -43,14 +70,22 @@ class QdrantIndex:
         self.timeout_seconds = timeout_seconds
         self.headers = {"api-key": api_key} if api_key else {}
         self._prepared_dimensions: int | None = None
+        self.executor = executor or ReliableToolExecutor()
+        self.context = context or RunToolContext.for_run()
+        self.tool_spec = QDRANT_HTTP_TOOL_SPEC.model_copy(
+            update={
+                "timeout_s": timeout_seconds,
+                "total_timeout_s": timeout_seconds * 3,
+            }
+        )
 
     def collection_status(self) -> str:
         """Return collection existence without creating or mutating it."""
 
-        response = httpx.get(
+        response = self._request(
+            "get",
             self._collection_url,
-            headers=self.headers,
-            timeout=self.timeout_seconds,
+            allowed_statuses=(404,),
         )
         if response.status_code == 404:
             return "missing"
@@ -64,12 +99,11 @@ class QdrantIndex:
     def ensure_collection(self, *, dimensions: int, index_version: str) -> None:
         if self._prepared_dimensions == dimensions:
             return
-        response = httpx.get(self._collection_url, headers=self.headers, timeout=self.timeout_seconds)
+        response = self._request("get", self._collection_url, allowed_statuses=(404,))
         if response.status_code == 404:
-            created = httpx.put(
+            created = self._request(
+                "put",
                 self._collection_url,
-                headers=self.headers,
-                timeout=self.timeout_seconds,
                 json={"vectors": {"size": dimensions, "distance": "Cosine", "on_disk": True}},
             )
             created.raise_for_status()
@@ -78,10 +112,9 @@ class QdrantIndex:
             config = response.json().get("result", {}).get("config", {}).get("params", {}).get("vectors", {})
             if int(config.get("size", -1)) != dimensions:
                 raise ValueError("Qdrant collection dimensions do not match index configuration")
-            sample = httpx.post(
+            sample = self._request(
+                "post",
                 f"{self._collection_url}/points/scroll",
-                headers=self.headers,
-                timeout=self.timeout_seconds,
                 json={"limit": 1, "with_payload": ["index_version"], "with_vector": False},
             )
             sample.raise_for_status()
@@ -96,10 +129,9 @@ class QdrantIndex:
             ("entity_id", "keyword"),
             ("period_label", "keyword"),
         ):
-            indexed = httpx.put(
+            indexed = self._request(
+                "put",
                 f"{self._collection_url}/index",
-                headers=self.headers,
-                timeout=self.timeout_seconds,
                 json={"field_name": field_name, "field_schema": field_schema},
             )
             indexed.raise_for_status()
@@ -132,11 +164,10 @@ class QdrantIndex:
             }
             for chunk in chunks
         ]
-        response = httpx.put(
+        response = self._request(
+            "put",
             f"{self._collection_url}/points",
-            headers=self.headers,
             params={"wait": "true"},
-            timeout=self.timeout_seconds,
             json={"points": points},
         )
         response.raise_for_status()
@@ -165,10 +196,9 @@ class QdrantIndex:
             must.append({"key": "entity_id", "match": {"any": sorted(set(entity_ids))}})
         if period_labels:
             must.append({"key": "period_label", "match": {"any": sorted(set(period_labels))}})
-        response = httpx.post(
+        response = self._request(
+            "post",
             f"{self._collection_url}/points/query",
-            headers=self.headers,
-            timeout=self.timeout_seconds,
             json={
                 "query": vector,
                 "limit": limit,
@@ -190,7 +220,7 @@ class QdrantIndex:
     def _verify_query_collection(self, *, dimensions: int, index_version: str) -> None:
         """Validate a prebuilt collection without creating indexes or collections."""
 
-        response = httpx.get(self._collection_url, headers=self.headers, timeout=self.timeout_seconds)
+        response = self._request("get", self._collection_url, allowed_statuses=(404,))
         if response.status_code == 404:
             raise ToolExecutionError(
                 ToolErrorKind.NOT_FOUND,
@@ -203,10 +233,9 @@ class QdrantIndex:
                 ToolErrorKind.PERMANENT,
                 "Qdrant collection dimensions do not match query vector dimensions",
             )
-        sample = httpx.post(
+        sample = self._request(
+            "post",
             f"{self._collection_url}/points/scroll",
-            headers=self.headers,
-            timeout=self.timeout_seconds,
             json={"limit": 1, "with_payload": ["index_version"], "with_vector": False},
         )
         sample.raise_for_status()
@@ -235,11 +264,10 @@ class QdrantIndex:
             self.point_id(chunk_id=chunk_id, model=model, chunker_version=chunker_version)
             for chunk_id in chunk_ids
         ]
-        response = httpx.post(
+        response = self._request(
+            "post",
             f"{self._collection_url}/points/payload",
-            headers=self.headers,
             params={"wait": "true"},
-            timeout=self.timeout_seconds,
             json={"payload": payload, "points": point_ids},
         )
         response.raise_for_status()
@@ -248,3 +276,43 @@ class QdrantIndex:
     @property
     def _collection_url(self) -> str:
         return f"{self.base_url}/collections/{self.collection}"
+
+    def _request(
+        self,
+        method: str,
+        url: str,
+        *,
+        allowed_statuses: tuple[int, ...] = (),
+        **kwargs: Any,
+    ) -> Any:
+        """Execute one counted Qdrant request through the shared tool control."""
+
+        def operation() -> Any:
+            self.context.consume_external_request("fetch", tool=self.tool_spec.name)
+            request = getattr(httpx, method)
+            try:
+                response = request(
+                    url,
+                    headers=self.headers,
+                    timeout=self.timeout_seconds,
+                    **kwargs,
+                )
+                if response.status_code not in allowed_statuses:
+                    response.raise_for_status()
+                return response
+            except httpx.TimeoutException as exc:
+                raise ToolExecutionError(ToolErrorKind.TIMEOUT, str(exc)) from exc
+            except httpx.TransportError as exc:
+                raise ToolExecutionError(ToolErrorKind.TRANSIENT, str(exc)) from exc
+
+        result = self.executor.execute(
+            self.tool_spec,
+            operation,
+            self.context,
+            degrade=False,
+            impact="Qdrant operation failed closed; canonical storage remains authoritative",
+        )
+        if not result.ok:
+            assert result.error is not None
+            raise ToolExecutionError(result.error.kind, result.error.message)
+        return result.value

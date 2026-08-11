@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import patch
 
 from deepresearch_agent.rag.qdrant_index import IndexedChunk, QdrantIndex
-from deepresearch_agent.tools import ToolExecutionError
+from deepresearch_agent.tools import RunToolContext, ToolErrorKind, ToolExecutionError
 
 
 class Response:
@@ -21,6 +21,20 @@ class Response:
 
 
 class QdrantIndexTests(unittest.TestCase):
+    def test_request_budget_refuses_qdrant_before_http(self) -> None:
+        context = RunToolContext.for_run(max_external_fetch_requests=0)
+        index = QdrantIndex(
+            url="https://qdrant.test",
+            api_key="test",
+            collection="collection",
+            context=context,
+        )
+        with patch("deepresearch_agent.rag.qdrant_index.httpx.get") as get:
+            with self.assertRaises(ToolExecutionError) as captured:
+                index.collection_status()
+        self.assertEqual(captured.exception.kind, ToolErrorKind.BUDGET_EXCEEDED)
+        get.assert_not_called()
+
     def test_collection_status_is_read_only_and_allows_local_no_auth(self) -> None:
         index = QdrantIndex(url="http://127.0.0.1:6333", api_key="", collection="collection")
         with patch(

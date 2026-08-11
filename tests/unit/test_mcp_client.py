@@ -227,6 +227,17 @@ def _external_tool(
 
 
 class MCPExternalToolContractTest(unittest.TestCase):
+    def test_request_budget_refuses_mcp_before_remote_call(self) -> None:
+        client = _FlakyClient([])
+        tool = _external_tool(client)
+        context = RunToolContext.for_run(max_external_fetch_requests=0)
+
+        result = tool.call({"value": 1}, context=context)
+
+        self.assertFalse(result.ok)
+        self.assertEqual(ToolErrorKind.BUDGET_EXCEEDED, result.error.kind)
+        self.assertEqual(0, client.calls)
+
     def test_transient_failure_retries_then_recovers(self) -> None:
         client = _FlakyClient(
             [

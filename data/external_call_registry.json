@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "scope": "Production LLM, tool-provider, RAG, and MCP process or network boundaries under src/deepresearch_agent",
+  "entries": {
+    "src/deepresearch_agent/llm/client.py": {
+      "category": "llm",
+      "gateway": "LLMClient",
+      "timeout": "provider subprocess deadline",
+      "retry": "bounded LLM attempt policy",
+      "request_budget": "shared call and cost ledger reservation",
+      "degradation": "typed fail-closed LLM errors",
+      "evidence_files": ["src/deepresearch_agent/llm/client.py"],
+      "evidence_tokens": ["class LLMClient", "max_retries", "reserve_external_call", "LLMRetryExhaustedError"]
+    },
+    "src/deepresearch_agent/tools/tavily_search.py": {
+      "category": "tool",
+      "gateway": "ContractSearchProvider",
+      "timeout": "timeout_seconds per HTTP attempt",
+      "retry": "max_retries bounded provider attempts",
+      "request_budget": "RunToolContext external search/fetch budget",
+      "degradation": "ContractSearchProvider returns an explicit degraded result",
+      "evidence_files": ["src/deepresearch_agent/tools/tavily_search.py", "src/deepresearch_agent/tools/contract_adapter.py"],
+      "evidence_tokens": ["timeout_seconds", "max_retries", "_consume_egress", "degrade=True"]
+    },
+    "src/deepresearch_agent/tools/disclosure_source.py": {
+      "category": "tool",
+      "gateway": "ReliableToolExecutor",
+      "timeout": "DISCLOSURE_TOOL_SPEC attempt and total deadline",
+      "retry": "ToolSpec retry policy plus run retry budget",
+      "request_budget": "RunToolContext authority search/fetch budget",
+      "degradation": "lower-authority fallback event",
+      "evidence_files": ["src/deepresearch_agent/tools/disclosure_source.py"],
+      "evidence_tokens": ["DISCLOSURE_TOOL_SPEC", "ReliableToolExecutor", "consume_external_request", "degrade=True"]
+    },
+    "src/deepresearch_agent/tools/sec_companyfacts.py": {
+      "category": "tool",
+      "gateway": "SecCompanyFactsProvider",
+      "timeout": "timeout_seconds per HTTP attempt",
+      "retry": "max_retries bounded attempts",
+      "request_budget": "RunToolContext external fetch budget",
+      "degradation": "composite route records error and tries the next provider",
+      "evidence_files": ["src/deepresearch_agent/tools/sec_companyfacts.py", "src/deepresearch_agent/tools/composite_structured_data.py"],
+      "evidence_tokens": ["timeout_seconds", "max_retries", "consume_external_request", "a miss must not end the run"]
+    },
+    "src/deepresearch_agent/tools/akshare_structured_data.py": {
+      "category": "tool",
+      "gateway": "AKShareStructuredDataProvider",
+      "timeout": "child-process result deadline",
+      "retry": "max_retries bounded child attempts",
+      "request_budget": "RunToolContext external fetch budget",
+      "degradation": "composite route records error and tries the next provider",
+      "evidence_files": ["src/deepresearch_agent/tools/akshare_structured_data.py", "src/deepresearch_agent/tools/composite_structured_data.py"],
+      "evidence_tokens": ["timeout_seconds", "max_retries", "consume_external_request", "a miss must not end the run"]
+    },
+    "src/deepresearch_agent/domains/finance/disclosure_dates.py": {
+      "category": "tool",
+      "gateway": "SecFilingDateProvider",
+      "timeout": "timeout_seconds per SEC request",
+      "retry": "max_attempts bounded SEC requests",
+      "request_budget": "max_requests provider budget",
+      "degradation": "unresolved dates are withheld rather than guessed",
+      "evidence_files": ["src/deepresearch_agent/domains/finance/disclosure_dates.py"],
+      "evidence_tokens": ["timeout_seconds", "max_attempts", "max_requests", "reported as unresolved"]
+    },
+    "src/deepresearch_agent/rag/retrieval.py": {
+      "category": "rag",
+      "gateway": "ReliableToolExecutor",
+      "timeout": "RAG ToolSpec attempt and total deadlines",
+      "retry": "ToolSpec retry policy plus run retry budget",
+      "request_budget": "RunToolContext external fetch budget",
+      "degradation": "embedding fails closed; rerank has explicit fail-open/fail-closed selection",
+      "evidence_files": ["src/deepresearch_agent/rag/retrieval.py"],
+      "evidence_tokens": ["RAG_EMBEDDING_TOOL_SPEC", "ReliableToolExecutor", "consume_external_request", "rerank_or_degrade"]
+    },
+    "src/deepresearch_agent/rag/qdrant_index.py": {
+      "category": "rag",
+      "gateway": "ReliableToolExecutor",
+      "timeout": "QDRANT_HTTP_TOOL_SPEC attempt and total deadlines",
+      "retry": "ToolSpec retry policy plus run retry budget",
+      "request_budget": "RunToolContext external fetch budget",
+      "degradation": "fail closed while canonical storage remains authoritative",
+      "evidence_files": ["src/deepresearch_agent/rag/qdrant_index.py"],
+      "evidence_tokens": ["QDRANT_HTTP_TOOL_SPEC", "ReliableToolExecutor", "consume_external_request", "degrade=False"]
+    },
+    "src/deepresearch_agent/mcp/client.py": {
+      "category": "mcp",
+      "gateway": "ExternalMCPTool",
+      "timeout": "stdio request timeout plus discovered ToolSpec total deadline",
+      "retry": "ReliableToolExecutor retry policy and run retry budget",
+      "request_budget": "RunToolContext external fetch budget and paid-call authorization",
+      "degradation": "explicit unavailable ToolResult and trajectory",
+      "evidence_files": ["src/deepresearch_agent/mcp/client.py"],
+      "evidence_tokens": ["request_timeout_s", "ReliableToolExecutor", "consume_external_request", "degrade=degrade"]
+    }
+  }
+}
