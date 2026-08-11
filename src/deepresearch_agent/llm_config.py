@@ -119,6 +119,11 @@ class LLMConfig:
             "planner": RoleModelConfig(
                 model="openai/deepseek-v4-flash",
                 api_base="https://api.deepseek.com",
+                # R090 and the R149 full cohort both observed three consecutive
+                # provider calls terminated at the inherited 60s boundary.
+                # Planner output is bounded by its schema and token cap; give
+                # transport latency the same hard bound as other generation roles.
+                timeout_seconds=180,
                 no_reasoning_extra_body=DISABLE_REASONING_EXTRA_BODY,
             ),
             # R073/R075 bounded these two roles for latency. The input bounds

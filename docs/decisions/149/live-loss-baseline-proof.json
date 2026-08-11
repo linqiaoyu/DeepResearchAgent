@@ -1,0 +1,697 @@
+{
+  "round": 149,
+  "status": "diagnostic_complete",
+  "product_acceptance_status": "incomplete",
+  "preregistration": "docs/decisions/149/preregistration.json",
+  "source": {
+    "artifact": "artifacts/149/merged-result.json",
+    "sha256": "33e6dcda715217c6af72c941bc8c1da658ce0de54ee632f5902f401704d58c0c"
+  },
+  "ledger_sources": [
+    {
+      "artifact": "artifacts/149/shard1/ledger.jsonl",
+      "sha256": "8f8580788de43da2b3b7487010c98d9bcc1eddbf78099a34c6d7004ca4b9b615"
+    },
+    {
+      "artifact": "artifacts/149/shard2/ledger.jsonl",
+      "sha256": "3fc9c639078b86c1e0eed2b3caee0d4668b05b6cc583476517d5142208326b3d"
+    },
+    {
+      "artifact": "artifacts/149/shard3/ledger.jsonl",
+      "sha256": "2144b06191795bc32f0794487795ef86cb9415c1f034453307ad8f14b690d47e"
+    },
+    {
+      "artifact": "artifacts/149/shard4/ledger.jsonl",
+      "sha256": "6b7b19c5551d055ba6b9e43c6355d7b982bcd1e0ce4c759f5fa63c70cf06dfc7"
+    },
+    {
+      "artifact": "artifacts/149/shard5/ledger.jsonl",
+      "sha256": "9fd3aca1e48c16e54be3496bdecba7d8b3165d52e8f029c453b29407aa74dcac"
+    },
+    {
+      "artifact": "artifacts/149/shard6/ledger.jsonl",
+      "sha256": "ca8e480766e926f0af4ac52296c0ec50fb83c7e8718f359eb1b5a0484c3d5740"
+    }
+  ],
+  "metrics": {
+    "question_count": 30,
+    "terminal_questions": 30,
+    "completed_questions": 28,
+    "error_questions": 2,
+    "live_llm_questions": 28,
+    "live_retrieval_questions": 28,
+    "live_structured_data_questions": 28,
+    "evidence_reachable_rate": 0.614684,
+    "orphaned_sub_questions": 1,
+    "false_premise_failed": 1,
+    "diagnostic_metric_denominator_cases": 28,
+    "total_cost_cny": 13.70871656,
+    "round_fuse_cny": 30.0,
+    "funnel_totals": {
+      "packed_evidence": 1526,
+      "cited_evidence": 216,
+      "retrieved_sources": 475,
+      "extracted_evidence": 1866,
+      "reader_visible_evidence": 1147
+    }
+  },
+  "cases": [
+    {
+      "id": "Q01",
+      "status": "done",
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "evidence_funnel": {
+        "cited_evidence": 3,
+        "extracted_evidence": 3,
+        "packed_evidence": 3,
+        "reader_visible_evidence": 3,
+        "retrieved_sources": 2
+      },
+      "orphaned_sub_questions": 0,
+      "false_premise_failed": false,
+      "cost_cny": 0.18709224,
+      "latency_seconds": 366.802,
+      "error_type": null
+    },
+    {
+      "id": "Q02",
+      "status": "done",
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "evidence_funnel": {
+        "cited_evidence": 8,
+        "extracted_evidence": 72,
+        "packed_evidence": 58,
+        "reader_visible_evidence": 40,
+        "retrieved_sources": 29
+      },
+      "orphaned_sub_questions": 0,
+      "false_premise_failed": false,
+      "cost_cny": 0.52877412,
+      "latency_seconds": 1078.066,
+      "error_type": null
+    },
+    {
+      "id": "Q03",
+      "status": "done",
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "evidence_funnel": {
+        "cited_evidence": 15,
+        "extracted_evidence": 133,
+        "packed_evidence": 111,
+        "reader_visible_evidence": 72,
+        "retrieved_sources": 32
+      },
+      "orphaned_sub_questions": 0,
+      "false_premise_failed": false,
+      "cost_cny": 0.89400504,
+      "latency_seconds": 2313.379,
+      "error_type": null
+    },
+    {
+      "id": "Q04",
+      "status": "done",
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "evidence_funnel": {
+        "cited_evidence": 4,
+        "extracted_evidence": 8,
+        "packed_evidence": 8,
+        "reader_visible_evidence": 7,
+        "retrieved_sources": 3
+      },
+      "orphaned_sub_questions": 0,
+      "false_premise_failed": false,
+      "cost_cny": 0.25565744,
+      "latency_seconds": 549.691,
+      "error_type": null
+    },
+    {
+      "id": "Q05",
+      "status": "done",
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "evidence_funnel": {
+        "cited_evidence": 6,
+        "extracted_evidence": 43,
+        "packed_evidence": 32,
+        "reader_visible_evidence": 33,
+        "retrieved_sources": 30
+      },
+      "orphaned_sub_questions": 0,
+      "false_premise_failed": false,
+      "cost_cny": 0.61985724,
+      "latency_seconds": 1540.485,
+      "error_type": null
+    },
+    {
+      "id": "Q06",
+      "status": "done",
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "evidence_funnel": {
+        "cited_evidence": 6,
+        "extracted_evidence": 61,
+        "packed_evidence": 49,
+        "reader_visible_evidence": 31,
+        "retrieved_sources": 15
+      },
+      "orphaned_sub_questions": 0,
+      "false_premise_failed": false,
+      "cost_cny": 0.47393252,
+      "latency_seconds": 954.162,
+      "error_type": null
+    },
+    {
+      "id": "Q07",
+      "status": "done",
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "evidence_funnel": {
+        "cited_evidence": 8,
+        "extracted_evidence": 100,
+        "packed_evidence": 0,
+        "reader_visible_evidence": 59,
+        "retrieved_sources": 27
+      },
+      "orphaned_sub_questions": 0,
+      "false_premise_failed": false,
+      "cost_cny": 0.2745636,
+      "latency_seconds": 1947.189,
+      "error_type": null
+    },
+    {
+      "id": "Q08",
+      "status": "done",
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "evidence_funnel": {
+        "cited_evidence": 2,
+        "extracted_evidence": 2,
+        "packed_evidence": 2,
+        "reader_visible_evidence": 2,
+        "retrieved_sources": 1
+      },
+      "orphaned_sub_questions": 0,
+      "false_premise_failed": false,
+      "cost_cny": 0.15865332,
+      "latency_seconds": 347.178,
+      "error_type": null
+    },
+    {
+      "id": "Q09",
+      "status": "done",
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "evidence_funnel": {
+        "cited_evidence": 6,
+        "extracted_evidence": 97,
+        "packed_evidence": 83,
+        "reader_visible_evidence": 21,
+        "retrieved_sources": 19
+      },
+      "orphaned_sub_questions": 1,
+      "false_premise_failed": false,
+      "cost_cny": 0.56333668,
+      "latency_seconds": 1269.281,
+      "error_type": null
+    },
+    {
+      "id": "Q10",
+      "status": "done",
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "evidence_funnel": {
+        "cited_evidence": 3,
+        "extracted_evidence": 16,
+        "packed_evidence": 11,
+        "reader_visible_evidence": 13,
+        "retrieved_sources": 3
+      },
+      "orphaned_sub_questions": 0,
+      "false_premise_failed": false,
+      "cost_cny": 0.26818144,
+      "latency_seconds": 594.897,
+      "error_type": null
+    },
+    {
+      "id": "Q11",
+      "status": "done",
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "evidence_funnel": {
+        "cited_evidence": 14,
+        "extracted_evidence": 94,
+        "packed_evidence": 82,
+        "reader_visible_evidence": 67,
+        "retrieved_sources": 25
+      },
+      "orphaned_sub_questions": 0,
+      "false_premise_failed": false,
+      "cost_cny": 0.57230704,
+      "latency_seconds": 1082.854,
+      "error_type": null
+    },
+    {
+      "id": "Q12",
+      "status": "done",
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "evidence_funnel": {
+        "cited_evidence": 6,
+        "extracted_evidence": 82,
+        "packed_evidence": 66,
+        "reader_visible_evidence": 42,
+        "retrieved_sources": 21
+      },
+      "orphaned_sub_questions": 0,
+      "false_premise_failed": false,
+      "cost_cny": 0.5169034,
+      "latency_seconds": 1001.503,
+      "error_type": null
+    },
+    {
+      "id": "Q13",
+      "status": "error",
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "evidence_funnel": {
+        "cited_evidence": 0,
+        "extracted_evidence": 0,
+        "packed_evidence": 0,
+        "reader_visible_evidence": 0,
+        "retrieved_sources": 0
+      },
+      "orphaned_sub_questions": 0,
+      "false_premise_failed": false,
+      "cost_cny": 0.0,
+      "latency_seconds": 191.25,
+      "error_type": "LLMRetryExhaustedError"
+    },
+    {
+      "id": "Q14",
+      "status": "done",
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "evidence_funnel": {
+        "cited_evidence": 8,
+        "extracted_evidence": 97,
+        "packed_evidence": 72,
+        "reader_visible_evidence": 61,
+        "retrieved_sources": 23
+      },
+      "orphaned_sub_questions": 0,
+      "false_premise_failed": false,
+      "cost_cny": 0.60123212,
+      "latency_seconds": 1435.661,
+      "error_type": null
+    },
+    {
+      "id": "Q15",
+      "status": "done",
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "evidence_funnel": {
+        "cited_evidence": 3,
+        "extracted_evidence": 4,
+        "packed_evidence": 4,
+        "reader_visible_evidence": 4,
+        "retrieved_sources": 3
+      },
+      "orphaned_sub_questions": 0,
+      "false_premise_failed": false,
+      "cost_cny": 0.23682968,
+      "latency_seconds": 615.229,
+      "error_type": null
+    },
+    {
+      "id": "Q16",
+      "status": "done",
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "evidence_funnel": {
+        "cited_evidence": 7,
+        "extracted_evidence": 225,
+        "packed_evidence": 194,
+        "reader_visible_evidence": 83,
+        "retrieved_sources": 26
+      },
+      "orphaned_sub_questions": 0,
+      "false_premise_failed": true,
+      "cost_cny": 0.9348604,
+      "latency_seconds": 1860.338,
+      "error_type": null
+    },
+    {
+      "id": "Q17",
+      "status": "done",
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "evidence_funnel": {
+        "cited_evidence": 7,
+        "extracted_evidence": 67,
+        "packed_evidence": 61,
+        "reader_visible_evidence": 56,
+        "retrieved_sources": 16
+      },
+      "orphaned_sub_questions": 0,
+      "false_premise_failed": false,
+      "cost_cny": 0.45279164,
+      "latency_seconds": 1301.197,
+      "error_type": null
+    },
+    {
+      "id": "Q18",
+      "status": "done",
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "evidence_funnel": {
+        "cited_evidence": 23,
+        "extracted_evidence": 102,
+        "packed_evidence": 100,
+        "reader_visible_evidence": 64,
+        "retrieved_sources": 15
+      },
+      "orphaned_sub_questions": 0,
+      "false_premise_failed": false,
+      "cost_cny": 0.59513168,
+      "latency_seconds": 1244.035,
+      "error_type": null
+    },
+    {
+      "id": "Q19",
+      "status": "done",
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "evidence_funnel": {
+        "cited_evidence": 7,
+        "extracted_evidence": 85,
+        "packed_evidence": 83,
+        "reader_visible_evidence": 55,
+        "retrieved_sources": 17
+      },
+      "orphaned_sub_questions": 0,
+      "false_premise_failed": false,
+      "cost_cny": 0.62480396,
+      "latency_seconds": 1240.062,
+      "error_type": null
+    },
+    {
+      "id": "Q20",
+      "status": "done",
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "evidence_funnel": {
+        "cited_evidence": 7,
+        "extracted_evidence": 36,
+        "packed_evidence": 36,
+        "reader_visible_evidence": 32,
+        "retrieved_sources": 10
+      },
+      "orphaned_sub_questions": 0,
+      "false_premise_failed": false,
+      "cost_cny": 0.35475544,
+      "latency_seconds": 657.09,
+      "error_type": null
+    },
+    {
+      "id": "Q21",
+      "status": "error",
+      "provider_fidelity": {
+        "llm": "absent",
+        "retrieval": "absent",
+        "structured_data": "absent"
+      },
+      "evidence_funnel": {
+        "cited_evidence": 0,
+        "extracted_evidence": 0,
+        "packed_evidence": 0,
+        "reader_visible_evidence": 0,
+        "retrieved_sources": 0
+      },
+      "orphaned_sub_questions": 0,
+      "false_premise_failed": false,
+      "cost_cny": 0.0,
+      "latency_seconds": 438.189,
+      "error_type": "FileNotFoundError"
+    },
+    {
+      "id": "Q22",
+      "status": "done",
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "evidence_funnel": {
+        "cited_evidence": 20,
+        "extracted_evidence": 99,
+        "packed_evidence": 99,
+        "reader_visible_evidence": 62,
+        "retrieved_sources": 13
+      },
+      "orphaned_sub_questions": 0,
+      "false_premise_failed": false,
+      "cost_cny": 0.58974452,
+      "latency_seconds": 1057.34,
+      "error_type": null
+    },
+    {
+      "id": "Q23",
+      "status": "done",
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "evidence_funnel": {
+        "cited_evidence": 7,
+        "extracted_evidence": 37,
+        "packed_evidence": 34,
+        "reader_visible_evidence": 37,
+        "retrieved_sources": 9
+      },
+      "orphaned_sub_questions": 0,
+      "false_premise_failed": false,
+      "cost_cny": 0.30222348,
+      "latency_seconds": 641.076,
+      "error_type": null
+    },
+    {
+      "id": "Q24",
+      "status": "done",
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "evidence_funnel": {
+        "cited_evidence": 7,
+        "extracted_evidence": 62,
+        "packed_evidence": 59,
+        "reader_visible_evidence": 43,
+        "retrieved_sources": 21
+      },
+      "orphaned_sub_questions": 0,
+      "false_premise_failed": false,
+      "cost_cny": 0.47920088,
+      "latency_seconds": 924.815,
+      "error_type": null
+    },
+    {
+      "id": "Q25",
+      "status": "done",
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "evidence_funnel": {
+        "cited_evidence": 6,
+        "extracted_evidence": 28,
+        "packed_evidence": 26,
+        "reader_visible_evidence": 25,
+        "retrieved_sources": 11
+      },
+      "orphaned_sub_questions": 0,
+      "false_premise_failed": false,
+      "cost_cny": 0.35730732,
+      "latency_seconds": 759.622,
+      "error_type": null
+    },
+    {
+      "id": "Q26",
+      "status": "done",
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "evidence_funnel": {
+        "cited_evidence": 7,
+        "extracted_evidence": 127,
+        "packed_evidence": 85,
+        "reader_visible_evidence": 100,
+        "retrieved_sources": 26
+      },
+      "orphaned_sub_questions": 0,
+      "false_premise_failed": false,
+      "cost_cny": 0.5486696,
+      "latency_seconds": 1108.533,
+      "error_type": null
+    },
+    {
+      "id": "Q27",
+      "status": "done",
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "evidence_funnel": {
+        "cited_evidence": 9,
+        "extracted_evidence": 90,
+        "packed_evidence": 81,
+        "reader_visible_evidence": 63,
+        "retrieved_sources": 24
+      },
+      "orphaned_sub_questions": 0,
+      "false_premise_failed": false,
+      "cost_cny": 0.6414722,
+      "latency_seconds": 1460.475,
+      "error_type": null
+    },
+    {
+      "id": "Q28",
+      "status": "done",
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "evidence_funnel": {
+        "cited_evidence": 4,
+        "extracted_evidence": 36,
+        "packed_evidence": 36,
+        "reader_visible_evidence": 24,
+        "retrieved_sources": 14
+      },
+      "orphaned_sub_questions": 0,
+      "false_premise_failed": false,
+      "cost_cny": 0.37920612,
+      "latency_seconds": 745.415,
+      "error_type": null
+    },
+    {
+      "id": "Q29",
+      "status": "done",
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "evidence_funnel": {
+        "cited_evidence": 7,
+        "extracted_evidence": 32,
+        "packed_evidence": 23,
+        "reader_visible_evidence": 26,
+        "retrieved_sources": 25
+      },
+      "orphaned_sub_questions": 0,
+      "false_premise_failed": false,
+      "cost_cny": 0.4158104,
+      "latency_seconds": 1273.631,
+      "error_type": null
+    },
+    {
+      "id": "Q30",
+      "status": "done",
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "evidence_funnel": {
+        "cited_evidence": 6,
+        "extracted_evidence": 28,
+        "packed_evidence": 28,
+        "reader_visible_evidence": 22,
+        "retrieved_sources": 15
+      },
+      "orphaned_sub_questions": 0,
+      "false_premise_failed": false,
+      "cost_cny": 0.33887112,
+      "latency_seconds": 788.332,
+      "error_type": null
+    }
+  ],
+  "boundaries": {
+    "capability_effect_claim": false,
+    "rerun_or_best_of": false,
+    "golden_truth_changed": false,
+    "formal_product_metrics": false,
+    "f01_30_of_30_done": false
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "round": 149,
+  "registered_at_utc": "2026-08-11T20:30:00Z",
+  "objective": "Validate the two Harness failure classes observed by the fixed R149 live diagnostic without rerunning or completing the 30-question cohort.",
+  "quality_claim": false,
+  "hypotheses": {
+    "ledger_isolation": "Four concurrent processes using four configured shard ledgers complete and maintain four distinct global budget indexes; a configuration that reuses one authority is rejected before execution.",
+    "planner_timeout": "Three fixed live planner calls complete under the explicit 180-second per-attempt transport bound with cost, latency, trajectory, and termination evidence."
+  },
+  "sample_size": {
+    "ledger_processes": 4,
+    "live_planner_calls": 3,
+    "rationale": "These are mechanism probes, not an effectiveness estimate. Four processes exercise the cross-shard collision surface, while three planner calls match the three consecutive 60-second attempt failures observed on Q13."
+  },
+  "noise": {
+    "measured": "Pass/fail is based on process exit, distinct authority paths, bounded termination, and offline-verifiable trajectories; latency and cost are recorded but are not used to infer finance quality.",
+    "decision_rule": "Pass only if 4/4 isolated ledger processes succeed, the duplicate-authority negative control is rejected, and 3/3 live planner calls complete under the registered 180-second role bound with complete trajectory evidence."
+  },
+  "budget": {
+    "currency": "CNY",
+    "expected_total": 0.6,
+    "probe_fuse": 1.0,
+    "plan_spend_before_probe": 13.72785506,
+    "plan_fuse": 300.0
+  },
+  "stop_conditions": [
+    "probe ledger reaches CNY 1.0",
+    "any credential appears in output",
+    "a fourth live planner call would be required",
+    "a probe would mutate a remote provider or rerun a golden-set question"
+  ],
+  "rollback": "Do not publish the reliability proof; retain all raw failures and continue F02-F10 work that does not depend on the failed mechanism. No golden-set result is replaced or supplemented."
+}

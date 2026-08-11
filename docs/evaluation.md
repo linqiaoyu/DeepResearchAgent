@@ -733,3 +733,40 @@ splicing are unchanged. The nine default-off capability decision rounds are
 rescheduled between R151 and R158 so their finance defaults are decided after
 the H2 mechanism proof and before the R160 product proof; their graduation
 criteria are unchanged.
+
+# R149 evidence-funnel diagnostics
+
+The golden runner persists a per-case `evidence_funnel` with five direct
+delivery counts: unique `retrieved_sources`, `extracted_evidence`,
+`packed_evidence`, representative `cited_evidence`, and
+`reader_visible_evidence`. These are diagnostic counts with explicitly
+different units at the retrieval and evidence stages; they are not a new
+product threshold and do not change golden scoring. Terminal errors still
+carry all five fields with the counts available before failure, or zeros when
+no state was produced.
+
+# R149 stage-two execution amendment
+
+R149 is a loss-diagnostic census, not a product-acceptance candidate. All 30
+fixed questions must reach a terminal artifact, but diagnostic metrics use only
+successful cases and must print that denominator. A terminal provider or
+Harness error remains in the cohort; it is not rerun, silently excluded or
+filled from another round. Consequently, a complete diagnostic may still carry
+`product_acceptance_status=incomplete`, and its three diagnostic values are not
+formal product metrics.
+
+There is no full-cohort F01 recovery run. F11 is instead a preregistered fixed
+6-10 case, three-layer-live reliability canary and cannot prove product quality
+or contribute cases or scores to the final proof. F13 is conditional on a
+failed full product acceptance rather than a scheduled repeat. F14 is the sole
+planned full 30-case, three-layer-live product candidate; only a failure may
+trigger a defect-class repair and a new independent full candidate. F15 makes
+no paid provider calls. The R160 thresholds, frozen cohort, and prohibitions on
+saved states, best-of selection and cross-run splicing are unchanged.
+
+The R149 diagnostic reached 30 terminal artifacts but only 28 successful cases;
+Q13 was a bounded planner retry exhaustion and Q21 was a cross-process ledger
+index collision. Its diagnostic values therefore use denominator 28 and are not
+formal product metrics. The subsequent four-process ledger probe and three-call
+live planner probe validate only the repaired Harness mechanisms. They rerun no
+golden question and cannot contribute to F11 or F14 quality evidence.

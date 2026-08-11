@@ -19,26 +19,49 @@ from pathlib import Path
 from typing import Any
 
 
-def merge(paths: list[Path], *, round_id: str, expected: int) -> dict[str, Any]:
+def merge(
+    paths: list[Path],
+    *,
+    round_id: str,
+    expected: int,
+    allow_failed_supersession: bool = False,
+) -> dict[str, Any]:
     merged: dict[str, dict[str, Any]] = {}
     duplicates: list[str] = []
     superseded: list[dict[str, str]] = []
     base: dict[str, Any] | None = None
+    metadata_fields = (
+        "generation",
+        "gold_version",
+        "evaluation_as_of",
+        "judge_samples",
+        "state_path_map",
+        "provider_fidelity",
+    )
     for path in sorted(paths):
         payload = json.loads(path.read_text(encoding="utf-8"))
         if base is None:
             base = payload
+        else:
+            drift = {
+                field: (base.get(field), payload.get(field))
+                for field in metadata_fields
+                if base.get(field) != payload.get(field)
+            }
+            if drift:
+                raise ValueError(f"shard metadata mismatch in {path.name}: {drift}")
         for result in payload.get("results", []):
             qid = str(result.get("id"))
             existing = merged.get(qid)
             if existing is None:
                 merged[qid] = result
                 continue
-            # The only duplicate this accepts is a question that errored in one
-            # place and was recovered in another. Recording which entry lost,
-            # and why, is the point: a silent "pick the better score" is exactly
-            # what AGENTS.md section 7 forbids.
-            if existing.get("status") == "error" and result.get("status") != "error":
+            # Historical rounds recovered some failed cases in later shards.
+            # Fresh experiments default to exact-once and must explicitly opt
+            # into that legacy merge policy so a rerun cannot become best-of.
+            if not allow_failed_supersession:
+                duplicates.append(qid)
+            elif existing.get("status") == "error" and result.get("status") != "error":
                 superseded.append(
                     {
                         "id": qid,
@@ -76,8 +99,15 @@ def merge(paths: list[Path], *, round_id: str, expected: int) -> dict[str, Any]:
         "gold_version": base.get("gold_version"),
         "evaluation_as_of": base.get("evaluation_as_of"),
         "judge_samples": base.get("judge_samples"),
+        "generation": base.get("generation"),
+        "provider_fidelity": base.get("provider_fidelity"),
+        "state_path_map": base.get("state_path_map"),
         "fidelity": "live",
-        "execution": "serial phase Q01-Q10, then four concurrent shards Q11-Q30",
+        "execution": (
+            "merged shards with legacy failed-case supersession"
+            if allow_failed_supersession
+            else "merged exact-once shards"
+        ),
         "expected_questions": expected,
         "scored_questions": len(ordered),
         "coverage": f"{len(ordered)}/{expected}",
@@ -94,9 +124,19 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--round-id", default="113-live-merged")
     parser.add_argument("--expected", type=int, default=30)
+    parser.add_argument(
+        "--allow-failed-supersession",
+        action="store_true",
+        help="legacy policy: replace an errored duplicate with a completed duplicate",
+    )
     args = parser.parse_args()
 
-    payload = merge(args.shards, round_id=args.round_id, expected=args.expected)
+    payload = merge(
+        args.shards,
+        round_id=args.round_id,
+        expected=args.expected,
+        allow_failed_supersession=args.allow_failed_supersession,
+    )
     args.output.write_text(
         json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )

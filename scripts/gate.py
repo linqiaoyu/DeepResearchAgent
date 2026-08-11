@@ -119,6 +119,18 @@ def run_gate() -> None:
             "product_acceptance",
             [sys.executable, "scripts/check_product_acceptance.py", "--self-test"],
         ),
+        (
+            "f01_live_baseline",
+            [sys.executable, "scripts/check_f01_live_baseline.py", "--self-test"],
+        ),
+        (
+            "stage_two_execution",
+            [sys.executable, "scripts/check_stage_two_execution.py", "--self-test"],
+        ),
+        (
+            "r149_reliability_probes",
+            [sys.executable, "scripts/check_r149_reliability_probes.py", "--self-test"],
+        ),
         ("ruff", [sys.executable, "-m", "ruff", "check", "src", "tests", "scripts"]),
         # Scoped to the surfaces where two implementations must agree; the file
         # list in pyproject.toml is a ratchet that may only grow. Ruff cannot

@@ -1,0 +1,23 @@
+{
+  "golden_cases_rerun": 0,
+  "metrics": {
+    "distinct_ledger_authorities": 4,
+    "distinct_ledger_indexes": 4,
+    "duplicate_authority_negative_control_rejected": true,
+    "ledger_processes": 4,
+    "ledger_successes": 4,
+    "offline_verified_trajectories": 3,
+    "planner_calls": 3,
+    "planner_cost_cny": 0.01376744,
+    "planner_successes": 3,
+    "planner_timeout_seconds": 180
+  },
+  "preregistration": "docs/decisions/149/reliability-probe-preregistration.json",
+  "quality_claim": false,
+  "round": 149,
+  "source": {
+    "artifact": "artifacts/149/reliability/probe-results.json",
+    "sha256": "9f527e6f3a5f5d7a2b459d2241f6ac7f00b6aadfdd556c8d82d2f35004c4fa8e"
+  },
+  "status": "passed"
+}

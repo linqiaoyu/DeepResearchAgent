@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -21,6 +22,7 @@ from deepresearch_agent.llm import LLMClient
 from deepresearch_agent.reporting.reader_reach import (
     evidence_the_reader_can_follow,
     orphaned_sub_questions,
+    reader_body,
 )
 from deepresearch_agent.schemas import ResearchState
 from deepresearch_agent.workflow import DeepResearchEngine
@@ -64,6 +66,19 @@ def golden_round_fidelity(args: Any) -> dict[str, str]:
         "retrieval": "live" if args.live else "replay",
         "structured_data": "live" if args.live else "fixture",
     }
+
+
+def golden_round_judge_client(args: Any) -> JudgeClient:
+    """Keep judge accounting in the same shard-local ledger as the workflow."""
+
+    ledger_path = Path(args.ledger_path)
+    return JudgeClient(
+        LLMClient(
+            ledger_path=ledger_path,
+            global_ledger_path=ledger_path,
+            budget_cny=args.judge_budget_cny,
+        )
+    )
 
 
 def main() -> None:
@@ -114,12 +129,7 @@ def main() -> None:
         + f" search_recording={environment['DEEPRESEARCH_SEARCH_RECORDING_MODE']}"
     )
 
-    judge_client = JudgeClient(
-        LLMClient(
-            ledger_path=Path(args.ledger_path),
-            budget_cny=args.judge_budget_cny,
-        )
-    )
+    judge_client = golden_round_judge_client(args)
     ledger_path = Path(args.ledger_path)
     round_ledger_start = _ledger_cost_cny(ledger_path)
     run_metadata = {
@@ -141,6 +151,7 @@ def main() -> None:
         case_dir.mkdir(parents=True, exist_ok=True)
         os.environ["DEEPRESEARCH_STORAGE_PATH"] = str(case_dir / "research.db")
         case_ledger_start = _ledger_cost_cny(ledger_path)
+        state: ResearchState | None = None
         try:
             if (
                 args.combined_budget_cny > 0
@@ -177,7 +188,9 @@ def main() -> None:
                 "error_type": type(exc).__name__,
                 "error": str(exc),
                 "latency_seconds": round(time.perf_counter() - started, 3),
+                "evidence_funnel": _evidence_funnel(state),
             }
+        result["provider_fidelity"] = _case_fidelity(state, args)
         result["judge_cost_cny"] = round(
             _ledger_cost_for_prefix(ledger_path, f"{args.round_id}-{qid}-"),
             8,
@@ -334,6 +347,84 @@ def _reader_reach_metrics(state: ResearchState) -> dict[str, Any]:
     }
 
 
+def _evidence_funnel(state: ResearchState | None) -> dict[str, int]:
+    """Reader-delivery counts persisted even for a terminal failure."""
+
+    if state is None:
+        return {
+            "retrieved_sources": 0,
+            "extracted_evidence": 0,
+            "packed_evidence": 0,
+            "cited_evidence": 0,
+            "reader_visible_evidence": 0,
+        }
+    context_events = state.metadata.get("context_events", [])
+    reporter_events = (
+        [
+            item
+            for item in context_events
+            if isinstance(item, dict) and item.get("node") == "reporter"
+        ]
+        if isinstance(context_events, list)
+        else []
+    )
+    packed = (
+        int(reporter_events[-1].get("selected_count", 0) or 0)
+        if reporter_events
+        else 0
+    )
+    report = state.final_report or ""
+    footnotes = {
+        int(key): value
+        for key, value in (state.report_footnote_evidence or {}).items()
+    }
+    cited_numbers = {
+        int(value) for value in re.findall(r"\[\^(\d+)\]", reader_body(report))
+    }
+    cited = {footnotes[number] for number in cited_numbers if number in footnotes}
+    reachable = evidence_the_reader_can_follow(state, report) if report else set()
+    retrieved = {
+        source_id
+        for record in state.search_records
+        for source_id in record.source_ids
+    }
+    return {
+        "retrieved_sources": len(retrieved),
+        "extracted_evidence": len(state.evidence_store),
+        "packed_evidence": packed,
+        "cited_evidence": len(cited),
+        "reader_visible_evidence": len(reachable),
+    }
+
+
+def _case_fidelity(state: ResearchState | None, args: Any) -> dict[str, str]:
+    configured = golden_round_fidelity(args)
+    if state is None:
+        return {name: "absent" for name in configured}
+    actual = state.metadata.get("provider_fidelity", {})
+    if not isinstance(actual, dict):
+        actual = {}
+    real_values = {"real", "live"}
+    fallback = "unknown" if args.live else None
+    return {
+        "llm": (
+            "live"
+            if actual.get("llm") in real_values
+            else str(actual.get("llm", fallback or configured["llm"]))
+        ),
+        "retrieval": (
+            "live"
+            if actual.get("search") in real_values
+            else str(actual.get("search", fallback or configured["retrieval"]))
+        ),
+        "structured_data": (
+            "live"
+            if actual.get("structured_data") in real_values
+            else str(actual.get("structured_data", fallback or configured["structured_data"]))
+        ),
+    }
+
+
 def _mechanical_metrics(state: ResearchState) -> dict[str, Any]:
     if not state.evaluation:
         # R119: this returned {} and took the reader metrics with it. They read
@@ -341,7 +432,10 @@ def _mechanical_metrics(state: ResearchState) -> dict[str, Any]:
         # that finished without an evaluation is exactly the run whose delivered
         # page is worth measuring. The R119 Q03 validation reported
         # `orphaned=None` for that reason while Q05 reported a number.
-        return _reader_reach_metrics(state)
+        return {
+            **_reader_reach_metrics(state),
+            "evidence_funnel": _evidence_funnel(state),
+        }
     reporter_stats = state.metadata.get("llm_stats", {}).get("reporter", {})
     if not isinstance(reporter_stats, dict):
         reporter_stats = {}
@@ -365,6 +459,7 @@ def _mechanical_metrics(state: ResearchState) -> dict[str, Any]:
         # of 80 sub-questions on the R113 live set were researched, produced
         # Evidence, and arrived as silence while every citation metric was green.
         **_reader_reach_metrics(state),
+        "evidence_funnel": _evidence_funnel(state),
         "critic_catch_rate": state.evaluation.critic_catch_rate,
         "token_used": state.evaluation.token_used,
         "price_source": state.evaluation.price_source,

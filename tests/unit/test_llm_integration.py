@@ -6,6 +6,7 @@ import tempfile
 import threading
 import time
 import unittest
+from dataclasses import replace
 from datetime import date
 from pathlib import Path
 from types import SimpleNamespace
@@ -337,9 +338,17 @@ class LLMIntegrationTests(unittest.TestCase):
                 ledger_path=Path(tmp) / "ledger.jsonl",
                 global_ledger_path=Path(tmp) / "global.jsonl",
                 budget_cny=1.0,
-                config=DEFAULT_LLM_CONFIG.__class__(
+                config=replace(
+                    DEFAULT_LLM_CONFIG,
                     timeout_seconds=0.03,
                     max_retries=0,
+                    roles={
+                        **DEFAULT_LLM_CONFIG.roles,
+                        "planner": replace(
+                            DEFAULT_LLM_CONFIG.roles["planner"],
+                            timeout_seconds=0.03,
+                        ),
+                    },
                 ),
                 completion_func=blocking_completion,
                 env_path=env_path,
@@ -383,9 +392,17 @@ class LLMIntegrationTests(unittest.TestCase):
                 ledger_path=Path(tmp) / "ledger.jsonl",
                 global_ledger_path=Path(tmp) / "global.jsonl",
                 budget_cny=1.0,
-                config=DEFAULT_LLM_CONFIG.__class__(
+                config=replace(
+                    DEFAULT_LLM_CONFIG,
                     timeout_seconds=0.03,
                     max_retries=0,
+                    roles={
+                        **DEFAULT_LLM_CONFIG.roles,
+                        "planner": replace(
+                            DEFAULT_LLM_CONFIG.roles["planner"],
+                            timeout_seconds=0.03,
+                        ),
+                    },
                 ),
                 completion_func=blocking_completion,
                 env_path=env_path,

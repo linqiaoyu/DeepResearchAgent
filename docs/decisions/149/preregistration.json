@@ -1,0 +1,43 @@
+{
+  "round": 149,
+  "registered_at_utc": "2026-08-11T15:24:00Z",
+  "objective": "Measure the fresh 30-question finance loss surface on the frozen H2 Harness with live LLM, retrieval, structured-data, and judge boundaries.",
+  "hypothesis": "The current default finance configuration will complete all 30 frozen questions and expose the dominant loss between retrieval, extraction, packing, citation, and reader delivery without any configuration tuning.",
+  "comparison_claim": false,
+  "cohort": {
+    "questions": "data/golden_set/v1/questions.json",
+    "version": "v1.1",
+    "question_ids": ["Q01", "Q02", "Q03", "Q04", "Q05", "Q06", "Q07", "Q08", "Q09", "Q10", "Q11", "Q12", "Q13", "Q14", "Q15", "Q16", "Q17", "Q18", "Q19", "Q20", "Q21", "Q22", "Q23", "Q24", "Q25", "Q26", "Q27", "Q28", "Q29", "Q30"],
+    "as_of": "2026-07-12",
+    "judge_samples": 3,
+    "selection_rule": "every frozen question exactly once; six predetermined five-question shards; no rerun, best-of, or silent exclusion"
+  },
+  "execution": {
+    "shards": [["Q01", "Q02", "Q03", "Q04", "Q05"], ["Q06", "Q07", "Q08", "Q09", "Q10"], ["Q11", "Q12", "Q13", "Q14", "Q15"], ["Q16", "Q17", "Q18", "Q19", "Q20"], ["Q21", "Q22", "Q23", "Q24", "Q25"], ["Q26", "Q27", "Q28", "Q29", "Q30"]],
+    "maximum_parallel_shards": 4,
+    "run_budget_cny_per_case": 3.0,
+    "judge_budget_cny_per_case": 3.0,
+    "combined_budget_cny_per_shard": 5.0,
+    "case_reserve_cny": 0.8
+  },
+  "power_and_noise": {
+    "sample_size": 30,
+    "rationale": "F01 is a full-cohort census and loss decomposition, not an A/B effectiveness estimate; all 30 fixed cases are required.",
+    "historical_reference": "R113 completed the same 30-case live cohort for CNY 14.99.",
+    "budget_coverage": "CNY 30 is approximately twice the historical full-cohort cost and covers the required 30 cases; each five-case shard has a CNY 5 hard fuse.",
+    "decision_rule": "publish only observed loss counts and product metrics; infer no capability effect from this single arm"
+  },
+  "budget": {
+    "currency": "CNY",
+    "expected_total": 15.0,
+    "round_fuse": 30.0,
+    "plan_fuse": 300.0,
+    "plan_spend_before_round": 0.0191385
+  },
+  "stop_conditions": [
+    "sum of shard ledgers reaches CNY 30",
+    "any shard reaches its CNY 5 fuse",
+    "credentials or third-party response bodies would be printed outside ignored artifacts"
+  ],
+  "rollback": "Preserve every completed/error artifact, stop only dependent paid work, and continue offline analysis; do not rerun a failed research case to select a better output."
+}

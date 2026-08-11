@@ -170,6 +170,18 @@ def _strategy_config(settings: Settings, *, rag_index_version: str | None) -> di
     return strategy
 
 
+def _build_engine_llm_client(settings: Settings, logger: JsonLogger) -> LLMClient:
+    """Use the configured ledger as both run and budget-accounting authority."""
+
+    return LLMClient(
+        ledger_path=settings.llm_ledger_path,
+        global_ledger_path=settings.llm_ledger_path,
+        budget_cny=settings.llm_budget_cny,
+        logger=logger,
+        fail_on_retry_exhaustion=True,
+    )
+
+
 class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryNodes, PlanningNodes, QualityNodes, RunPersistence, WorkflowHelpers, GraphAssembly):
     def __init__(
         self,
@@ -222,12 +234,7 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
             )
         )
         self.llm_client = (
-            LLMClient(
-                ledger_path=self.settings.llm_ledger_path,
-                budget_cny=self.settings.llm_budget_cny,
-                logger=self.logger,
-                fail_on_retry_exhaustion=True,
-            )
+            _build_engine_llm_client(self.settings, self.logger)
             if self.settings.execution_mode == "llm"
             else None
         )

@@ -71,8 +71,8 @@ def evaluate(proof: Any) -> list[str]:
 
     guards, surfaces, imports = check_guard_wiring.collect()
     wiring_failures = check_guard_wiring.evaluate(guards, surfaces, imports)
-    if len(guards) != metrics.get("guards"):
-        failures.append("published guard count drifted")
+    if len(guards) < metrics.get("guards", 0):
+        failures.append("current guard count fell below the frozen H2 baseline")
     if len(wiring_failures) != metrics.get("unwired_guards"):
         failures.append("published guard wiring result drifted")
 

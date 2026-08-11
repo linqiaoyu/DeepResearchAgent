@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "target_round": 160,
+  "f01": {
+    "purpose": "live_loss_diagnostic",
+    "recovery_full_runs": 0,
+    "formal_product_metrics": false,
+    "failed_case_reruns": 0
+  },
+  "f11": {
+    "purpose": "live_reliability_canary",
+    "minimum_cases": 6,
+    "maximum_cases": 10,
+    "formal_product_metrics": false,
+    "may_contribute_to_f14": false
+  },
+  "f13": {
+    "trigger": "failed_full_product_acceptance_only",
+    "scheduled_full_runs": 0
+  },
+  "f14": {
+    "purpose": "full_product_acceptance",
+    "planned_full_runs": 1,
+    "questions": 30,
+    "provider_fidelity": {
+      "llm": "live",
+      "retrieval": "live",
+      "structured_data": "live"
+    },
+    "saved_states": false,
+    "best_of": false,
+    "cross_run_splicing": false
+  },
+  "f15": {
+    "paid_provider_calls": 0
+  }
+}
