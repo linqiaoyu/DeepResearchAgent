@@ -8,6 +8,7 @@ from pathlib import Path
 from uuid import NAMESPACE_URL, uuid5
 
 from deepresearch_agent.schemas import EvaluationResult, Evidence
+from deepresearch_agent.storage.protocol import MemoryRecord
 from deepresearch_agent.storage.mapping import (
     EVIDENCE_COLUMNS,
     AS_OF_PREDICATE,
@@ -101,6 +102,15 @@ class SQLiteStore:
                     status TEXT NOT NULL CHECK(status IN ('ready', 'superseded')),
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(document_id, file_sha256)
+                );
+
+                CREATE TABLE IF NOT EXISTS memory_record (
+                    namespace TEXT NOT NULL,
+                    scope_key TEXT NOT NULL,
+                    record_id TEXT NOT NULL,
+                    payload TEXT NOT NULL,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (namespace, scope_key, record_id)
                 );
 
                 CREATE TABLE IF NOT EXISTS chunk (
@@ -325,3 +335,39 @@ class SQLiteStore:
             ).fetchall()
         resolved = {str(row["id"]): resolved_chunk_from_row(row) for row in rows}
         return [resolved[chunk_id] for chunk_id in chunk_ids if chunk_id in resolved]
+
+    def write_memory_record(self, record: MemoryRecord) -> None:
+        with self._connection() as conn:
+            conn.execute(
+                "INSERT INTO memory_record "
+                "(namespace, scope_key, record_id, payload, created_at) "
+                "VALUES (?, ?, ?, ?, COALESCE(NULLIF(?, ''), CURRENT_TIMESTAMP)) "
+                "ON CONFLICT (namespace, scope_key, record_id) DO UPDATE SET "
+                "payload = excluded.payload",
+                (
+                    record.namespace,
+                    record.scope_key,
+                    record.record_id,
+                    record.payload,
+                    record.created_at,
+                ),
+            )
+
+    def list_memory_records(self, namespace: str, scope_key: str) -> list[MemoryRecord]:
+        with self._connection() as conn:
+            rows = conn.execute(
+                "SELECT namespace, scope_key, record_id, payload, created_at "
+                "FROM memory_record WHERE namespace = ? AND scope_key = ? "
+                "ORDER BY record_id",
+                (namespace, scope_key),
+            ).fetchall()
+        return [
+            MemoryRecord(
+                namespace=str(row["namespace"]),
+                scope_key=str(row["scope_key"]),
+                record_id=str(row["record_id"]),
+                payload=str(row["payload"]),
+                created_at=str(row["created_at"]),
+            )
+            for row in rows
+        ]

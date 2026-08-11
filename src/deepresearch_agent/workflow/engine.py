@@ -298,8 +298,12 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
         self.reporter_context_builder = ReporterContextBuilder(
             self.working_memory
         )
-        self.episodic_memory = episodic_memory or EpisodicMemory()
-        self.procedural_memory = procedural_memory or ProceduralMemory()
+        # R122: the memories declare `cross_run` and were in-process dicts, so
+        # every run started empty and both memory flags read nothing. Handing
+        # them the run's own store makes the declared lifetime true; an
+        # explicitly injected memory is left exactly as the caller built it.
+        self.episodic_memory = episodic_memory or EpisodicMemory(store=self.store)
+        self.procedural_memory = procedural_memory or ProceduralMemory(store=self.store)
         self.research_as_of = self.settings.as_of or self.critic.today
         self._graph_lock = RLock()
         self.sufficiency_thresholds = SufficiencyThresholds(
@@ -707,6 +711,43 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
         state.metadata["external_request_budget"] = snapshot
         return snapshot
 
+    def _record_episodic_snapshot(self, state: ResearchState, manifest: Any) -> None:
+        """Write what a later run's prior-memory read is supposed to find.
+
+        R122: nothing in production ever called `episodic_memory.write`, so
+        `PRIOR_MEMORY_ENABLED` read an empty store no matter how many runs
+        preceded it -- persistence alone would have left it inert. The write is
+        skipped when the capability is off, so a run that will never read it
+        does not pay to build a snapshot.
+        """
+
+        if not self.settings.prior_memory_enabled or not state.final_report:
+            return
+        try:
+            from deepresearch_agent.memory import EpisodicRecord
+            from deepresearch_agent.research_snapshot import build_research_snapshot
+
+            snapshot = build_research_snapshot(
+                state=state,
+                settings=self.settings,
+                manifest=manifest,
+                as_of=self.research_as_of,
+                domain_pack=self.domain_pack,
+            )
+            self.episodic_memory.write(EpisodicRecord(snapshot=snapshot))
+        except Exception as exc:
+            state.metadata.setdefault("degradation_events", []).append(
+                {
+                    "tool": "episodic_memory",
+                    "reason": "snapshot_write_failed",
+                    "impact": "this run will not be visible to a later prior-memory read",
+                    "attempts": 1,
+                }
+            )
+            self.logger.event(
+                "episodic_snapshot_failed", error_type=type(exc).__name__
+            )
+
     def _persist_run_sidecars(
         self,
         *,
@@ -732,6 +773,7 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
                     manifest,
                     self.settings.runs_root,
                 )
+                self._record_episodic_snapshot(state, manifest)
             except Exception as exc:
                 state.metadata.setdefault(
                     "degradation_events",

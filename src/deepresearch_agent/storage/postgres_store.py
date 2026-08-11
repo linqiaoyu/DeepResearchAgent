@@ -8,6 +8,7 @@ from typing import Any, Iterator
 from uuid import NAMESPACE_URL, uuid5
 
 from deepresearch_agent.schemas import EvaluationResult, Evidence
+from deepresearch_agent.storage.protocol import MemoryRecord
 from deepresearch_agent.storage.mapping import (
     AS_OF_PREDICATE,
     EVIDENCE_COLUMNS,
@@ -253,3 +254,41 @@ class PostgresStore:
             ).fetchall()
         resolved = {str(row["id"]): resolved_chunk_from_row(row) for row in rows}
         return [resolved[chunk_id] for chunk_id in chunk_ids if chunk_id in resolved]
+
+    def write_memory_record(self, record: MemoryRecord) -> None:
+        with self._connection() as conn, conn.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO memory_record
+                    (namespace, scope_key, record_id, payload, created_at)
+                VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT (namespace, scope_key, record_id) DO UPDATE SET
+                    payload = EXCLUDED.payload
+                """,
+                (
+                    record.namespace,
+                    record.scope_key,
+                    record.record_id,
+                    record.payload,
+                    record.created_at,
+                ),
+            )
+
+    def list_memory_records(self, namespace: str, scope_key: str) -> list[MemoryRecord]:
+        with self._connection() as conn, conn.cursor() as cursor:
+            rows = cursor.execute(
+                "SELECT namespace, scope_key, record_id, payload, created_at "
+                "FROM memory_record WHERE namespace = %s AND scope_key = %s "
+                "ORDER BY record_id",
+                (namespace, scope_key),
+            ).fetchall()
+        return [
+            MemoryRecord(
+                namespace=str(row[0]),
+                scope_key=str(row[1]),
+                record_id=str(row[2]),
+                payload=str(row[3]),
+                created_at=str(row[4]),
+            )
+            for row in rows
+        ]

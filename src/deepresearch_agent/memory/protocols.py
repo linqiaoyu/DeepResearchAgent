@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Generic, Literal, Protocol, TypeVar, runtime_checkable
+from typing import Any, Generic, Literal, Protocol, TypeVar, runtime_checkable
 
 from deepresearch_agent.schemas import StrictModel
 
@@ -17,6 +17,19 @@ class MemoryScope(StrictModel):
     namespace: str
     domain: str
     research_id: str | None = None
+
+
+@runtime_checkable
+class MemoryRecordStore(Protocol):
+    """The slice of ``StorageProtocol`` a durable memory needs.
+
+    R122: narrowing it here keeps the memory layer independent of the storage
+    backend and lets a test substitute one without a database.
+    """
+
+    def write_memory_record(self, record: Any) -> None: ...
+
+    def list_memory_records(self, namespace: str, scope_key: str) -> list[Any]: ...
 
 
 @runtime_checkable

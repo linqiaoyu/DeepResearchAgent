@@ -8,7 +8,13 @@ from pathlib import Path
 from uuid import uuid4
 
 from deepresearch_agent.schemas import EvaluationResult, Evidence, RetrievalReference
-from deepresearch_agent.storage import PostgresStore, SQLiteStore, StorageProtocol, StoredChunk
+from deepresearch_agent.storage import (
+    MemoryRecord,
+    PostgresStore,
+    SQLiteStore,
+    StorageProtocol,
+    StoredChunk,
+)
 from deepresearch_agent.settings import project_root
 
 
@@ -42,6 +48,56 @@ class StorageContractTests(unittest.TestCase):
     accepted a malformed ``file_sha256`` that SQLite refused. Both backends now
     answer the same assertions for every method on ``StorageProtocol``.
     """
+
+    def _assert_memory_contract(self, store: StorageProtocol) -> None:
+        """R122: cross-run memory, asserted identically on every backend."""
+
+        self.assertEqual(store.list_memory_records("procedural", "财报解读"), [])
+        store.write_memory_record(
+            MemoryRecord(
+                namespace="procedural",
+                scope_key="财报解读",
+                record_id="run-b|sq1|0",
+                payload='{"strategy": "b"}',
+            )
+        )
+        store.write_memory_record(
+            MemoryRecord(
+                namespace="procedural",
+                scope_key="财报解读",
+                record_id="run-a|sq1|0",
+                payload='{"strategy": "a"}',
+            )
+        )
+        rows = store.list_memory_records("procedural", "财报解读")
+        self.assertEqual([row.record_id for row in rows], ["run-a|sq1|0", "run-b|sq1|0"])
+        self.assertEqual(rows[0].payload, '{"strategy": "a"}')
+
+        # Re-writing the same key replaces the payload rather than duplicating.
+        store.write_memory_record(
+            MemoryRecord(
+                namespace="procedural",
+                scope_key="财报解读",
+                record_id="run-a|sq1|0",
+                payload='{"strategy": "a2"}',
+            )
+        )
+        rows = store.list_memory_records("procedural", "财报解读")
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[0].payload, '{"strategy": "a2"}')
+
+        # Namespaces and scope keys are separate drawers.
+        store.write_memory_record(
+            MemoryRecord(
+                namespace="episodic",
+                scope_key="财报解读",
+                record_id="2026-07-09|m1",
+                payload='{"kind": "episodic"}',
+            )
+        )
+        self.assertEqual(len(store.list_memory_records("procedural", "财报解读")), 2)
+        self.assertEqual(len(store.list_memory_records("episodic", "财报解读")), 1)
+        self.assertEqual(store.list_memory_records("procedural", "对比研究"), [])
 
     def _assert_evidence_contract(self, store: StorageProtocol) -> None:
         store.add_evidence_many([_evidence("second", "run"), _evidence("first", "run")])
@@ -144,6 +200,7 @@ class StorageContractTests(unittest.TestCase):
         self._assert_evidence_contract(store)
         self._assert_document_contract(store)
         self._assert_rejects_invalid_documents(store)
+        self._assert_memory_contract(store)
 
     def test_sqlite_contract(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

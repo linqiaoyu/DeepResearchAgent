@@ -6,8 +6,10 @@ from pydantic import Field
 
 from deepresearch_agent.memory.protocols import (
     MemoryLifecycle,
+    MemoryRecordStore,
     MemoryScope,
 )
+from deepresearch_agent.storage.protocol import MemoryRecord
 from deepresearch_agent.reflection import DeterministicReflectionSignals
 from deepresearch_agent.schemas import StrictModel
 
@@ -53,11 +55,16 @@ class ProceduralMemory:
 
     lifecycle: MemoryLifecycle = "cross_run"
 
-    def __init__(self, scope: MemoryScope | None = None) -> None:
+    def __init__(
+        self,
+        scope: MemoryScope | None = None,
+        store: MemoryRecordStore | None = None,
+    ) -> None:
         self.scope = scope or MemoryScope(
             namespace="procedural",
             domain="finance",
         )
+        self.store = store
         self._records: dict[
             tuple[str, str, str, int],
             ProceduralRecord,
@@ -71,11 +78,34 @@ class ProceduralMemory:
             record.iteration,
         )
         self._records[key] = record.model_copy(deep=True)
+        if self.store is not None:
+            self.store.write_memory_record(
+                MemoryRecord(
+                    namespace=self.scope.namespace,
+                    scope_key=record.question_type,
+                    record_id=(
+                        f"{record.run_id}|{record.sub_question_id}|{record.iteration}"
+                    ),
+                    payload=record.model_dump_json(),
+                )
+            )
+
+    def _durable(self, question_type: str) -> dict[tuple[str, str, str, int], ProceduralRecord]:
+        if self.store is None:
+            return {}
+        rows = self.store.list_memory_records(self.scope.namespace, question_type)
+        restored = [ProceduralRecord.model_validate_json(row.payload) for row in rows]
+        return {
+            (item.question_type, item.run_id, item.sub_question_id, item.iteration): item
+            for item in restored
+        }
 
     def query(self, query: ProceduralQuery) -> ProceduralHistory:
+        merged = self._durable(query.question_type)
+        merged.update(self._records)
         records = [
             item.model_copy(deep=True)
-            for key, item in self._records.items()
+            for key, item in merged.items()
             if key[0] == query.question_type
         ]
         records.sort(

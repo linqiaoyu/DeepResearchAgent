@@ -38,6 +38,30 @@ class ResolvedChunk:
 
 
 @dataclass(frozen=True)
+class MemoryRecord:
+    """One durable memory row.
+
+    R122. ``EpisodicMemory`` and ``ProceduralMemory`` declare
+    ``lifecycle = "cross_run"`` and were plain in-process dicts: the storage
+    schema had no memory table, nothing wrote one, and the only production
+    construction site built an empty object per engine. Both flags could be
+    switched on and read nothing, which `tests/unit/test_memory_flags_need_a_
+    prior_run.py` recorded rather than fixed.
+
+    The row is deliberately generic -- a namespace, the key a reader queries by,
+    an id unique within that key, and an opaque payload. Storage does not import
+    the memory layer, so a new memory kind needs no new protocol method and no
+    second implementation to drift.
+    """
+
+    namespace: str
+    scope_key: str
+    record_id: str
+    payload: str
+    created_at: str = ""
+
+
+@dataclass(frozen=True)
 class DocumentIngestResult:
     document_id: str
     document_version_id: str
@@ -77,3 +101,7 @@ class StorageProtocol(Protocol):
     def list_ready_chunks(self, *, as_of: str) -> list[ResolvedChunk]: ...
 
     def resolve_ready_chunks(self, chunk_ids: list[str], *, as_of: str) -> list[ResolvedChunk]: ...
+
+    def write_memory_record(self, record: MemoryRecord) -> None: ...
+
+    def list_memory_records(self, namespace: str, scope_key: str) -> list[MemoryRecord]: ...
