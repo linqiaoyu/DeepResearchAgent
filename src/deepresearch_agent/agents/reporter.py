@@ -26,6 +26,7 @@ from deepresearch_agent.schemas import (
     Evidence,
     ReportClaim,
     ReportDraft,
+    ReportEvidenceSelection,
     ResearchState,
     StructuredResearchOutput,
     SubQuestion,
@@ -228,6 +229,10 @@ class ReporterAgent:
     ) -> str:
         if not state.plan:
             raise ValueError("Cannot report before planning.")
+        state.report_evidence_selections = self._select_report_evidence(
+            state,
+            context_evidence=context_evidence,
+        )
         footnotes = build_footnote_maps(state.evidence_store)
         state.report_footnote_evidence = {
             number: evidence.id
@@ -274,6 +279,56 @@ class ReporterAgent:
                 report, state, footnotes.evidence_id_to_footnote
             )
         )
+
+    @staticmethod
+    def _select_report_evidence(
+        state: ResearchState,
+        *,
+        context_evidence: list[Evidence] | None,
+    ) -> list[ReportEvidenceSelection]:
+        """Choose a bounded, legal evidence set for every planned question."""
+
+        assert state.plan is not None
+        available_ids = (
+            {item.id for item in context_evidence}
+            if context_evidence is not None
+            else {item.id for item in state.evidence_store}
+        )
+        by_sub_question: dict[str, list[Evidence]] = defaultdict(list)
+        for item in state.evidence_store:
+            by_sub_question[item.sub_question_id].append(item)
+        selections: list[ReportEvidenceSelection] = []
+        for sub_question in state.plan.sub_questions:
+            canonical = by_sub_question.get(sub_question.id, [])
+            if not canonical:
+                selections.append(
+                    ReportEvidenceSelection(
+                        sub_question_id=sub_question.id,
+                        status="degraded",
+                        evidence_ids=[],
+                        delivery_mode="none",
+                        reason="no_evidence_for_sub_question",
+                    )
+                )
+                continue
+            in_context = [item for item in canonical if item.id in available_ids]
+            selected = (in_context or canonical)[:MAX_EVIDENCE_FLOOR_CLAIMS]
+            selections.append(
+                ReportEvidenceSelection(
+                    sub_question_id=sub_question.id,
+                    status="selected",
+                    evidence_ids=[item.id for item in selected],
+                    delivery_mode=(
+                        "reporter_context" if in_context else "mechanical_floor"
+                    ),
+                    reason=(
+                        "bounded_prewrite_selection"
+                        if in_context
+                        else "context_omitted_sub_question_use_mechanical_floor"
+                    ),
+                )
+            )
+        return selections
 
     def _compact_reader_report(
         self,
@@ -739,6 +794,10 @@ class ReporterAgent:
                         {
                             "topic": state.topic,
                             "plan": state.plan.model_dump(mode="json") if state.plan else None,
+                            "evidence_selection": [
+                                item.model_dump(mode="json")
+                                for item in state.report_evidence_selections
+                            ],
                             "evidence": [
                                 {
                                     "id": item.id,

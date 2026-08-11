@@ -520,6 +520,29 @@ class AgentDecision(StrictModel):
     timestamp: datetime = Field(default_factory=utc_now)
 
 
+class ReportEvidenceSelection(StrictModel):
+    """Pre-writing decision for one planned sub-question."""
+
+    sub_question_id: str
+    status: Literal["selected", "degraded"]
+    evidence_ids: list[str] = Field(default_factory=list)
+    delivery_mode: Literal["reporter_context", "mechanical_floor", "none"]
+    reason: str
+
+    @model_validator(mode="after")
+    def _validate_selection(self) -> ReportEvidenceSelection:
+        if self.status == "selected":
+            if not self.evidence_ids or self.delivery_mode == "none":
+                raise ValueError(
+                    "selected report evidence requires ids and a delivery mode"
+                )
+        elif self.evidence_ids or self.delivery_mode != "none":
+            raise ValueError(
+                "degraded report evidence cannot claim selected ids or delivery"
+            )
+        return self
+
+
 class ResearchState(StrictModel):
     research_id: str = Field(default_factory=lambda: str(uuid4()))
     topic: str
@@ -547,6 +570,9 @@ class ResearchState(StrictModel):
     draft_report: str | None = None
     final_report: str | None = None
     report_footnote_evidence: dict[int, str] = Field(default_factory=dict)
+    report_evidence_selections: list[ReportEvidenceSelection] = Field(
+        default_factory=list
+    )
     agent_decisions: list[AgentDecision] = Field(default_factory=list)
     structured_output: StructuredResearchOutput | None = None
     evaluation: EvaluationResult | None = None

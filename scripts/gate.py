@@ -131,6 +131,10 @@ def run_gate() -> None:
             "r149_reliability_probes",
             [sys.executable, "scripts/check_r149_reliability_probes.py", "--self-test"],
         ),
+        (
+            "report_evidence_selection",
+            [sys.executable, "scripts/check_report_evidence_selection.py", "--self-test"],
+        ),
         ("ruff", [sys.executable, "-m", "ruff", "check", "src", "tests", "scripts"]),
         # Scoped to the surfaces where two implementations must agree; the file
         # list in pyproject.toml is a ratchet that may only grow. Ruff cannot

@@ -770,3 +770,13 @@ index collision. Its diagnostic values therefore use denominator 28 and are not
 formal product metrics. The subsequent four-process ledger probe and three-call
 live planner probe validate only the repaired Harness mechanisms. They rerun no
 golden question and cannot contribute to F11 or F14 quality evidence.
+
+# R150 pre-writing Evidence selection
+
+Before Reporter writes, every planned sub-question now receives exactly one
+typed Evidence-selection decision. An evidenced sub-question selects a bounded
+set of IDs owned by that sub-question; an unevidenced one explicitly degrades.
+Context omission is distinguished from absence of canonical Evidence and is
+routed to the mechanical evidence floor. The selection contract is diagnostic
+and does not change a golden truth or product threshold. Reader-visible
+coverage of the selected IDs is measured separately in F03.
