@@ -146,6 +146,10 @@ def run_gate() -> None:
             [sys.executable, "scripts/check_rag_retrieval.py", "--self-test"],
         ),
         (
+            "mcp_interop",
+            [sys.executable, "scripts/check_mcp_interop.py", "--self-test"],
+        ),
+        (
             "storage_schema_parity",
             [sys.executable, "scripts/check_storage_schema_parity.py", "--self-test"],
         ),

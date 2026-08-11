@@ -72,9 +72,7 @@ class MCPClientWiringTests(unittest.TestCase):
                     engine.capability_registry.get(name).tool_spec for name in remote
                 ]
             finally:
-                for client in engine.mcp_clients:
-                    client.close()
-                engine._checkpoint_conn.close()
+                engine.close()
 
         self.assertEqual(registration["failed"], [], registration)
         self.assertEqual(registration["connected"], ["self-fixture"])
@@ -92,7 +90,7 @@ class MCPClientWiringTests(unittest.TestCase):
             )
             names = sorted(item.name for item in engine.capability_registry.query())
             registration = dict(engine.mcp_registration)
-            engine._checkpoint_conn.close()
+            engine.close()
 
         self.assertEqual([name for name in names if name.startswith("mcp.")], [])
         self.assertFalse(registration["enabled"])
@@ -107,7 +105,7 @@ class MCPClientWiringTests(unittest.TestCase):
             engine = self._engine(tmp, enabled=True, commands=commands)
             registration = dict(engine.mcp_registration)
             names = sorted(item.name for item in engine.capability_registry.query())
-            engine._checkpoint_conn.close()
+            engine.close()
 
         self.assertEqual(registration["connected"], [])
         self.assertEqual([item["server"] for item in registration["failed"]], ["missing"])
@@ -118,7 +116,7 @@ class MCPClientWiringTests(unittest.TestCase):
             tmp = Path(raw)
             engine = self._engine(tmp, enabled=True, commands="{not json")
             registration = dict(engine.mcp_registration)
-            engine._checkpoint_conn.close()
+            engine.close()
 
         self.assertEqual(registration["connected"], [])
         self.assertEqual(registration["failed"][0]["server"], "<config>")

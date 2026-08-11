@@ -374,6 +374,8 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
     def close(self) -> None:
         """Release process resources owned by this engine deterministically."""
         self._checkpoint_conn.close()
+        for client in self.mcp_clients:
+            client.close()
         for capability in ("disclosure_source", "structured_data_provider"):
             close = getattr(self.capability_registry.resolve(capability), "close", None)
             if callable(close):
@@ -751,6 +753,7 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
                 summary["failed"].append({"server": name, "error": "empty command"})
                 continue
             before = {item.name for item in self.capability_registry.query()}
+            client = None
             try:
                 client = MCPStdioClient(
                     command,
@@ -764,6 +767,8 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
                     trusted_server=bool(entry.get("trusted", False)),
                 )
             except Exception as exc:
+                if client is not None:
+                    client.close()
                 summary["failed"].append(
                     {"server": name, "error": type(exc).__name__}
                 )

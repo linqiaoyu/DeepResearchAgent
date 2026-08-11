@@ -1,0 +1,18 @@
+{
+  "technology": "mcp",
+  "status": "interop_contract_complete",
+  "round": 135,
+  "metrics": {
+    "successful_stdio_probes": 3,
+    "independent_server_probes": 2,
+    "tool_spec_coverage": 1.0,
+    "budget_coverage": 1.0,
+    "trajectory_coverage": 1.0,
+    "closed_processes": 3,
+    "residual_processes": 0,
+    "abnormal_exit_degraded": 1,
+    "abnormal_exit_residual_processes": 0,
+    "resource_warnings": 0
+  },
+  "command": "PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python scripts/check_mcp_interop.py --self-test"
+}
