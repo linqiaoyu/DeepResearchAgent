@@ -1,0 +1,37 @@
+{
+  "round": 148,
+  "status": "passed",
+  "metrics": {
+    "registered_h2_technologies": 12,
+    "h2_ready_technologies": 12,
+    "pairwise_state_coverage": 1.0,
+    "real_interop_passed": 1,
+    "postgres_service_tests": 4,
+    "qdrant_service_tests": 4,
+    "configured_service_skips": 0,
+    "unregistered_test_skips": 0,
+    "guards": 50,
+    "unwired_guards": 0,
+    "full_gate_passed": 1,
+    "tracked_files_unchanged": 1
+  },
+  "service_evidence": [
+    {
+      "job": "postgres-storage",
+      "image": "postgres:16",
+      "artifact": "_collab/148-harness-final/postgres-service-job.txt",
+      "sha256": "8cf5291f89edb1b306309302f64d0797d8f0129efd664235464b921812af3a18"
+    },
+    {
+      "job": "qdrant-vector-index",
+      "image": "qdrant/qdrant:v1.12.4",
+      "artifact": "_collab/148-harness-final/qdrant-service-job.txt",
+      "sha256": "8d08dca3acf781d833915c61fa02726985c5ae4ef5ced91f4c96f478f37e92bc"
+    }
+  ],
+  "boundaries": {
+    "finance_quality_claim": false,
+    "second_domain_added": false,
+    "graph_runtime": "LangGraph"
+  }
+}

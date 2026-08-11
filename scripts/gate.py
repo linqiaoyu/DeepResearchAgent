@@ -112,6 +112,10 @@ def run_gate() -> None:
             [sys.executable, "scripts/check_h2_real_interop.py", "--self-test"],
         ),
         (
+            "harness_stage_one",
+            [sys.executable, "scripts/check_harness_stage_one.py", "--self-test"],
+        ),
+        (
             "product_acceptance",
             [sys.executable, "scripts/check_product_acceptance.py", "--self-test"],
         ),
