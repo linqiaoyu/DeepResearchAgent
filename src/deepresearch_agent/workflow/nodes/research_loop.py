@@ -112,8 +112,14 @@ class ResearchLoopNodes:
             budget_consumed=sum(
                 int(value) for value in budget_usage.values()
             ),
-            stop_requested=sufficiency.sufficient,
-            stop_reason="sufficiency_thresholds_met",
+            # R120: this was `sufficiency.sufficient`, so any open gap kept the
+            # loop running -- including `freshness`, which on 28 of the R113
+            # sub-questions was already unclosable: their freshest evidence is a
+            # median 471 days old because the questions ask about a past fiscal
+            # year. The loop now asks whether anything remains that another
+            # iteration could close.
+            stop_requested=sufficiency.answered,
+            stop_reason="no_actionable_research_gap",
         )
         loop_context = (
             build_decision_context(

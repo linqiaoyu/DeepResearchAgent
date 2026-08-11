@@ -175,12 +175,60 @@ class SubquestionSufficiency(StrictModel):
     gaps: list[str] = Field(default_factory=list)
 
 
+#: Gap kinds another research iteration can plausibly close, and the ones it
+#: cannot. R120 measured the difference on the 30 R113 states: across all
+#: sub-questions the gaps were `counterargument` 63, `unresolved_critic_issues`
+#: 41, `freshness` 28, `independent_source_domains` 11,
+#: `requested_metric_coverage` 8, `evidence_count` 6, `average_confidence` 6.
+#:
+#: `freshness` is the one that cannot be researched away. The golden set is
+#: evaluated at 2026-07-09 and asks about FY2024, whose authoritative filings
+#: were published in early 2025, so on the 28 sub-questions carrying this gap
+#: the *freshest* evidence already held is a median of 471 days old (min 433).
+#: Source age is a property of the question's time anchor, not of research
+#: effort, and searching again cannot make a filing newer. Leaving it in the
+#: continue decision means iterating to the cap against something that cannot
+#: change.
+LOOP_DRIVING_GAPS: frozenset[str] = frozenset(
+    {
+        "evidence_count",
+        "independent_source_domains",
+        "average_confidence",
+        "requested_metric_coverage",
+        "counterargument",
+        "unresolved_critic_issues",
+    }
+)
+NON_RESEARCHABLE_GAPS: frozenset[str] = frozenset({"freshness"})
+
+
 class ResearchSufficiency(StrictModel):
     score: float = Field(ge=0, le=1)
     sufficient: bool
     by_sub_question: list[SubquestionSufficiency] = Field(
         default_factory=list
     )
+
+    @property
+    def actionable_gaps(self) -> tuple[str, ...]:
+        """Gaps a further iteration could close, in a stable order."""
+
+        seen: list[str] = []
+        for item in self.by_sub_question:
+            for gap in item.gaps:
+                if gap in LOOP_DRIVING_GAPS and gap not in seen:
+                    seen.append(gap)
+        return tuple(seen)
+
+    @property
+    def answered(self) -> bool:
+        """Whether another research iteration has anything left to do.
+
+        Distinct from ``sufficient``, which stays as the full report of every
+        gap including the ones research cannot close. The loop asks this one.
+        """
+
+        return not self.actionable_gaps
 
 
 def evaluate_research_sufficiency(
