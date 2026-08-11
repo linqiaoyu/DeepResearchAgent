@@ -1,0 +1,3 @@
+$ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/check_f11_live_canary.py --mutate hide-q13-failure
+Q13: workflow status must preserve budget_exceeded
+exit_code=1

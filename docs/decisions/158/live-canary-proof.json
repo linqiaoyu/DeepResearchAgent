@@ -1,0 +1,351 @@
+{
+  "schema_version": "f11-live-canary-v1",
+  "round": 158,
+  "task": "F11",
+  "status": "reliability_failed",
+  "preregistration": "docs/decisions/158/preregistration.json",
+  "source": {
+    "artifact": "artifacts/158/canary.json",
+    "sha256": "6dce562d8ff82240473d3bc42bc7772a0b635bfe406db6c107c47b9fa17e77fc"
+  },
+  "ledger_sources": [
+    {
+      "authority": "a",
+      "artifact": "artifacts/158/ledger-a.jsonl",
+      "sha256": "a5985bff286c93dcd46f5408dc9c4e37bc939b809bb1efdaf898aa2179a2a7b3"
+    },
+    {
+      "authority": "b",
+      "artifact": "artifacts/158/ledger-b.jsonl",
+      "sha256": "0168bfd812f859637042aa98b3d5a3b68765e582b6d6587b630541b06d3c95ba"
+    }
+  ],
+  "metrics": {
+    "question_count": 8,
+    "terminal_artifacts": 8,
+    "outer_done": 8,
+    "workflow_completed": 7,
+    "workflow_budget_exceeded": 1,
+    "planner_timeouts": 0,
+    "ledger_collisions": 0,
+    "silent_exclusions": 0,
+    "live_fidelity_cases": 8,
+    "locator_complete_cases": 8,
+    "round_ledger_cost_cny": 4.61891248,
+    "round_fuse_cny": 12.0
+  },
+  "cases": [
+    {
+      "id": "Q01",
+      "run_id": "e7bd0a0c-1983-44f2-9f24-75ac15584e85",
+      "shard_ledger_authority": "a",
+      "outer_status": "done",
+      "workflow_status": "completed",
+      "termination_error_type": null,
+      "termination_error_message": null,
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "planner_latency_seconds": 17.172,
+      "evidence_funnel": {
+        "cited_evidence": 3,
+        "extracted_evidence": 3,
+        "packed_evidence": 3,
+        "reader_visible_evidence": 3,
+        "retrieved_sources": 2
+      },
+      "locators": {
+        "state": {
+          "artifact": "artifacts/158/shard-a/Q01/state.json",
+          "sha256": "3a19448bbef04cb240028a5368e3e32089bab2429693d8154738ec6e81858c7c"
+        },
+        "trajectory": {
+          "artifact": "runs/e7bd0a0c-1983-44f2-9f24-75ac15584e85/trajectory.json",
+          "sha256": "1e888b68142d916a026374599be58777caa2c369714e50d60aa2439942c429c6"
+        },
+        "manifest": {
+          "artifact": "runs/e7bd0a0c-1983-44f2-9f24-75ac15584e85/manifest.json",
+          "sha256": "5efabc23c8ec1136445372fbf9e4d8a7f5c20b492c2e8bc6431bf7f119b2b4a5"
+        }
+      }
+    },
+    {
+      "id": "Q06",
+      "run_id": "777e96fe-dd22-4dc7-80f0-87707effcc59",
+      "shard_ledger_authority": "a",
+      "outer_status": "done",
+      "workflow_status": "completed",
+      "termination_error_type": null,
+      "termination_error_message": null,
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "planner_latency_seconds": 18.028,
+      "evidence_funnel": {
+        "cited_evidence": 11,
+        "extracted_evidence": 152,
+        "packed_evidence": 121,
+        "reader_visible_evidence": 116,
+        "retrieved_sources": 27
+      },
+      "locators": {
+        "state": {
+          "artifact": "artifacts/158/shard-a/Q06/state.json",
+          "sha256": "e49ef15a38c2311c702d6ab0aabeb80d57308d8c66952da922d890bc52f9bbd6"
+        },
+        "trajectory": {
+          "artifact": "runs/777e96fe-dd22-4dc7-80f0-87707effcc59/trajectory.json",
+          "sha256": "eef823915bd67112587ec97dcc331b5f13adf6edc198534e70901c1b8e5e3f65"
+        },
+        "manifest": {
+          "artifact": "runs/777e96fe-dd22-4dc7-80f0-87707effcc59/manifest.json",
+          "sha256": "5e0644c39180d8efd788ab4997c5dd7803c42fdc8a7a19f60f97f8fa0e9a7939"
+        }
+      }
+    },
+    {
+      "id": "Q09",
+      "run_id": "3d70dba8-7498-4078-8585-eb349bf07466",
+      "shard_ledger_authority": "b",
+      "outer_status": "done",
+      "workflow_status": "completed",
+      "termination_error_type": null,
+      "termination_error_message": null,
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "planner_latency_seconds": 22.669,
+      "evidence_funnel": {
+        "cited_evidence": 8,
+        "extracted_evidence": 80,
+        "packed_evidence": 65,
+        "reader_visible_evidence": 50,
+        "retrieved_sources": 21
+      },
+      "locators": {
+        "state": {
+          "artifact": "artifacts/158/shard-b/Q09/state.json",
+          "sha256": "6c7c96db57b058a440d189a07a4f6f934d1fdc756ecb7bd4b4147ec454a256d3"
+        },
+        "trajectory": {
+          "artifact": "runs/3d70dba8-7498-4078-8585-eb349bf07466/trajectory.json",
+          "sha256": "af2d5f23be040a6da04993efffd4f32429405906acf75a006cd67fe7c544ac3b"
+        },
+        "manifest": {
+          "artifact": "runs/3d70dba8-7498-4078-8585-eb349bf07466/manifest.json",
+          "sha256": "a809dec42e59067f3dbbdb538ba68fafc3342736dd10157cba67e4edfe3a77d6"
+        }
+      }
+    },
+    {
+      "id": "Q13",
+      "run_id": "65761790-097c-47ac-979c-4e4f7d295f0a",
+      "shard_ledger_authority": "a",
+      "outer_status": "done",
+      "workflow_status": "budget_exceeded",
+      "termination_error_type": "ToolExecutionError",
+      "termination_error_message": "run-wide web search request budget exhausted for tavily_search: 20/20",
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "planner_latency_seconds": 22.021,
+      "evidence_funnel": {
+        "cited_evidence": 20,
+        "extracted_evidence": 139,
+        "packed_evidence": 0,
+        "reader_visible_evidence": 106,
+        "retrieved_sources": 26
+      },
+      "locators": {
+        "state": {
+          "artifact": "artifacts/158/shard-a/Q13/state.json",
+          "sha256": "1faafa671019ac7f09045524e079ade6c60ea55bb469454f6b35845a866e3cb6"
+        },
+        "trajectory": {
+          "artifact": "runs/65761790-097c-47ac-979c-4e4f7d295f0a/trajectory.json",
+          "sha256": "5ecf4d596142392180cb8858e4fa559b64ddec624516b8c2f31e32077dd287b3"
+        },
+        "manifest": {
+          "artifact": "runs/65761790-097c-47ac-979c-4e4f7d295f0a/manifest.json",
+          "sha256": "69cefce171b1c356b581260c34150694eeef034c846c94dda93f598d5a3c0629"
+        }
+      }
+    },
+    {
+      "id": "Q16",
+      "run_id": "d53578c3-4921-4613-be87-7e4954999c14",
+      "shard_ledger_authority": "a",
+      "outer_status": "done",
+      "workflow_status": "completed",
+      "termination_error_type": null,
+      "termination_error_message": null,
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "planner_latency_seconds": 22.98,
+      "evidence_funnel": {
+        "cited_evidence": 12,
+        "extracted_evidence": 85,
+        "packed_evidence": 80,
+        "reader_visible_evidence": 61,
+        "retrieved_sources": 20
+      },
+      "locators": {
+        "state": {
+          "artifact": "artifacts/158/shard-a/Q16/state.json",
+          "sha256": "25d74d46eff9cd48c9e270dd389f17bb4df2c184e2bb289e201e0ea47888097f"
+        },
+        "trajectory": {
+          "artifact": "runs/d53578c3-4921-4613-be87-7e4954999c14/trajectory.json",
+          "sha256": "4f8ea7b55c4fe9bad4f909dfda863ceb5465322e2f6b8237e4aa9571d1526587"
+        },
+        "manifest": {
+          "artifact": "runs/d53578c3-4921-4613-be87-7e4954999c14/manifest.json",
+          "sha256": "fded950657ea273ef405dda25dd93aec912e406b2fd244a28beb16ccf9d25e11"
+        }
+      }
+    },
+    {
+      "id": "Q21",
+      "run_id": "23a59e82-4d46-4c94-a7f1-c7c010e695f0",
+      "shard_ledger_authority": "b",
+      "outer_status": "done",
+      "workflow_status": "completed",
+      "termination_error_type": null,
+      "termination_error_message": null,
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "planner_latency_seconds": 40.356,
+      "evidence_funnel": {
+        "cited_evidence": 7,
+        "extracted_evidence": 52,
+        "packed_evidence": 50,
+        "reader_visible_evidence": 52,
+        "retrieved_sources": 8
+      },
+      "locators": {
+        "state": {
+          "artifact": "artifacts/158/shard-b/Q21/state.json",
+          "sha256": "87faf7a5ae7333b5b311f8a7067b0054c54641465716b0418ad9354c2b415195"
+        },
+        "trajectory": {
+          "artifact": "runs/23a59e82-4d46-4c94-a7f1-c7c010e695f0/trajectory.json",
+          "sha256": "bc75f52d33bf5657e096bc0f3ea25c08008b3dd98ee34d5547ce8bf93abc97b3"
+        },
+        "manifest": {
+          "artifact": "runs/23a59e82-4d46-4c94-a7f1-c7c010e695f0/manifest.json",
+          "sha256": "ad463641a29f6bbd89032903d4d2f1439e7507d0bde55d8bf5a052bb7104d1a5"
+        }
+      }
+    },
+    {
+      "id": "Q28",
+      "run_id": "665ea8c0-1417-4677-952f-3bb80e99c383",
+      "shard_ledger_authority": "b",
+      "outer_status": "done",
+      "workflow_status": "completed",
+      "termination_error_type": null,
+      "termination_error_message": null,
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "planner_latency_seconds": 22.762,
+      "evidence_funnel": {
+        "cited_evidence": 12,
+        "extracted_evidence": 124,
+        "packed_evidence": 123,
+        "reader_visible_evidence": 94,
+        "retrieved_sources": 26
+      },
+      "locators": {
+        "state": {
+          "artifact": "artifacts/158/shard-b/Q28/state.json",
+          "sha256": "e1c024dca18716b87bf69d50071c36edf6e69632f9724ff1e710f85dd138ebf3"
+        },
+        "trajectory": {
+          "artifact": "runs/665ea8c0-1417-4677-952f-3bb80e99c383/trajectory.json",
+          "sha256": "a8b83ca0d77f2f931ed31cc1c454de770b9210aa3a7815fee3231d0727c0999c"
+        },
+        "manifest": {
+          "artifact": "runs/665ea8c0-1417-4677-952f-3bb80e99c383/manifest.json",
+          "sha256": "49aac8e84b0a536b41b4e5614397ab819c60225fbedf496313ff65febe88a6c3"
+        }
+      }
+    },
+    {
+      "id": "Q30",
+      "run_id": "de573b41-dea5-4411-8954-9f5244509de6",
+      "shard_ledger_authority": "b",
+      "outer_status": "done",
+      "workflow_status": "completed",
+      "termination_error_type": null,
+      "termination_error_message": null,
+      "provider_fidelity": {
+        "llm": "live",
+        "retrieval": "live",
+        "structured_data": "live"
+      },
+      "planner_latency_seconds": 38.671,
+      "evidence_funnel": {
+        "cited_evidence": 8,
+        "extracted_evidence": 729,
+        "packed_evidence": 729,
+        "reader_visible_evidence": 266,
+        "retrieved_sources": 14
+      },
+      "locators": {
+        "state": {
+          "artifact": "artifacts/158/shard-b/Q30/state.json",
+          "sha256": "fe558dfcc0e2110e37715bf114b723e513f7d3b1ceb923e545ed4cce6dc28b82"
+        },
+        "trajectory": {
+          "artifact": "runs/de573b41-dea5-4411-8954-9f5244509de6/trajectory.json",
+          "sha256": "5e9d6e9ae772d38c521d6e5559e78c9af516bc0a26f08b8789986fab64579b33"
+        },
+        "manifest": {
+          "artifact": "runs/de573b41-dea5-4411-8954-9f5244509de6/manifest.json",
+          "sha256": "3472d7f2a4cb8b4a22d00da1ac0b79abdeeb1b3d15f6f554a007ab77d4a9bbe4"
+        }
+      }
+    }
+  ],
+  "failure_findings": [
+    {
+      "id": "Q13",
+      "class": "critic_retry_external_request_budget_exhaustion",
+      "route": "F12"
+    }
+  ],
+  "integrity_findings": [
+    {
+      "id": "Q13",
+      "outer_status": "done",
+      "workflow_status": "budget_exceeded",
+      "class": "runner_terminal_status_mismatch",
+      "route": "F12"
+    }
+  ],
+  "boundaries": {
+    "formal_product_metrics": false,
+    "capability_effect_claim": false,
+    "may_contribute_to_f14": false,
+    "saved_states": false,
+    "rerun_or_best_of": false,
+    "failed_case_reruns": 0
+  }
+}

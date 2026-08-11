@@ -1,0 +1,68 @@
+{
+  "round": 158,
+  "task": "F11",
+  "registered_at_utc": "2026-08-11T22:26:00Z",
+  "purpose": "live_reliability_canary",
+  "formal_product_metrics": false,
+  "may_contribute_to_f14": false,
+  "hypotheses": [
+    "All eight fixed cases reach a terminal artifact without silent exclusion.",
+    "The R149 Q13 planner timeout does not recur under the explicit 180-second planner contract.",
+    "The R149 Q21 shared-ledger collision does not recur with shard-local ledger authorities.",
+    "Every successful case records live LLM, retrieval and structured-data fidelity plus trajectory, budget and evidence-funnel locators."
+  ],
+  "cohort": {
+    "questions": "data/golden_set/v1/questions.json",
+    "question_ids": ["Q01", "Q06", "Q09", "Q13", "Q16", "Q21", "Q28", "Q30"],
+    "selection_rationale": {
+      "Q01": "numeric baseline",
+      "Q06": "hard numeric and disclosure timing",
+      "Q09": "comparison and high evidence volume",
+      "Q13": "prior planner timeout",
+      "Q16": "false premise",
+      "Q21": "prior shared-ledger collision and industry evidence volume",
+      "Q28": "event timeline",
+      "Q30": "hard event timeline and disclosure timing"
+    },
+    "as_of": "2026-07-12",
+    "judge_samples": 1,
+    "exact_once": true,
+    "rerun_failed_cases": false,
+    "saved_states": false
+  },
+  "execution": {
+    "shards": [
+      ["Q01", "Q06", "Q13", "Q16"],
+      ["Q09", "Q21", "Q28", "Q30"]
+    ],
+    "maximum_parallel_shards": 2,
+    "distinct_ledger_authority_per_shard": true,
+    "run_budget_cny_per_case": 3.0,
+    "judge_budget_cny_per_case": 3.0,
+    "combined_budget_cny_per_shard": 6.0,
+    "case_reserve_cny": 0.8,
+    "provider_fidelity": {
+      "llm": "live",
+      "retrieval": "live",
+      "structured_data": "live"
+    }
+  },
+  "decision_rules": {
+    "pass": "8 terminal cases, zero planner timeouts, zero ledger collisions, zero silent exclusions, and all successful cases have three-layer live fidelity plus required locators",
+    "failure": "Preserve any terminal failure without rerun or replacement and route its defect class to F12",
+    "quality_claim": "No canary score or funnel ratio proves product acceptance or capability effectiveness"
+  },
+  "budget": {
+    "currency": "CNY",
+    "expected_total": 4.0,
+    "round_fuse": 12.0,
+    "plan_fuse": 300.0,
+    "plan_spend_before_round": 13.7416225
+  },
+  "stop_conditions": [
+    "sum of shard ledgers reaches CNY 12",
+    "either shard reaches its CNY 6 fuse",
+    "credentials or third-party response bodies would leave ignored artifacts"
+  ],
+  "rollback": "Preserve every terminal and partial artifact, stop dependent paid work, and do not rerun a failed case."
+}

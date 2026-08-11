@@ -136,6 +136,10 @@ def run_gate() -> None:
             [sys.executable, "scripts/check_f01_live_baseline.py", "--self-test"],
         ),
         (
+            "f11_live_canary",
+            [sys.executable, "scripts/check_f11_live_canary.py", "--self-test"],
+        ),
+        (
             "stage_two_execution",
             [sys.executable, "scripts/check_stage_two_execution.py", "--self-test"],
         ),

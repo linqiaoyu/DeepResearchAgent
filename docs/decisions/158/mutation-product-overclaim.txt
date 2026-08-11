@@ -1,0 +1,3 @@
+$ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/check_f11_live_canary.py --mutate claim-product-metric
+canary boundaries must forbid product/effect claims and reruns
+exit_code=1
