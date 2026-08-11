@@ -106,10 +106,21 @@ class MeasuredGapTests(unittest.TestCase):
 
         self.assertEqual(unprovable, [])
 
-    def test_all_twenty_five_have_a_locator(self) -> None:
-        provable = [f for f, loc in LOCATORS.items() if loc.kind is not None]
+    def test_every_classified_flag_has_a_locator(self) -> None:
+        """R123: this asserted the literal 25 and broke when a 26th flag landed.
 
-        self.assertEqual(len(provable), 25)
+        The count was incidental; what the test is for is that no manifest flag
+        exists without a way to prove it ran. Deriving the expected set from the
+        classification table asserts exactly that, and a new flag added without
+        a locator now fails here instead of shifting a number.
+        """
+
+        from deepresearch_agent.provenance.manifest import FLAG_CLASSIFICATIONS
+
+        provable = {flag for flag, loc in LOCATORS.items() if loc.kind is not None}
+
+        self.assertEqual(sorted(set(FLAG_CLASSIFICATIONS) - provable), [])
+        self.assertEqual(sorted(provable - set(FLAG_CLASSIFICATIONS)), [])
 
 
 if __name__ == "__main__":

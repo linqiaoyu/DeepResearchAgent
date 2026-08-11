@@ -113,6 +113,7 @@ FLAG_CLASSIFICATIONS: dict[str, FlagClassification] = {
     "EXTRACTOR_ENABLED": "content_affecting",
     "PROCEDURAL_MEMORY_ENABLED": "content_affecting",
     "SKILL_PACKS_ENABLED": "content_affecting",
+    "MCP_CLIENT_ENABLED": "content_affecting",
     "RAG_ENABLED": "content_affecting",
     "RERANK_ENABLED": "content_affecting",
     "RERANK_FAIL_OPEN": "content_affecting",
@@ -407,6 +408,8 @@ def settings_flag_snapshot(
         flags["REFLECTION_ENABLED"] = settings.reflection_enabled
     if settings.skill_packs_enabled or include_disabled_experimental:
         flags["SKILL_PACKS_ENABLED"] = settings.skill_packs_enabled
+    if settings.mcp_client_enabled or include_disabled_experimental:
+        flags["MCP_CLIENT_ENABLED"] = settings.mcp_client_enabled
     if settings.semantic_judge_enabled or include_disabled_experimental:
         flags["SEMANTIC_JUDGE_ENABLED"] = settings.semantic_judge_enabled
     if settings.rag_enabled or include_disabled_experimental:

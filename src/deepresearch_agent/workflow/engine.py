@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 import time
 import traceback
@@ -196,6 +197,8 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
             disclosure_source=disclosure_source,
             rag_search=rag_search,
         )
+        self.mcp_clients: list[Any] = []
+        self.mcp_registration: dict[str, Any] = self._register_mcp_servers()
         self.skill_loader = SkillPackLoader(
             project_root() / "skills"
         )
@@ -710,6 +713,74 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
         )
         state.metadata["external_request_budget"] = snapshot
         return snapshot
+
+    def _register_mcp_servers(self) -> dict[str, Any]:
+        """Discover configured external MCP servers into the capability registry.
+
+        R123: `mcp/server.py` exposes this agent as MCP tools and works.
+        `mcp/client.py` -- including `discover_and_register`, which puts a
+        remote tool behind the same `ToolSpec`, budget and executor as every
+        local one -- was imported by nothing outside its own package, so the
+        agent could not consume an external tool and its capability set was the
+        five hardcoded entries.
+
+        A server is an outbound dependency: unreachable is a degradation the run
+        records and continues past, never an exception that ends it.
+        """
+
+        summary: dict[str, Any] = {
+            "enabled": self.settings.mcp_client_enabled,
+            "configured": 0,
+            "connected": [],
+            "failed": [],
+            "registered_capabilities": [],
+        }
+        if not self.settings.mcp_client_enabled:
+            return summary
+        try:
+            configured = json.loads(self.settings.mcp_server_commands or "[]")
+        except json.JSONDecodeError as exc:
+            summary["failed"].append({"server": "<config>", "error": str(exc)})
+            self.logger.event("mcp_config_invalid", error_type="JSONDecodeError")
+            return summary
+        summary["configured"] = len(configured)
+        from deepresearch_agent.mcp import MCPStdioClient
+
+        for entry in configured:
+            name = str(entry.get("name", "")) or "unnamed"
+            command = [str(part) for part in entry.get("command", [])]
+            if not command:
+                summary["failed"].append({"server": name, "error": "empty command"})
+                continue
+            before = {item.name for item in self.capability_registry.query()}
+            try:
+                client = MCPStdioClient(
+                    command,
+                    server_name=name,
+                    request_timeout_s=float(entry.get("timeout_s", 10.0)),
+                    environ=entry.get("environ"),
+                )
+                client.discover_and_register(
+                    self.capability_registry,
+                    ResearchState(topic=f"mcp discovery: {name}"),
+                    trusted_server=bool(entry.get("trusted", False)),
+                )
+            except Exception as exc:
+                summary["failed"].append(
+                    {"server": name, "error": type(exc).__name__}
+                )
+                self.logger.event(
+                    "mcp_server_unavailable",
+                    server=name,
+                    error_type=type(exc).__name__,
+                )
+                continue
+            self.mcp_clients.append(client)
+            summary["connected"].append(name)
+            summary["registered_capabilities"].extend(
+                sorted({item.name for item in self.capability_registry.query()} - before)
+            )
+        return summary
 
     def _record_episodic_snapshot(self, state: ResearchState, manifest: Any) -> None:
         """Write what a later run's prior-memory read is supposed to find.

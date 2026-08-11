@@ -58,6 +58,7 @@ LOCATORS: dict[str, Locator] = {
     "EXTRACTOR_ENABLED": Locator("activity", "extractor"),
     "INJECTION_GUARD_ENABLED": Locator("activity", "injection_guard"),
     "LLM_TOOL_SELECTION_ENABLED": Locator("state", "capability_selections"),
+    "MCP_CLIENT_ENABLED": Locator("state", "mcp_registration"),
     "NUMERIC_CHECK_ENABLED": Locator("activity", "numeric_check"),
     "PRIOR_MEMORY_ENABLED": Locator("activity", "episodic_memory"),
     "PROCEDURAL_MEMORY_ENABLED": Locator("activity", "procedural_memory_read"),

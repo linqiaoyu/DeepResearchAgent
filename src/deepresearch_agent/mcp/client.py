@@ -506,6 +506,18 @@ def _capability_metadata(
     timeout_s = metadata.get("deepresearch/timeoutSeconds", 10.0)
     if not isinstance(timeout_s, (int, float)) or timeout_s <= 0:
         timeout_s = 10.0
+    # R123: `total_timeout_s` defaults to None, which is the historical
+    # behaviour for tools written in this repository and wrong for a remote one:
+    # AGENTS.md section 6 requires every external tool to carry a bounded
+    # timeout and retry envelope, and None leaves the envelope unbounded across
+    # attempts. A discovered tool gets an explicit ceiling, which a trusted
+    # server may raise or lower for itself.
+    total_timeout_s = metadata.get(
+        "deepresearch/totalTimeoutSeconds", float(timeout_s) * 3
+    )
+    if not isinstance(total_timeout_s, (int, float)) or total_timeout_s <= 0:
+        total_timeout_s = float(timeout_s) * 3
+    total_timeout_s = max(float(total_timeout_s), float(timeout_s))
     version = metadata.get("deepresearch/toolVersion", "discovered")
     if not isinstance(version, str) or not version:
         version = "discovered"
@@ -518,6 +530,7 @@ def _capability_metadata(
         input_schema=tool.input_schema,
         output_schema=tool.output_schema,
         timeout_s=float(timeout_s),
+        total_timeout_s=float(total_timeout_s),
         cost_class=cost_level,
         idempotent=idempotent,
         has_side_effect=has_side_effect,

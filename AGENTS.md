@@ -321,6 +321,7 @@ capability 默认翻为 `true`，旧 AGENTS 仍写 `false`。
 | `EXTRACTOR_ENABLED` | `true` | `content_affecting` |
 | `INJECTION_GUARD_ENABLED` | `false` | `content_affecting` |
 | `LLM_TOOL_SELECTION_ENABLED` | `false` | `content_affecting` |
+| `MCP_CLIENT_ENABLED` | `false` | `content_affecting` |
 | `NUMERIC_CHECK_ENABLED` | `true` | `content_affecting` |
 | `PRIOR_MEMORY_ENABLED` | `false` | `content_affecting` |
 | `PROCEDURAL_MEMORY_ENABLED` | `false` | `content_affecting` |

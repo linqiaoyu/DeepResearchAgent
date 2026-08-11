@@ -90,6 +90,14 @@ class Settings:
     # cross-run preference can beat the control on a registered task.
     procedural_memory_enabled: bool = False
     skill_packs_enabled: bool = False
+    #: R123: consume external MCP servers as capabilities. Off by default; a
+    #: server is an outbound dependency and turning one on is an operator
+    #: decision, not a default.
+    mcp_client_enabled: bool = False
+    #: JSON list of {"name": str, "command": [str, ...]} describing the servers
+    #: to discover. Empty means the flag is on with nothing to connect to,
+    #: which the run records rather than treating as success.
+    mcp_server_commands: str = ""
     rag_enabled: bool = False
     rerank_enabled: bool = True
     rerank_fail_open: bool = True
@@ -315,6 +323,8 @@ def load_settings() -> Settings:
             "PROCEDURAL_MEMORY_ENABLED",
         ),
         skill_packs_enabled=_env_flag("SKILL_PACKS_ENABLED"),
+        mcp_client_enabled=_env_flag("MCP_CLIENT_ENABLED"),
+        mcp_server_commands=os.getenv("DEEPRESEARCH_MCP_SERVER_COMMANDS", ""),
         rag_enabled=_env_flag("RAG_ENABLED"),
         rerank_enabled=_env_flag("RERANK_ENABLED", default=True),
         rerank_fail_open=_env_flag("RERANK_FAIL_OPEN", default=True),
