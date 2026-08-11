@@ -76,13 +76,17 @@
       }
     },
     "skills": {
-      "status": "wired",
+      "status": "h2_ready",
       "objective": "Load selected skill metadata, resources, and capabilities without bypassing harness controls.",
       "boundary": "Finance remains the only product skill/domain; additional packs are test fixtures only.",
       "criteria": [
         {"metric": "unselected_resource_reads", "operator": "==", "target": 0, "measured_by": "scripts/check_harness_acceptance.py --technology skills"},
         {"metric": "observable_skill_states", "operator": "==", "target": 4, "measured_by": "scripts/check_harness_acceptance.py --technology skills"}
-      ]
+      ],
+      "proof": {
+        "round": 138,
+        "artifact": "docs/decisions/138/skills-h2-proof.json"
+      }
     },
     "memory": {
       "status": "wired",

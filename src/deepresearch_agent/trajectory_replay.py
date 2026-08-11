@@ -1065,6 +1065,13 @@ def replay_trajectory(
         ),
         None,
     )
+    expected_skills = trajectory.request.get("skill_packs")
+    actual_skills = state.metadata.get("skill_packs")
+    if mismatch is None and expected_skills is not None and expected_skills != actual_skills:
+        mismatch = (
+            "trajectory Skill snapshot mismatch: "
+            f"expected={expected_skills}, actual={actual_skills}"
+        )
     if mismatch is None and not termination_matches:
         mismatch = (
             "trajectory terminal mismatch: "

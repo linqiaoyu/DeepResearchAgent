@@ -100,29 +100,79 @@ class GraphAssembly:
         return graph.compile(checkpointer=self.checkpointer)
 
     def _entry_node(self, graph_state: ResearchGraphState) -> ResearchGraphState:
-        if not self.settings.skill_packs_enabled:
-            return graph_state
         state = self._state_from_graph_values(graph_state)
+        if not self.settings.skill_packs_enabled:
+            state.metadata.setdefault(
+                "skill_packs",
+                {
+                    "status": "bypassed",
+                    "states": ["bypassed"],
+                    "selection_complete": False,
+                    "selected_skills": [],
+                    "loaded_skills": [],
+                    "registered_capabilities": [],
+                },
+            )
+            result = dict(graph_state)
+            result["research_state"] = self._dump_state(state)
+            return result
         skill_metadata = state.metadata.get("skill_packs")
         if isinstance(skill_metadata, dict) and skill_metadata.get(
             "selection_complete"
         ):
             return graph_state
-        outcome = load_skills_if_enabled(
-            self.settings,
-            self.skill_loader,
-            state.topic,
-            registry=self.capability_registry,
-            state=state,
-            is_applicable=self.domain_pack.metric_skill_applicable,
-        )
-        state.metadata["skill_packs"] = {
-            "selection_complete": True,
-            "selected_skills": list(outcome.selected_skills),
-            "registered_capabilities": list(
-                outcome.registered_capabilities
-            ),
-        }
+        try:
+            outcome = load_skills_if_enabled(
+                self.settings,
+                self.skill_loader,
+                state.topic,
+                registry=self.capability_registry,
+                state=state,
+                is_applicable=self.domain_pack.metric_skill_applicable,
+            )
+        except Exception as exc:
+            state.metadata["skill_packs"] = {
+                "status": "failed",
+                "states": ["failed"],
+                "selection_complete": True,
+                "selected_skills": [],
+                "loaded_skills": [],
+                "registered_capabilities": [],
+                "failure": {
+                    "error_type": type(exc).__name__,
+                    "message": str(exc),
+                },
+            }
+            state.metadata.setdefault("degradation_events", []).append(
+                {
+                    "tool": "skill_packs",
+                    "reason": "load_failed",
+                    "impact": "run continued without optional Skill resources",
+                    "attempts": 1,
+                }
+            )
+        else:
+            loaded_skills = [
+                {
+                    "name": item.metadata.name,
+                    "version": item.metadata.version,
+                    "content_sha256": item.content_sha256,
+                }
+                for item in outcome.loaded_skills
+            ]
+            is_loaded = bool(loaded_skills)
+            state.metadata["skill_packs"] = {
+                "status": "loaded" if is_loaded else "bypassed",
+                "states": (
+                    ["selected", "loaded"] if is_loaded else ["bypassed"]
+                ),
+                "selection_complete": True,
+                "selected_skills": list(outcome.selected_skills),
+                "loaded_skills": loaded_skills,
+                "registered_capabilities": list(
+                    outcome.registered_capabilities
+                ),
+            }
         result = dict(graph_state)
         result["research_state"] = self._dump_state(state)
         return result

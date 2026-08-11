@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -67,6 +68,7 @@ class LoadedSkill(StrictModel):
     metadata: SkillMetadata
     resources: dict[str, str]
     capability: SkillCapabilityDefinition
+    content_sha256: str
 
     def resource_text(self, name: str | None = None) -> str:
         target = name or self.capability.resource
@@ -340,7 +342,22 @@ class SkillPackLoader:
             metadata=metadata,
             resources=resources,
             capability=capability,
+            content_sha256=self._content_sha256(metadata, resources),
         )
+
+    @staticmethod
+    def _content_sha256(
+        metadata: SkillMetadata,
+        resources: dict[str, str],
+    ) -> str:
+        digest = hashlib.sha256()
+        digest.update((metadata.root / "SKILL.md").read_bytes())
+        for name, content in sorted(resources.items()):
+            digest.update(b"\0")
+            digest.update(name.encode("utf-8"))
+            digest.update(b"\0")
+            digest.update(content.encode("utf-8"))
+        return digest.hexdigest()
 
     @staticmethod
     def _require_within(path: Path, root: Path, message: str) -> None:

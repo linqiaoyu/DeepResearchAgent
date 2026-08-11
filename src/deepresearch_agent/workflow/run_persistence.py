@@ -76,6 +76,10 @@ class RunPersistence:
     ) -> None:
         self._capture_external_request_budget(state, run_scope=run_scope)
         self._capture_llm_run_cost(state)
+        if recorder is not None and self.settings.skill_packs_enabled:
+            skill_packs = state.metadata.get("skill_packs")
+            if isinstance(skill_packs, dict):
+                recorder.trajectory.request["skill_packs"] = skill_packs
         manifest_path = None
         if self.settings.run_manifest_enabled:
             try:

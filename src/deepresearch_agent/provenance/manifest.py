@@ -16,6 +16,12 @@ from deepresearch_agent.security import redact
 from deepresearch_agent.settings import Settings, project_root
 
 
+class SkillManifestEntry(StrictModel):
+    name: str
+    version: str
+    content_sha256: str
+
+
 class RunManifest(StrictModel):
     run_id: str
     started_at: datetime
@@ -43,6 +49,7 @@ class RunManifest(StrictModel):
     context_events: list[dict[str, Any]] = Field(default_factory=list)
     tool_error_summary: dict[str, int] = Field(default_factory=dict)
     decision_summary: list[AgentDecision] = Field(default_factory=list)
+    skills: list[SkillManifestEntry] = Field(default_factory=list)
 
 
 class ManifestComparison(StrictModel):
@@ -66,6 +73,7 @@ COMPARABILITY_FIELDS = (
     "domain",
     "mode",
     "config_hash",
+    "skills",
 )
 
 # Classification evidence is the 011 product-level flag-impact replay under
@@ -242,7 +250,22 @@ def build_run_manifest(
         context_events=context_events,
         tool_error_summary={str(key): int(value) for key, value in tool_errors.items()},
         decision_summary=list(state.agent_decisions),
+        skills=_skill_manifest_entries(metadata),
     )
+
+
+def _skill_manifest_entries(metadata: dict[str, Any]) -> list[SkillManifestEntry]:
+    skill_packs = metadata.get("skill_packs", {})
+    if not isinstance(skill_packs, dict):
+        return []
+    loaded = skill_packs.get("loaded_skills", [])
+    if not isinstance(loaded, list):
+        return []
+    return [
+        SkillManifestEntry.model_validate(item)
+        for item in loaded
+        if isinstance(item, dict)
+    ]
 
 
 def _cost_cny_total(state: ResearchState) -> float | None:
@@ -432,6 +455,8 @@ def write_run_manifest(manifest: RunManifest, runs_root: Path) -> Path:
     # once it has a concrete version, without changing fixture-only artifacts.
     if manifest.retrieval_index_version is None:
         payload.pop("retrieval_index_version", None)
+    if not manifest.skills:
+        payload.pop("skills", None)
     encoded = json.dumps(payload, ensure_ascii=False, indent=2)
     output.write_text(redact(encoded) + "\n", encoding="utf-8")
     return output
