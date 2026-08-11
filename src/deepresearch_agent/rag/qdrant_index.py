@@ -95,6 +95,33 @@ class QdrantIndex:
         response.raise_for_status()
         return "exists"
 
+    def observed_index_version(self) -> str:
+        """Read the immutable version marker from an existing collection."""
+
+        response = self._request(
+            "post",
+            f"{self._collection_url}/points/scroll",
+            json={
+                "limit": 1,
+                "with_payload": ["index_version"],
+                "with_vector": False,
+            },
+        )
+        response.raise_for_status()
+        points = response.json().get("result", {}).get("points", [])
+        if not points:
+            raise ToolExecutionError(
+                ToolErrorKind.NOT_FOUND,
+                "Qdrant collection contains no versioned points",
+            )
+        version = points[0].get("payload", {}).get("index_version")
+        if not isinstance(version, str) or not version:
+            raise ToolExecutionError(
+                ToolErrorKind.PERMANENT,
+                "Qdrant collection point has no index_version",
+            )
+        return version
+
     @staticmethod
     def point_id(*, chunk_id: str, model: str, chunker_version: str) -> str:
         return str(uuid5(NAMESPACE_URL, f"{chunk_id}:{model}:{chunker_version}"))

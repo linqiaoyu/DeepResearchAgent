@@ -1,0 +1,49 @@
+{
+  "metrics": {
+    "ledger_rows": 31,
+    "llm_failure_degradations": 1,
+    "mcp_failure_degradations": 1,
+    "observability_coverage": 1.0,
+    "observed_probes": 12,
+    "rag_failure_degradations": 1,
+    "real_llm_successes": 3,
+    "real_mcp_successes": 3,
+    "real_rag_successes": 3,
+    "round_fuse_cny": 40.0,
+    "total_cost_cny": 0.0191385
+  },
+  "notes": {
+    "quality_claim": false,
+    "rag_service": "temporary local qdrant/qdrant:v1.18.3-unprivileged",
+    "remote_qdrant_mutated": false
+  },
+  "preregistration": "docs/decisions/147/preregistration.json",
+  "round": 147,
+  "sources": [
+    {
+      "artifact": "artifacts/147/attempt5/llm-1-trajectory.json",
+      "sha256": "3694bf77641840da659f3204af39f70b7936aae35ef6a8b7cdde051e59111db5"
+    },
+    {
+      "artifact": "artifacts/147/attempt5/llm-2-trajectory.json",
+      "sha256": "a5ad21afbe2cab50fdc6257420455fd67241c2faf331d6f1d7b43b4bb708fb01"
+    },
+    {
+      "artifact": "artifacts/147/attempt5/llm-3-trajectory.json",
+      "sha256": "de816854624d938f2931b9dc6708828b1e3cd8b13fcd0bc2a0f8c1447654d951"
+    },
+    {
+      "artifact": "artifacts/147/attempt5/llm-failure-trajectory.json",
+      "sha256": "7188469576fc73a6346833c44741d81d44f49039294b4bdb9f7deabee778227b"
+    },
+    {
+      "artifact": "artifacts/147/attempt12/real-interop-rag.json",
+      "sha256": "b3a88ca0a4bc26441fdb94756eb422f748c54c99639a18a92dc358496897d30f"
+    },
+    {
+      "artifact": "artifacts/147/attempt6/real-interop-mcp.json",
+      "sha256": "0f41010a707f6e8cc27a21dd5716bd1922b26ad05550ad6f809b31c8af9624f6"
+    }
+  ],
+  "status": "passed"
+}

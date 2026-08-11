@@ -1,0 +1,31 @@
+{
+  "round": 147,
+  "registered_at_utc": "2026-08-11T14:48:08Z",
+  "objective": "Show that the H2 control plane reaches real LLM, RAG, and MCP process boundaries while retaining accounting, trajectory, termination, and degradation evidence.",
+  "hypothesis": "Each configured boundary will complete three independent minimal probes, and an injected boundary failure will terminate or degrade explicitly without losing the other local capabilities.",
+  "quality_claim": false,
+  "sample_size": {
+    "per_boundary_successes": 3,
+    "per_boundary_failure_injections": 1,
+    "rationale": "This is a binary interoperability release test, not an effectiveness estimate. Three separate calls/processes detect a single cached or accidentally reused success while matching the pre-approved H23 acceptance contract."
+  },
+  "noise": {
+    "measured": "success/failure classification is deterministic; provider latency and billed cost are recorded but not used to infer quality",
+    "decision_rule": "pass only if all 9 successes and all 3 explicit degradations occur with complete observability"
+  },
+  "budget": {
+    "currency": "CNY",
+    "estimated_llm": 3.0,
+    "estimated_rag": 1.0,
+    "estimated_mcp": 0.0,
+    "expected_total": 4.0,
+    "round_fuse": 40.0,
+    "plan_fuse": 300.0
+  },
+  "rollback": "Do not promote the real-interoperability proof; retain raw artifacts and continue independent offline work. No provider state is mutated by these probes.",
+  "stop_conditions": [
+    "round ledger reaches CNY 40",
+    "any credential appears in output",
+    "a probe would require a provider or framework outside the approved plan"
+  ]
+}

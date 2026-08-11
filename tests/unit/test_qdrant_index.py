@@ -66,6 +66,41 @@ class QdrantIndexTests(unittest.TestCase):
 
         self.assertEqual(get.call_count, 1)
 
+    def test_observed_index_version_reads_one_existing_point(self) -> None:
+        index = QdrantIndex(
+            url="https://qdrant.test",
+            api_key="test",
+            collection="collection",
+        )
+        with patch(
+            "deepresearch_agent.rag.qdrant_index.httpx.post",
+            return_value=Response(
+                status_code=200,
+                payload={
+                    "result": {
+                        "points": [{"payload": {"index_version": "idx-v1"}}]
+                    }
+                },
+            ),
+        ) as post:
+            self.assertEqual(index.observed_index_version(), "idx-v1")
+        self.assertEqual(post.call_args.kwargs["json"]["limit"], 1)
+
+    def test_observed_index_version_rejects_unversioned_collection(self) -> None:
+        index = QdrantIndex(
+            url="https://qdrant.test",
+            api_key="test",
+            collection="collection",
+        )
+        with patch(
+            "deepresearch_agent.rag.qdrant_index.httpx.post",
+            return_value=Response(
+                status_code=200,
+                payload={"result": {"points": [{"payload": {}}]}},
+            ),
+        ), self.assertRaisesRegex(ToolExecutionError, "no index_version"):
+            index.observed_index_version()
+
     def test_point_id_is_stable_and_model_scoped(self) -> None:
         first = QdrantIndex.point_id(chunk_id="chunk", model="model-a", chunker_version="v1")
         self.assertEqual(
