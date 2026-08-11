@@ -1,0 +1,13 @@
+{
+  "technology": "observability_replay",
+  "status": "h2_ready",
+  "metrics": {
+    "harness_technology_locator_coverage": 1.0,
+    "activity_status_vocabulary_coverage": 1.0,
+    "completed_report_byte_match": 1.0,
+    "offline_terminal_verification_rate": 1.0,
+    "omitted_call_rejected": 1,
+    "prompt_drift_rejected": 1,
+    "legacy_v6_validation_compatible": 1
+  }
+}

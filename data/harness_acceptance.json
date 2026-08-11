@@ -128,13 +128,17 @@
       }
     },
     "observability_replay": {
-      "status": "wired",
+      "status": "h2_ready",
       "objective": "Make capability activity, termination, cost, and replay evidence independently auditable.",
       "boundary": "Only completed trajectories claim strict replay; other terminal states claim offline validation.",
       "criteria": [
         {"metric": "harness_technology_locator_coverage", "operator": "==", "target": 1.0, "measured_by": "scripts/check_harness_acceptance.py --technology observability_replay"},
         {"metric": "completed_report_byte_match", "operator": "==", "target": 1.0, "measured_by": "scripts/check_harness_acceptance.py --technology observability_replay"}
-      ]
+      ],
+      "proof": {
+        "round": 144,
+        "artifact": "docs/decisions/144/observability-replay-h2-proof.json"
+      }
     },
     "storage_backends": {
       "status": "wired",

@@ -25,7 +25,10 @@ class FastAPIContractTests(unittest.TestCase):
         after = len(list(fd_directory.iterdir())) if fd_directory.exists() else None
 
         if before is not None and after is not None:
-            self.assertEqual(before, after)
+            # Other tests' executor finalizers may close descriptors while this
+            # import runs.  The contract is that import adds no durable
+            # resource, so a lower count is valid and a higher count is not.
+            self.assertLessEqual(after, before)
 
     def test_research_endpoints_match_readme_contract(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

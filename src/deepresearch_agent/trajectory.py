@@ -138,7 +138,7 @@ class TrajectoryTermination(StrictModel):
 
 
 class AgentTrajectory(StrictModel):
-    schema_version: int = 6
+    schema_version: int = 7
     run_id: str
     recorded_at: datetime = Field(default_factory=utc_now)
     request: dict[str, Any]
@@ -153,6 +153,20 @@ class AgentTrajectory(StrictModel):
     run_manifest_ref: str | None = None
     artifacts: dict[str, str] = Field(default_factory=dict)
     termination: TrajectoryTermination | None = None
+    trace_commitment: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-f]{64}$",
+    )
+
+
+class OfflineTrajectoryVerification(StrictModel):
+    """Evidence obtainable without executing providers or replaying semantics."""
+
+    schema_version: int
+    termination_status: Literal["completed", "budget_exceeded", "failed"]
+    trace_commitment_verified: bool
+    artifact_sha256: dict[str, str] = Field(default_factory=dict)
+    call_counts: dict[str, int] = Field(default_factory=dict)
 
 
 class ReplayResult(StrictModel):
@@ -247,9 +261,15 @@ class TrajectoryRecorder:
             or self.trajectory.termination
             or TrajectoryTermination(status="completed", phase="done")
         )
+        self.trajectory.trace_commitment = trajectory_trace_commitment(
+            self.trajectory.model_dump(mode="json")
+        )
 
     def terminate(self, termination: TrajectoryTermination) -> None:
         self.trajectory.termination = termination
+        self.trajectory.trace_commitment = trajectory_trace_commitment(
+            self.trajectory.model_dump(mode="json")
+        )
 
     def write(self, path: Path) -> Path:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -257,6 +277,8 @@ class TrajectoryRecorder:
             self.trajectory.model_dump(mode="json")
         )
         _rekey_redacted_llm_calls(payload)
+        if self.trajectory.schema_version >= 7:
+            payload["trace_commitment"] = trajectory_trace_commitment(payload)
         encoded = json.dumps(
             payload,
             ensure_ascii=False,
@@ -349,11 +371,66 @@ def _rekey_redacted_llm_calls(payload: Any) -> None:
         )
 
 
+def trajectory_trace_commitment(payload: Mapping[str, Any]) -> str:
+    """Commit to every auditable call/event while excluding wall-clock noise."""
+
+    committed = {
+        "request": payload.get("request", {}),
+        "llm_calls": payload.get("llm_calls", []),
+        "tool_calls": payload.get("tool_calls", []),
+        "node_transitions": payload.get("node_transitions", []),
+        "agent_decisions": payload.get("agent_decisions", []),
+        "signal_reads": payload.get("signal_reads", []),
+        "memory_writes": payload.get("memory_writes", []),
+        "embedding_calls": payload.get("embedding_calls", []),
+        "rerank_calls": payload.get("rerank_calls", []),
+        "termination": payload.get("termination"),
+        "artifacts": payload.get("artifacts", {}),
+    }
+    encoded = json.dumps(
+        committed,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def verify_trajectory_offline(
+    trajectory: AgentTrajectory,
+) -> OfflineTrajectoryVerification:
+    """Validate terminal evidence without claiming execution replay."""
+
+    validate_strict_replay_trajectory(trajectory)
+    if trajectory.termination is None:
+        raise ValueError("offline verification requires a typed termination")
+    return OfflineTrajectoryVerification(
+        schema_version=trajectory.schema_version,
+        termination_status=trajectory.termination.status,
+        trace_commitment_verified=(
+            trajectory.schema_version < 7
+            or trajectory.trace_commitment
+            == trajectory_trace_commitment(trajectory.model_dump(mode="json"))
+        ),
+        artifact_sha256={
+            name: hashlib.sha256(content.encode("utf-8")).hexdigest()
+            for name, content in sorted(trajectory.artifacts.items())
+        },
+        call_counts={
+            "llm": len(trajectory.llm_calls),
+            "tool": len(trajectory.tool_calls),
+            "embedding": len(trajectory.embedding_calls),
+            "rerank": len(trajectory.rerank_calls),
+        },
+    )
+
+
 def validate_strict_replay_trajectory(trajectory: AgentTrajectory) -> None:
     """Reject incomplete or internally inconsistent strict-replay input."""
-    if trajectory.schema_version not in {3, 4, 5, 6}:
+    if trajectory.schema_version not in {3, 4, 5, 6, 7}:
         raise ValueError(
-            "trajectory schema_version mismatch: expected 3, 4, 5 or 6, "
+            "trajectory schema_version mismatch: expected 3, 4, 5, 6 or 7, "
             f"actual {trajectory.schema_version}"
         )
     if trajectory.schema_version == 3:
@@ -430,6 +507,16 @@ def validate_strict_replay_trajectory(trajectory: AgentTrajectory) -> None:
             raise ValueError("v5 RAG trajectory missing rag_search index-version record")
         if any(call.inputs.get("index_version") != expected_index for call in rag_calls):
             raise ValueError("v5 RAG trajectory index_version mismatch")
+    if trajectory.schema_version >= 7:
+        if trajectory.trace_commitment is None:
+            raise ValueError("v7 trajectory trace commitment missing")
+        expected_commitment = trajectory_trace_commitment(
+            trajectory.model_dump(mode="json")
+        )
+        if trajectory.trace_commitment != expected_commitment:
+            raise ValueError(
+                "trajectory trace commitment mismatch: call or artifact omitted/changed"
+            )
 
 
 def load_trajectory(path: Path) -> AgentTrajectory:

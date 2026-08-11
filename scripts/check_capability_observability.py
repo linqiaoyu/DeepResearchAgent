@@ -82,6 +82,8 @@ LOCATORS: dict[str, Locator] = {
 ACTIVE = "active"
 RAN = "ran"
 BYPASSED = "bypassed"
+DEGRADED = "degraded"
+FAILED = "failed"
 ABSENT = "absent"
 UNPROVABLE = "unprovable"
 
@@ -112,6 +114,10 @@ def classify(
         row = (metadata.get("component_activity") or {}).get(locator.name)
         if not row:
             return ABSENT
+        if row.get("failed"):
+            return FAILED
+        if row.get("degraded"):
+            return DEGRADED
         if row.get("completed"):
             return RAN
         if row.get("composed"):
@@ -164,6 +170,16 @@ def _sample_state() -> dict:
                 "tool_contract": {"enabled": True, "completed": 0, "composed": 1},
                 "config_fail_fast": {"enabled": True, "completed": 0, "composed": 1},
                 "rerank": {"enabled": False, "completed": 0, "bypassed": 1},
+                "numeric_check": {
+                    "enabled": True,
+                    "completed": 0,
+                    "degraded": 1,
+                },
+                "research_loop": {
+                    "enabled": True,
+                    "completed": 0,
+                    "failed": 1,
+                },
             },
         },
         # Top level, not metadata: the distinction the `field` kind exists for.
@@ -188,6 +204,8 @@ def self_test() -> None:
         "CONFIG_FAIL_FAST_ENABLED": ACTIVE,
         "TOOL_CONTRACT_ENABLED": ACTIVE,
         "RERANK_ENABLED": BYPASSED,
+        "NUMERIC_CHECK_ENABLED": DEGRADED,
+        "RESEARCH_LOOP_ENABLED": FAILED,
         "BRANCH_BUDGET_ENABLED": RAN,
         "STRUCTURED_OUTPUT_ENABLED": RAN,
     }

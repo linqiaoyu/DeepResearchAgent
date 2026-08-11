@@ -545,7 +545,8 @@ class TrajectoryReplayTests(unittest.TestCase):
 
             mutated = trajectory.model_copy(deep=True)
             mutated.artifacts["report.md"] += "\nmutated"
-            mismatch = replay_trajectory(mutated, mode="strict")
+            with self.assertRaisesRegex(ValueError, "trace commitment mismatch"):
+                replay_trajectory(mutated, mode="strict")
 
             missing_judge = trajectory.model_copy(deep=True)
             missing_judge.llm_calls = [
@@ -562,10 +563,8 @@ class TrajectoryReplayTests(unittest.TestCase):
                 else call
                 for call in missing_judge.llm_calls
             ]
-            judge_cache_miss = replay_trajectory(
-                missing_judge,
-                mode="strict",
-            )
+            with self.assertRaisesRegex(ValueError, "trace commitment mismatch"):
+                replay_trajectory(missing_judge, mode="strict")
 
         self.assertEqual(replay.status, "reproduced", replay.cache_miss)
         self.assertEqual(replay.artifact_matches, {"report.md": True})
@@ -581,10 +580,6 @@ class TrajectoryReplayTests(unittest.TestCase):
                 for call in trajectory.tool_calls
             },
         )
-        self.assertEqual(mismatch.status, "mismatch")
-        self.assertEqual(mismatch.artifact_matches, {"report.md": False})
-        self.assertEqual(judge_cache_miss.status, "cache_miss")
-        self.assertIn("role='judge'", judge_cache_miss.cache_miss or "")
 
     def test_unexpected_node_failure_persists_terminal_trajectory(
         self,

@@ -248,6 +248,10 @@ def run_gate() -> None:
             "capability_observability",
             [sys.executable, "scripts/check_capability_observability.py", "--self-test"],
         ),
+        (
+            "observability_replay",
+            [sys.executable, "scripts/check_observability_replay.py", "--self-test"],
+        ),
         ("agent_guidance", [sys.executable, "scripts/check_agent_guidance.py", "--self-test"]),
         ("prompt_drift", [sys.executable, "scripts/check_prompt_drift.py"]),
         (

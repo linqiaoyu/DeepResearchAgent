@@ -122,7 +122,7 @@ class ExpandedTrajectoryTest(unittest.TestCase):
         recorder.finalize(manifest_ref=None, artifacts={"report.md": "synthetic"})
         valid = recorder.trajectory
         validate_strict_replay_trajectory(valid)
-        self.assertEqual(valid.schema_version, 6)
+        self.assertEqual(valid.schema_version, 7)
         self.assertEqual(valid.termination.status, "completed")
         missing_termination = valid.model_copy(
             update={"termination": None}
@@ -146,7 +146,10 @@ class ExpandedTrajectoryTest(unittest.TestCase):
         legacy_rag.request["strategy_config"] = {"rag_enabled": True}
         with self.assertRaisesRegex(ValueError, "v4 trajectory cannot replay with RAG enabled"):
             validate_strict_replay_trajectory(legacy_rag)
-        rag_v5 = valid.model_copy(deep=True)
+        rag_v5 = valid.model_copy(
+            deep=True,
+            update={"schema_version": 5, "trace_commitment": None},
+        )
         rag_v5.request["strategy_config"] = {"rag_enabled": True, "rag_index_version": "idx-v1"}
         rag_v5.tool_calls.append(
             ToolCallTrace(
@@ -311,7 +314,7 @@ class ExpandedTrajectoryTest(unittest.TestCase):
             )
         )
 
-        self.assertEqual(recorder.trajectory.schema_version, 6)
+        self.assertEqual(recorder.trajectory.schema_version, 7)
         self.assertEqual(
             recorder.trajectory.signal_reads[0].signal_type,
             "repeated_critic_issue",

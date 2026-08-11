@@ -12,7 +12,13 @@ from deepresearch_agent.schemas import ResearchState
 #: they did something; leaving them unrecorded is what made 9 of 25 declared
 #: capabilities unprovable from a run. `composed` says exactly what is known:
 #: this capability was wired into this run.
-ComponentStatus = Literal["completed", "bypassed", "failed", "composed"]
+ComponentStatus = Literal[
+    "completed",
+    "bypassed",
+    "degraded",
+    "failed",
+    "composed",
+]
 
 
 def record_component_activity(
@@ -34,12 +40,14 @@ def record_component_activity(
             "invocations": 0,
             "completed": 0,
             "bypassed": 0,
+            "degraded": 0,
             "failed": 0,
             "composed": 0,
             "events": [],
         },
     )
     summary.setdefault("composed", 0)
+    summary.setdefault("degraded", 0)
     summary["enabled"] = enabled
     summary["invocations"] = int(summary["invocations"]) + 1
     summary[status] = int(summary[status]) + 1

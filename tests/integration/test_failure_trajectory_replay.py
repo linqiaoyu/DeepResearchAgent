@@ -269,10 +269,8 @@ class FailureTrajectoryReplayTests(unittest.TestCase):
                 if item.status == "failed"
             )
             failed_transition.node = "critic"
-            control_flow_mismatch = replay_trajectory(
-                mutated,
-                mode="strict",
-            )
+            with self.assertRaisesRegex(ValueError, "trace commitment mismatch"):
+                replay_trajectory(mutated, mode="strict")
 
         self.assertEqual(result.status, "reproduced", result.cache_miss)
         self.assertTrue(result.termination_matches)
@@ -290,14 +288,6 @@ class FailureTrajectoryReplayTests(unittest.TestCase):
                 "status": "failed",
                 "error_type": "DisclosureSourceError",
             },
-        )
-        self.assertEqual(control_flow_mismatch.status, "mismatch")
-        self.assertFalse(
-            control_flow_mismatch.failure_control_flow_matches
-        )
-        self.assertIn(
-            "failure control-flow mismatch",
-            control_flow_mismatch.cache_miss or "",
         )
 
     def test_budget_exceeded_partial_report_strictly_replays(self) -> None:

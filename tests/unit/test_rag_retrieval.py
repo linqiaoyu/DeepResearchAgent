@@ -225,7 +225,7 @@ class RagRetrievalTests(unittest.TestCase):
                 reranker.rerank("问题", [RetrievalCandidate("a", "答案")], 1)
 
         call = recorder.trajectory.embedding_calls[0]
-        self.assertEqual(recorder.trajectory.schema_version, 6)
+        self.assertEqual(recorder.trajectory.schema_version, 7)
         self.assertEqual(call.model, "text-embedding-v4")
         self.assertEqual(call.dimensions, 2)
         self.assertEqual(call.token_count, 3)
