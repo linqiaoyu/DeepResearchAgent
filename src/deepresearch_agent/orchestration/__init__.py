@@ -40,6 +40,14 @@ from deepresearch_agent.orchestration.research_loop import (
     evaluate_research_sufficiency,
     refine_research_plan,
 )
+from deepresearch_agent.orchestration.planning import (
+    ExecutionPlan,
+    PlanBudget,
+    PlanLifecycle,
+    PlanStep,
+    PlanUsage,
+    make_parallel_execution_plan,
+)
 
 __all__ = [
     "ContractField",
@@ -72,6 +80,12 @@ __all__ = [
     "SufficiencyThresholds",
     "evaluate_research_sufficiency",
     "refine_research_plan",
+    "ExecutionPlan",
+    "PlanBudget",
+    "PlanLifecycle",
+    "PlanStep",
+    "PlanUsage",
+    "make_parallel_execution_plan",
     "enforce_node_contract",
     "validate_contract_graph",
 ]

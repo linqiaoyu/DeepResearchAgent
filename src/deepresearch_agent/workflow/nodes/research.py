@@ -6,7 +6,13 @@ from dataclasses import asdict, dataclass
 from typing import Any, Callable
 
 from deepresearch_agent.decisions import record_agent_decision
-from deepresearch_agent.orchestration import BranchBudget, LoopTracker, RunScope
+from deepresearch_agent.orchestration import (
+    BranchBudget,
+    LoopTracker,
+    PlanLifecycle,
+    RunScope,
+    make_parallel_execution_plan,
+)
 from deepresearch_agent.schemas import AgentDecision, Evidence, SearchRecord, Source, SubQuestion
 from deepresearch_agent.tools import FIXED_CAPABILITY_SET
 from langgraph.graph import END
@@ -76,6 +82,27 @@ class ResearchNodes:
         if not state.plan:
             raise ValueError("Researching requires a plan.")
         branch_ids = [item.id for item in state.plan.sub_questions]
+        raw_execution_plan = state.metadata.get("execution_plan")
+        if not isinstance(raw_execution_plan, dict):
+            # Persisted pre-R131 states and direct node callers have a valid
+            # ResearchPlan but no additive execution-plan metadata. Adapt them
+            # explicitly instead of silently running unplanned tasks.
+            raw_execution_plan = make_parallel_execution_plan(
+                plan_id=state.research_id,
+                tasks=[
+                    (item.id, item.question) for item in state.plan.sub_questions
+                ],
+                max_calls_per_step=self.settings.branch_single_cap,
+                max_tokens=self.settings.token_budget,
+                max_cost_cny=self.settings.llm_budget_cny,
+            ).model_dump(mode="json")
+            state.metadata["execution_plan"] = raw_execution_plan
+            state.metadata["execution_plan_origin"] = "legacy_state_adapter"
+        lifecycle = PlanLifecycle.from_snapshot(raw_execution_plan)
+        planned_ids = {step.id for step in lifecycle.plan.steps}
+        unplanned = set(branch_ids) - planned_ids
+        if unplanned:
+            raise ValueError(f"research tasks absent from execution plan={sorted(unplanned)}")
         if self.settings.dynamic_capability_enabled:
             state.metadata["capability_selections"] = {
                 item.id: self.capability_selector.select(
@@ -352,6 +379,29 @@ class ResearchNodes:
                 source_by_url[source.url] = source
             if sub_question.id not in state.completed_tasks:
                 state.completed_tasks.append(sub_question.id)
+
+        raw_execution_plan = state.metadata.get("execution_plan")
+        if not isinstance(raw_execution_plan, dict):
+            raise ValueError("Research join requires a typed execution plan.")
+        lifecycle = PlanLifecycle.from_snapshot(raw_execution_plan)
+        for sub_question in state.plan.sub_questions:
+            step = next(item for item in lifecycle.plan.steps if item.id == sub_question.id)
+            if step.status == "pending":
+                lifecycle.start(sub_question.id)
+                lifecycle.consume(
+                    sub_question.id,
+                    calls=int(budget_usage.get(sub_question.id, 0)),
+                )
+                lifecycle.finish(
+                    sub_question.id,
+                    succeeded=True,
+                    evidence="research branch joined",
+                )
+        if lifecycle.unmapped_executions():
+            raise ValueError(
+                f"unmapped executed tasks={lifecycle.unmapped_executions()}"
+            )
+        state.metadata["execution_plan"] = lifecycle.snapshot()
 
         state.sources = list(source_by_url.values())
         state.evidence_store = self._sorted_evidence(list(evidence_by_id.values()))

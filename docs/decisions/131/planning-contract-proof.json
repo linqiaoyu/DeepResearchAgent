@@ -1,0 +1,16 @@
+{
+  "technology": "planning_replanning",
+  "status": "planning_contract_complete",
+  "round": 131,
+  "metrics": {
+    "steps_with_required_fields": 2,
+    "plan_steps": 2,
+    "executed_task_plan_mapping_rate": 1.0,
+    "unused_step_fields": 0,
+    "invalid_dependency_rejected": 1,
+    "over_budget_plan_rejected": 1,
+    "unknown_execution_rejected": 1,
+    "succeeded_steps": 2
+  },
+  "command": "PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python scripts/check_planning_contract.py --self-test"
+}

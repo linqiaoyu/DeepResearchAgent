@@ -304,6 +304,7 @@ DeepResearchAgent 是在 LangGraph 图运行时之上自建 Agent 合同、预�
 | 外部调用不得旁路 Harness 控制面 | `scripts/check_external_call_closure.py`（生产边界双向登记、LLMClient 独占与 timeout/retry/request-budget/degradation 证据） |
 | Tool 生命周期必须有界且无资源泄漏 | `scripts/check_tool_lifecycle.py`（七类错误、非重叠超时、ResourceWarning 与预算状态保留实测） |
 | 模型工具意图不得越过授权执行 | `scripts/check_tool_calling_loop.py`（多步观察、未知/未授权零执行、三类硬界与 recorded replay） |
+| 执行任务不得脱离计划或越过计划预算 | `scripts/check_planning_contract.py`（step 生命周期字段、依赖、预算、执行映射和字段消费实测） |
 | 金融是唯一在建领域 | `scripts/check_domain_boundary.py` 的 `product_domains` 双向断言 |
 | 默认值不得手抄漂移 | `scripts/sync_agents_settings.py --check`（token）+ `scripts/check_doc_flag_claims.py`（正文陈述） |
 | 开着的能力必须可被证明 | `scripts/check_capability_observability.py` |

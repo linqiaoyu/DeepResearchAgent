@@ -11,7 +11,10 @@ from deepresearch_agent.memory import (
     classify_subquestions_from_prior,
 )
 from deepresearch_agent.observability import record_component_activity
-from deepresearch_agent.orchestration import build_decision_context
+from deepresearch_agent.orchestration import (
+    build_decision_context,
+    make_parallel_execution_plan,
+)
 from deepresearch_agent.research_snapshot import ResearchSnapshot, research_question_id
 from deepresearch_agent.schemas import AgentDecision, ResearchState, TodoItem
 from deepresearch_agent.tools import classify_subquestion
@@ -104,6 +107,14 @@ class PlanningNodes:
             for item in state.plan.sub_questions
         ]
         state.pending_tasks = [item.id for item in state.plan.sub_questions]
+        execution_plan = make_parallel_execution_plan(
+            plan_id=state.research_id,
+            tasks=[(item.id, item.question) for item in state.plan.sub_questions],
+            max_calls_per_step=self.settings.branch_single_cap,
+            max_tokens=self.settings.token_budget,
+            max_cost_cny=self.settings.llm_budget_cny,
+        )
+        state.metadata["execution_plan"] = execution_plan.model_dump(mode="json")
 
     def _apply_procedural_memory(self, state: ResearchState) -> None:
         """Adopt only an observed sufficient strategy for the same question type."""
