@@ -100,6 +100,10 @@ def run_gate() -> None:
             [sys.executable, "scripts/check_capability_graduation.py", "--self-test"],
         ),
         (
+            "capability_prescreen",
+            [sys.executable, "scripts/check_capability_prescreen.py", "--self-test"],
+        ),
+        (
             "harness_acceptance",
             [sys.executable, "scripts/check_harness_acceptance.py", "--self-test"],
         ),

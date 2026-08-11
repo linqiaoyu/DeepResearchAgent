@@ -1,0 +1,26 @@
+{
+  "round": 156,
+  "task": "F08",
+  "status": "PASS",
+  "capabilities_decided": 9,
+  "permanent_opt_in": 9,
+  "paired_experiment_candidates": 0,
+  "pending_after_decision": 0,
+  "paid_experiments_planned": 0,
+  "full_cohort_runs_authorized": 0,
+  "cost_cny": 0,
+  "rag_scope": {
+    "corpus_documents": 60,
+    "corpus_issuers": 20,
+    "cohort_named_companies": 14,
+    "direct_company_overlap": 0
+  },
+  "source_diagnostic": {
+    "round": 149,
+    "successful_cases": 28,
+    "failed_cases": ["Q13", "Q21"],
+    "formal_product_metrics": false
+  },
+  "decision_rule": "Only capabilities with a specific causal path to a frozen product metric and an affordable powered design may enter F09.",
+  "guard": "scripts/check_capability_prescreen.py --self-test"
+}

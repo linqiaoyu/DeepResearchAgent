@@ -1,0 +1,7 @@
+$ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/check_capability_prescreen.py --mutate rag-overlap
+RAG_ENABLED: direct_company_overlap must equal observed 0
+exit=1
+
+$ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/check_capability_prescreen.py --mutate pending-reflection
+REFLECTION_ENABLED: permanent opt-in must match graduation status=opt_in
+exit=1

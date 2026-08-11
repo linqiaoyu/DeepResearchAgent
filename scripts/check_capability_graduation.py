@@ -246,7 +246,25 @@ def _self_test() -> None:
         raise SystemExit(1)
 
     entries = registry["capabilities"]
-    sample = next(name for name, entry in entries.items() if entry.get("status") == "pending")
+    sample = next(iter(entries))
+    pending_entry = {
+        **entries[sample],
+        "status": "pending",
+        "initial_decision_round": horizon + 1,
+        "decision_round": horizon + 1,
+        "deferrals": [],
+    }
+    pending_entry.pop("design_reason", None)
+    pending_entry.pop("proof", None)
+
+    opt_in_without_reason = {**entries[sample], "status": "opt_in"}
+    opt_in_without_reason.pop("design_reason", None)
+    opt_in_without_proof = {
+        **entries[sample],
+        "status": "opt_in",
+        "design_reason": "outbound dependency",
+    }
+    opt_in_without_proof.pop("proof", None)
 
     cases = {
         "unregistered": (
@@ -261,7 +279,7 @@ def _self_test() -> None:
                 "capabilities": {
                     **entries,
                     sample: {
-                        **entries[sample],
+                        **pending_entry,
                         "initial_decision_round": horizon,
                         "decision_round": horizon,
                     },
@@ -275,7 +293,10 @@ def _self_test() -> None:
             {
                 "capabilities": {
                     **entries,
-                    sample: {**entries[sample], "decision_round": entries[sample]["decision_round"] + 1},
+                    sample: {
+                        **pending_entry,
+                        "decision_round": pending_entry["decision_round"] + 1,
+                    },
                 }
             },
             observed,
@@ -327,11 +348,7 @@ def _self_test() -> None:
             {
                 "capabilities": {
                     **entries,
-                    sample: {
-                        **entries[sample],
-                        "status": "opt_in",
-                        "proof": {"round": 125, "command": "scripts/run_demo.py"},
-                    },
+                    sample: opt_in_without_reason,
                 }
             },
             observed,
@@ -342,11 +359,7 @@ def _self_test() -> None:
             {
                 "capabilities": {
                     **entries,
-                    sample: {
-                        **entries[sample],
-                        "status": "opt_in",
-                        "design_reason": "outbound dependency",
-                    },
+                    sample: opt_in_without_proof,
                 }
             },
             observed,

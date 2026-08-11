@@ -1,0 +1,66 @@
+{
+  "schema_version": "f08-capability-prescreen-v1",
+  "round": 156,
+  "source_diagnostic": "docs/decisions/149/live-loss-baseline-proof.json",
+  "product_metrics": [
+    "evidence_reachable_rate",
+    "orphaned_sub_questions",
+    "false_premise_failed"
+  ],
+  "paid_experiment_candidates": [],
+  "paid_experiments_planned": 0,
+  "capabilities": {
+    "INJECTION_GUARD_ENABLED": {
+      "decision": "permanent_opt_in",
+      "metric_path": "none",
+      "reason": "The registered attack-success contract is a security property, not one of the three product metrics, and no powered no-regression evidence exists."
+    },
+    "LLM_TOOL_SELECTION_ENABLED": {
+      "decision": "permanent_opt_in",
+      "metric_path": "none",
+      "reason": "F01 identifies no missing model-selected tool class; the finance graph already invokes its registered retrieval and structured-data capabilities."
+    },
+    "MCP_CLIENT_ENABLED": {
+      "decision": "permanent_opt_in",
+      "metric_path": "none",
+      "reason": "No external MCP server has a registered causal hypothesis for a frozen finance metric."
+    },
+    "PRIOR_MEMORY_ENABLED": {
+      "decision": "permanent_opt_in",
+      "metric_path": "none",
+      "reason": "Its proposed benefit requires prior-run state, while F14 explicitly forbids saved states and cross-run splicing."
+    },
+    "PROCEDURAL_MEMORY_ENABLED": {
+      "decision": "permanent_opt_in",
+      "metric_path": "none",
+      "reason": "Its proposed benefit requires learned cross-run procedures, while F14 explicitly forbids saved states and cross-run splicing."
+    },
+    "RAG_ENABLED": {
+      "decision": "permanent_opt_in",
+      "metric_path": "none",
+      "reason": "The shipped index has 60 filings for 20 US-listed issuers and zero direct overlap with the 14 named companies in the frozen cohort, so activity cannot establish cohort-wide benefit.",
+      "corpus_documents": 60,
+      "corpus_issuers": 20,
+      "cohort_named_companies": 14,
+      "direct_company_overlap": 0
+    },
+    "REFLECTION_ENABLED": {
+      "decision": "permanent_opt_in",
+      "metric_path": "none",
+      "reason": "The default reasoner is intentionally synthetic and no finance action policy maps a proposal to a frozen behavioral criterion."
+    },
+    "RESEARCH_LOOP_ENABLED": {
+      "decision": "permanent_opt_in",
+      "metric_path": "none",
+      "reason": "The observed orphan was a downstream selection loss already repaired without another search; no remaining actionable-gap class is attributable to iteration count."
+    },
+    "SKILL_PACKS_ENABLED": {
+      "decision": "permanent_opt_in",
+      "metric_path": "none",
+      "reason": "The finance normalization Skill is H2-ready, but F01 ran it bypassed and supplies no metric-normalization failure census or powered product hypothesis."
+    }
+  },
+  "decision_rule": "Only a capability with a specific causal path to a frozen product metric and an affordable preregistered powered design may enter F09; all others become permanent opt-in.",
+  "full_cohort_runs_authorized": 0,
+  "cost_cny": 0
+}

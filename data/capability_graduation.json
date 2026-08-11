@@ -15,12 +15,18 @@
       }
     },
     "LLM_TOOL_SELECTION_ENABLED": {
-      "status": "pending",
+      "status": "opt_in",
       "graduation_criterion": "30/30 fully-live cases complete and gold numeric fact recall improves by >= 0.10 beyond the paired noise floor",
       "measured_by": "scripts/run_golden_round.py plus scripts/check_087_capability_ab.py",
       "initial_decision_round": 156,
       "decision_round": 156,
-      "deferrals": []
+      "deferrals": [],
+      "design_reason": "The bounded model tool-calling loop is H2-ready, but the finance graph already executes its registered retrieval and structured-data capabilities. F01 identifies reporter retention and two reliability failures, not a missing model-selected tool. There is therefore no registered causal path from this extra stochastic selector to any of the three frozen product metrics, so it remains an explicit operator choice.",
+      "proof": {
+        "round": 130,
+        "artifact": "docs/decisions/130/tool-calling-h2-proof.json",
+        "command": "scripts/check_tool_calling_loop.py --self-test"
+      }
     },
     "MCP_CLIENT_ENABLED": {
       "status": "opt_in",
@@ -65,28 +71,46 @@
       }
     },
     "RAG_ENABLED": {
-      "status": "pending",
+      "status": "opt_in",
       "graduation_criterion": "30/30 fully-live cases have evidence_reachable_rate >= 0.60 with disclosure lookahead violations = 0",
       "measured_by": "scripts/run_golden_round.py plus scripts/check_disclosure_lookahead.py",
       "initial_decision_round": 158,
       "decision_round": 158,
-      "deferrals": []
+      "deferrals": [],
+      "design_reason": "The shipped finance_v3 index is a valid H2 retrieval source, but its 60 SEC filings cover 20 US-listed issuers and have zero direct company overlap with the 14 named companies in the frozen finance cohort. A paid paired test on that mismatch could measure retrieval activity but could not support a cohort-wide product benefit, so RAG remains explicit opt-in until a product-relevant corpus is separately authorized.",
+      "proof": {
+        "round": 134,
+        "artifact": "docs/decisions/134/rag-h2-proof.json",
+        "command": "scripts/check_rag_retrieval.py --self-test"
+      }
     },
     "REFLECTION_ENABLED": {
-      "status": "pending",
+      "status": "opt_in",
       "graduation_criterion": "30/30 paired fully-live cases reduce failed behavioral criteria by >= 20% beyond the paired noise floor",
       "measured_by": "scripts/run_golden_round.py plus scripts/check_087_capability_ab.py",
       "initial_decision_round": 156,
       "decision_round": 156,
-      "deferrals": []
+      "deferrals": [],
+      "design_reason": "Reflection is H2-ready as a bounded proposal and adoption control plane, but the default reasoner is intentionally synthetic and no finance action policy maps its proposals to a measurable correction of the frozen behavioral criteria. Running paid reports would test an unspecified policy rather than this capability, so false remains the evidence-based finance default.",
+      "proof": {
+        "round": 142,
+        "artifact": "docs/decisions/142/reflection-h2-proof.json",
+        "command": "scripts/check_reflection_adoption.py --self-test"
+      }
     },
     "RESEARCH_LOOP_ENABLED": {
-      "status": "pending",
+      "status": "opt_in",
       "graduation_criterion": "30/30 paired fully-live cases improve gold numeric fact recall by >= 0.10 beyond noise without increasing orphaned_sub_questions",
       "measured_by": "scripts/run_golden_round.py plus scripts/check_087_capability_ab.py",
       "initial_decision_round": 156,
       "decision_round": 156,
-      "deferrals": []
+      "deferrals": [],
+      "design_reason": "The bounded loop is H2-ready, but the observed orphan was a downstream evidence-selection loss and F03 removes that defect across all 28 available reports without another search. No remaining actionable-gap class is attributable to insufficient iterations, so a paid loop arm lacks a pre-registered target and remains opt-in.",
+      "proof": {
+        "round": 132,
+        "artifact": "docs/decisions/132/planning-replanning-h2-proof.json",
+        "command": "scripts/check_replanning_loop.py --self-test"
+      }
     },
     "SKILL_PACKS_ENABLED": {
       "status": "opt_in",
