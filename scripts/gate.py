@@ -162,6 +162,10 @@ def run_gate() -> None:
             [sys.executable, "scripts/check_skills_runtime.py", "--self-test"],
         ),
         (
+            "memory_lifecycle",
+            [sys.executable, "scripts/check_memory_lifecycle.py", "--self-test"],
+        ),
+        (
             "storage_schema_parity",
             [sys.executable, "scripts/check_storage_schema_parity.py", "--self-test"],
         ),

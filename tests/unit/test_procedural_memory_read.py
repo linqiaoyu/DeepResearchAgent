@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from datetime import date
 from pathlib import Path
 
 from deepresearch_agent.memory import (
@@ -25,6 +26,8 @@ class ProceduralMemoryReadTests(unittest.TestCase):
             sufficiency_result=ProceduralSufficiencyResult(score=0.9, sufficient=True),
             reflection_signals=DeterministicReflectionSignals(), run_id="prior",
             sub_question_id="prior-question", iteration=0,
+            observed_as_of=date(2026, 7, 24),
+            provenance_refs=("run:prior",),
         ))
         with tempfile.TemporaryDirectory() as tmp:
             engine = DeepResearchEngine(

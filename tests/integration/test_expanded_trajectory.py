@@ -589,7 +589,7 @@ class ExpandedTrajectoryTest(unittest.TestCase):
                     item.lifecycle
                     for item in trajectory.memory_writes
                 },
-                {"cross_run"},
+                {"persistent"},
             )
             self.assertEqual(
                 llm_roles,

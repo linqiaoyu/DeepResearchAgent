@@ -286,6 +286,8 @@ class QualityNodes:
                 run_id=state.research_id,
                 sub_question_id=sub_question.id,
                 iteration=iteration,
+                observed_as_of=self.research_as_of,
+                provenance_refs=(f"run:{state.research_id}",),
             )
             self.procedural_memory.write(record)
             key = {

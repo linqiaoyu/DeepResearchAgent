@@ -54,6 +54,16 @@ class ReporterContextBuilder:
             WorkingMemoryWrite(
                 research_id=state.research_id,
                 evidence=list(canonical),
+                as_of=as_of or date.today(),
+                provenance_refs=tuple(
+                    sorted(
+                        {
+                            item.source_url
+                            for item in canonical
+                            if item.source_url
+                        }
+                    )
+                ) or (f"run:{state.research_id}",),
             )
         )
         packed = self.working_memory.query(

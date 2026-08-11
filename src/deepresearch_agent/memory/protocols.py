@@ -16,7 +16,12 @@ class MemoryScope(StrictModel):
 
     namespace: str
     domain: str
+    tenant_id: str = "default"
     research_id: str | None = None
+
+    @property
+    def storage_namespace(self) -> str:
+        return f"{self.tenant_id}:{self.domain}:{self.namespace}"
 
 
 @runtime_checkable

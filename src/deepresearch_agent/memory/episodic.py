@@ -35,8 +35,6 @@ class EpisodicMemory:
     caller working.
     """
 
-    lifecycle: MemoryLifecycle = "cross_run"
-
     def __init__(
         self,
         scope: MemoryScope | None = None,
@@ -47,6 +45,9 @@ class EpisodicMemory:
             domain="finance",
         )
         self.store = store
+        self.lifecycle: MemoryLifecycle = (
+            "persistent" if store is not None else "cross_run"
+        )
         self._records: dict[tuple[str, date], EpisodicRecord] = {}
 
     def write(self, record: EpisodicRecord) -> None:
@@ -58,7 +59,7 @@ class EpisodicMemory:
         if self.store is not None:
             self.store.write_memory_record(
                 MemoryRecord(
-                    namespace=self.scope.namespace,
+                    namespace=self.scope.storage_namespace,
                     scope_key=record.snapshot.question_id,
                     record_id=(
                         f"{record.snapshot.as_of.isoformat()}|"
@@ -74,7 +75,7 @@ class EpisodicMemory:
         return [
             EpisodicRecord.model_validate_json(row.payload)
             for row in self.store.list_memory_records(
-                self.scope.namespace, question_id
+                self.scope.storage_namespace, question_id
             )
         ]
 

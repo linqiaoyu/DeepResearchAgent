@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 from typing import Literal
 
 from pydantic import Field
@@ -30,6 +31,8 @@ class ProceduralRecord(StrictModel):
     run_id: str
     sub_question_id: str
     iteration: int = Field(ge=0)
+    observed_as_of: date
+    provenance_refs: tuple[str, ...] = Field(min_length=1)
     validation_status: Literal[
         "fixture_observation",
         "real_world_validated",
@@ -53,8 +56,6 @@ class ProceduralMemory:
     explicitly deferred to 019.
     """
 
-    lifecycle: MemoryLifecycle = "cross_run"
-
     def __init__(
         self,
         scope: MemoryScope | None = None,
@@ -65,6 +66,9 @@ class ProceduralMemory:
             domain="finance",
         )
         self.store = store
+        self.lifecycle: MemoryLifecycle = (
+            "persistent" if store is not None else "cross_run"
+        )
         self._records: dict[
             tuple[str, str, str, int],
             ProceduralRecord,
@@ -81,7 +85,7 @@ class ProceduralMemory:
         if self.store is not None:
             self.store.write_memory_record(
                 MemoryRecord(
-                    namespace=self.scope.namespace,
+                    namespace=self.scope.storage_namespace,
                     scope_key=record.question_type,
                     record_id=(
                         f"{record.run_id}|{record.sub_question_id}|{record.iteration}"
@@ -93,7 +97,10 @@ class ProceduralMemory:
     def _durable(self, question_type: str) -> dict[tuple[str, str, str, int], ProceduralRecord]:
         if self.store is None:
             return {}
-        rows = self.store.list_memory_records(self.scope.namespace, question_type)
+        rows = self.store.list_memory_records(
+            self.scope.storage_namespace,
+            question_type,
+        )
         restored = [ProceduralRecord.model_validate_json(row.payload) for row in rows]
         return {
             (item.question_type, item.run_id, item.sub_question_id, item.iteration): item

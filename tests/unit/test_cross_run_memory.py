@@ -44,6 +44,8 @@ def _procedural_record(run_id: str) -> ProceduralRecord:
         run_id=run_id,
         sub_question_id="sq1",
         iteration=0,
+        observed_as_of=date(2026, 7, 24),
+        provenance_refs=(f"run:{run_id}",),
     )
 
 
@@ -136,7 +138,8 @@ class EngineRunsAccumulateMemoryTests(unittest.TestCase):
         try:
             return int(
                 conn.execute(
-                    "SELECT count(*) FROM memory_record WHERE namespace = 'procedural'"
+                    "SELECT count(*) FROM memory_record "
+                    "WHERE namespace = 'default:finance:procedural'"
                 ).fetchone()[0]
             )
         finally:
@@ -153,7 +156,10 @@ class EngineRunsAccumulateMemoryTests(unittest.TestCase):
             second = self._engine(tmp, reflection=True)
             types = {
                 row.scope_key
-                for row in second.store.list_memory_records("procedural", "narrative")
+                for row in second.store.list_memory_records(
+                    "default:finance:procedural",
+                    "narrative",
+                )
             }
             history = second.procedural_memory.query(
                 ProceduralQuery(question_type="narrative")

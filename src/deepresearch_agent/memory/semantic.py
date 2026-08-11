@@ -15,7 +15,7 @@ class SemanticFact(StrictModel):
     scope: str
     value: float | str
     unit: str | None = None
-    source_urls: list[str] = Field(default_factory=list)
+    source_urls: list[str] = Field(min_length=1)
     as_of: date
     confidence: float = Field(ge=0, le=1)
 
@@ -47,7 +47,7 @@ class SemanticSeries(StrictModel):
 class SemanticMemory:
     """Exact four-key finance fact index with deterministic subset queries."""
 
-    lifecycle: MemoryLifecycle = "persistent"
+    lifecycle: MemoryLifecycle = "cross_run"
 
     def __init__(self, scope: MemoryScope | None = None) -> None:
         self.scope = scope or MemoryScope(

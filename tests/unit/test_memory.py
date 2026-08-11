@@ -189,6 +189,7 @@ class MemoryStoreTest(unittest.TestCase):
                 period="2024",
                 scope="全年",
                 value=100,
+                source_urls=["https://example.com/catl"],
                 as_of=date(2025, 1, 1),
                 confidence=0.9,
             )
@@ -200,6 +201,7 @@ class MemoryStoreTest(unittest.TestCase):
                 period="2024",
                 scope="全年",
                 value=120,
+                source_urls=["https://example.com/byd"],
                 as_of=date(2025, 1, 1),
                 confidence=0.9,
             )
@@ -219,6 +221,8 @@ class MemoryStoreTest(unittest.TestCase):
             WorkingMemoryWrite(
                 research_id="run",
                 evidence=[_evidence("a"), _evidence("b")],
+                as_of=date(2026, 7, 24),
+                provenance_refs=("fixture:memory",),
             )
         )
         query = WorkingMemoryQuery(
@@ -267,6 +271,8 @@ class MemoryStoreTest(unittest.TestCase):
             run_id="run-b",
             sub_question_id="sq-b",
             iteration=2,
+            observed_as_of=date(2026, 7, 24),
+            provenance_refs=("fixture:narrative",),
         )
         financial = ProceduralRecord(
             question_type="financial_metric",
@@ -282,6 +288,8 @@ class MemoryStoreTest(unittest.TestCase):
             run_id="run-a",
             sub_question_id="sq-a",
             iteration=1,
+            observed_as_of=date(2026, 7, 24),
+            provenance_refs=("fixture:financial",),
         )
         memory.write(narrative)
         memory.write(financial)
@@ -328,7 +336,7 @@ class MemoryStoreTest(unittest.TestCase):
             {"episodic", "semantic", "procedural"},
         )
         self.assertEqual(episodic.lifecycle, "cross_run")
-        self.assertEqual(semantic.lifecycle, "persistent")
+        self.assertEqual(semantic.lifecycle, "cross_run")
         self.assertEqual(procedural.lifecycle, "cross_run")
         self.assertEqual(
             procedural.query(
