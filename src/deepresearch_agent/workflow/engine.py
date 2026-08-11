@@ -40,7 +40,7 @@ from deepresearch_agent.orchestration import (
     LoopSpec,
     SufficiencyThresholds,
 )
-from deepresearch_agent.reflection import Reflector
+from deepresearch_agent.reflection import ReflectionExecutionLimits, Reflector
 from deepresearch_agent.semantic_judge import RuntimeSemanticJudge
 from deepresearch_agent.reporting import (
     GroundedFactRenderer,
@@ -146,6 +146,10 @@ _STRATEGY_NON_BOOLEAN_FIELDS = frozenset(
         "numeric_check_absolute_tolerance",
         "dynamic_capability_rules_json",
         "prior_watch_confidence_threshold",
+        "reflection_max_invocations",
+        "reflection_max_prompt_tokens",
+        "reflection_max_completion_tokens",
+        "reflection_budget_cny",
         "retrieval_top_k",
         "rerank_top_n",
     }
@@ -296,7 +300,16 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
             semantic_judge_enabled=self.settings.semantic_judge_enabled,
             domain_pack=self.domain_pack,
         )
-        self.reflector = Reflector()
+        self.reflector = Reflector(
+            limits=ReflectionExecutionLimits(
+                max_invocations=self.settings.reflection_max_invocations,
+                max_prompt_tokens=self.settings.reflection_max_prompt_tokens,
+                max_completion_tokens=(
+                    self.settings.reflection_max_completion_tokens
+                ),
+                max_cost_cny=self.settings.reflection_budget_cny,
+            )
+        )
         self.working_memory = ContextWorkingMemory()
         self.reporter_context_builder = ReporterContextBuilder(
             self.working_memory

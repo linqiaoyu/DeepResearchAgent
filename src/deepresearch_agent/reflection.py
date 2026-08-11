@@ -11,6 +11,7 @@ from pydantic import Field, model_validator
 
 from deepresearch_agent.schemas import AgentDecision, StrictModel
 from deepresearch_agent.trajectory import AgentTrajectory
+from deepresearch_agent.orchestration.contracts import DecisionGate
 
 
 class DeterministicReflectionSignals(StrictModel):
@@ -49,6 +50,9 @@ class ReflectionLLMInsight(StrictModel):
     cache_key: str | None = None
     cache_miss_reason: str | None = None
     must_stop: bool = False
+    prompt_tokens: int = Field(default=0, ge=0)
+    completion_tokens: int = Field(default=0, ge=0)
+    cost_cny: float = Field(default=0.0, ge=0)
 
     @model_validator(mode="after")
     def synthetic_reasoning_cannot_claim_quality(
@@ -103,6 +107,43 @@ class ReflectionProposal(StrictModel):
 StrategyInsight = ReflectionProposal
 
 
+class ReflectionReasoningEstimate(StrictModel):
+    prompt_tokens: int = Field(ge=0)
+    max_completion_tokens: int = Field(ge=0)
+    estimated_cost_cny: float = Field(ge=0)
+
+
+class ReflectionExecutionLimits(StrictModel):
+    max_invocations: int = Field(default=1, ge=1)
+    max_prompt_tokens: int = Field(default=4096, ge=1)
+    max_completion_tokens: int = Field(default=2048, ge=0)
+    max_cost_cny: float = Field(default=0.5, ge=0)
+
+
+class ReflectionExecutionUsage(StrictModel):
+    invocations: int = Field(default=0, ge=0)
+    prompt_tokens: int = Field(default=0, ge=0)
+    completion_tokens: int = Field(default=0, ge=0)
+    cost_cny: float = Field(default=0.0, ge=0)
+
+
+class ReflectionAdoptionDecision(StrictModel):
+    proposal_digest: str = Field(min_length=1)
+    verdict: Literal["adopted", "rejected"]
+    reason: str = Field(min_length=1)
+    decided_by: Literal["DecisionGate"] = "DecisionGate"
+
+
+class ReflectionLimitExceeded(RuntimeError):
+    def __init__(self, limit: str, actual: int | float, maximum: int | float):
+        self.limit = limit
+        self.actual = actual
+        self.maximum = maximum
+        super().__init__(
+            f"reflection {limit} limit exceeded: actual={actual} max={maximum}"
+        )
+
+
 class ReflectionTrajectorySummary(StrictModel):
     run_id: str
     tool_call_count: int = Field(ge=0)
@@ -124,6 +165,12 @@ class ReflectionReasoningInterface(Protocol):
         self,
         request: ReflectionReasoningRequest,
     ) -> ReflectionLLMInsight:
+        ...
+
+    def estimate(
+        self,
+        request: ReflectionReasoningRequest,
+    ) -> ReflectionReasoningEstimate:
         ...
 
 
@@ -170,6 +217,17 @@ class SyntheticFixtureReflectionReasoner:
             cache_key=key,
         )
 
+    def estimate(
+        self,
+        request: ReflectionReasoningRequest,
+    ) -> ReflectionReasoningEstimate:
+        del request
+        return ReflectionReasoningEstimate(
+            prompt_tokens=0,
+            max_completion_tokens=0,
+            estimated_cost_cny=0.0,
+        )
+
 
 class RecordedReflectionReasoner:
     """Exact-match replay adapter that fails closed on unseen inputs."""
@@ -211,6 +269,17 @@ class RecordedReflectionReasoner:
             },
         )
 
+    def estimate(
+        self,
+        request: ReflectionReasoningRequest,
+    ) -> ReflectionReasoningEstimate:
+        del request
+        return ReflectionReasoningEstimate(
+            prompt_tokens=0,
+            max_completion_tokens=0,
+            estimated_cost_cny=0.0,
+        )
+
 
 class ReflectionResult(StrictModel):
     """Additive artifact separating observable facts from model judgment."""
@@ -220,6 +289,12 @@ class ReflectionResult(StrictModel):
     )
     llm_insight: ReflectionLLMInsight = Field(
         default_factory=ReflectionLLMInsight
+    )
+    execution_usage: ReflectionExecutionUsage = Field(
+        default_factory=ReflectionExecutionUsage
+    )
+    adoption_decisions: list[ReflectionAdoptionDecision] = Field(
+        default_factory=list
     )
 
 
@@ -235,8 +310,11 @@ class Reflector:
     def __init__(
         self,
         reasoner: ReflectionReasoningInterface | None = None,
+        *,
+        limits: ReflectionExecutionLimits | None = None,
     ) -> None:
         self.reasoner = reasoner or SyntheticFixtureReflectionReasoner()
+        self.limits = limits or ReflectionExecutionLimits()
 
     def reflect(
         self,
@@ -244,6 +322,7 @@ class Reflector:
         decisions: list[AgentDecision],
         *,
         reasoning_request: ReflectionReasoningRequest | None = None,
+        prior_usage: ReflectionExecutionUsage | None = None,
     ) -> ReflectionResult:
         copied_trajectory = trajectory.model_copy(deep=True)
         copied_decisions = [
@@ -258,10 +337,93 @@ class Reflector:
             copied_decisions,
             signals=signals,
         )
+        usage = prior_usage or ReflectionExecutionUsage()
+        estimate = self.reasoner.estimate(request)
+        self._authorize_estimate(usage, estimate)
+        insight = self.reasoner.reason(request)
+        final_usage = ReflectionExecutionUsage(
+            invocations=usage.invocations + 1,
+            prompt_tokens=usage.prompt_tokens + insight.prompt_tokens,
+            completion_tokens=(
+                usage.completion_tokens + insight.completion_tokens
+            ),
+            cost_cny=round(usage.cost_cny + insight.cost_cny, 8),
+        )
+        self._validate_actual_usage(final_usage)
         return ReflectionResult(
             deterministic_signals=signals,
-            llm_insight=self.reasoner.reason(request),
+            llm_insight=insight,
+            execution_usage=final_usage,
+            adoption_decisions=self._adoption_decisions(insight),
         )
+
+    def _authorize_estimate(
+        self,
+        usage: ReflectionExecutionUsage,
+        estimate: ReflectionReasoningEstimate,
+    ) -> None:
+        projected = {
+            "invocations": usage.invocations + 1,
+            "prompt_tokens": usage.prompt_tokens + estimate.prompt_tokens,
+            "completion_tokens": (
+                usage.completion_tokens + estimate.max_completion_tokens
+            ),
+            "cost_cny": usage.cost_cny + estimate.estimated_cost_cny,
+        }
+        maxima = {
+            "invocations": self.limits.max_invocations,
+            "prompt_tokens": self.limits.max_prompt_tokens,
+            "completion_tokens": self.limits.max_completion_tokens,
+            "cost_cny": self.limits.max_cost_cny,
+        }
+        for name, actual in projected.items():
+            maximum = maxima[name]
+            if actual > maximum:
+                raise ReflectionLimitExceeded(name, actual, maximum)
+
+    def _validate_actual_usage(
+        self,
+        usage: ReflectionExecutionUsage,
+    ) -> None:
+        actuals = usage.model_dump()
+        maxima = {
+            "invocations": self.limits.max_invocations,
+            "prompt_tokens": self.limits.max_prompt_tokens,
+            "completion_tokens": self.limits.max_completion_tokens,
+            "cost_cny": self.limits.max_cost_cny,
+        }
+        for name, maximum in maxima.items():
+            actual = actuals[name]
+            if actual > maximum:
+                raise ReflectionLimitExceeded(name, actual, maximum)
+
+    @staticmethod
+    def _adoption_decisions(
+        insight: ReflectionLLMInsight,
+    ) -> list[ReflectionAdoptionDecision]:
+        decisions: list[ReflectionAdoptionDecision] = []
+        for proposal in insight.insights:
+            digest = hashlib.sha256(
+                proposal.model_dump_json().encode("utf-8")
+            ).hexdigest()
+            verdict, reason = DecisionGate.authorize_reflection_proposal(
+                proposal_digest=digest,
+                reasoner_kind=insight.reasoner_kind,
+                quality_bearing=insight.quality_bearing,
+                contract_complete=bool(
+                    proposal.target
+                    and proposal.expected_effect
+                    and proposal.supporting_evidence
+                ),
+            )
+            decisions.append(
+                ReflectionAdoptionDecision(
+                    proposal_digest=digest,
+                    verdict=verdict,
+                    reason=reason,
+                )
+            )
+        return decisions
 
     def reasoning_request(
         self,

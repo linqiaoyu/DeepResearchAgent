@@ -179,6 +179,17 @@ class QualityNodes:
                 "proposal_count": len(result.llm_insight.insights),
                 "reasoner_kind": result.llm_insight.reasoner_kind,
                 "quality_bearing": result.llm_insight.quality_bearing,
+                "adopted_proposals": sum(
+                    item.verdict == "adopted"
+                    for item in result.adoption_decisions
+                ),
+                "rejected_proposals": sum(
+                    item.verdict == "rejected"
+                    for item in result.adoption_decisions
+                ),
+                "reflection_usage": result.execution_usage.model_dump(
+                    mode="json"
+                ),
             },
         )
         recorder.record_llm_call(
@@ -225,6 +236,24 @@ class QualityNodes:
                 result.deterministic_signals,
             ),
         )
+        for adoption in result.adoption_decisions:
+            record_agent_decision(
+                state,
+                AgentDecision(
+                    decision_type="reflection_proposal_adoption",
+                    made_by=adoption.decided_by,
+                    inputs={
+                        "proposal_digest": adoption.proposal_digest,
+                        "reason": adoption.reason,
+                    },
+                    criterion=(
+                        "only DecisionGate may adopt a complete proposal from "
+                        "a live quality-bearing reasoner within hard bounds"
+                    ),
+                    outcome=adoption.verdict,
+                    alternatives_considered=["adopted", "rejected"],
+                ),
+            )
         self._write_procedural_memory(
             state,
             result.deterministic_signals,

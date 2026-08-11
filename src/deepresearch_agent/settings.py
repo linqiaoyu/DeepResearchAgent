@@ -85,6 +85,10 @@ class Settings:
     llm_tool_selection_enabled: bool = False
     dynamic_capability_rules_json: str = DEFAULT_CAPABILITY_RULES_JSON
     reflection_enabled: bool = False
+    reflection_max_invocations: int = 1
+    reflection_max_prompt_tokens: int = 4_096
+    reflection_max_completion_tokens: int = 2_048
+    reflection_budget_cny: float = 0.5
     # Round 033 real repeated-run ablation found no adopted strategy and no
     # causal behavior change.  Keep the experimental path opt-in until a
     # cross-run preference can beat the control on a registered task.
@@ -319,6 +323,21 @@ def load_settings() -> Settings:
             "DEEPRESEARCH_DYNAMIC_CAPABILITY_RULES_JSON", DEFAULT_CAPABILITY_RULES_JSON
         ),
         reflection_enabled=_env_flag("REFLECTION_ENABLED"),
+        reflection_max_invocations=int(
+            os.getenv("DEEPRESEARCH_REFLECTION_MAX_INVOCATIONS", "1")
+        ),
+        reflection_max_prompt_tokens=int(
+            os.getenv("DEEPRESEARCH_REFLECTION_MAX_PROMPT_TOKENS", "4096")
+        ),
+        reflection_max_completion_tokens=int(
+            os.getenv(
+                "DEEPRESEARCH_REFLECTION_MAX_COMPLETION_TOKENS",
+                "2048",
+            )
+        ),
+        reflection_budget_cny=float(
+            os.getenv("DEEPRESEARCH_REFLECTION_BUDGET_CNY", "0.5")
+        ),
         procedural_memory_enabled=_env_flag(
             "PROCEDURAL_MEMORY_ENABLED",
         ),

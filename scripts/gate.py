@@ -174,6 +174,10 @@ def run_gate() -> None:
             [sys.executable, "scripts/check_reflection_proposals.py", "--self-test"],
         ),
         (
+            "reflection_adoption",
+            [sys.executable, "scripts/check_reflection_adoption.py", "--self-test"],
+        ),
+        (
             "storage_schema_parity",
             [sys.executable, "scripts/check_storage_schema_parity.py", "--self-test"],
         ),

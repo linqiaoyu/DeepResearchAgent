@@ -24,6 +24,7 @@ from deepresearch_agent.audit_bundle import (
 from deepresearch_agent.provenance import build_run_manifest
 from deepresearch_agent.reflection import (
     ReflectionLLMInsight,
+    ReflectionReasoningEstimate,
     ReflectionReasoningRequest,
     Reflector,
     reflection_request_key,
@@ -62,7 +63,24 @@ class StubLLMReflectionReasoner:
         )
         if not isinstance(result.parsed, ReflectionLLMInsight):
             raise AssertionError("stub reflector did not return typed output")
-        return result.parsed
+        return result.parsed.model_copy(
+            update={
+                "prompt_tokens": result.prompt_tokens,
+                "completion_tokens": result.completion_tokens,
+                "cost_cny": result.cost_cny,
+            }
+        )
+
+    def estimate(
+        self,
+        request: ReflectionReasoningRequest,
+    ) -> ReflectionReasoningEstimate:
+        del request
+        return ReflectionReasoningEstimate(
+            prompt_tokens=1_000,
+            max_completion_tokens=500,
+            estimated_cost_cny=0.002,
+        )
 
 
 class SpendingEligibilityAuditTests(unittest.TestCase):

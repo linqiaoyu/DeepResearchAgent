@@ -102,13 +102,17 @@
       }
     },
     "reflection": {
-      "status": "wired",
+      "status": "h2_ready",
       "objective": "Separate deterministic signals, strategy proposals, validation, and adoption decisions.",
       "boundary": "Reflection cannot mutate state directly and H2 does not claim LLM judgment quality.",
       "criteria": [
         {"metric": "unauthorized_reflection_adoptions", "operator": "==", "target": 0, "measured_by": "scripts/check_harness_acceptance.py --technology reflection"},
         {"metric": "recorded_reasoner_replay_match", "operator": "==", "target": 1.0, "measured_by": "scripts/check_harness_acceptance.py --technology reflection"}
-      ]
+      ],
+      "proof": {
+        "round": 142,
+        "artifact": "docs/decisions/142/reflection-h2-proof.json"
+      }
     },
     "content_security": {
       "status": "wired",

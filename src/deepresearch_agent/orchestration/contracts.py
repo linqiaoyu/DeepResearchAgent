@@ -5,7 +5,7 @@ from collections import deque
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from threading import Lock
-from typing import Any
+from typing import Any, Literal
 
 from deepresearch_agent.security.content import redact
 from deepresearch_agent.orchestration.budget import BranchBudget
@@ -137,6 +137,25 @@ class DecisionGate:
                 actual=f"before={before_count}, after={after_count}",
                 state_snapshot=_state_key_snapshot(after),
             )
+
+    @staticmethod
+    def authorize_reflection_proposal(
+        *,
+        proposal_digest: str,
+        reasoner_kind: str,
+        quality_bearing: bool,
+        contract_complete: bool,
+    ) -> tuple[Literal["adopted", "rejected"], str]:
+        """Own the only transition from a Reflection proposal to adoption."""
+
+        if not proposal_digest or not contract_complete:
+            return "rejected", "proposal contract is incomplete"
+        if reasoner_kind != "live" or not quality_bearing:
+            return (
+                "rejected",
+                "reasoner output is replay/synthetic or not quality-bearing",
+            )
+        return "adopted", "complete live proposal passed DecisionGate"
 
 
 def validate_contract_graph(

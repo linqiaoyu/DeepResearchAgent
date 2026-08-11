@@ -15,9 +15,14 @@ from deepresearch_agent.orchestration import (
 from deepresearch_agent.memory import ProceduralMemory, ProceduralQuery
 from deepresearch_agent.reflection import (
     RecordedReflectionReasoner,
+    ReflectionExecutionLimits,
+    ReflectionExecutionUsage,
     ReflectionLLMInsight,
+    ReflectionLimitExceeded,
     ReflectionProposal,
     ReflectionProposalEvidence,
+    ReflectionReasoningEstimate,
+    ReflectionReasoningRequest,
     ReflectionResult,
     Reflector,
     StrategyInsight,
@@ -40,6 +45,63 @@ from deepresearch_agent.workflow import DeepResearchEngine
 
 
 FINANCE_DOMAIN_PACK = load_domain_pack("finance")
+
+
+class BoundedFixtureReasoner:
+    def __init__(
+        self,
+        *,
+        kind: str = "live",
+        quality_bearing: bool = True,
+        estimate: ReflectionReasoningEstimate | None = None,
+    ) -> None:
+        self.kind = kind
+        self.quality_bearing = quality_bearing
+        self._estimate = estimate or ReflectionReasoningEstimate(
+            prompt_tokens=10,
+            max_completion_tokens=10,
+            estimated_cost_cny=0.01,
+        )
+        self.calls = 0
+
+    def estimate(
+        self,
+        request: ReflectionReasoningRequest,
+    ) -> ReflectionReasoningEstimate:
+        del request
+        return self._estimate
+
+    def reason(
+        self,
+        request: ReflectionReasoningRequest,
+    ) -> ReflectionLLMInsight:
+        del request
+        self.calls += 1
+        return ReflectionLLMInsight(
+            status="recorded_placeholder",
+            provider="bounded_fixture",
+            reasoner_kind=self.kind,
+            quality_bearing=self.quality_bearing,
+            prompt_tokens=self._estimate.prompt_tokens,
+            completion_tokens=self._estimate.max_completion_tokens,
+            cost_cny=self._estimate.estimated_cost_cny,
+            insights=[
+                ReflectionProposal(
+                    target_type="global",
+                    target="research_strategy",
+                    recommendation="prefer the cited primary source",
+                    rationale="a repeated source weakness was observed",
+                    expected_effect="reduce unsupported evidence",
+                    supporting_evidence=[
+                        ReflectionProposalEvidence(
+                            artifact_type="deterministic_signal",
+                            reference="repeatedly_ineffective_sources",
+                            observation="secondary source repeated",
+                        )
+                    ],
+                )
+            ],
+        )
 
 
 class ReflectionSkeletonTest(unittest.TestCase):
@@ -448,6 +510,59 @@ class DeterministicSignalExtractionTest(unittest.TestCase):
 
 
 class ReflectionReasoningInterfaceTest(unittest.TestCase):
+    def test_decision_gate_records_adoption_and_rejection_reasons(self) -> None:
+        trajectory = AgentTrajectory(run_id="gate", request={"topic": "gate"})
+        adopted = Reflector(BoundedFixtureReasoner()).reflect(trajectory, [])
+        rejected = Reflector().reflect(trajectory, [])
+
+        self.assertEqual(adopted.adoption_decisions[0].verdict, "adopted")
+        self.assertEqual(adopted.adoption_decisions[0].decided_by, "DecisionGate")
+        self.assertTrue(adopted.adoption_decisions[0].reason)
+        self.assertEqual(rejected.adoption_decisions[0].verdict, "rejected")
+        self.assertTrue(rejected.adoption_decisions[0].reason)
+
+    def test_all_reflection_hard_bounds_stop_before_reasoning(self) -> None:
+        trajectory = AgentTrajectory(
+            run_id="bounds",
+            request={"topic": "bounds"},
+        )
+        cases = (
+            (
+                ReflectionExecutionLimits(max_invocations=1),
+                ReflectionExecutionUsage(invocations=1),
+                BoundedFixtureReasoner(),
+                "invocations",
+            ),
+            (
+                ReflectionExecutionLimits(max_prompt_tokens=5),
+                ReflectionExecutionUsage(),
+                BoundedFixtureReasoner(),
+                "prompt_tokens",
+            ),
+            (
+                ReflectionExecutionLimits(max_completion_tokens=5),
+                ReflectionExecutionUsage(),
+                BoundedFixtureReasoner(),
+                "completion_tokens",
+            ),
+            (
+                ReflectionExecutionLimits(max_cost_cny=0.005),
+                ReflectionExecutionUsage(),
+                BoundedFixtureReasoner(),
+                "cost_cny",
+            ),
+        )
+        for limits, usage, reasoner, expected_limit in cases:
+            with self.subTest(limit=expected_limit):
+                with self.assertRaises(ReflectionLimitExceeded) as caught:
+                    Reflector(reasoner, limits=limits).reflect(
+                        trajectory,
+                        [],
+                        prior_usage=usage,
+                    )
+                self.assertEqual(caught.exception.limit, expected_limit)
+                self.assertEqual(reasoner.calls, 0)
+
     def test_synthetic_placeholder_pipeline_has_typed_input_and_output(
         self,
     ) -> None:

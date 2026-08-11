@@ -1,0 +1,17 @@
+{
+  "round": 142,
+  "technology": "reflection",
+  "status": "h2_ready",
+  "metrics": {
+    "unauthorized_reflection_adoptions": 0,
+    "recorded_reasoner_replay_match": 1.0,
+    "adoption_reason_coverage": 1.0,
+    "hard_reflection_bounds_exercised": 4,
+    "reasoner_calls_after_bound_refusal": 0,
+    "decision_gate_call_sites": 1,
+    "default_reflection_enabled": 0
+  },
+  "quality_claim": "none; H2 establishes bounded adoption mechanics only",
+  "paid_cost_cny": 0,
+  "checker": "scripts/check_reflection_adoption.py --self-test"
+}
