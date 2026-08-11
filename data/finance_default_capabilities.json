@@ -1,0 +1,59 @@
+{
+  "schema_version": "finance-default-capabilities-v1",
+  "round": 157,
+  "f09": {
+    "candidate_experiments": 0,
+    "started_experiments": 0,
+    "completed_experiments": 0,
+    "status": "not_applicable_no_candidates",
+    "cost_cny": 0
+  },
+  "f10": {
+    "pending_capabilities": 0,
+    "graduated_capabilities": 0,
+    "removed_capabilities": 0,
+    "opt_in_capabilities": 9
+  },
+  "capability_dispositions": {
+    "INJECTION_GUARD_ENABLED": "opt_in",
+    "LLM_TOOL_SELECTION_ENABLED": "opt_in",
+    "MCP_CLIENT_ENABLED": "opt_in",
+    "PRIOR_MEMORY_ENABLED": "opt_in",
+    "PROCEDURAL_MEMORY_ENABLED": "opt_in",
+    "RAG_ENABLED": "opt_in",
+    "REFLECTION_ENABLED": "opt_in",
+    "RESEARCH_LOOP_ENABLED": "opt_in",
+    "SKILL_PACKS_ENABLED": "opt_in"
+  },
+  "default_flags": {
+    "BRANCH_BUDGET_ENABLED": true,
+    "CONFIG_FAIL_FAST_ENABLED": true,
+    "CONTEXT_PACKER_ENABLED": true,
+    "CRITIC_ENABLED": true,
+    "DECISION_WEAVING_ENABLED": true,
+    "DYNAMIC_CAPABILITY_ENABLED": true,
+    "EXTRACTOR_ENABLED": true,
+    "INJECTION_GUARD_ENABLED": false,
+    "LLM_TOOL_SELECTION_ENABLED": false,
+    "MCP_CLIENT_ENABLED": false,
+    "NUMERIC_CHECK_ENABLED": true,
+    "PRIOR_MEMORY_ENABLED": false,
+    "PROCEDURAL_MEMORY_ENABLED": false,
+    "PROGRESSIVE_DELIVERY_ENABLED": true,
+    "RAG_ENABLED": false,
+    "REFLECTION_ENABLED": false,
+    "RERANK_ENABLED": true,
+    "RERANK_FAIL_OPEN": true,
+    "RESEARCH_LOOP_ENABLED": false,
+    "RUN_MANIFEST_ENABLED": true,
+    "SEMANTIC_JUDGE_ENABLED": true,
+    "SKILL_PACKS_ENABLED": false,
+    "STRUCTURED_LOGGING_ENABLED": true,
+    "STRUCTURED_OUTPUT_ENABLED": true,
+    "TOOL_CONTRACT_ENABLED": true,
+    "TRAJECTORY_RECORD_ENABLED": true
+  },
+  "source_prescreen": "data/capability_prescreen.json",
+  "source_graduation": "data/capability_graduation.json",
+  "paid_provider_calls": 0
+}

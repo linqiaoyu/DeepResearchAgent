@@ -1,0 +1,7 @@
+$ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/check_finance_default_capabilities.py --mutate start-unselected
+F09 must start zero experiments when pre-screen has zero candidates
+exit=1
+
+$ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/check_finance_default_capabilities.py --mutate default-drift
+frozen default_flags drifted from Settings
+exit=1

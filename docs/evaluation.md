@@ -764,6 +764,23 @@ trigger a defect-class repair and a new independent full candidate. F15 makes
 no paid provider calls. The R160 thresholds, frozen cohort, and prohibitions on
 saved states, best-of selection and cross-run splicing are unchanged.
 
+# R157 capability experiment disposition and default freeze
+
+F08 evaluated all nine default-off Agent capabilities against the only three
+product acceptance metrics. None had both a cohort-relevant causal hypothesis
+and an affordable powered design: most lack a registered metric path, memory
+conflicts with the no-saved-state acceptance contract, and the shipped RAG
+corpus has zero direct company overlap with the 14 named frozen-cohort
+companies. Consequently F09 starts zero paid experiments rather than reporting
+an underpowered result.
+
+The finance default is frozen with all nine capabilities permanently opt-in and
+zero pending, graduated, or removed entries. This is a finance product decision,
+not a rollback of their H2 Harness proofs. The complete Settings snapshot and
+dispositions are machine-readable in `data/finance_default_capabilities.json`;
+the acceptance thresholds, cohort, fidelity rules, and F14 execution contract
+do not change.
+
 The R149 diagnostic reached 30 terminal artifacts but only 28 successful cases;
 Q13 was a bounded planner retry exhaustion and Q21 was a cross-process ledger
 index collision. Its diagnostic values therefore use denominator 28 and are not

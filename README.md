@@ -146,6 +146,8 @@ flowchart LR
 
 - `REFLECTION_ENABLED=false`：四类确定性信号、占位推理接口、程序记忆与重规划接线已实现；Round 033 未观察到策略采用，不能宣称具备反思判断力，见 [reflection.md](docs/reflection.md)。
 - `CONTEXT_PACKER_ENABLED=true`、`INJECTION_GUARD_ENABLED=false`、`RESEARCH_LOOP_ENABLED=false`、`DYNAMIC_CAPABILITY_ENABLED=true`、`BRANCH_BUDGET_ENABLED=true`、`SKILL_PACKS_ENABLED=false`：Round 087 的单开关 live A/B 已转正 context packer、numeric check、semantic judge 和 decision weaving；trajectory record 与 progressive delivery 已在 Round 109 作为 `operational` 默认开启（两者不改变 Evidence 集合或顺序）；research loop 与 skill packs 仍未观察到严格增益而保持关闭。开关默认值不等于所有主题的质量结论，见 [method_limits.md](docs/method_limits.md)。
+
+Round 157 冻结金融默认能力组合：九项阶段二候选能力全部为永久 opt-in，pending 为 0；分别是 injection guard、LLM tool selection、MCP client、prior memory、procedural memory、RAG、reflection、research loop 与 skill packs。F08 没有找到同时具备产品指标因果路径和有功效实验设计的候选，因此 F09 启动的付费实验数为 0；这不否定它们已经达到 H2 机制成熟度。机器事实源见 [finance_default_capabilities.json](data/finance_default_capabilities.json)。
 - MCP 不暴露任意文件读取或命令执行；server 只允许服务端自管运行目录，付费路径需要显式 `allow_paid`，本轮 fixture server 即使确认也拒绝 LLM 执行，见 [server.py](src/deepresearch_agent/mcp/server.py)。
 - **金融投研是唯一在建领域，这是既定产品范围而不是缺口。** Round 113 明确裁定：先把第一个
   被测系统做好，`DomainPack` 接口保留并继续承担依赖倒置，暂不做第二个领域。

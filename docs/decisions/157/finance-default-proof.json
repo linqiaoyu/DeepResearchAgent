@@ -1,0 +1,28 @@
+{
+  "round": 157,
+  "tasks": ["F09", "F10"],
+  "status": "PASS",
+  "f09": {
+    "candidate_experiments": 0,
+    "started_experiments": 0,
+    "completed_experiments": 0,
+    "cost_cny": 0,
+    "decision": "not_applicable_no_candidates"
+  },
+  "f10": {
+    "capabilities": 9,
+    "opt_in": 9,
+    "graduated": 0,
+    "removed": 0,
+    "pending": 0,
+    "settings_defaults_false": 9,
+    "content_affecting_classifications": 9
+  },
+  "documentation_surfaces": [
+    "README.md",
+    "docs/evaluation.md",
+    "data/finance_default_capabilities.json"
+  ],
+  "paid_provider_calls": 0,
+  "guard": "scripts/check_finance_default_capabilities.py --self-test"
+}
