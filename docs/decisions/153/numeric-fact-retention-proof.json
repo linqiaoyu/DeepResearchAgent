@@ -1,0 +1,348 @@
+{
+  "round": 153,
+  "status": "passed",
+  "source_round": 149,
+  "metrics": {
+    "gold_numeric_fact_traces": 20,
+    "run_error_traces": 1,
+    "facts_entered_evidence": 15,
+    "facts_reader_visible": 14,
+    "reader_visible_retention_rate": 0.933333,
+    "entity_period_unit_mismatches": 0,
+    "numeric_conflicts_detected": 17,
+    "numeric_conflicts_recorded_by_critic": 17,
+    "numeric_conflicts_missing_from_critic": 0
+  },
+  "traces": [
+    {
+      "question": "Q01",
+      "fact_index": 0,
+      "tokens": [
+        "1741.44",
+        "15.66"
+      ],
+      "run_status": "done",
+      "state_artifact": "artifacts/149/shard1/work/Q01/state.json",
+      "state_sha256": "45048de3e0888a3bb276db4b9a34de0f677725ccde7e2d61ef19a318492b5c33",
+      "report_artifact": "artifacts/151/offline/Q01-report.md",
+      "report_sha256": "89d8d505fc8ca6f1dd2014da4f971cdd992fa2410e8cc2a57588c8ef893122e2",
+      "entered_evidence": true,
+      "reader_visible": true,
+      "contract_mismatches": []
+    },
+    {
+      "question": "Q01",
+      "fact_index": 1,
+      "tokens": [
+        "862.28",
+        "15.38"
+      ],
+      "run_status": "done",
+      "state_artifact": "artifacts/149/shard1/work/Q01/state.json",
+      "state_sha256": "45048de3e0888a3bb276db4b9a34de0f677725ccde7e2d61ef19a318492b5c33",
+      "report_artifact": "artifacts/151/offline/Q01-report.md",
+      "report_sha256": "89d8d505fc8ca6f1dd2014da4f971cdd992fa2410e8cc2a57588c8ef893122e2",
+      "entered_evidence": false,
+      "reader_visible": false,
+      "contract_mismatches": []
+    },
+    {
+      "question": "Q02",
+      "fact_index": 1,
+      "tokens": [
+        "325.0",
+        "19.3"
+      ],
+      "run_status": "done",
+      "state_artifact": "artifacts/149/shard1/work/Q02/state.json",
+      "state_sha256": "d2d044818d9e7e0d7103101ae6171c376711b2744db1ebc4031df80cc9a743d7",
+      "report_artifact": "artifacts/151/offline/Q02-report.md",
+      "report_sha256": "5e2e300fef4d26f58625bb087a54367a7ffcf73907b57c6342cf8ddb40542cb4",
+      "entered_evidence": true,
+      "reader_visible": true,
+      "contract_mismatches": []
+    },
+    {
+      "question": "Q02",
+      "fact_index": 2,
+      "tokens": [
+        "2959.04",
+        "7.11"
+      ],
+      "run_status": "done",
+      "state_artifact": "artifacts/149/shard1/work/Q02/state.json",
+      "state_sha256": "d2d044818d9e7e0d7103101ae6171c376711b2744db1ebc4031df80cc9a743d7",
+      "report_artifact": "artifacts/151/offline/Q02-report.md",
+      "report_sha256": "5e2e300fef4d26f58625bb087a54367a7ffcf73907b57c6342cf8ddb40542cb4",
+      "entered_evidence": true,
+      "reader_visible": true,
+      "contract_mismatches": []
+    },
+    {
+      "question": "Q03",
+      "fact_index": 0,
+      "tokens": [
+        "7771.02",
+        "29.02"
+      ],
+      "run_status": "done",
+      "state_artifact": "artifacts/149/shard1/work/Q03/state.json",
+      "state_sha256": "918c7a486e36ebedeee68f1f7b74867ba9cdf6094cc23f15158ebc403fa49946",
+      "report_artifact": "artifacts/151/offline/Q03-report.md",
+      "report_sha256": "3dcc58af9f3c4da85d1b53758199b7f411adb749ad75471520cf72c25faaf5ab",
+      "entered_evidence": true,
+      "reader_visible": true,
+      "contract_mismatches": []
+    },
+    {
+      "question": "Q03",
+      "fact_index": 1,
+      "tokens": [
+        "402.54",
+        "34.00"
+      ],
+      "run_status": "done",
+      "state_artifact": "artifacts/149/shard1/work/Q03/state.json",
+      "state_sha256": "918c7a486e36ebedeee68f1f7b74867ba9cdf6094cc23f15158ebc403fa49946",
+      "report_artifact": "artifacts/151/offline/Q03-report.md",
+      "report_sha256": "3dcc58af9f3c4da85d1b53758199b7f411adb749ad75471520cf72c25faaf5ab",
+      "entered_evidence": true,
+      "reader_visible": true,
+      "contract_mismatches": []
+    },
+    {
+      "question": "Q04",
+      "fact_index": 0,
+      "tokens": [
+        "3620.13",
+        "9.70"
+      ],
+      "run_status": "done",
+      "state_artifact": "artifacts/149/shard1/work/Q04/state.json",
+      "state_sha256": "b7beea953dd17aa60987c88cf332c712fe789e18ea80e2ca7ec6d63205b3d0ed",
+      "report_artifact": "artifacts/151/offline/Q04-report.md",
+      "report_sha256": "7e90c3bc656cfefb6c3e23126da10faa79412e2979b9f65f1c6962843b163609",
+      "entered_evidence": true,
+      "reader_visible": true,
+      "contract_mismatches": []
+    },
+    {
+      "question": "Q05",
+      "fact_index": 0,
+      "tokens": [
+        "983,812,692",
+        "1,300,238,662",
+        "1,025,714,296",
+        "2,013,483,324"
+      ],
+      "run_status": "done",
+      "state_artifact": "artifacts/149/shard1/work/Q05/state.json",
+      "state_sha256": "a3fe06451d534a588ae20f5a5851e2bdfd11bb1e587efc9a8c46aa32766c2e12",
+      "report_artifact": "artifacts/151/offline/Q05-report.md",
+      "report_sha256": "45d4b5af997f27083ed05811c0d5dfb59030d28fe6d6ade9bb1d867ae465cb04",
+      "entered_evidence": false,
+      "reader_visible": false,
+      "contract_mismatches": []
+    },
+    {
+      "question": "Q05",
+      "fact_index": 1,
+      "tokens": [
+        "5,323,248,974"
+      ],
+      "run_status": "done",
+      "state_artifact": "artifacts/149/shard1/work/Q05/state.json",
+      "state_sha256": "a3fe06451d534a588ae20f5a5851e2bdfd11bb1e587efc9a8c46aa32766c2e12",
+      "report_artifact": "artifacts/151/offline/Q05-report.md",
+      "report_sha256": "45d4b5af997f27083ed05811c0d5dfb59030d28fe6d6ade9bb1d867ae465cb04",
+      "entered_evidence": false,
+      "reader_visible": false,
+      "contract_mismatches": []
+    },
+    {
+      "question": "Q07",
+      "fact_index": 2,
+      "tokens": [
+        "1.98",
+        "0.17"
+      ],
+      "run_status": "done",
+      "state_artifact": "artifacts/149/shard2/work/Q07/state.json",
+      "state_sha256": "f72d3959a6e35b46437dd747c2db24242dfdda3cf810ffd1a12c9ca1803b1d5e",
+      "report_artifact": "artifacts/151/offline/Q07-report.md",
+      "report_sha256": "3919807150ea6f355e3b1701ba38384ef0ac3b6afcda7e08407701cb8fbbd731",
+      "entered_evidence": true,
+      "reader_visible": true,
+      "contract_mismatches": []
+    },
+    {
+      "question": "Q08",
+      "fact_index": 0,
+      "tokens": [
+        "1741.44",
+        "15.66"
+      ],
+      "run_status": "done",
+      "state_artifact": "artifacts/149/shard2/work/Q08/state.json",
+      "state_sha256": "52111b1dcaa36d98d58a828ae63840beb07628770c174071e196b97dd434e4e1",
+      "report_artifact": "artifacts/151/offline/Q08-report.md",
+      "report_sha256": "ab1601dc9c794229e047587c08ae5c943306e4b6760de86ed33635001b69a928",
+      "entered_evidence": true,
+      "reader_visible": true,
+      "contract_mismatches": []
+    },
+    {
+      "question": "Q09",
+      "fact_index": 0,
+      "tokens": [
+        "339.3",
+        "37.9",
+        "153.7",
+        "17.2"
+      ],
+      "run_status": "done",
+      "state_artifact": "artifacts/149/shard2/work/Q09/state.json",
+      "state_sha256": "c2d8495165cc2729b19134875b6210b46ad342a97f4a0f6d2b22b74fdc697f11",
+      "report_artifact": "artifacts/151/offline/Q09-report.md",
+      "report_sha256": "a5e997f4ebadaed80480e17cb67ae2ce427193d858a6ff2c03edb0ea08d6d961",
+      "entered_evidence": true,
+      "reader_visible": true,
+      "contract_mismatches": []
+    },
+    {
+      "question": "Q09",
+      "fact_index": 2,
+      "tokens": [
+        "339.3",
+        "37.9"
+      ],
+      "run_status": "done",
+      "state_artifact": "artifacts/149/shard2/work/Q09/state.json",
+      "state_sha256": "c2d8495165cc2729b19134875b6210b46ad342a97f4a0f6d2b22b74fdc697f11",
+      "report_artifact": "artifacts/151/offline/Q09-report.md",
+      "report_sha256": "a5e997f4ebadaed80480e17cb67ae2ce427193d858a6ff2c03edb0ea08d6d961",
+      "entered_evidence": true,
+      "reader_visible": true,
+      "contract_mismatches": []
+    },
+    {
+      "question": "Q11",
+      "fact_index": 0,
+      "tokens": [
+        "4071.50",
+        "385.37",
+        "1900.38",
+        "321.85"
+      ],
+      "run_status": "done",
+      "state_artifact": "artifacts/149/shard3/work/Q11/state.json",
+      "state_sha256": "6cd5c955fc2c8cfbf3a07f619a0cf27d961258939009c75df82411333685cddc",
+      "report_artifact": "artifacts/151/offline/Q11-report.md",
+      "report_sha256": "a99997ac63e266a093a270e0fb78dab1ebc48e85f1e0f478bcf43dbfa1aa3c2d",
+      "entered_evidence": true,
+      "reader_visible": true,
+      "contract_mismatches": []
+    },
+    {
+      "question": "Q13",
+      "fact_index": 1,
+      "tokens": [
+        "-8,617,528,506.44",
+        "0.99"
+      ],
+      "run_status": "error",
+      "state_artifact": null,
+      "state_sha256": null,
+      "report_artifact": null,
+      "report_sha256": null,
+      "entered_evidence": false,
+      "reader_visible": false,
+      "contract_mismatches": []
+    },
+    {
+      "question": "Q14",
+      "fact_index": 0,
+      "tokens": [
+        "6173.82",
+        "27.70",
+        "1596.09",
+        "34.60"
+      ],
+      "run_status": "done",
+      "state_artifact": "artifacts/149/shard3/work/Q14/state.json",
+      "state_sha256": "abdc919f6eea4e998d596be668752339f9be389a6801312100dd90fbfccf3514",
+      "report_artifact": "artifacts/151/offline/Q14-report.md",
+      "report_sha256": "8886fcb8b6a9ba65cb210ec7bd2565764170c27bbd8706df530d59decfa10a6b",
+      "entered_evidence": true,
+      "reader_visible": true,
+      "contract_mismatches": []
+    },
+    {
+      "question": "Q14",
+      "fact_index": 1,
+      "tokens": [
+        "22.31",
+        "8.34"
+      ],
+      "run_status": "done",
+      "state_artifact": "artifacts/149/shard3/work/Q14/state.json",
+      "state_sha256": "abdc919f6eea4e998d596be668752339f9be389a6801312100dd90fbfccf3514",
+      "report_artifact": "artifacts/151/offline/Q14-report.md",
+      "report_sha256": "8886fcb8b6a9ba65cb210ec7bd2565764170c27bbd8706df530d59decfa10a6b",
+      "entered_evidence": true,
+      "reader_visible": true,
+      "contract_mismatches": []
+    },
+    {
+      "question": "Q16",
+      "fact_index": 0,
+      "tokens": [
+        "339.3",
+        "37.9",
+        "153.7",
+        "17.2"
+      ],
+      "run_status": "done",
+      "state_artifact": "artifacts/149/shard4/work/Q16/state.json",
+      "state_sha256": "a2139e6062ac698096c1866c958cfd6a5c6a39cd48819d9f8b2dfa5eb2926803",
+      "report_artifact": "artifacts/151/offline/Q16-report.md",
+      "report_sha256": "09017afa571acabba2006b88d6928f88384d9f1063545f13f6664a0e66bda7f6",
+      "entered_evidence": true,
+      "reader_visible": true,
+      "contract_mismatches": []
+    },
+    {
+      "question": "Q19",
+      "fact_index": 2,
+      "tokens": [
+        "60",
+        "1",
+        "1000"
+      ],
+      "run_status": "done",
+      "state_artifact": "artifacts/149/shard4/work/Q19/state.json",
+      "state_sha256": "0b75f111898476bedfe3542cd6658a134d5276c6148b6839e7fc7187c3a9519b",
+      "report_artifact": "artifacts/151/offline/Q19-report.md",
+      "report_sha256": "91738283be61b61b967670a7fc35f5898f590184e5e67756f11afc03ed168f47",
+      "entered_evidence": true,
+      "reader_visible": false,
+      "contract_mismatches": []
+    },
+    {
+      "question": "Q29",
+      "fact_index": 1,
+      "tokens": [
+        "7.47",
+        "73.3"
+      ],
+      "run_status": "done",
+      "state_artifact": "artifacts/149/shard6/work/Q29/state.json",
+      "state_sha256": "a09750f2ed77eda944ea86c3a4c95f1b96ddac92ef9bba57cae033581f583d6d",
+      "report_artifact": "artifacts/151/offline/Q29-report.md",
+      "report_sha256": "2427171f5a5aa0d7e481423c62f0daf0207e6034c85a57331c0814b12168f865",
+      "entered_evidence": false,
+      "reader_visible": false,
+      "contract_mismatches": []
+    }
+  ]
+}

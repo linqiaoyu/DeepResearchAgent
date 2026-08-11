@@ -175,6 +175,10 @@ MAX_ANALYSIS_CLAIMS_PER_SECTION = MAX_REPORT_SECTION_CLAIMS
 #: is what happens when a report prints everything it holds. Measured on the 30
 #: R113 states: 2 costs 2.5 reader lines per report against a 32-line body.
 MAX_EVIDENCE_FLOOR_CLAIMS = 2
+# A comparison can require one amount and one ratio for each of two subjects.
+# Four keeps that smallest complete matrix bounded while preventing first-arrival
+# order from silently selecting four duplicates of one subject.
+MAX_REPORT_SELECTED_EVIDENCE = 4
 #: Scales a claim may quote a typed value in (raw, 百, 千, 万, 亿, percent).
 _FLOOR_SCALE_FACTORS = (
     Decimal(1),
@@ -186,6 +190,7 @@ _FLOOR_SCALE_FACTORS = (
 )
 _FLOOR_VALUE_TOLERANCE = Decimal("0.0001")
 _CLAIM_NUMBER_RE = re.compile(r"\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?")
+_CLAIM_PERCENT_RE = re.compile(r"(?<!\d)(\d+(?:\.\d+)?)\s*%")
 #: Punctuation and interrogatives carry no topic, and every sub-question ends in
 #: some of them, so counting them would score every item alike.
 _OVERLAP_STOP_CHARACTERS = frozenset("？?，,。.、；;：:（）()「」“”\"'的了是有和与在对及其如何哪些什么多少怎样为")
@@ -285,8 +290,8 @@ class ReporterAgent:
             )
         )
 
-    @staticmethod
     def _select_report_evidence(
+        self,
         state: ResearchState,
         *,
         context_evidence: list[Evidence] | None,
@@ -317,7 +322,11 @@ class ReporterAgent:
                 )
                 continue
             in_context = [item for item in canonical if item.id in available_ids]
-            selected = (in_context or canonical)[:MAX_EVIDENCE_FLOOR_CLAIMS]
+            candidates = in_context or canonical
+            selected = self._bounded_evidence_selection(
+                sub_question,
+                candidates,
+            )
             selections.append(
                 ReportEvidenceSelection(
                     sub_question_id=sub_question.id,
@@ -334,6 +343,64 @@ class ReporterAgent:
                 )
             )
         return selections
+
+    def _bounded_evidence_selection(
+        self,
+        sub_question: SubQuestion,
+        candidates: list[Evidence],
+    ) -> list[Evidence]:
+        """Prefer a diverse numeric matrix, then fill by question relevance."""
+
+        def rank(item: Evidence) -> tuple[int, int, int, int, float, str]:
+            fields = item.numeric_fields
+            period_match = int(
+                fields is not None
+                and bool(fields.period)
+                and str(fields.period) in sub_question.question
+            )
+            entity = (fields.entity or "").strip() if fields is not None else ""
+            entity_match = int(bool(entity) and entity in sub_question.question)
+            multi_entity = int(any(mark in entity for mark in ("、", "/", "+")))
+            return (
+                -period_match,
+                -entity_match,
+                multi_entity,
+                -self._question_overlap(sub_question, item),
+                -item.confidence,
+                item.id,
+            )
+
+        ordered = sorted(candidates, key=rank)
+        representatives: dict[tuple[str, str], Evidence] = {}
+        for item in ordered:
+            fields = item.numeric_fields
+            if fields is None or fields.value is None:
+                continue
+            if self._floor_claim_text(item) != item.claim:
+                continue
+            entity = (fields.entity or "").strip()
+            unit = (fields.unit or "").strip()
+            if not entity or not unit:
+                continue
+            representatives.setdefault((entity, unit), item)
+        if not representatives:
+            return candidates[:MAX_EVIDENCE_FLOOR_CLAIMS]
+        selected = sorted(representatives.values(), key=rank)[
+            :MAX_REPORT_SELECTED_EVIDENCE
+        ]
+        selected_ids = {item.id for item in selected}
+        target_count = min(
+            MAX_REPORT_SELECTED_EVIDENCE,
+            max(MAX_EVIDENCE_FLOOR_CLAIMS, len(selected)),
+        )
+        for item in ordered:
+            if len(selected) >= target_count:
+                break
+            if item.id in selected_ids:
+                continue
+            selected.append(item)
+            selected_ids.add(item.id)
+        return selected
 
     def _enforce_selected_evidence_coverage(
         self,
@@ -367,11 +434,13 @@ class ReporterAgent:
                     ]
                 )
                 continue
-            missing = [
-                evidence_id
-                for evidence_id in selection.evidence_ids
-                if evidence_id not in reachable
-            ]
+            missing: list[str] = []
+            for evidence_id in selection.evidence_ids:
+                item = evidence_by_id.get(evidence_id)
+                if item is None or evidence_id not in reachable:
+                    missing.append(evidence_id)
+                elif not self._selected_numeric_evidence_visible(item, report):
+                    missing.append(evidence_id)
             if not missing:
                 delivered_ids.extend(selection.evidence_ids)
                 continue
@@ -420,6 +489,37 @@ class ReporterAgent:
                 + after
             )
         return report.rstrip() + "\n\n" + "\n".join(block)
+
+    @staticmethod
+    def _selected_numeric_evidence_visible(item: Evidence, report: str) -> bool:
+        """Require the selected typed value and stated rates in reader prose."""
+
+        fields = item.numeric_fields
+        if fields is None or fields.value is None:
+            return True
+        body, _marker, _references = report.partition("## 参考来源")
+        numbers: list[Decimal] = []
+        for match in _CLAIM_NUMBER_RE.finditer(body):
+            try:
+                numbers.append(Decimal(match.group(0).replace(",", "")))
+            except InvalidOperation:  # pragma: no cover - numeric regex
+                continue
+        target = Decimal(str(fields.value))
+        value_visible = any(
+            abs(number - target * factor)
+            <= abs(target * factor) * _FLOOR_VALUE_TOLERANCE
+            for factor in _FLOOR_SCALE_FACTORS
+            for number in numbers
+        )
+        if not value_visible:
+            return False
+        body_percentages = {
+            Decimal(match.group(1)) for match in _CLAIM_PERCENT_RE.finditer(body)
+        }
+        claim_percentages = {
+            Decimal(match.group(1)) for match in _CLAIM_PERCENT_RE.finditer(item.claim)
+        }
+        return claim_percentages <= body_percentages
 
     def _compact_reader_report(
         self,

@@ -5,6 +5,7 @@ import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
+from threading import RLock
 from uuid import NAMESPACE_URL, uuid5
 
 from deepresearch_agent.schemas import EvaluationResult, Evidence
@@ -26,11 +27,18 @@ from deepresearch_agent.storage.protocol import (
 )
 
 
+# Shared with the LangGraph SQLite checkpointer. WAL mode changes and first-use
+# schema setup take database-wide locks for which SQLite's busy handler is not
+# consistently invoked; serialize only that initialization boundary.
+SQLITE_INITIALIZATION_LOCK = RLock()
+
+
 class SQLiteStore:
     def __init__(self, path: Path) -> None:
         self.path = path
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self._setup()
+        with SQLITE_INITIALIZATION_LOCK:
+            self._setup()
 
     def _connect(self) -> sqlite3.Connection:
         # R096: `isolation_level="IMMEDIATE"` takes the write lock when the

@@ -810,3 +810,14 @@ registered artifacts, verdict mismatches are 0 and accepted false-premise
 assertions are 0. This changes the behavior evaluator, not the frozen golden
 truth, cohort, or product threshold. Historical published metrics are not
 rewritten.
+
+# R153 numeric-fact retention
+
+Numeric retention is measured only among frozen numeric facts whose complete
+token set entered Evidence in the available successful R149 states. All 20
+contracted numeric facts receive a trace; Q13 remains an explicit run-error
+trace and is not filled from another run. Of 15 facts that entered Evidence,
+14 are reader-visible after bounded subject/unit-diverse selection, a retention
+rate of 0.933333. Retained facts have zero entity/period/unit mismatches, and
+all 17 independently detected cross-source numeric conflicts are present in
+Critic. This is an offline/recorded F05 proof, not a product-acceptance run.

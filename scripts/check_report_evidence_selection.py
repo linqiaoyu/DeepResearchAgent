@@ -139,7 +139,7 @@ def build_proof(state_path: Path, report_path: Path) -> dict[str, Any]:
     report = report_path.read_text(encoding="utf-8")
     raw_snapshot = _snapshot(state)
     real_orphans = [item[0] for item in orphaned_sub_questions(state, report)]
-    state.report_evidence_selections = ReporterAgent._select_report_evidence(
+    state.report_evidence_selections = ReporterAgent()._select_report_evidence(
         state,
         context_evidence=None,
     )

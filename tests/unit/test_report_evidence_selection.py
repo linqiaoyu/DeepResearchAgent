@@ -12,6 +12,7 @@ from deepresearch_agent.reporting.reader_reach import (
 )
 from deepresearch_agent.schemas import (
     Evidence,
+    NumericFields,
     ReportEvidenceSelection,
     ResearchPlan,
     ResearchState,
@@ -82,7 +83,7 @@ class ReportEvidenceSelectionTests(unittest.TestCase):
 
     def test_selected_evidence_is_delivered_after_report_compaction(self) -> None:
         state = self._state()
-        state.report_evidence_selections = ReporterAgent._select_report_evidence(
+        state.report_evidence_selections = ReporterAgent()._select_report_evidence(
             state,
             context_evidence=[],
         )
@@ -103,6 +104,55 @@ class ReportEvidenceSelectionTests(unittest.TestCase):
         self.assertLessEqual(selected, evidence_the_reader_can_follow(state, report))
         self.assertEqual(orphaned_sub_questions(state, report), [])
         self.assertLess(report.index("## 选择证据补充"), report.index("## 参考来源"))
+
+    def test_selection_preserves_two_subject_numeric_matrix(self) -> None:
+        question = SubQuestion(
+            id="compare",
+            question="比较甲公司与乙公司2024年金额和份额",
+            search_queries=[],
+        )
+        evidence = []
+        for index, (entity, unit, value) in enumerate(
+            (("甲公司", "亿元", "10"), ("甲公司", "%", "20"),
+             ("乙公司", "亿元", "30"), ("乙公司", "%", "40"))
+        ):
+            evidence.append(
+                Evidence(
+                    id=f"matrix-{index}", research_id="r", sub_question_id="compare",
+                    claim=f"{entity}2024年为{value}{unit}", claim_type="data",
+                    source_url=f"https://example.test/matrix/{index}", source_title="s",
+                    extract_text="x", numeric_fields=NumericFields(
+                        entity=entity, metric_name="指标", period="2024",
+                        value=value, unit=unit,
+                    ),
+                )
+            )
+        selected = ReporterAgent()._bounded_evidence_selection(question, evidence)
+        self.assertEqual(
+            {(item.numeric_fields.entity, item.numeric_fields.unit) for item in selected},
+            {("甲公司", "亿元"), ("甲公司", "%"), ("乙公司", "亿元"), ("乙公司", "%")},
+        )
+
+    def test_selected_rate_must_be_visible_not_only_its_source(self) -> None:
+        item = Evidence(
+            id="rate", research_id="r", sub_question_id="compare",
+            claim="甲公司2024年收入10亿元，同比增长20%。", claim_type="data",
+            source_url="https://example.test/rate", source_title="s", extract_text="x",
+            numeric_fields=NumericFields(
+                entity="甲公司", metric_name="收入", period="2024",
+                value="10", unit="亿元",
+            ),
+        )
+        self.assertFalse(
+            ReporterAgent._selected_numeric_evidence_visible(
+                item, "## 发现\n甲公司2024年收入10亿元。 [^1]\n"
+            )
+        )
+        self.assertTrue(
+            ReporterAgent._selected_numeric_evidence_visible(
+                item, "## 发现\n甲公司2024年收入10亿元，同比增长20%。 [^1]\n"
+            )
+        )
 
 
 if __name__ == "__main__":
