@@ -115,7 +115,7 @@ def run_gate() -> None:
         ("mypy", [sys.executable, "-m", "mypy"]),
         (
             "domain_boundary",
-            [sys.executable, "scripts/check_domain_boundary.py"],
+            [sys.executable, "scripts/check_domain_boundary.py", "--self-test"],
         ),
         (
             "storage_schema_parity",

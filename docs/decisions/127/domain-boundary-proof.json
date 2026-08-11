@@ -1,0 +1,21 @@
+{
+  "round": 127,
+  "contract": "H03",
+  "status": "pass",
+  "command": "PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/check_domain_boundary.py --self-test --json",
+  "metrics": {
+    "core_finance_imports": 0,
+    "product_domain_count": 1,
+    "literal_files": 5,
+    "literal_hits": 10,
+    "literal_ratchet_mismatches": 0
+  },
+  "product_domains": [
+    "finance"
+  ],
+  "scope": {
+    "protected": "all src/deepresearch_agent Python outside domains/finance and domains/registry.py",
+    "composition_root": "src/deepresearch_agent/domains/registry.py",
+    "product_domain": "src/deepresearch_agent/domains/finance"
+  }
+}

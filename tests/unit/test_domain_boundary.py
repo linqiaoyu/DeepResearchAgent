@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.check_domain_boundary import _concrete_domain_import_sites
+from scripts.check_domain_boundary import _concrete_domain_import_sites, _evaluate_boundary
 from scripts.round.check_plan_ledger import validate as validate_plan_ledger
 
 
@@ -28,7 +28,19 @@ class DomainBoundaryTests(unittest.TestCase):
         # R112 widened the ratchet from `src/` to `src/` + `prompts/`, which
         # raised the measurement from 3 files / 8 hits to 5 / 10. The two new
         # hits are not new debt; they are debt that was never being counted.
-        self.assertIn("import_sites=0 literal_files=5 literal_hits=10", completed.stdout)
+        self.assertIn(
+            'import_sites=0 literal_files=5 literal_hits=10 lexicon_terms=33 product_domains=["finance"]',
+            completed.stdout,
+        )
+
+    def test_checker_itself_rejects_core_finance_import(self) -> None:
+        failures = _evaluate_boundary(
+            hits={},
+            allowlist={},
+            import_sites=1,
+            product_domains=("finance",),
+        )
+        self.assertIn("core finance import sites must be 0", failures[0])
 
     def test_the_ratchet_scans_prompts_not_only_source(self) -> None:
         from scripts.check_domain_boundary import _scanned_files
@@ -39,6 +51,22 @@ class DomainBoundaryTests(unittest.TestCase):
 
     def test_import_site_count_is_measured_from_source(self) -> None:
         self.assertEqual(_concrete_domain_import_sites(), 0)
+
+    def test_import_scan_protects_domain_abstractions(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            files = {
+                "domains/finance/pack.py": "from deepresearch_agent.domains.finance import X\n",
+                "domains/registry.py": "from deepresearch_agent.domains.finance import X\n",
+                "domains/base.py": "from deepresearch_agent.domains.finance import X\n",
+                "domains/null.py": "from deepresearch_agent.domains.finance import X\n",
+                "workflow/engine.py": "from deepresearch_agent.domains.finance import X\n",
+            }
+            for relative, content in files.items():
+                path = root / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(content, encoding="utf-8")
+            self.assertEqual(_concrete_domain_import_sites(root), 3)
 
     def test_core_has_no_hard_coded_finance_pack_load(self) -> None:
         offenders = [

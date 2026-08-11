@@ -92,8 +92,10 @@ extend-select = ["TID251"]
 "scripts/run_checkpoint_demo.py" = ["E402"]
 "scripts/run_demo.py" = ["E402"]
 "scripts/run_eval.py" = ["E402"]
-# Existing domain-boundary debt.  This list is a ratchet: it may only shrink.
-"src/deepresearch_agent/domains/**" = ["TID251"]
+# A concrete implementation may reference its own package; the registry is the
+# explicit composition root. Domain protocols/base/null remain protected.
+"src/deepresearch_agent/domains/finance/**" = ["TID251"]
+"src/deepresearch_agent/domains/registry.py" = ["TID251"]
 # Build and migration tools for the finance corpus, not core. They resolve SEC
 # EDGAR filing dates, which is finance-registry knowledge by definition; the
 # agent core never imports them, and check_domain_boundary.py measures core
