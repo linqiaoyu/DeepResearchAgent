@@ -29,6 +29,9 @@ class QualityNodes:
         if self.settings.extractor_enabled:
             before_count = len(state.evidence_store)
             self._extracting(state)
+            security_events = state.metadata.get(
+                "content_security_events", []
+            )
             record_component_activity(
                 state,
                 component="extractor",
@@ -38,6 +41,13 @@ class QualityNodes:
                 outputs={
                     "evidence_before": before_count,
                     "evidence_after": len(state.evidence_store),
+                    "content_security_events": len(security_events),
+                    "content_security_rejection_locators": [
+                        item.get("locator")
+                        for item in security_events
+                        if isinstance(item, dict)
+                        and item.get("disposition") == "rejected"
+                    ],
                 },
             )
         else:

@@ -19,6 +19,7 @@ from deepresearch_agent.schemas import (
     ResearchState,
     StrictModel,
 )
+from deepresearch_agent.security import ContentIngressGuard
 from deepresearch_agent.settings import Settings
 from deepresearch_agent.tools.capability_registry import (
     CapabilityMetadata,
@@ -105,8 +106,16 @@ class SkillLoadOutcome(StrictModel):
 class SkillPackLoader:
     """Load metadata first and resources only after deterministic selection."""
 
-    def __init__(self, root: Path) -> None:
+    def __init__(
+        self,
+        root: Path,
+        *,
+        content_guard: ContentIngressGuard | None = None,
+    ) -> None:
         self.root = root
+        self.content_guard = content_guard or ContentIngressGuard(
+            enabled=False
+        )
         self.metadata_reads: list[Path] = []
         self.resource_reads: list[Path] = []
 
@@ -243,6 +252,16 @@ class SkillPackLoader:
     def _read_metadata(self, skill_file: Path) -> SkillMetadata:
         self._require_within(skill_file, self.root, "Skill metadata escapes root")
         self.metadata_reads.append(skill_file)
+        metadata_decision = self.content_guard.inspect(
+            ingress_kind="skill",
+            content=skill_file.read_text(encoding="utf-8"),
+            source=str(skill_file),
+        )
+        if metadata_decision.disposition == "rejected":
+            raise ValueError(
+                "Skill metadata rejected by content security: "
+                f"{metadata_decision.locator}"
+            )
         with skill_file.open("r", encoding="utf-8") as handle:
             if handle.readline().rstrip("\r\n") != "---":
                 raise ValueError(
@@ -309,7 +328,18 @@ class SkillPackLoader:
                 continue
             self._require_within(path, resource_root, "Skill resource escapes its pack")
             self.resource_reads.append(path)
-            resources[path.name] = path.read_text(encoding="utf-8")
+            content = path.read_text(encoding="utf-8")
+            resource_decision = self.content_guard.inspect(
+                ingress_kind="skill",
+                content=content,
+                source=str(path),
+            )
+            if resource_decision.disposition == "rejected":
+                raise ValueError(
+                    "Skill resource rejected by content security: "
+                    f"{resource_decision.locator}"
+                )
+            resources[path.name] = content
         raw_definition = resources.get("capability.json")
         if raw_definition is None:
             raise ValueError(

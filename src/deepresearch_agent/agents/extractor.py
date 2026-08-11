@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+from typing import Any
 from uuid import uuid5, NAMESPACE_URL
 
 from deepresearch_agent.domains.protocols import TableExtractionDomain
@@ -13,7 +14,11 @@ from deepresearch_agent.llm import (
     StructuredOutputError,
 )
 from deepresearch_agent.schemas import Evidence, ExtractedClaim, ExtractedClaims, Source, SubQuestion
-from deepresearch_agent.security import detect_injection, wrap_untrusted
+from deepresearch_agent.security import (
+    ContentIngressGuard,
+    detect_injection,
+    wrap_untrusted,
+)
 from deepresearch_agent.settings import project_root
 
 SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
@@ -50,15 +55,19 @@ class ExtractorAgent:
         llm_client: LLMClient | None = None,
         *,
         injection_guard_enabled: bool = False,
+        content_guard: ContentIngressGuard | None = None,
         domain_pack: TableExtractionDomain | None = None,
     ) -> None:
         self.llm_client = llm_client
         self.injection_guard_enabled = injection_guard_enabled
+        self.content_guard = content_guard or ContentIngressGuard(
+            enabled=injection_guard_enabled
+        )
         self.domain_pack = resolve_domain_capability(
             domain_pack, consumer="ExtractorAgent"
         )
         self.table_extractors = self.domain_pack.table_extractors()
-        self.last_stats: dict[str, int | bool | str] = {}
+        self.last_stats: dict[str, Any] = {}
 
     def extract(self, research_id: str, sub_question: SubQuestion, sources: list[Source]) -> list[Evidence]:
         if not all(isinstance(source, Source) for source in sources):
@@ -104,7 +113,7 @@ class ExtractorAgent:
         self,
         sub_question: SubQuestion,
         sources: list[Source],
-    ) -> tuple[list[Source], dict[str, int]]:
+    ) -> tuple[list[Source], dict[str, Any]]:
         """Keep untrusted or irrelevant RAG chunks from becoming Evidence.
 
         RAG candidates are only retrieval hints until this boundary.  The
@@ -120,21 +129,32 @@ class ExtractorAgent:
         admitted: list[Source] = []
         rejected_irrelevant = 0
         rejected_injection = 0
+        ingress_events: list[dict[str, Any]] = []
         for source in sources:
+            ingress_kind = (
+                "rag" if source.retrieval_ref is not None else "web"
+            )
+            decision = self.content_guard.inspect(
+                ingress_kind=ingress_kind,
+                content=source.content,
+                source=source.url,
+            )
+            ingress_events.append(decision.model_dump(mode="json"))
+            if decision.disposition == "rejected":
+                rejected_injection += 1
+                continue
             if source.retrieval_ref is None:
                 admitted.append(source)
                 continue
             if query_terms and not (query_terms & self._retrieval_terms(source.content)):
                 rejected_irrelevant += 1
                 continue
-            if self.injection_guard_enabled and detect_injection(source.content).risk_score >= 0.5:
-                rejected_injection += 1
-                continue
             admitted.append(source)
         return admitted, {
             "rag_sources_admitted": len(admitted),
             "rag_sources_rejected_irrelevant": rejected_irrelevant,
             "rag_sources_rejected_injection": rejected_injection,
+            "content_ingress_events": ingress_events,
         }
 
     @staticmethod

@@ -1,5 +1,7 @@
 from deepresearch_agent.security.content import (
     DEFAULT_REDACTION_PATTERNS,
+    ContentIngressDecision,
+    ContentIngressGuard,
     FetchPolicy,
     InjectionFinding,
     RedactionPattern,
@@ -10,6 +12,8 @@ from deepresearch_agent.security.content import (
 
 __all__ = [
     "DEFAULT_REDACTION_PATTERNS",
+    "ContentIngressDecision",
+    "ContentIngressGuard",
     "FetchPolicy",
     "InjectionFinding",
     "RedactionPattern",

@@ -115,13 +115,17 @@
       }
     },
     "content_security": {
-      "status": "wired",
+      "status": "h2_ready",
       "objective": "Apply trust and injection handling consistently to web, RAG, MCP, and skill content.",
       "boundary": "Security controls may reject untrusted instructions but may not weaken the golden truth contract.",
       "criteria": [
         {"metric": "guarded_ingress_kinds", "operator": "==", "target": 4, "measured_by": "scripts/check_harness_acceptance.py --technology content_security"},
         {"metric": "registered_injection_successes", "operator": "==", "target": 0, "measured_by": "scripts/check_harness_acceptance.py --technology content_security"}
-      ]
+      ],
+      "proof": {
+        "round": 143,
+        "artifact": "docs/decisions/143/content-security-h2-proof.json"
+      }
     },
     "observability_replay": {
       "status": "wired",

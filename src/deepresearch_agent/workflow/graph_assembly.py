@@ -121,6 +121,7 @@ class GraphAssembly:
             "selection_complete"
         ):
             return graph_state
+        security_event_start = len(self.content_guard.events)
         try:
             outcome = load_skills_if_enabled(
                 self.settings,
@@ -173,6 +174,13 @@ class GraphAssembly:
                     outcome.registered_capabilities
                 ),
             }
+        new_security_events = self.content_guard.events[
+            security_event_start:
+        ]
+        if new_security_events:
+            state.metadata.setdefault("content_security_events", []).extend(
+                [item.model_dump(mode="json") for item in new_security_events]
+            )
         result = dict(graph_state)
         result["research_state"] = self._dump_state(state)
         return result

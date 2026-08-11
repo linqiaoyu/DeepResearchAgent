@@ -1,0 +1,17 @@
+{
+  "round": 143,
+  "technology": "content_security",
+  "status": "h2_ready",
+  "metrics": {
+    "guarded_ingress_kinds": 4,
+    "registered_injection_successes": 0,
+    "registered_attacks": 172,
+    "trust_label_coverage": 1.0,
+    "rejection_locator_coverage": 1.0,
+    "normal_reader_visible_match": 1.0,
+    "production_ingress_wiring": 4
+  },
+  "quality_claim": "mechanism only; finance default remains off pending graduation",
+  "paid_cost_cny": 0,
+  "checker": "scripts/check_content_security_ingress.py --self-test"
+}

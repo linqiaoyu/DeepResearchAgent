@@ -51,6 +51,7 @@ from deepresearch_agent.schemas import (
     ResearchState,
     utc_now,
 )
+from deepresearch_agent.security import ContentIngressGuard
 from deepresearch_agent.settings import Settings, load_settings, project_root
 from deepresearch_agent.workflow.nodes.research import (
     ResearchNodes,
@@ -191,6 +192,9 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
         if self.settings.config_fail_fast_enabled:
             validate_required_configuration(self.settings)
         self.logger = JsonLogger(enabled=self.settings.structured_logging_enabled)
+        self.content_guard = ContentIngressGuard(
+            enabled=self.settings.injection_guard_enabled
+        )
         self.store = store or build_store(self.settings)
         self.capability_registry: CapabilityRegistry = build_engine_capability_registry(
             settings=self.settings,
@@ -204,7 +208,8 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
         self.mcp_clients: list[Any] = []
         self.mcp_registration: dict[str, Any] = self._register_mcp_servers()
         self.skill_loader = SkillPackLoader(
-            project_root() / "skills"
+            project_root() / "skills",
+            content_guard=self.content_guard,
         )
         self.search_tool = self.capability_registry.resolve("web_search")
         self.structured_data_provider = self.capability_registry.resolve(
@@ -267,6 +272,7 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
         self.extractor = ExtractorAgent(
             llm_client=self.llm_client,
             injection_guard_enabled=self.settings.injection_guard_enabled,
+            content_guard=self.content_guard,
             domain_pack=self.domain_pack,
         )
         self.critic = CriticAgent(
@@ -776,6 +782,7 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
                     server_name=name,
                     request_timeout_s=float(entry.get("timeout_s", 10.0)),
                     environ=entry.get("environ"),
+                    content_guard=self.content_guard,
                 )
                 client.discover_and_register(
                     self.capability_registry,

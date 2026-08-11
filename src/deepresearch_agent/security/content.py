@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 import unicodedata
 from dataclasses import dataclass
+from typing import Literal
 
 from pydantic import Field
 
@@ -13,6 +15,90 @@ from deepresearch_agent.schemas import StrictModel
 class InjectionFinding(StrictModel):
     patterns: list[str] = Field(default_factory=list)
     risk_score: float = Field(ge=0, le=1)
+
+
+class ContentIngressDecision(StrictModel):
+    ingress_kind: Literal["web", "rag", "mcp", "skill"]
+    trust_label: Literal["untrusted_external"] = "untrusted_external"
+    source: str
+    disposition: Literal["accepted", "quarantined", "rejected", "bypassed"]
+    patterns: list[str] = Field(default_factory=list)
+    risk_score: float = Field(ge=0, le=1)
+    locator: str = Field(min_length=1)
+    reason: str
+
+
+class ContentIngressGuard:
+    """One fail-closed trust contract for every content-bearing ingress."""
+
+    def __init__(self, *, enabled: bool, rejection_threshold: float = 0.25) -> None:
+        self.enabled = enabled
+        self.rejection_threshold = rejection_threshold
+        self.events: list[ContentIngressDecision] = []
+
+    def inspect(
+        self,
+        *,
+        ingress_kind: Literal["web", "rag", "mcp", "skill"],
+        content: str,
+        source: str,
+    ) -> ContentIngressDecision:
+        finding = detect_injection(content)
+        rejected = self.enabled and finding.risk_score >= self.rejection_threshold
+        disposition: Literal[
+            "accepted", "quarantined", "rejected", "bypassed"
+        ] = (
+            "quarantined"
+            if rejected and ingress_kind == "web"
+            else "rejected"
+            if rejected
+            else "accepted"
+            if self.enabled
+            else "bypassed"
+        )
+        locator = hashlib.sha256(
+            (
+                f"{ingress_kind}\0{source}\0{finding.risk_score}\0"
+                + hashlib.sha256(content.encode("utf-8")).hexdigest()
+            ).encode("utf-8")
+        ).hexdigest()
+        decision = ContentIngressDecision(
+            ingress_kind=ingress_kind,
+            source=source,
+            disposition=disposition,
+            patterns=finding.patterns,
+            risk_score=finding.risk_score,
+            locator=f"content-security:{locator}",
+            reason=(
+                "untrusted web instructions quarantined as quoted data"
+                if disposition == "quarantined"
+                else "registered injection pattern exceeded threshold"
+                if disposition == "rejected"
+                else "guard disabled; trust label retained"
+                if not self.enabled
+                else "content passed injection policy"
+            ),
+        )
+        self.events.append(decision)
+        return decision
+
+    def protect(
+        self,
+        *,
+        ingress_kind: Literal["web", "rag", "mcp", "skill"],
+        content: str,
+        source: str,
+    ) -> tuple[str, ContentIngressDecision]:
+        decision = self.inspect(
+            ingress_kind=ingress_kind,
+            content=content,
+            source=source,
+        )
+        if decision.disposition == "rejected":
+            return "", decision
+        if self.enabled:
+            return wrap_untrusted(content, source_url=source), decision
+        return content, decision
 
 
 _INJECTION_PATTERNS: tuple[tuple[str, re.Pattern[str], float], ...] = (

@@ -17,6 +17,7 @@ from deepresearch_agent.orchestration import (
     NodeContract,
 )
 from deepresearch_agent.schemas import AgentDecision, ResearchState
+from deepresearch_agent.security import ContentIngressGuard
 from deepresearch_agent.tools.capability_registry import (
     CapabilityMetadata,
     CapabilityRegistry,
@@ -78,6 +79,7 @@ class MCPStdioClient:
         server_name: str,
         request_timeout_s: float = 10.0,
         environ: Mapping[str, str] | None = None,
+        content_guard: ContentIngressGuard | None = None,
     ) -> None:
         if not command:
             raise ValueError("MCP server command must not be empty")
@@ -87,6 +89,9 @@ class MCPStdioClient:
         self.server_name = server_name
         self.request_timeout_s = request_timeout_s
         self.environ = dict(os.environ if environ is None else environ)
+        self.content_guard = content_guard or ContentIngressGuard(
+            enabled=False
+        )
         self.process: subprocess.Popen[bytes] | None = None
         self._selector: selectors.BaseSelector | None = None
         self._buffer = b""
@@ -137,20 +142,37 @@ class MCPStdioClient:
         if result.get("isError"):
             message = _tool_error_message(result)
             raise ToolExecutionError(ToolErrorKind.PERMANENT, message)
+        value: Any = result
         if "structuredContent" in result:
-            return result["structuredContent"]
+            value = result["structuredContent"]
         content = result.get("content")
-        if isinstance(content, list) and content:
+        if "structuredContent" not in result and isinstance(content, list) and content:
             first = content[0]
             if isinstance(first, dict) and isinstance(
                 first.get("text"),
                 str,
             ):
                 try:
-                    return json.loads(first["text"])
+                    value = json.loads(first["text"])
                 except json.JSONDecodeError:
-                    return first["text"]
-        return result
+                    value = first["text"]
+        rendered = (
+            value
+            if isinstance(value, str)
+            else json.dumps(value, ensure_ascii=False, sort_keys=True, default=str)
+        )
+        decision = self.content_guard.inspect(
+            ingress_kind="mcp",
+            content=rendered,
+            source=f"mcp://{self.server_name}/{name}",
+        )
+        if decision.disposition == "rejected":
+            raise ToolExecutionError(
+                ToolErrorKind.PERMANENT,
+                "MCP output rejected by content security: "
+                f"{decision.locator}",
+            )
+        return value
 
     def discover_and_register(
         self,

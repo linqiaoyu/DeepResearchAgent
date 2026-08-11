@@ -25,6 +25,17 @@ class WorkflowHelpers:
                 state.metadata.setdefault("authoritative_parse_rejections", []).extend(
                     [{"sub_question_id": sub_question.id, **item} for item in rejections]
                 )
+            ingress_events = self.extractor.last_stats.get(
+                "content_ingress_events", []
+            )
+            if isinstance(ingress_events, list):
+                state.metadata.setdefault("content_security_events", []).extend(
+                    [
+                        {"sub_question_id": sub_question.id, **item}
+                        for item in ingress_events
+                        if isinstance(item, dict)
+                    ]
+                )
             if self.settings.execution_mode == "llm":
                 state.metadata.setdefault("llm_stats", {}).setdefault("extractor", []).append(
                     {"sub_question_id": sub_question.id, **self.extractor.last_stats}
