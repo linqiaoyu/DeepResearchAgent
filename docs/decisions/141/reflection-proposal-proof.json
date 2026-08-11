@@ -1,0 +1,17 @@
+{
+  "round": 141,
+  "technology": "reflection",
+  "scope": "H17 proposal contract only; adoption remains wired and is completed in H18",
+  "metrics": {
+    "typed_reflection_artifacts": 2,
+    "proposal_contract_coverage": 1.0,
+    "invalid_proposals_rejected": 3,
+    "synthetic_quality_claim_rejections": 1,
+    "reflector_state_parameters": 0,
+    "proposal_artifact_storage_sites": 1
+  },
+  "quality_claim": "none",
+  "paid_cost_cny": 0,
+  "checker": "scripts/check_reflection_proposals.py --self-test",
+  "mutation": "renaming the production reflection_result locator is rejected"
+}

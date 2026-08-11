@@ -176,6 +176,9 @@ class QualityNodes:
                 ),
                 "llm_provider": result.llm_insight.provider,
                 "llm_status": result.llm_insight.status,
+                "proposal_count": len(result.llm_insight.insights),
+                "reasoner_kind": result.llm_insight.reasoner_kind,
+                "quality_bearing": result.llm_insight.quality_bearing,
             },
         )
         recorder.record_llm_call(

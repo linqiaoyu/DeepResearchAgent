@@ -7,7 +7,7 @@ import json
 from typing import Any, Literal, Protocol, runtime_checkable
 from urllib.parse import urlsplit
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from deepresearch_agent.schemas import AgentDecision, StrictModel
 from deepresearch_agent.trajectory import AgentTrajectory
@@ -25,28 +25,82 @@ class DeterministicReflectionSignals(StrictModel):
 
 
 class ReflectionLLMInsight(StrictModel):
-    """Explicit reasoning seam whose judgment quality is deferred to 019."""
+    """Reasoner proposal envelope; it is not an adoption decision."""
 
     status: Literal[
         "pending_llm_reasoning",
         "recorded_placeholder",
         "cache_miss",
     ] = "pending_llm_reasoning"
-    insights: list["StrategyInsight"] = Field(default_factory=list)
+    # Keep the historical ``insights`` wire name so completed trajectories
+    # remain readable. Each item is now a complete, typed proposal artifact.
+    insights: list["ReflectionProposal"] = Field(default_factory=list)
     quality_validation: Literal[
         "unverifiable_in_deterministic_mode"
     ] = "unverifiable_in_deterministic_mode"
     provider: str | None = None
+    reasoner_kind: Literal[
+        "unconfigured",
+        "synthetic_fixture",
+        "recorded_replay",
+        "live",
+    ] = "unconfigured"
+    quality_bearing: bool = False
     cache_key: str | None = None
     cache_miss_reason: str | None = None
     must_stop: bool = False
 
+    @model_validator(mode="after")
+    def synthetic_reasoning_cannot_claim_quality(
+        self,
+    ) -> ReflectionLLMInsight:
+        if self.reasoner_kind == "synthetic_fixture" and self.quality_bearing:
+            raise ValueError(
+                "synthetic fixture reasoner cannot be quality-bearing"
+            )
+        return self
 
-class StrategyInsight(StrictModel):
+
+class ReflectionProposalEvidence(StrictModel):
+    artifact_type: Literal[
+        "deterministic_signal",
+        "trajectory_summary",
+        "agent_decision",
+    ]
+    reference: str = Field(min_length=1)
+    observation: str = Field(min_length=1)
+
+
+class ReflectionProposal(StrictModel):
+    """Read-only strategy proposal that a later DecisionGate may evaluate."""
+
     target_type: Literal["subquestion", "source", "replanning", "global"]
-    target: str
-    recommendation: str
-    rationale: str
+    target: str = Field(min_length=1)
+    recommendation: str = Field(min_length=1)
+    rationale: str = Field(min_length=1)
+    expected_effect: str = Field(min_length=1)
+    supporting_evidence: list[ReflectionProposalEvidence] = Field(
+        min_length=1
+    )
+
+    @model_validator(mode="after")
+    def reject_blank_or_non_actionable(self) -> ReflectionProposal:
+        fields = (
+            self.target,
+            self.recommendation,
+            self.rationale,
+            self.expected_effect,
+        )
+        if any(not value.strip() for value in fields):
+            raise ValueError("reflection proposal fields cannot be blank")
+        if not any(char.isalpha() for char in self.recommendation):
+            raise ValueError("reflection proposal must contain an action")
+        return self
+
+
+# Source compatibility for callers that imported the pre-H17 name. The wire
+# format remains ``llm_insight.insights``; only the element contract tightens.
+StrategyInsight = ReflectionProposal
 
 
 class ReflectionTrajectorySummary(StrictModel):
@@ -84,7 +138,7 @@ class SyntheticFixtureReflectionReasoner:
         return ReflectionLLMInsight(
             status="recorded_placeholder",
             insights=[
-                StrategyInsight(
+                ReflectionProposal(
                     target_type="global",
                     target="fixture_pipeline",
                     recommendation=(
@@ -95,9 +149,24 @@ class SyntheticFixtureReflectionReasoner:
                         "the fixture adapter validates schema and routing "
                         "only; judgment quality requires 019"
                     ),
+                    expected_effect=(
+                        "no production strategy change and no quality claim"
+                    ),
+                    supporting_evidence=[
+                        ReflectionProposalEvidence(
+                            artifact_type="trajectory_summary",
+                            reference="trajectory_summary.run_id",
+                            observation=(
+                                "synthetic fixture exercised the proposal "
+                                "schema and routing path"
+                            ),
+                        )
+                    ],
                 )
             ],
             provider="synthetic_fixture",
+            reasoner_kind="synthetic_fixture",
+            quality_bearing=False,
             cache_key=key,
         )
 
@@ -124,6 +193,8 @@ class RecordedReflectionReasoner:
             return ReflectionLLMInsight(
                 status="cache_miss",
                 provider="recorded_replay",
+                reasoner_kind="recorded_replay",
+                quality_bearing=False,
                 cache_key=key,
                 cache_miss_reason=(
                     "unseen reflection signal combination; stop and report "
@@ -133,7 +204,11 @@ class RecordedReflectionReasoner:
             )
         return response.model_copy(
             deep=True,
-            update={"cache_key": key},
+            update={
+                "cache_key": key,
+                "reasoner_kind": "recorded_replay",
+                "quality_bearing": False,
+            },
         )
 
 

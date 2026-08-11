@@ -16,6 +16,8 @@ from deepresearch_agent.memory import ProceduralMemory, ProceduralQuery
 from deepresearch_agent.reflection import (
     RecordedReflectionReasoner,
     ReflectionLLMInsight,
+    ReflectionProposal,
+    ReflectionProposalEvidence,
     ReflectionResult,
     Reflector,
     StrategyInsight,
@@ -505,6 +507,16 @@ class ReflectionReasoningInterfaceTest(unittest.TestCase):
                     target="sq-1",
                     recommendation="prefer official sources",
                     rationale="recorded fixture response",
+                    expected_effect="increase primary-source coverage",
+                    supporting_evidence=[
+                        ReflectionProposalEvidence(
+                            artifact_type="deterministic_signal",
+                            reference=(
+                                "persistently_weak_subquestions[sq-1]"
+                            ),
+                            observation="sq-1 remained weak across rounds",
+                        )
+                    ],
                 )
             ],
             provider="recorded_replay",
@@ -529,6 +541,42 @@ class ReflectionReasoningInterfaceTest(unittest.TestCase):
             result.llm_insight.cache_key,
             reflection_request_key(request),
         )
+
+    def test_empty_or_non_actionable_proposal_is_rejected(self) -> None:
+        evidence = [
+            ReflectionProposalEvidence(
+                artifact_type="trajectory_summary",
+                reference="trajectory_summary.tool_call_count",
+                observation="two tool calls were observed",
+            )
+        ]
+        with self.assertRaises(ValueError):
+            ReflectionProposal(
+                target_type="global",
+                target="pipeline",
+                recommendation="   ",
+                rationale="fixture",
+                expected_effect="reduce retries",
+                supporting_evidence=evidence,
+            )
+        with self.assertRaises(ValueError):
+            ReflectionProposal(
+                target_type="global",
+                target="pipeline",
+                recommendation="retry with official sources",
+                rationale="fixture",
+                expected_effect="reduce retries",
+                supporting_evidence=[],
+            )
+
+    def test_synthetic_reasoner_cannot_claim_quality(self) -> None:
+        with self.assertRaises(ValueError):
+            ReflectionLLMInsight(
+                status="recorded_placeholder",
+                provider="synthetic_fixture",
+                reasoner_kind="synthetic_fixture",
+                quality_bearing=True,
+            )
 
     def test_recorded_response_cache_miss_stops_without_insight(
         self,
