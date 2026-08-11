@@ -37,13 +37,17 @@
       }
     },
     "planning_replanning": {
-      "status": "wired",
+      "status": "h2_ready",
       "objective": "Make plans, refinements, and loop exits bounded and auditable.",
       "boundary": "The harness owns lifecycle and bounds; the finance DomainPack owns finance planning policy.",
       "criteria": [
         {"metric": "executed_task_plan_mapping_rate", "operator": "==", "target": 1.0, "measured_by": "scripts/check_harness_acceptance.py --technology planning_replanning"},
         {"metric": "loop_bounds_exercised", "operator": "==", "target": 3, "measured_by": "scripts/check_harness_acceptance.py --technology planning_replanning"}
-      ]
+      ],
+      "proof": {
+        "round": 132,
+        "artifact": "docs/decisions/132/planning-replanning-h2-proof.json"
+      }
     },
     "rag": {
       "status": "wired",

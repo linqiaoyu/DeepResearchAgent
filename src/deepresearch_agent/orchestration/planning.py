@@ -165,6 +165,23 @@ class PlanLifecycle:
         self._reject_usage_over_budget(aggregate, self.plan.budget, scope="plan")
         step.usage = proposed
 
+    def restart(self, task_id: str) -> PlanStep:
+        """Open another bounded attempt while retaining cumulative usage."""
+        step = self._known_step(task_id)
+        if step.status not in {"succeeded", "failed"}:
+            raise ValueError(f"plan step {task_id} is not terminal")
+        unmet = [
+            dependency
+            for dependency in step.depends_on
+            if self._steps[dependency].status != "succeeded"
+        ]
+        if unmet:
+            raise ValueError(f"plan step {task_id} has unmet dependencies={unmet}")
+        step.status = "running"
+        step.success_evidence = None
+        self.executed_task_ids.append(task_id)
+        return step.model_copy(deep=True)
+
     def finish(self, task_id: str, *, succeeded: bool, evidence: str) -> None:
         step = self._known_step(task_id)
         if step.status != "running":

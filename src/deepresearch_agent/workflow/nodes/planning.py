@@ -110,7 +110,14 @@ class PlanningNodes:
         execution_plan = make_parallel_execution_plan(
             plan_id=state.research_id,
             tasks=[(item.id, item.question) for item in state.plan.sub_questions],
-            max_calls_per_step=self.settings.branch_single_cap,
+            max_calls_per_step=(
+                self.settings.branch_single_cap
+                * (
+                    self.settings.research_loop_max_iterations
+                    if self.settings.research_loop_active
+                    else 1
+                )
+            ),
             max_tokens=self.settings.token_budget,
             max_cost_cny=self.settings.llm_budget_cny,
         )

@@ -54,6 +54,10 @@ class PlanningContractTests(unittest.TestCase):
             [step.status for step in lifecycle.plan.steps],
             ["succeeded", "succeeded"],
         )
+        lifecycle.restart("analyze")
+        lifecycle.consume("analyze", calls=1)
+        lifecycle.finish("analyze", succeeded=True, evidence="claim:2")
+        self.assertEqual(lifecycle.plan.steps[1].usage.calls, 1)
 
     def test_unknown_and_cyclic_dependencies_are_rejected(self) -> None:
         with self.assertRaisesRegex(ValidationError, "unknown dependencies"):

@@ -134,6 +134,10 @@ def run_gate() -> None:
             [sys.executable, "scripts/check_planning_contract.py", "--self-test"],
         ),
         (
+            "replanning_loop",
+            [sys.executable, "scripts/check_replanning_loop.py", "--self-test"],
+        ),
+        (
             "storage_schema_parity",
             [sys.executable, "scripts/check_storage_schema_parity.py", "--self-test"],
         ),

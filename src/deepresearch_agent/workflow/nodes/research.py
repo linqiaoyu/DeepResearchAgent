@@ -92,7 +92,14 @@ class ResearchNodes:
                 tasks=[
                     (item.id, item.question) for item in state.plan.sub_questions
                 ],
-                max_calls_per_step=self.settings.branch_single_cap,
+                max_calls_per_step=(
+                    self.settings.branch_single_cap
+                    * (
+                        self.settings.research_loop_max_iterations
+                        if self.settings.research_loop_active
+                        else 1
+                    )
+                ),
                 max_tokens=self.settings.token_budget,
                 max_cost_cny=self.settings.llm_budget_cny,
             ).model_dump(mode="json")
@@ -103,6 +110,17 @@ class ResearchNodes:
         unplanned = set(branch_ids) - planned_ids
         if unplanned:
             raise ValueError(f"research tasks absent from execution plan={sorted(unplanned)}")
+        for branch_id in branch_ids:
+            step = next(item for item in lifecycle.plan.steps if item.id == branch_id)
+            if step.status == "pending":
+                lifecycle.start(branch_id)
+            elif step.status in {"succeeded", "failed"}:
+                lifecycle.restart(branch_id)
+            elif step.status != "running":
+                raise ValueError(
+                    f"research task {branch_id} cannot run from status={step.status}"
+                )
+        state.metadata["execution_plan"] = lifecycle.snapshot()
         if self.settings.dynamic_capability_enabled:
             state.metadata["capability_selections"] = {
                 item.id: self.capability_selector.select(
@@ -386,8 +404,7 @@ class ResearchNodes:
         lifecycle = PlanLifecycle.from_snapshot(raw_execution_plan)
         for sub_question in state.plan.sub_questions:
             step = next(item for item in lifecycle.plan.steps if item.id == sub_question.id)
-            if step.status == "pending":
-                lifecycle.start(sub_question.id)
+            if step.status == "running":
                 lifecycle.consume(
                     sub_question.id,
                     calls=int(budget_usage.get(sub_question.id, 0)),

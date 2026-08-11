@@ -1,0 +1,12 @@
+{
+  "technology": "planning_replanning",
+  "status": "h2_ready",
+  "round": 132,
+  "metrics": {
+    "executed_task_plan_mapping_rate": 1.0,
+    "loop_bounds_exercised": 3,
+    "no_actionable_gap_new_searches": 0,
+    "recorded_route_match": 1.0
+  },
+  "command": "PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python scripts/check_replanning_loop.py --self-test"
+}
