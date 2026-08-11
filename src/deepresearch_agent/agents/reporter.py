@@ -45,6 +45,10 @@ _RMB_RE = re.compile(
 )
 _FOOTNOTE_RE = re.compile(r"\[\^(\d+)\]")
 _FOOTNOTE_DEF_RE = re.compile(r"^\[\^(\d+)\]:")
+_WEB_TEMPLATE_BLOCK_START_RE = re.compile(r"^-\s*[●◆■]\s*")
+_WEB_TEMPLATE_LINE_RE = re.compile(
+    r"^(?:图片|版权声明|责任编辑|审核人|本文内容来源|转载声明|来源：.*(?:编辑|整理))\s*[:：]?"
+)
 # `prompts/reporter.md` requires each numeric fact to be emitted once, and tells
 # the reporter not to repeat a key finding *verbatim* in the analysis. R090
 # moved the test off the evidence a claim cites and onto the text it states,
@@ -76,6 +80,8 @@ FINANCE_SUMMARY_NO_CITABLE_VALUE = (
 #: Calibrated on the pair the R090 rule was written for -- a key finding and an
 #: analysis claim stating one metric's value, which score 0.88.
 RESTATEMENT_SIMILARITY = 0.80
+
+
 def _content_key(text: str) -> str:
     """The characters a reader would recognise again, without the numbers."""
 
@@ -135,11 +141,50 @@ def prune_reference_list(report: str) -> str:
         line
         for line in lines
         if not (
-            (definition := _FOOTNOTE_DEF_RE.match(line))
-            and int(definition.group(1)) not in cited
+            (definition := _FOOTNOTE_DEF_RE.match(line)) and int(definition.group(1)) not in cited
         )
     ]
     return "\n".join(kept)
+
+
+def remove_web_template_noise(report: str) -> str:
+    """Remove copied web-page chrome while preserving authored analysis.
+
+    A real R149 report contained an article layout block beginning ``- ● 比亚迪``
+    and continuing through image placeholders, editorial credits and a
+    syndication notice. These are not Evidence-backed report claims; they are
+    web-page chrome copied into a draft. A block begins only with the explicit
+    publisher-layout bullet and ends at the next report heading, so ordinary
+    report bullets and cited analysis are untouched.
+    """
+
+    kept: list[str] = []
+    in_template_block = False
+    for line in report.splitlines():
+        stripped = line.strip()
+        if in_template_block:
+            if re.match(r"^#{2,3}\s+", stripped):
+                in_template_block = False
+            else:
+                continue
+        if _WEB_TEMPLATE_BLOCK_START_RE.match(stripped):
+            in_template_block = True
+            continue
+        if _WEB_TEMPLATE_LINE_RE.match(stripped):
+            continue
+        kept.append(line)
+    return "\n".join(kept)
+
+
+def web_template_noise_count(report: str) -> int:
+    """Count explicit publisher-layout/template markers in a delivered page."""
+
+    return sum(
+        1
+        for line in report.splitlines()
+        if _WEB_TEMPLATE_BLOCK_START_RE.match(line.strip())
+        or _WEB_TEMPLATE_LINE_RE.match(line.strip())
+    )
 
 
 def render_citations(evidence_ids: list[str], ref_map: dict[str, int]) -> str:
@@ -154,9 +199,7 @@ def render_citations(evidence_ids: list[str], ref_map: dict[str, int]) -> str:
     return " ".join(
         f"[^{number}]"
         for number in dict.fromkeys(
-            ref_map[evidence_id]
-            for evidence_id in evidence_ids
-            if evidence_id in ref_map
+            ref_map[evidence_id] for evidence_id in evidence_ids if evidence_id in ref_map
         )
     )
 
@@ -193,7 +236,9 @@ _CLAIM_NUMBER_RE = re.compile(r"\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?")
 _CLAIM_PERCENT_RE = re.compile(r"(?<!\d)(\d+(?:\.\d+)?)\s*%")
 #: Punctuation and interrogatives carry no topic, and every sub-question ends in
 #: some of them, so counting them would score every item alike.
-_OVERLAP_STOP_CHARACTERS = frozenset("？?，,。.、；;：:（）()「」“”\"'的了是有和与在对及其如何哪些什么多少怎样为")
+_OVERLAP_STOP_CHARACTERS = frozenset(
+    "？?，,。.、；;：:（）()「」“”\"'的了是有和与在对及其如何哪些什么多少怎样为"
+)
 
 
 @dataclass(frozen=True)
@@ -219,14 +264,12 @@ class ReporterAgent:
     ) -> None:
         self.llm_client = llm_client
         self.grounded_fact_renderer = grounded_fact_renderer
-        self.domain_pack = resolve_domain_capability(
-            domain_pack, consumer="ReporterAgent"
-        )
+        self.domain_pack = resolve_domain_capability(domain_pack, consumer="ReporterAgent")
         self.numeric_citation_policy = (
-            numeric_citation_policy
-            or self.domain_pack.numeric_citation_policy()
+            numeric_citation_policy or self.domain_pack.numeric_citation_policy()
         )
         self.last_stats: dict[str, object] = {}
+
     def report(
         self,
         state: ResearchState,
@@ -241,8 +284,7 @@ class ReporterAgent:
         )
         footnotes = build_footnote_maps(state.evidence_store)
         state.report_footnote_evidence = {
-            number: evidence.id
-            for number, evidence in footnotes.footnote_to_evidence.items()
+            number: evidence.id for number, evidence in footnotes.footnote_to_evidence.items()
         }
         if self.llm_client:
             try:
@@ -283,10 +325,12 @@ class ReporterAgent:
                 report, state, footnotes.evidence_id_to_footnote
             )
         return prune_reference_list(
-            self._enforce_selected_evidence_coverage(
-                assembled,
-                state,
-                footnotes.evidence_id_to_footnote,
+            remove_web_template_noise(
+                self._enforce_selected_evidence_coverage(
+                    assembled,
+                    state,
+                    footnotes.evidence_id_to_footnote,
+                )
             )
         )
 
@@ -332,9 +376,7 @@ class ReporterAgent:
                     sub_question_id=sub_question.id,
                     status="selected",
                     evidence_ids=[item.id for item in selected],
-                    delivery_mode=(
-                        "reporter_context" if in_context else "mechanical_floor"
-                    ),
+                    delivery_mode=("reporter_context" if in_context else "mechanical_floor"),
                     reason=(
                         "bounded_prewrite_selection"
                         if in_context
@@ -385,9 +427,7 @@ class ReporterAgent:
             representatives.setdefault((entity, unit), item)
         if not representatives:
             return candidates[:MAX_EVIDENCE_FLOOR_CLAIMS]
-        selected = sorted(representatives.values(), key=rank)[
-            :MAX_REPORT_SELECTED_EVIDENCE
-        ]
+        selected = sorted(representatives.values(), key=rank)[:MAX_REPORT_SELECTED_EVIDENCE]
         selected_ids = {item.id for item in selected}
         target_count = min(
             MAX_REPORT_SELECTED_EVIDENCE,
@@ -412,9 +452,7 @@ class ReporterAgent:
 
         reachable = evidence_the_reader_can_follow(state, report)
         evidence_by_id = {item.id: item for item in state.evidence_store}
-        sub_questions = {
-            item.id: item for item in (state.plan.sub_questions if state.plan else [])
-        }
+        sub_questions = {item.id: item for item in (state.plan.sub_questions if state.plan else [])}
         additions: list[str] = []
         delivered_ids: list[str] = []
         degraded_ids: list[str] = []
@@ -453,12 +491,9 @@ class ReporterAgent:
                         f"{selection.sub_question_id}/{evidence_id}"
                     )
                 if evidence_id not in ref_map:
-                    raise ValueError(
-                        f"report Evidence selection has no footnote: {evidence_id}"
-                    )
+                    raise ValueError(f"report Evidence selection has no footnote: {evidence_id}")
                 additions.append(
-                    f"- {self._floor_claim_text(item)} "
-                    f"{render_citations([evidence_id], ref_map)}"
+                    f"- {self._floor_claim_text(item)} {render_citations([evidence_id], ref_map)}"
                 )
                 delivered_ids.append(evidence_id)
                 reachable.update(
@@ -480,14 +515,7 @@ class ReporterAgent:
         marker = "## 参考来源"
         before, separator, after = report.partition(marker)
         if separator:
-            return (
-                before.rstrip()
-                + "\n\n"
-                + "\n".join(block)
-                + "\n\n"
-                + marker
-                + after
-            )
+            return before.rstrip() + "\n\n" + "\n".join(block) + "\n\n" + marker + after
         return report.rstrip() + "\n\n" + "\n".join(block)
 
     @staticmethod
@@ -506,16 +534,13 @@ class ReporterAgent:
                 continue
         target = Decimal(str(fields.value))
         value_visible = any(
-            abs(number - target * factor)
-            <= abs(target * factor) * _FLOOR_VALUE_TOLERANCE
+            abs(number - target * factor) <= abs(target * factor) * _FLOOR_VALUE_TOLERANCE
             for factor in _FLOOR_SCALE_FACTORS
             for number in numbers
         )
         if not value_visible:
             return False
-        body_percentages = {
-            Decimal(match.group(1)) for match in _CLAIM_PERCENT_RE.finditer(body)
-        }
+        body_percentages = {Decimal(match.group(1)) for match in _CLAIM_PERCENT_RE.finditer(body)}
         claim_percentages = {
             Decimal(match.group(1)) for match in _CLAIM_PERCENT_RE.finditer(item.claim)
         }
@@ -539,6 +564,7 @@ class ReporterAgent:
         reporter did not fall back.  ``补充事实`` stays dropped: it is the
         renderer's bucket for claims unrelated to the question.
         """
+
         def section(title: str) -> list[str]:
             match = re.search(
                 rf"(?ms)^## {re.escape(title)}\s*$\n?(.*?)(?=^## |\Z)",
@@ -563,8 +589,7 @@ class ReporterAgent:
         # Keep only reader-relevant, non-template limitations.  Annual filings
         # are not stale merely because they are older than news articles.
         risks = [
-            line for line in section("风险与限制")
-            if self.domain_pack.reader_risk_visible(line)
+            line for line in section("风险与限制") if self.domain_pack.reader_risk_visible(line)
         ]
         if risks and "Critic 未执行" not in risks[0]:
             lines.extend(["", "## 风险与限制", *risks])
@@ -588,9 +613,7 @@ class ReporterAgent:
             lines.extend(["", "## 参考来源", *references])
         return "\n".join(lines).rstrip()
 
-    def _gross_margin_derivation(
-        self, state: ResearchState, ref_map: dict[str, int]
-    ) -> list[str]:
+    def _gross_margin_derivation(self, state: ResearchState, ref_map: dict[str, int]) -> list[str]:
         """Render the finance domain's first deterministic derived metric."""
         derive = getattr(self.domain_pack, "reader_derived_metrics", None)
         if derive is None:
@@ -603,9 +626,7 @@ class ReporterAgent:
         lines: list[str] = []
         for metric in metrics:
             evidence_ids = [str(item) for item in metric["evidence_ids"]]
-            if len(evidence_ids) != 2 or any(
-                item not in ref_map for item in evidence_ids
-            ):
+            if len(evidence_ids) != 2 or any(item not in ref_map for item in evidence_ids):
                 continue
             period = self._reader_text(str(metric.get("period") or "")).strip()
             scope = f"{period} " if period else ""
@@ -640,28 +661,16 @@ class ReporterAgent:
             or set(claim_labels) & gap_labels
             or set(claim_labels) | gap_labels != required_labels
         ):
-            raise ValueError(
-                "grounded fact renderer returned a partial or ambiguous batch"
-            )
+            raise ValueError("grounded fact renderer returned a partial or ambiguous batch")
         lines = report.splitlines()
         start = next(
-            (
-                index
-                for index, line in enumerate(lines)
-                if line.strip() == "## 关键发现"
-            ),
+            (index for index, line in enumerate(lines) if line.strip() == "## 关键发现"),
             None,
         )
         if start is None:
-            raise ValueError(
-                "reader fidelity guard requires a key findings section"
-            )
+            raise ValueError("reader fidelity guard requires a key findings section")
         end = next(
-            (
-                index
-                for index in range(start + 1, len(lines))
-                if lines[index].startswith("## ")
-            ),
+            (index for index in range(start + 1, len(lines)) if lines[index].startswith("## ")),
             len(lines),
         )
         grounded_lines = ["## 关键发现", ""]
@@ -671,25 +680,13 @@ class ReporterAgent:
         evidence_by_id = {item.id: item for item in state.evidence_store}
         for index, claim in enumerate(grounded):
             valid_ids = [
-                evidence_id
-                for evidence_id in claim.evidence_ids
-                if evidence_id in ref_map
+                evidence_id for evidence_id in claim.evidence_ids if evidence_id in ref_map
             ]
-            if (
-                not valid_ids
-                or tuple(valid_ids) != claim.evidence_ids
-                or not claim.fact_keys
-            ):
-                raise ValueError(
-                    "grounded fact renderer returned an unbound claim: "
-                    f"{claim.label}"
-                )
+            if not valid_ids or tuple(valid_ids) != claim.evidence_ids or not claim.fact_keys:
+                raise ValueError(f"grounded fact renderer returned an unbound claim: {claim.label}")
             citations = render_citations(valid_ids, ref_map)
             rendered = f"{claim.text.rstrip()} {citations}".strip()
-            cited_evidence = [
-                evidence_by_id[evidence_id]
-                for evidence_id in valid_ids
-            ]
+            cited_evidence = [evidence_by_id[evidence_id] for evidence_id in valid_ids]
             if not self.grounded_fact_renderer.is_supported(
                 rendered,
                 cited_evidence,
@@ -765,9 +762,7 @@ class ReporterAgent:
         prior = self.last_stats.get("claim_provenance", [])
         prior_rows = prior if isinstance(prior, list) else []
         self.last_stats["claim_provenance"] = [
-            item
-            for item in prior_rows
-            if not str(item.get("path", "")).startswith("key_findings:")
+            item for item in prior_rows if not str(item.get("path", "")).startswith("key_findings:")
         ] + grounded_provenance
         self.last_stats["reader_fidelity_guard"] = {
             "grounded_key_findings": len(grounded),
@@ -864,8 +859,7 @@ class ReporterAgent:
         footnotes = build_footnote_maps(evidence)
         ref_map = footnotes.evidence_id_to_footnote
         show_source_tiers = any(
-            item.source_tier != "unknown" or item.content_truncated
-            for item in evidence
+            item.source_tier != "unknown" or item.content_truncated for item in evidence
         )
         lines: list[str] = [
             f"# {state.topic}",
@@ -928,13 +922,11 @@ class ReporterAgent:
                 affected = self._affected_claims(
                     issue.affected_claims,
                     ref_map,
-                    stable=bool(
-                        state.metadata.get(
-                            "stable_reader_evidence_refs"
-                        )
-                    ),
+                    stable=bool(state.metadata.get("stable_reader_evidence_refs")),
                 )
-                lines.append(f"- {issue.issue_type} ({issue.severity}): {issue.message} Affected: {affected}.")
+                lines.append(
+                    f"- {issue.issue_type} ({issue.severity}): {issue.message} Affected: {affected}."
+                )
         else:
             lines.append("- Critic 未执行；本轮不提供质量判断。")
 
@@ -967,11 +959,7 @@ class ReporterAgent:
         # The context packer is an LLM prompt budget, not an Evidence-store
         # mutation. Rendering, footnotes, fidelity and structured output keep
         # using the canonical state below.
-        evidence = (
-            context_evidence
-            if context_evidence is not None
-            else state.evidence_store
-        )
+        evidence = context_evidence if context_evidence is not None else state.evidence_store
         prompt_evidence = self._llm_prompt_evidence(evidence)
         result = self.llm_client.complete(
             role="reporter",
@@ -997,7 +985,9 @@ class ReporterAgent:
                                     "claim_type": item.claim_type,
                                     "source_url": item.source_url,
                                     "source_title": item.source_title,
-                                    "source_pub_date": item.source_pub_date.isoformat() if item.source_pub_date else "unknown",
+                                    "source_pub_date": item.source_pub_date.isoformat()
+                                    if item.source_pub_date
+                                    else "unknown",
                                     "source_page": item.source_page,
                                     "numeric_fields": item.numeric_fields.model_dump(mode="json")
                                     if item.numeric_fields
@@ -1038,9 +1028,7 @@ class ReporterAgent:
             "uncited_claims": repair_stats["uncited_claims"],
             "claim_provenance": self.last_stats.get("claim_provenance", []),
             "analysis_flow": self.last_stats.get("analysis_flow", {}),
-            "dropped_analysis_claims": self.last_stats.get(
-                "dropped_analysis_claims", []
-            ),
+            "dropped_analysis_claims": self.last_stats.get("dropped_analysis_claims", []),
             "repair_attempts": result.repair_attempts,
         }
         return report
@@ -1056,7 +1044,9 @@ class ReporterAgent:
         )
         selected: list[Evidence] = []
         for _, item in ordered[:REPORTER_LLM_MAX_EVIDENCE]:
-            selected.append(item.model_copy(update={"claim": item.claim[:REPORTER_LLM_MAX_CLAIM_CHARS]}))
+            selected.append(
+                item.model_copy(update={"claim": item.claim[:REPORTER_LLM_MAX_CLAIM_CHARS]})
+            )
         return selected
 
     def _repair_missing_evidence_ids(
@@ -1148,7 +1138,9 @@ class ReporterAgent:
             if claim and self._valid_evidence_ids(claim, evidence_ids):
                 repaired_keys.append(key)
         post_repair_uncited = sum(
-            1 for _, claim in self._draft_claims(repaired_draft) if not self._valid_evidence_ids(claim, evidence_ids)
+            1
+            for _, claim in self._draft_claims(repaired_draft)
+            if not self._valid_evidence_ids(claim, evidence_ids)
         )
         stats.update(
             {
@@ -1171,8 +1163,7 @@ class ReporterAgent:
         footnotes = build_footnote_maps(evidence)
         ref_map = footnotes.evidence_id_to_footnote
         show_source_tiers = any(
-            item.source_tier != "unknown" or item.content_truncated
-            for item in evidence
+            item.source_tier != "unknown" or item.content_truncated for item in evidence
         )
         evidence_ids = set(ref_map)
         invalid_references = 0
@@ -1180,14 +1171,8 @@ class ReporterAgent:
         claim_provenance: list[dict[str, object]] = []
         repaired_claim_keys = repaired_claim_keys or set()
         evidence_fact_keys = metric_fact_keys(evidence, self.domain_pack)
-        evidence_by_id = {
-            item.id: item
-            for item in evidence
-        }
-        required_metrics = {
-            item.metric
-            for item in metric_requirements(state, self.domain_pack)
-        }
+        evidence_by_id = {item.id: item for item in evidence}
+        required_metrics = {item.metric for item in metric_requirements(state, self.domain_pack)}
         seen_fact_keys: set[tuple[str, str, str, str]] = set()
         # R100: what the reader has already been shown, in the order shown. The
         # repeat test in the analysis loop asks whether a claim says the same
@@ -1203,10 +1188,7 @@ class ReporterAgent:
         supplemental: list[tuple[str, int, ReportClaim]] = []
         financial_contract = bool(metric_requirements(state, self.domain_pack))
         summary = self._reader_text(draft.summary.strip())
-        if (
-            financial_contract
-            and self.numeric_citation_policy.has_numeric_mismatch(summary, [])
-        ):
+        if financial_contract and self.numeric_citation_policy.has_numeric_mismatch(summary, []):
             summary = FINANCE_SUMMARY_POINTS_TO_FINDINGS
 
         lines: list[str] = [
@@ -1240,12 +1222,8 @@ class ReporterAgent:
             emitted_reader_lines.append(rendered)
             seen_fact_keys.update(fact_keys)
             key_fact_keys.update(fact_keys)
-            key_evidence_ids.update(
-                item for item in claim.evidence_ids if item in evidence_ids
-            )
-            cited_evidence_ids.update(
-                item for item in claim.evidence_ids if item in evidence_ids
-            )
+            key_evidence_ids.update(item for item in claim.evidence_ids if item in evidence_ids)
+            cited_evidence_ids.update(item for item in claim.evidence_ids if item in evidence_ids)
 
         # R099: this was a dict comprehension keyed by `sub_question_id`, so a
         # reporter that answered one sub-question in several themed sections --
@@ -1275,16 +1253,13 @@ class ReporterAgent:
         plan_sub_question_ids = {item.id for item in state.plan.sub_questions}
         analysis_flow: dict[str, int] = {
             "draft_sections": len(draft.detailed_analysis),
-            "draft_claims": sum(
-                len(section.claims) for section in draft.detailed_analysis
-            ),
+            "draft_claims": sum(len(section.claims) for section in draft.detailed_analysis),
             "sections_unmatched_to_plan": sum(
                 1
                 for section in draft.detailed_analysis
                 if section.sub_question_id not in plan_sub_question_ids
             ),
-            "sections_merged_by_shared_id": len(draft.detailed_analysis)
-            - len(by_section),
+            "sections_merged_by_shared_id": len(draft.detailed_analysis) - len(by_section),
             "claims_in_unmatched_sections": sum(
                 len(claims)
                 for identifier, claims in by_section.items()
@@ -1330,11 +1305,7 @@ class ReporterAgent:
                     claim,
                     evidence_fact_keys,
                 )
-                valid_claim_ids = {
-                    item
-                    for item in claim.evidence_ids
-                    if item in evidence_ids
-                }
+                valid_claim_ids = {item for item in claim.evidence_ids if item in evidence_ids}
                 # R100: sharing evidence with a key finding is a good topicality
                 # signal only while there are grounded key findings to share
                 # with. When every required metric came back a gap, the reader's
@@ -1346,32 +1317,21 @@ class ReporterAgent:
                 related = bool(
                     valid_claim_ids & (key_evidence_ids | section_evidence_ids)
                     or fact_keys & key_fact_keys
-                    or self.domain_pack.metrics_mentioned(
-                        claim.text, required_metrics
-                    )
+                    or self.domain_pack.metrics_mentioned(claim.text, required_metrics)
                 )
                 if not related:
-                    supplemental.append(
-                        (sub_question.id, index, claim)
-                    )
+                    supplemental.append((sub_question.id, index, claim))
                     analysis_flow["claims_dropped_unrelated"] += 1
-                    dropped_claims.append(
-                        {"reason": "unrelated", "text": claim.text}
-                    )
+                    dropped_claims.append({"reason": "unrelated", "text": claim.text})
                     continue
                 if (
                     fact_keys
                     and fact_keys <= seen_fact_keys
                     and restates_an_emitted_line(claim.text, emitted_reader_lines)
-                    and not any(
-                        not evidence_fact_keys.get(item)
-                        for item in valid_claim_ids
-                    )
+                    and not any(not evidence_fact_keys.get(item) for item in valid_claim_ids)
                 ):
                     analysis_flow["claims_dropped_duplicate_number"] += 1
-                    dropped_claims.append(
-                        {"reason": "duplicate_number", "text": claim.text}
-                    )
+                    dropped_claims.append({"reason": "duplicate_number", "text": claim.text})
                     continue
                 path = _ClaimPath("detailed_analysis", index, sub_question.id)
                 rendered, invalid, backfilled, provenance = self._render_claim(
@@ -1425,9 +1385,7 @@ class ReporterAgent:
             invalid_references += invalid
             missing_reference_backfills += backfilled
             claim_provenance.append(provenance)
-            cited_evidence_ids.update(
-                item for item in claim.evidence_ids if item in evidence_ids
-            )
+            cited_evidence_ids.update(item for item in claim.evidence_ids if item in evidence_ids)
             supplemental_lines.append(f"- {rendered}")
             emitted_reader_lines.append(rendered)
 
@@ -1453,12 +1411,9 @@ class ReporterAgent:
         if draft.risks:
             for risk in draft.risks[:6]:
                 rendered_risk = self._reader_text(risk)
-                if (
-                    financial_contract
-                    and self.numeric_citation_policy.has_numeric_mismatch(
-                        rendered_risk,
-                        [],
-                    )
+                if financial_contract and self.numeric_citation_policy.has_numeric_mismatch(
+                    rendered_risk,
+                    [],
                 ):
                     rendered_risk = (
                         "该风险原文包含未绑定 Evidence 的财务数字，"
@@ -1471,13 +1426,11 @@ class ReporterAgent:
                 affected = self._affected_claims(
                     issue.affected_claims,
                     ref_map,
-                    stable=bool(
-                        state.metadata.get(
-                            "stable_reader_evidence_refs"
-                        )
-                    ),
+                    stable=bool(state.metadata.get("stable_reader_evidence_refs")),
                 )
-                lines.append(f"- {issue.issue_type} ({issue.severity}): {issue.message} Affected: {affected}.")
+                lines.append(
+                    f"- {issue.issue_type} ({issue.severity}): {issue.message} Affected: {affected}."
+                )
         else:
             lines.append("- Critic 未发现高优先级事实、引用或反方观点问题。")
 
@@ -1499,17 +1452,12 @@ class ReporterAgent:
                     for evidence_id in claim.evidence_ids
                     if evidence_id in evidence_by_id
                 ]
-                if (
-                    financial_contract
-                    and self.numeric_citation_policy.has_numeric_mismatch(
-                        str(provenance["text"]),
-                        claim_evidence,
-                        required_metrics=required_metrics,
-                    )
+                if financial_contract and self.numeric_citation_policy.has_numeric_mismatch(
+                    str(provenance["text"]),
+                    claim_evidence,
+                    required_metrics=required_metrics,
                 ):
-                    citations = render_citations(
-                        list(claim.evidence_ids), ref_map
-                    )
+                    citations = render_citations(list(claim.evidence_ids), ref_map)
                     rendered = (
                         "该假设原文包含未由所引 Evidence 支持的财务数字，"
                         "已降级为定性提示，不作为数值结论。"
@@ -1569,11 +1517,7 @@ class ReporterAgent:
             number = ref_map[item.id]
             provenance = (
                 f" [source_tier={item.source_tier}]"
-                + (
-                    " [content_truncated=true]"
-                    if item.content_truncated
-                    else ""
-                )
+                + (" [content_truncated=true]" if item.content_truncated else "")
                 if show_source_tiers
                 else ""
             )
@@ -1793,10 +1737,7 @@ class ReporterAgent:
         if normalize_currency:
             text = _RMB_RE.sub(readable_rmb, text)
         return _RAW_PERIOD_RE.sub(
-            lambda match: (
-                f"{match.group(1)}年{int(match.group(2))}月"
-                f"{int(match.group(3))}日"
-            ),
+            lambda match: f"{match.group(1)}年{int(match.group(2))}月{int(match.group(3))}日",
             text,
         )
 
@@ -1806,7 +1747,9 @@ class ReporterAgent:
             claims.append((_ClaimPath("key_findings", index), claim))
         for section in draft.detailed_analysis:
             for index, claim in enumerate(section.claims[:3]):
-                claims.append((_ClaimPath("detailed_analysis", index, section.sub_question_id), claim))
+                claims.append(
+                    (_ClaimPath("detailed_analysis", index, section.sub_question_id), claim)
+                )
         for index, claim in enumerate(draft.unverified_assumptions[:4]):
             claims.append((_ClaimPath("unverified_assumptions", index), claim))
         return claims
@@ -1814,7 +1757,9 @@ class ReporterAgent:
     def _valid_evidence_ids(self, claim: ReportClaim, evidence_ids: set[str]) -> list[str]:
         return [evidence_id for evidence_id in claim.evidence_ids if evidence_id in evidence_ids]
 
-    def _summary(self, state: ResearchState, evidence: list[Evidence], ref_map: dict[str, int]) -> str:
+    def _summary(
+        self, state: ResearchState, evidence: list[Evidence], ref_map: dict[str, int]
+    ) -> str:
         if not evidence:
             return "本次研究尚未收集到足够证据。"
         first = evidence[0]
@@ -1845,13 +1790,7 @@ class ReporterAgent:
         # is not an exact-value display surface.
         if item.claim_type == "data" and (
             item.structured_record
-            or (
-                item.numeric_fields
-                and (
-                    require_typed
-                    or self._claim_displays_numeric_unit(item)
-                )
-            )
+            or (item.numeric_fields and (require_typed or self._claim_displays_numeric_unit(item)))
         ):
             return self._typed_evidence_claim(item)
         if item.claim_type == "data" and item.numeric_fields:
@@ -1863,11 +1802,7 @@ class ReporterAgent:
                 parts.append(f"口径: {fields.dimension}")
             if fields.unit:
                 parts.append(f"单位: {fields.unit}")
-            return (
-                f"{item.claim}（{'; '.join(parts)}）"
-                if parts
-                else item.claim
-            )
+            return f"{item.claim}（{'; '.join(parts)}）" if parts else item.claim
         return item.claim
 
     def _claim_displays_numeric_unit(self, item: Evidence) -> bool:
@@ -1898,13 +1833,7 @@ class ReporterAgent:
             else "该指标"
         )
         period = record.period if record else fields.period if fields else ""
-        dimension = (
-            record.dimension
-            if record
-            else fields.dimension
-            if fields
-            else "未标注"
-        )
+        dimension = record.dimension if record else fields.dimension if fields else "未标注"
         value = record.value if record else fields.value if fields else None
         unit = record.unit if record else fields.unit if fields else ""
         if value is None or not unit:
@@ -1936,18 +1865,12 @@ class ReporterAgent:
         if not coverage:
             return report
         state.metadata["requested_metric_coverage"] = [
-            item.model_dump(mode="json")
-            for item in coverage
+            item.model_dump(mode="json") for item in coverage
         ]
-        evidence_by_id = {
-            item.id: item
-            for item in state.evidence_store
-        }
+        evidence_by_id = {item.id: item for item in state.evidence_store}
         # R103: the coverage section carries the same gap wording as 关键发现 and
         # must not contradict the derived value either.
-        derived_by_metric = self.domain_pack.derived_metric_periods(
-            state.evidence_store
-        )
+        derived_by_metric = self.domain_pack.derived_metric_periods(state.evidence_store)
         lines = [report.rstrip(), "", "## 指标覆盖状态", ""]
         for item in coverage:
             periods = (
@@ -1989,10 +1912,7 @@ class ReporterAgent:
                         f"{provenance} [^{ref_map[evidence_id]}]"
                     )
                 if rendered:
-                    lines.append(
-                        f"- {item.metric}{periods}："
-                        + "；".join(rendered)
-                    )
+                    lines.append(f"- {item.metric}{periods}：" + "；".join(rendered))
                     continue
             if item.status == "partially_cited":
                 lines.append(
@@ -2018,10 +1938,7 @@ class ReporterAgent:
                     + missing
                 )
             else:
-                lines.append(
-                    f"- {item.metric}{periods}：未完成检索；运行在该指标"
-                    "检索完成前终止。"
-                )
+                lines.append(f"- {item.metric}{periods}：未完成检索；运行在该指标检索完成前终止。")
         return "\n".join(lines)
 
     def _affected_claims(
@@ -2036,10 +1953,6 @@ class ReporterAgent:
         if not stable:
             return ", ".join(affected_claims)
         return ", ".join(
-            (
-                f"footnote-{ref_map[item]}"
-                if item in ref_map
-                else "non-evidence-claim"
-            )
+            (f"footnote-{ref_map[item]}" if item in ref_map else "non-evidence-claim")
             for item in affected_claims
         )

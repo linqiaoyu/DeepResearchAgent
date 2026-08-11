@@ -1,0 +1,11 @@
+$ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/check_finance_report_hygiene.py --mutation template-noise
+template_noise must equal 0, got 1
+exit_code=1
+
+$ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/check_finance_report_hygiene.py --mutation duplicate-paragraph
+duplicate_paragraphs must equal 0, got 1
+exit_code=1
+
+$ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/check_finance_report_hygiene.py --mutation uncited-reference
+uncited_references must equal 0, got 1
+exit_code=1

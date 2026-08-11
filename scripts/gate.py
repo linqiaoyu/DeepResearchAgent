@@ -143,6 +143,10 @@ def run_gate() -> None:
             "numeric_fact_retention",
             [sys.executable, "scripts/check_numeric_fact_retention.py", "--self-test"],
         ),
+        (
+            "finance_report_hygiene",
+            [sys.executable, "scripts/check_finance_report_hygiene.py", "--self-test"],
+        ),
         ("ruff", [sys.executable, "-m", "ruff", "check", "src", "tests", "scripts"]),
         # Scoped to the surfaces where two implementations must agree; the file
         # list in pyproject.toml is a ratchet that may only grow. Ruff cannot
