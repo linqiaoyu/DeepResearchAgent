@@ -9,6 +9,7 @@ _EXPORTS = {
     "akshare_structured_data": ("AKShareStructuredDataError", "AKShareStructuredDataProvider"),
     "capability_registry": ("FETCH_TOOL_SPEC", "STRUCTURED_DATA_TOOL_SPEC", "CapabilityMetadata", "CapabilityRegistry", "build_capability_registry"),
     "capability_selector": ("DEFAULT_CAPABILITY_RULES", "FIXED_CAPABILITY_SET", "CapabilitySelection", "CapabilitySelector", "DeterministicCapabilitySelector", "LLMCapabilitySelector", "classify_subquestion"),
+    "calling_loop": ("AuthorizedToolCall", "LLMToolIntentProposer", "RecordedToolIntentProposer", "ToolAuthorizationPolicy", "ToolCallIntent", "ToolCallingLoop", "ToolLoopLimits", "ToolLoopResult", "ToolObservation"),
     "contract_adapter": ("ContractSearchProvider",),
     "contracts": ("ERROR_RETRY_POLICIES", "CircuitBreakerPolicy", "DegradationEvent", "RetryPolicy", "ToolError", "ToolErrorKind", "ToolResult", "ToolSpec"),
     "fixture_search": ("FixtureSearchTool",),

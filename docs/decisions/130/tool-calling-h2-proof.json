@@ -1,0 +1,13 @@
+{
+  "technology": "tool_calling",
+  "status": "h2_ready",
+  "round": 130,
+  "metrics": {
+    "sequential_tool_observations": 2,
+    "unknown_tool_executions": 0,
+    "unauthorized_tool_executions": 0,
+    "hard_limits_triggered": 3,
+    "recorded_replay_match": 1.0
+  },
+  "command": "PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python scripts/check_tool_calling_loop.py --self-test"
+}

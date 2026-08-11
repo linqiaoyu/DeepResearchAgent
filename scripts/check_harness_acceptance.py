@@ -237,7 +237,14 @@ def _self_test(registry: dict[str, Any], horizon: int) -> None:
             **registry,
             "technologies": {
                 **technologies,
-                sample: {**technologies[sample], "status": REQUIRED_STATUS},
+                sample: {
+                    key: value
+                    for key, value in {
+                        **technologies[sample],
+                        "status": REQUIRED_STATUS,
+                    }.items()
+                    if key != "proof"
+                },
             },
         },
     }

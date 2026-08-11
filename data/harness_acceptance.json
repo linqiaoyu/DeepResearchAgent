@@ -24,13 +24,17 @@
       }
     },
     "tool_calling": {
-      "status": "wired",
+      "status": "h2_ready",
       "objective": "Separate model tool intent from harness authorization and execution.",
       "boundary": "The model may propose calls but cannot execute unregistered, paid, or side-effecting tools without authorization.",
       "criteria": [
         {"metric": "sequential_tool_observations", "operator": ">=", "target": 2, "measured_by": "scripts/check_harness_acceptance.py --technology tool_calling"},
         {"metric": "unauthorized_tool_executions", "operator": "==", "target": 0, "measured_by": "scripts/check_harness_acceptance.py --technology tool_calling"}
-      ]
+      ],
+      "proof": {
+        "round": 130,
+        "artifact": "docs/decisions/130/tool-calling-h2-proof.json"
+      }
     },
     "planning_replanning": {
       "status": "wired",

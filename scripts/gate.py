@@ -126,6 +126,10 @@ def run_gate() -> None:
             [sys.executable, "scripts/check_tool_lifecycle.py", "--self-test"],
         ),
         (
+            "tool_calling_loop",
+            [sys.executable, "scripts/check_tool_calling_loop.py", "--self-test"],
+        ),
+        (
             "storage_schema_parity",
             [sys.executable, "scripts/check_storage_schema_parity.py", "--self-test"],
         ),
