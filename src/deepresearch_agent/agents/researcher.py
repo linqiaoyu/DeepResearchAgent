@@ -44,8 +44,7 @@ def _accepts_keyword(callable_: Any, keyword: str) -> bool:
     """Allow legacy test/replay disclosure adapters during protocol migration."""
     parameters = inspect.signature(callable_).parameters.values()
     return any(
-        parameter.name == keyword
-        or parameter.kind is inspect.Parameter.VAR_KEYWORD
+        parameter.name == keyword or parameter.kind is inspect.Parameter.VAR_KEYWORD
         for parameter in parameters
     )
 
@@ -69,9 +68,7 @@ class ResearcherAgent:
         self.disclosure_source = disclosure_source
         self.rag_search = rag_search
         self.as_of = as_of or date.today()
-        self.domain_pack = resolve_domain_capability(
-            domain_pack, consumer="ResearcherAgent"
-        )
+        self.domain_pack = resolve_domain_capability(domain_pack, consumer="ResearcherAgent")
 
     def research(
         self,
@@ -152,10 +149,7 @@ class ResearcherAgent:
 
         def consume_call() -> bool:
             nonlocal branch_calls, branch_exhausted
-            if (
-                max_search_calls is not None
-                and branch_calls >= max_search_calls
-            ):
+            if max_search_calls is not None and branch_calls >= max_search_calls:
                 branch_exhausted = True
                 return False
             if not self._consume_search_budget_if_needed(run_scope):
@@ -164,9 +158,7 @@ class ResearcherAgent:
             return True
 
         if enable_disclosure and self.disclosure_source is not None:
-            joined = " ".join(
-                [sub_question.question, *sub_question.search_queries]
-            )
+            joined = " ".join([sub_question.question, *sub_question.search_queries])
             code_match = re.search(
                 r"(?:股票|证券)?代码\s*[:：]?\s*(\d{6})(?!\d)|[（(](\d{6})[）)]",
                 joined,
@@ -199,12 +191,8 @@ class ResearcherAgent:
             # A disclosure title must match one requested financial year.  A
             # mixed-period branch has no single authoritative annual report,
             # so leave selection to the explicit structured-data requests.
-            report_year = (
-                next(iter(report_years)) if len(report_years) == 1 else None
-            )
-            keyword = self.domain_pack.primary_source_keyword(
-                financial_intent=financial_intent
-            )
+            report_year = next(iter(report_years)) if len(report_years) == 1 else None
+            keyword = self.domain_pack.primary_source_keyword(financial_intent=financial_intent)
             if code and consume_call():
                 disclosure_started = time.perf_counter()
                 disclosure_kwargs: dict[str, Any] = {
@@ -224,9 +212,7 @@ class ResearcherAgent:
                     SearchRecord(
                         query=f"[disclosure] {code} {keyword}",
                         source_ids=[item.id for item in disclosed],
-                        latency_ms=int(
-                            (time.perf_counter() - disclosure_started) * 1000
-                        ),
+                        latency_ms=int((time.perf_counter() - disclosure_started) * 1000),
                     )
                 )
                 for source in disclosed:
@@ -244,10 +230,7 @@ class ResearcherAgent:
             else max_search_calls
         )
         for url in priority_urls or []:
-            if (
-                priority_call_limit is not None
-                and branch_calls >= priority_call_limit
-            ):
+            if priority_call_limit is not None and branch_calls >= priority_call_limit:
                 break
             if not consume_call():
                 break
@@ -272,10 +255,7 @@ class ResearcherAgent:
                     )
                     records.append(
                         SearchRecord(
-                            query=(
-                                f"[web_source_rejected:{rejection}] "
-                                f"{classified.url}"
-                            ),
+                            query=(f"[web_source_rejected:{rejection}] {classified.url}"),
                             source_ids=[],
                         )
                     )
@@ -285,9 +265,7 @@ class ResearcherAgent:
                 ranked_candidates.append(classified)
                 fetched_urls.append(classified.url)
 
-        for idx, query in enumerate(
-            sub_question.search_queries if enable_web_search else []
-        ):
+        for idx, query in enumerate(sub_question.search_queries if enable_web_search else []):
             # A successfully hydrated disclosure makes additional fetches
             # redundant, but it must not silently suppress the explicitly
             # selected independent search provider.  Keep the first query for
@@ -295,11 +273,7 @@ class ResearcherAgent:
             if primary_hydrated and idx > 0:
                 break
             if not consume_call():
-                marker = (
-                    "branch_budget_exceeded"
-                    if branch_exhausted
-                    else "search_limit_exceeded"
-                )
+                marker = "branch_budget_exceeded" if branch_exhausted else "search_limit_exceeded"
                 records.append(
                     SearchRecord(
                         query=f"[{marker}] {query}",
@@ -310,7 +284,9 @@ class ResearcherAgent:
             started = time.perf_counter()
             source_type = None
             if sub_question.expected_source_types:
-                source_type = sub_question.expected_source_types[idx % len(sub_question.expected_source_types)]
+                source_type = sub_question.expected_source_types[
+                    idx % len(sub_question.expected_source_types)
+                ]
             requested_top_k = max(top_k_per_query, 3) if enable_web_fetch else top_k_per_query
             try:
                 results = self.search_tool.search(
@@ -346,7 +322,11 @@ class ResearcherAgent:
                 run_scope=run_scope,
             )
             latency_ms = int((time.perf_counter() - started) * 1000)
-            records.append(SearchRecord(query=query, source_ids=[source.id for source in results], latency_ms=latency_ms))
+            records.append(
+                SearchRecord(
+                    query=query, source_ids=[source.id for source in results], latency_ms=latency_ms
+                )
+            )
             records.extend(
                 SearchRecord(
                     query=f"[web_source_rejected:{reason}] {source.url}",
@@ -389,10 +369,7 @@ class ResearcherAgent:
                     branch_exhausted = True
                     records.append(
                         SearchRecord(
-                            query=(
-                                "[external_fetch_budget_exceeded] "
-                                f"{source.url}"
-                            ),
+                            query=(f"[external_fetch_budget_exceeded] {source.url}"),
                             source_ids=[],
                         )
                     )
@@ -405,9 +382,7 @@ class ResearcherAgent:
                     )
                 )
                 if fetched:
-                    fetched = fetched.model_copy(
-                        update={"source_tier": source.source_tier}
-                    )
+                    fetched = fetched.model_copy(update={"source_tier": source.source_tier})
                     rejection = self._web_source_rejection_reason(
                         sub_question,
                         fetched,
@@ -421,10 +396,7 @@ class ResearcherAgent:
                         )
                         records.append(
                             SearchRecord(
-                                query=(
-                                    f"[web_source_rejected:{rejection}] "
-                                    f"{fetched.url}"
-                                ),
+                                query=(f"[web_source_rejected:{rejection}] {fetched.url}"),
                                 source_ids=[],
                             )
                         )
@@ -480,9 +452,7 @@ class ResearcherAgent:
         assessor = getattr(self.domain_pack, "web_source_rejection_reason", None)
         if not callable(assessor):
             return None
-        values = self.domain_pack.retrieval_filter_values(
-            self._rag_filter_query(sub_question)
-        )
+        values = self.domain_pack.retrieval_filter_values(self._rag_filter_query(sub_question))
         periods = values.preferred_period_labels or values.period_labels
         return assessor(source, periods)
 
@@ -498,8 +468,7 @@ class ResearcherAgent:
                 tool="web_source_governance",
                 reason=ToolErrorKind.PERMANENT,
                 impact=(
-                    f"rejected source reason={reason}; omitted from reader report; "
-                    f"url={source.url}"
+                    f"rejected source reason={reason}; omitted from reader report; url={source.url}"
                 ),
                 attempts=1,
             )
@@ -536,9 +505,19 @@ class ResearcherAgent:
         bbox_index = candidate.get("bbox_index", [])
         report_period_end = candidate.get("report_period_end")
         published_at = candidate.get("published_at")
-        if not all(isinstance(value, str) and value for value in (chunk_id, source_url, text, version_id, index_version)):
+        published_at_source = candidate.get("published_at_source", "")
+        as_of_filter_reason = candidate.get("as_of_filter_reason", "")
+        if not all(
+            isinstance(value, str) and value
+            for value in (chunk_id, source_url, text, version_id, index_version)
+        ):
             raise ValueError("rag candidate lacks authoritative source identity")
-        if not isinstance(char_start, int) or not isinstance(char_end, int) or char_start < 0 or char_end <= char_start:
+        if (
+            not isinstance(char_start, int)
+            or not isinstance(char_end, int)
+            or char_start < 0
+            or char_end <= char_start
+        ):
             raise ValueError("rag candidate lacks a valid authoritative character range")
         if not isinstance(bbox_index, list):
             raise ValueError("rag candidate bbox_index must be a list when present")
@@ -546,14 +525,20 @@ class ResearcherAgent:
             raise ValueError("rag candidate has an invalid reporting-period end")
         if published_at is not None and not isinstance(published_at, str):
             raise ValueError("rag candidate has an invalid publication date")
+        if not isinstance(published_at_source, str) or not isinstance(as_of_filter_reason, str):
+            raise ValueError("rag candidate has invalid disclosure provenance")
         return Source(
             id=f"rag:{chunk_id}",
             title=source_url.rsplit("/", 1)[-1] or source_url,
             url=f"{source_url}#chunk={chunk_id}",
             source_type="rag_chunk",
-            report_period_end=(date.fromisoformat(report_period_end) if report_period_end else None),
+            report_period_end=(
+                date.fromisoformat(report_period_end) if report_period_end else None
+            ),
             published_at=(date.fromisoformat(published_at) if published_at else None),
-            source_date_unknown_reason=("corpus_lacks_publication_date" if report_period_end and not published_at else None),
+            source_date_unknown_reason=(
+                "corpus_lacks_publication_date" if report_period_end and not published_at else None
+            ),
             content=text,
             source_tier=classify_source_tier_url(source_url),
             bbox_index=bbox_index,
@@ -563,19 +548,34 @@ class ResearcherAgent:
                 index_version=index_version,
                 char_start=char_start,
                 char_end=char_end,
+                published_at_source=published_at_source,
+                as_of_filter_reason=as_of_filter_reason,
             ),
         )
 
-    def retry(self, query: str, source_type: str | None = None, top_k: int = 2, *, run_scope: RunScope | None = None) -> tuple[list[Source], SearchRecord]:
-        run_scope = run_scope or RunScope(RunToolContext.for_run(), SearchQuota(self.max_searches_per_run))
+    def retry(
+        self,
+        query: str,
+        source_type: str | None = None,
+        top_k: int = 2,
+        *,
+        run_scope: RunScope | None = None,
+    ) -> tuple[list[Source], SearchRecord]:
+        run_scope = run_scope or RunScope(
+            RunToolContext.for_run(), SearchQuota(self.max_searches_per_run)
+        )
         if not self._consume_search_budget_if_needed(run_scope):
             return [], SearchRecord(query=f"[search_limit_exceeded] {query}", source_ids=[])
         started = time.perf_counter()
-        results = self.search_tool.search(query, top_k=top_k, source_type=source_type, context=run_scope.tool_context)
+        results = self.search_tool.search(
+            query, top_k=top_k, source_type=source_type, context=run_scope.tool_context
+        )
         if not results and source_type and self._consume_search_budget_if_needed(run_scope):
             results = self.search_tool.search(query, top_k=top_k, context=run_scope.tool_context)
         latency_ms = int((time.perf_counter() - started) * 1000)
-        return results, SearchRecord(query=query, source_ids=[source.id for source in results], latency_ms=latency_ms)
+        return results, SearchRecord(
+            query=query, source_ids=[source.id for source in results], latency_ms=latency_ms
+        )
 
     def structured_evidence(
         self, research_id: str, sub_question: SubQuestion
@@ -599,15 +599,11 @@ class ResearcherAgent:
             reason: str = "structured_data_execution_failure",
             symbol: str | None = None,
         ) -> None:
-            key = (
-                "symbol_resolution_failures"
-                if symbol_resolution
-                else "execution_failures"
-            )
+            key = "symbol_resolution_failures" if symbol_resolution else "execution_failures"
             stats[key] += 1
-            stats[f"failure_type_{error_type}"] = int(
-                stats.get(f"failure_type_{error_type}", 0)
-            ) + 1
+            stats[f"failure_type_{error_type}"] = (
+                int(stats.get(f"failure_type_{error_type}", 0)) + 1
+            )
             failures.append(
                 {
                     "reason": reason,
@@ -624,15 +620,15 @@ class ResearcherAgent:
         for request in sub_question.structured_data_requests:
             supports_request = getattr(self.structured_data_provider, "supports_request", None)
             if callable(supports_request) and not supports_request(request.capability):
-                stats["inapplicable_requests"] = int(
-                    stats.get("inapplicable_requests", 0)
-                ) + 1
+                stats["inapplicable_requests"] = int(stats.get("inapplicable_requests", 0)) + 1
                 continue
             try:
                 stats["executed_requests"] += 1
                 records: list[StructuredDataRecord] = []
                 if request.capability == "symbol_resolve":
-                    symbol = self.structured_data_provider.symbol_resolve(request.company_name or "")
+                    symbol = self.structured_data_provider.symbol_resolve(
+                        request.company_name or ""
+                    )
                     if symbol is None:
                         record_failure(
                             request,
@@ -688,7 +684,9 @@ class ResearcherAgent:
                     )
                     continue
                 for record in records:
-                    evidence.append(self._evidence_from_record(research_id, sub_question.id, record))
+                    evidence.append(
+                        self._evidence_from_record(research_id, sub_question.id, record)
+                    )
                 stats["records"] += len(records)
                 if not records:
                     record_failure(
@@ -742,7 +740,9 @@ class ResearcherAgent:
             f"{hashlib.sha1(extract_text.encode('utf-8')).hexdigest()[:10]}"
         )
         evidence_identity = f"{source_url}|{extract_text}"
-        evidence_id = f"structured-{hashlib.sha1(evidence_identity.encode('utf-8')).hexdigest()[:16]}"
+        evidence_id = (
+            f"structured-{hashlib.sha1(evidence_identity.encode('utf-8')).hexdigest()[:16]}"
+        )
         return Evidence(
             id=evidence_id,
             research_id=research_id,

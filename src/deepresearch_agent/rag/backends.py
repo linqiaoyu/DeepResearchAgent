@@ -31,6 +31,7 @@ def _as_search_chunk(chunk: ResolvedChunk, *, score: float) -> SearchChunk:
         text=chunk.content,
         effective_date=date.fromisoformat(chunk.effective_date),
         published_at=(date.fromisoformat(chunk.filing_date) if chunk.filing_date else None),
+        published_at_source=chunk.published_at_source,
         document_version_id=chunk.document_version_id,
         char_start=chunk.char_start,
         char_end=chunk.char_end,
@@ -87,7 +88,9 @@ class QdrantDenseBackend:
 
     fidelity = "real"
 
-    def __init__(self, *, store: StorageProtocol, index: QdrantIndex, embedding: EmbeddingProvider) -> None:
+    def __init__(
+        self, *, store: StorageProtocol, index: QdrantIndex, embedding: EmbeddingProvider
+    ) -> None:
         self.store = store
         self.index = index
         self.embedding = embedding
@@ -132,6 +135,10 @@ def _bm25(
         frequency = document_terms[term]
         if not frequency:
             continue
-        idf = math.log(1 + (document_count - document_frequency[term] + 0.5) / (document_frequency[term] + 0.5))
-        score += idf * frequency * 2.2 / (frequency + 1.2 * (1 - 0.75 + 0.75 * length / average_length))
+        idf = math.log(
+            1 + (document_count - document_frequency[term] + 0.5) / (document_frequency[term] + 0.5)
+        )
+        score += (
+            idf * frequency * 2.2 / (frequency + 1.2 * (1 - 0.75 + 0.75 * length / average_length))
+        )
     return score

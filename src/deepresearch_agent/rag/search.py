@@ -44,6 +44,7 @@ class SearchChunk:
     source_url: str = ""
     bbox_index: tuple[TextBoundingBox, ...] = ()
     published_at: date | None = None
+    published_at_source: str = ""
 
 
 @dataclass(frozen=True)
@@ -129,9 +130,12 @@ class RagSearchService:
             else query
         )
         effective_filters = RetrievalFilter(
-            doc_types=effective_filters.doc_types or (domain_values.doc_types if domain_values else ()),
-            entity_ids=effective_filters.entity_ids or (domain_values.entity_ids if domain_values else ()),
-            period_labels=effective_filters.period_labels or (domain_values.period_labels if domain_values else ()),
+            doc_types=effective_filters.doc_types
+            or (domain_values.doc_types if domain_values else ()),
+            entity_ids=effective_filters.entity_ids
+            or (domain_values.entity_ids if domain_values else ()),
+            period_labels=effective_filters.period_labels
+            or (domain_values.period_labels if domain_values else ()),
             as_of=date.fromisoformat(as_of),
             index_version=effective_filters.index_version or self.index_version,
         )
@@ -216,9 +220,9 @@ class RagSearchService:
             for chunk in candidates
             if chunk.published_at is not None and chunk.published_at <= effective_filters.as_of
         }
-        undated = {
-            chunk.chunk_id for chunk in candidates if chunk.published_at is None
-        } - set(permitted)
+        undated = {chunk.chunk_id for chunk in candidates if chunk.published_at is None} - set(
+            permitted
+        )
         if undated:
             run_context.degradation_events.append(
                 DegradationEvent(
@@ -313,6 +317,8 @@ class RagSearchService:
                         if permitted[candidate.chunk_id].published_at
                         else None
                     ),
+                    "published_at_source": permitted[candidate.chunk_id].published_at_source,
+                    "as_of_filter_reason": "published_on_or_before_as_of",
                     "report_period_end": permitted[candidate.chunk_id].effective_date.isoformat(),
                     "index_version": effective_filters.index_version or "unspecified",
                     "char_start": permitted[candidate.chunk_id].char_start,
@@ -353,6 +359,17 @@ class RagSearchService:
                 },
                 result={
                     "candidate_ids": candidate_ids,
+                    "candidates": [
+                        {
+                            "chunk_id": item.get("chunk_id"),
+                            "index_version": item.get("index_version"),
+                            "published_at": item.get("published_at"),
+                            "published_at_source": item.get("published_at_source"),
+                            "as_of_filter_reason": item.get("as_of_filter_reason"),
+                        }
+                        for item in candidates
+                        if isinstance(item, dict)
+                    ],
                     "rerank_status": getattr(trace, "rerank_status", None),
                     "degradation_reason": (
                         str(trace.degradation.reason)

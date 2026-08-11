@@ -107,6 +107,7 @@ class SQLiteStore:
                     file_sha256 TEXT NOT NULL,
                     effective_date TEXT NOT NULL,
                     filing_date TEXT NOT NULL DEFAULT '',
+                    published_at_source TEXT NOT NULL DEFAULT '',
                     status TEXT NOT NULL CHECK(status IN ('ready', 'superseded')),
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(document_id, file_sha256)
@@ -143,7 +144,9 @@ class SQLiteStore:
             self._ensure_column(conn, "evidence", "source_kind", "TEXT NOT NULL DEFAULT 'text'")
             self._ensure_column(conn, "evidence", "structured_record_json", "TEXT")
             self._ensure_column(conn, "evidence", "numeric_fields_json", "TEXT")
-            self._ensure_column(conn, "evidence", "numeric_fields_incomplete", "INTEGER NOT NULL DEFAULT 0")
+            self._ensure_column(
+                conn, "evidence", "numeric_fields_incomplete", "INTEGER NOT NULL DEFAULT 0"
+            )
             self._ensure_column(conn, "evidence", "source_tier", "TEXT NOT NULL DEFAULT 'unknown'")
             self._ensure_column(conn, "evidence", "content_truncated", "INTEGER NOT NULL DEFAULT 0")
             self._ensure_column(conn, "evidence", "bbox_json", "TEXT")
@@ -152,10 +155,15 @@ class SQLiteStore:
             self._ensure_column(conn, "chunk", "entity_id", "TEXT NOT NULL DEFAULT ''")
             self._ensure_column(conn, "chunk", "published_at", "TEXT NOT NULL DEFAULT ''")
             self._ensure_column(conn, "document_version", "filing_date", "TEXT NOT NULL DEFAULT ''")
+            self._ensure_column(
+                conn, "document_version", "published_at_source", "TEXT NOT NULL DEFAULT ''"
+            )
             conn.execute("CREATE INDEX IF NOT EXISTS idx_chunk_published_at ON chunk(published_at)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_chunk_entity_id ON chunk(entity_id)")
 
-    def _ensure_column(self, conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:
+    def _ensure_column(
+        self, conn: sqlite3.Connection, table: str, column: str, definition: str
+    ) -> None:
         """Add a column once, even when two connections migrate concurrently.
 
         SQLite has no ``ADD COLUMN IF NOT EXISTS``, so this reads the schema and
@@ -178,8 +186,7 @@ class SQLiteStore:
     @staticmethod
     def _has_column(conn: sqlite3.Connection, table: str, column: str) -> bool:
         return any(
-            row["name"] == column
-            for row in conn.execute(f"PRAGMA table_info({table})").fetchall()
+            row["name"] == column for row in conn.execute(f"PRAGMA table_info({table})").fetchall()
         )
 
     def add_evidence_many(self, items: list[Evidence]) -> None:
@@ -187,10 +194,7 @@ class SQLiteStore:
             conn.executemany(
                 f"INSERT OR REPLACE INTO evidence ({', '.join(EVIDENCE_COLUMNS)}) "
                 f"VALUES ({', '.join('?' for _ in EVIDENCE_COLUMNS)})",
-                [
-                    tuple(evidence_fields(item)[name] for name in EVIDENCE_COLUMNS)
-                    for item in items
-                ],
+                [tuple(evidence_fields(item)[name] for name in EVIDENCE_COLUMNS) for item in items],
             )
 
     def list_evidence(self, research_id: str) -> list[Evidence]:
@@ -229,6 +233,7 @@ class SQLiteStore:
         effective_date: str,
         chunks: list[StoredChunk],
         published_at: str | None = None,
+        published_at_source: str = "",
     ) -> DocumentIngestResult:
         published_at = validate_document_version(
             file_sha256=file_sha256,
@@ -269,11 +274,19 @@ class SQLiteStore:
             # that had not been published yet.
             conn.execute(
                 "INSERT INTO document_version "
-                "(id, document_id, file_sha256, effective_date, filing_date, status) "
-                "VALUES (?, ?, ?, ?, ?, 'ready') "
+                "(id, document_id, file_sha256, effective_date, filing_date, "
+                "published_at_source, status) VALUES (?, ?, ?, ?, ?, ?, 'ready') "
                 "ON CONFLICT(document_id, file_sha256) DO UPDATE SET status = 'ready', "
-                "effective_date = excluded.effective_date, filing_date = excluded.filing_date",
-                (version_id, document_id, file_sha256, effective_date, published_at),
+                "effective_date = excluded.effective_date, filing_date = excluded.filing_date, "
+                "published_at_source = excluded.published_at_source",
+                (
+                    version_id,
+                    document_id,
+                    file_sha256,
+                    effective_date,
+                    published_at,
+                    published_at_source,
+                ),
             )
             # Chunks are a derived index, not immutable source evidence.  A
             # re-ingest of an unchanged document version must therefore refresh

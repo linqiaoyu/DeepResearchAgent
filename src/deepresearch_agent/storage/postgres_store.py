@@ -105,9 +105,10 @@ class PostgresStore:
                 )
 
     def list_evidence(self, research_id: str) -> list[Evidence]:
-        with self._connection() as conn, conn.cursor(
-            row_factory=self._psycopg.rows.dict_row
-        ) as cursor:
+        with (
+            self._connection() as conn,
+            conn.cursor(row_factory=self._psycopg.rows.dict_row) as cursor,
+        ):
             rows = cursor.execute(
                 "SELECT * FROM evidence WHERE research_id = %s ORDER BY position, id",
                 (research_id,),
@@ -141,6 +142,7 @@ class PostgresStore:
         effective_date: str,
         chunks: list[StoredChunk],
         published_at: str | None = None,
+        published_at_source: str = "",
     ) -> DocumentIngestResult:
         published_at = validate_document_version(
             file_sha256=file_sha256,
@@ -177,11 +179,19 @@ class PostgresStore:
             # the as-of guard. Until R112 the column did not exist here at all.
             cursor.execute(
                 "INSERT INTO document_version "
-                "(id, document_id, file_sha256, effective_date, filing_date, status) "
-                "VALUES (%s, %s, %s, %s, %s, 'ready') "
+                "(id, document_id, file_sha256, effective_date, filing_date, "
+                "published_at_source, status) VALUES (%s, %s, %s, %s, %s, %s, 'ready') "
                 "ON CONFLICT (document_id, file_sha256) DO UPDATE SET status = 'ready', "
-                "effective_date = EXCLUDED.effective_date, filing_date = EXCLUDED.filing_date",
-                (version_id, document_id, file_sha256, effective_date, published_at),
+                "effective_date = EXCLUDED.effective_date, filing_date = EXCLUDED.filing_date, "
+                "published_at_source = EXCLUDED.published_at_source",
+                (
+                    version_id,
+                    document_id,
+                    file_sha256,
+                    effective_date,
+                    published_at,
+                    published_at_source,
+                ),
             )
             # Chunks are a rebuildable derived index.  Refresh an unchanged
             # document version too, so a deterministic chunking-policy change
@@ -231,9 +241,10 @@ class PostgresStore:
         }
 
     def list_ready_chunks(self, *, as_of: str) -> list[ResolvedChunk]:
-        with self._connection() as conn, conn.cursor(
-            row_factory=self._psycopg.rows.dict_row
-        ) as cursor:
+        with (
+            self._connection() as conn,
+            conn.cursor(row_factory=self._psycopg.rows.dict_row) as cursor,
+        ):
             rows = cursor.execute(
                 f"SELECT {RESOLVED_CHUNK_COLUMNS} {RESOLVED_CHUNK_JOIN} "
                 f"WHERE {AS_OF_PREDICATE}%s ORDER BY chunk.id",
@@ -244,9 +255,10 @@ class PostgresStore:
     def resolve_ready_chunks(self, chunk_ids: list[str], *, as_of: str) -> list[ResolvedChunk]:
         if not chunk_ids:
             return []
-        with self._connection() as conn, conn.cursor(
-            row_factory=self._psycopg.rows.dict_row
-        ) as cursor:
+        with (
+            self._connection() as conn,
+            conn.cursor(row_factory=self._psycopg.rows.dict_row) as cursor,
+        ):
             rows = cursor.execute(
                 f"SELECT {RESOLVED_CHUNK_COLUMNS} {RESOLVED_CHUNK_JOIN} "
                 f"WHERE {AS_OF_PREDICATE}%s AND chunk.id = ANY(%s)",

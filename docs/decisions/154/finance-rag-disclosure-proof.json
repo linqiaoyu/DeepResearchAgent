@@ -1,0 +1,45 @@
+{
+  "round": 154,
+  "task": "F06 finance RAG and disclosure timing",
+  "status": "pass_with_declared_f01_errors",
+  "sources": {
+    "r149_diagnostic_proof": {
+      "path": "docs/decisions/149/live-loss-baseline-proof.json",
+      "sha256": "707577b2baaedca32927761b718608a5606e494c87dd6478f06e41b8adcda561"
+    },
+    "finance_corpus": {
+      "path": "data/corpus/finance_v3.json",
+      "sha256": "a3d2e7158aceb41b5794048e1a58436dcc2ac78e3bfb3e6c1632ddaa51da7dd4"
+    }
+  },
+  "metrics": {
+    "frozen_cohort_questions": 30,
+    "retrieval_live_questions": 29,
+    "successful_three_layer_live_questions": 28,
+    "pre_provider_errors": 1,
+    "pre_provider_error_ids": ["Q21"],
+    "post_retrieval_error_ids": ["Q13"],
+    "lookahead_violations": 0,
+    "undated_withheld_rate": 1.0,
+    "corpus_documents_with_published_at_provenance": "60/60",
+    "delivered_probe_candidates_with_index_date_source_filter_reason": "1/1"
+  },
+  "contract_change": {
+    "storage": "document_version.published_at_source is preserved by SQLite and Postgres",
+    "candidate": "every delivered RAG candidate carries index_version, published_at, published_at_source and as_of_filter_reason",
+    "trajectory": "rag_search traces persist those four fields for each delivered candidate"
+  },
+  "product_claim_boundary": "R149 remains a 28-success diagnostic baseline. Q21 is explicitly absent because the ledger race occurred before provider execution. This proof neither calls 29/30 a completed product run nor claims RAG improved finance quality.",
+  "capability_decisions": {
+    "INJECTION_GUARD_ENABLED": "opt_in",
+    "PRIOR_MEMORY_ENABLED": "opt_in",
+    "PROCEDURAL_MEMORY_ENABLED": "opt_in"
+  },
+  "commands": [
+    "scripts/check_finance_rag_disclosure.py --self-test",
+    "scripts/check_disclosure_lookahead.py --self-test",
+    "scripts/check_storage_schema_parity.py --self-test",
+    "scripts/check_capability_graduation.py --self-test"
+  ],
+  "paid_cost_cny": "0.00000000"
+}

@@ -1,12 +1,18 @@
 {
   "capabilities": {
     "INJECTION_GUARD_ENABLED": {
-      "status": "pending",
+      "status": "opt_in",
       "graduation_criterion": "30/30 fully-live golden cases complete with prompt-injection success count = 0 and no reader-visible metric regression",
       "measured_by": "scripts/run_golden_round.py plus scripts/check_087_capability_ab.py",
       "initial_decision_round": 154,
       "decision_round": 154,
-      "deferrals": []
+      "deferrals": [],
+      "design_reason": "The unified ingress guard is H2-ready, but the default finance SUT has no powered 30-case live evidence for the registered zero-success and no-regression criterion. Keeping it explicit opt-in avoids claiming product quality from the mechanism-only attack corpus.",
+      "proof": {
+        "round": 143,
+        "artifact": "docs/decisions/143/content-security-h2-proof.json",
+        "command": "scripts/check_content_security_ingress.py --self-test"
+      }
     },
     "LLM_TOOL_SELECTION_ENABLED": {
       "status": "pending",
@@ -31,20 +37,32 @@
       }
     },
     "PRIOR_MEMORY_ENABLED": {
-      "status": "pending",
+      "status": "opt_in",
       "graduation_criterion": "30/30 paired second-run cases read prior snapshots and improve reader-visible gold fact recall by >= 0.05 beyond noise",
       "measured_by": "scripts/run_agent_memory_probe.py plus scripts/run_golden_round.py",
       "initial_decision_round": 154,
       "decision_round": 154,
-      "deferrals": []
+      "deferrals": [],
+      "design_reason": "Prior-run memory is durably implemented, but R149 had no paired second-run arm and therefore cannot establish the registered >=0.05 reader-visible recall improvement. Opt-in prevents cross-run content from entering the default finance SUT without that product evidence.",
+      "proof": {
+        "round": 140,
+        "artifact": "docs/decisions/140/memory-h2-proof.json",
+        "command": "scripts/check_memory_persistence.py --self-test"
+      }
     },
     "PROCEDURAL_MEMORY_ENABLED": {
-      "status": "pending",
+      "status": "opt_in",
       "graduation_criterion": "30/30 paired second-run cases read learned procedures and reduce failed behavioral criteria by >= 20% beyond noise",
       "measured_by": "scripts/run_agent_memory_probe.py plus scripts/run_golden_round.py",
       "initial_decision_round": 154,
       "decision_round": 154,
-      "deferrals": []
+      "deferrals": [],
+      "design_reason": "Procedural memory has a verified cross-run lifecycle, but no powered paired finance experiment demonstrates the registered >=20% behavioral-failure reduction. It remains explicitly usable while being excluded from the evidence-selected default SUT.",
+      "proof": {
+        "round": 140,
+        "artifact": "docs/decisions/140/memory-h2-proof.json",
+        "command": "scripts/check_memory_persistence.py --self-test"
+      }
     },
     "RAG_ENABLED": {
       "status": "pending",

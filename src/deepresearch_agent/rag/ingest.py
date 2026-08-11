@@ -59,7 +59,15 @@ def load_corpus(path: Path) -> dict[str, CorpusEntry]:
     if not isinstance(entries, list):
         raise ValueError("corpus manifest must be a list or contain documents")
     result: dict[str, CorpusEntry] = {}
-    required = {"path", "url", "sha256", "bytes", "retrieved_at", "public_accessibility", "effective_date"}
+    required = {
+        "path",
+        "url",
+        "sha256",
+        "bytes",
+        "retrieved_at",
+        "public_accessibility",
+        "effective_date",
+    }
     for value in entries:
         if not isinstance(value, dict) or required - value.keys():
             raise ValueError(f"invalid corpus entry; required={sorted(required)}")
@@ -134,6 +142,7 @@ def ingest_and_persist(
             # disclosure date has not established one, and substituting the
             # period end here is the same lookahead bias one layer up.
             published_at=entry.published_at,
+            published_at_source=entry.published_at_source,
             chunks=[
                 StoredChunk(
                     id=chunk.id,
@@ -143,6 +152,7 @@ def ingest_and_persist(
                     effective_date=chunk.effective_date,
                     content=chunk.text,
                     published_at=entry.published_at,
+                    published_at_source=entry.published_at_source,
                     bbox_index=chunk.bbox_index,
                     entity_id=_source_entity_id(relative_path),
                 )

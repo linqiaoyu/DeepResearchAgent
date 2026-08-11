@@ -156,6 +156,7 @@ def resolved_chunk_from_row(row: Mapping[str, object]) -> ResolvedChunk:
         effective_date=str(row["effective_date"]),
         published_at=str(row["published_at"]),
         filing_date=str(row["filing_date"] or ""),
+        published_at_source=str(row["published_at_source"] or ""),
         content=str(row["content"]),
         bbox_index=tuple(TextBoundingBox.model_validate(item) for item in bbox_items),
         entity_id=str(row["entity_id"]),
@@ -177,7 +178,8 @@ def _as_int(value: object) -> int:
 RESOLVED_CHUNK_COLUMNS = (
     "chunk.id, chunk.document_version_id, document.canonical_url, chunk.char_start, "
     "chunk.char_end, chunk.page_number, chunk.effective_date, chunk.published_at, "
-    "document_version.filing_date, chunk.content, chunk.bbox_index_json, chunk.entity_id"
+    "document_version.filing_date, document_version.published_at_source, chunk.content, "
+    "chunk.bbox_index_json, chunk.entity_id"
 )
 
 RESOLVED_CHUNK_JOIN = (

@@ -27,17 +27,19 @@ class RagIngestTests(unittest.TestCase):
     def _manifest(self, path: Path, text: str) -> dict[str, object]:
         encoded = text.encode("utf-8")
         return {
-            "documents": [{
-                "path": path.name,
-                "url": "https://example.test/document",
-                "sha256": hashlib.sha256(encoded).hexdigest(),
-                "bytes": len(encoded),
-                "retrieved_at": "2026-07-29T00:00:00Z",
-                "public_accessibility": "public",
-                "effective_date": "2025-12-31",
-                "published_at": "2026-01-01",
-                "published_at_source": "test_fixture",
-            }]
+            "documents": [
+                {
+                    "path": path.name,
+                    "url": "https://example.test/document",
+                    "sha256": hashlib.sha256(encoded).hexdigest(),
+                    "bytes": len(encoded),
+                    "retrieved_at": "2026-07-29T00:00:00Z",
+                    "public_accessibility": "public",
+                    "effective_date": "2025-12-31",
+                    "published_at": "2026-01-01",
+                    "published_at_source": "test_fixture",
+                }
+            ]
         }
 
     def test_ingest_is_deterministic_and_all_chunks_are_located(self) -> None:
@@ -60,12 +62,20 @@ class RagIngestTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             store = SQLiteStore(Path(directory) / "research.db")
             chunk = StoredChunk(
-                id="published-late", char_start=0, char_end=4, page_number=None,
-                effective_date="2024-03-31", content="late", published_at="2024-06-21",
+                id="published-late",
+                char_start=0,
+                char_end=4,
+                page_number=None,
+                effective_date="2024-03-31",
+                content="late",
+                published_at="2024-06-21",
             )
             store.record_document_version(
-                canonical_url="https://example.test/late", file_sha256="b" * 64,
-                effective_date="2024-03-31", published_at="2024-06-21", chunks=[chunk],
+                canonical_url="https://example.test/late",
+                file_sha256="b" * 64,
+                effective_date="2024-03-31",
+                published_at="2024-06-21",
+                chunks=[chunk],
             )
             before = store.list_ready_chunks(as_of="2024-04-01")
             after = store.list_ready_chunks(as_of="2024-07-01")
@@ -181,7 +191,11 @@ class RagIngestTests(unittest.TestCase):
                 with self.subTest(mutation=name), self.assertRaisesRegex(ValueError, message):
                     store.record_document_version(
                         canonical_url=f"https://example.test/{name}",
-                        file_sha256=("invalid" if name == "file_hash" else ("b" * 64 if name == "char_range" else "c" * 64)),
+                        file_sha256=(
+                            "invalid"
+                            if name == "file_hash"
+                            else ("b" * 64 if name == "char_range" else "c" * 64)
+                        ),
                         effective_date="2025-12-31",
                         chunks=[chunk],
                     )
@@ -269,9 +283,16 @@ class RagIngestTests(unittest.TestCase):
             assert isinstance(candidate, dict)
             source_from_candidate = ResearcherAgent._rag_source(candidate)
 
-        self.assertEqual(source_from_candidate.url.split("#chunk=")[0], "https://example.test/document")
+        self.assertEqual(
+            source_from_candidate.url.split("#chunk=")[0], "https://example.test/document"
+        )
         self.assertEqual(source_from_candidate.bbox_index[0].bbox.page, 1)
         self.assertEqual(source_from_candidate.bbox_index[0].text, "Total")
+        self.assertEqual(source_from_candidate.retrieval_ref.published_at_source, "test_fixture")
+        self.assertEqual(
+            source_from_candidate.retrieval_ref.as_of_filter_reason,
+            "published_on_or_before_as_of",
+        )
 
         sub_question = SubQuestion(
             id="revenue",
@@ -289,11 +310,14 @@ class RagIngestTests(unittest.TestCase):
         self.assertEqual(len(evidence), 1)
         self.assertEqual(evidence[0].retrieval_ref, source_from_candidate.retrieval_ref)
 
-        state = ResearchState(topic="PDF revenue", plan=ResearchPlan(
+        state = ResearchState(
             topic="PDF revenue",
-            sub_questions=[sub_question],
-            success_criteria=["retrieve the requested figures"],
-        ))
+            plan=ResearchPlan(
+                topic="PDF revenue",
+                sub_questions=[sub_question],
+                success_criteria=["retrieve the requested figures"],
+            ),
+        )
         state.evidence_store = evidence
         critique = CriticAgent(today=date(2026, 1, 1)).critique(state)
         self.assertTrue(critique.passed, critique.issues)

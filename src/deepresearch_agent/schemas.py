@@ -44,9 +44,7 @@ class StructuredDataRequest(StrictModel):
         """Reject ambiguous financial periods before a plan can narrow scope."""
         if self.capability != "financial_indicators":
             return self
-        unparsable = [
-            period for period in self.periods if _calendar_year(period) is None
-        ]
+        unparsable = [period for period in self.periods if _calendar_year(period) is None]
         if unparsable:
             raise ValueError(
                 "financial_indicators periods must contain a calendar year or "
@@ -100,6 +98,8 @@ class RetrievalReference(StrictModel):
     index_version: str
     char_start: int = Field(ge=0)
     char_end: int = Field(gt=0)
+    published_at_source: str = ""
+    as_of_filter_reason: str = ""
 
     @model_validator(mode="after")
     def validate_span(self) -> RetrievalReference:
@@ -201,6 +201,7 @@ class NumericFields(StrictModel):
             self.dimension = "未标注"
         return self
 
+
 class Evidence(StrictModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
     research_id: str
@@ -262,9 +263,7 @@ class ExtractedClaim(StrictModel):
 
 
 class ExtractedClaims(StrictModel):
-    claims: list[ExtractedClaim] = Field(
-        default_factory=list, max_length=MAX_EXTRACTED_CLAIMS
-    )
+    claims: list[ExtractedClaim] = Field(default_factory=list, max_length=MAX_EXTRACTED_CLAIMS)
 
 
 #: R098: `ReportDraft` reached production with no `maxLength` and no `maxItems`
@@ -302,9 +301,7 @@ class ReportClaim(StrictModel):
 class ReportSection(StrictModel):
     sub_question_id: str = Field(max_length=MAX_REPORT_SUB_QUESTION_ID_CHARS)
     heading: str = Field(max_length=MAX_REPORT_HEADING_CHARS)
-    claims: list[ReportClaim] = Field(
-        default_factory=list, max_length=MAX_REPORT_SECTION_CLAIMS
-    )
+    claims: list[ReportClaim] = Field(default_factory=list, max_length=MAX_REPORT_SECTION_CLAIMS)
 
 
 class ReportDraft(StrictModel):
@@ -324,9 +321,9 @@ class ReportDraft(StrictModel):
     detailed_analysis: list[ReportSection] = Field(
         default_factory=list, max_length=MAX_REPORT_SECTIONS
     )
-    risks: list[
-        Annotated[str, StringConstraints(max_length=MAX_REPORT_RISK_CHARS)]
-    ] = Field(default_factory=list, max_length=MAX_REPORT_RISKS)
+    risks: list[Annotated[str, StringConstraints(max_length=MAX_REPORT_RISK_CHARS)]] = Field(
+        default_factory=list, max_length=MAX_REPORT_RISKS
+    )
     unverified_assumptions: list[ReportClaim] = Field(
         default_factory=list, max_length=MAX_REPORT_ASSUMPTIONS
     )
@@ -533,13 +530,9 @@ class ReportEvidenceSelection(StrictModel):
     def _validate_selection(self) -> ReportEvidenceSelection:
         if self.status == "selected":
             if not self.evidence_ids or self.delivery_mode == "none":
-                raise ValueError(
-                    "selected report evidence requires ids and a delivery mode"
-                )
+                raise ValueError("selected report evidence requires ids and a delivery mode")
         elif self.evidence_ids or self.delivery_mode != "none":
-            raise ValueError(
-                "degraded report evidence cannot claim selected ids or delivery"
-            )
+            raise ValueError("degraded report evidence cannot claim selected ids or delivery")
         return self
 
 
@@ -570,9 +563,7 @@ class ResearchState(StrictModel):
     draft_report: str | None = None
     final_report: str | None = None
     report_footnote_evidence: dict[int, str] = Field(default_factory=dict)
-    report_evidence_selections: list[ReportEvidenceSelection] = Field(
-        default_factory=list
-    )
+    report_evidence_selections: list[ReportEvidenceSelection] = Field(default_factory=list)
     agent_decisions: list[AgentDecision] = Field(default_factory=list)
     structured_output: StructuredResearchOutput | None = None
     evaluation: EvaluationResult | None = None

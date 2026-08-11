@@ -128,6 +128,7 @@ class StorageContractTests(unittest.TestCase):
             file_sha256="b" * 64,
             effective_date=effective_date,
             published_at=filing_date,
+            published_at_source="exchange_registry",
             chunks=[
                 StoredChunk(
                     id=chunk_id,
@@ -136,6 +137,7 @@ class StorageContractTests(unittest.TestCase):
                     page_number=1,
                     effective_date=effective_date,
                     published_at=filing_date,
+                    published_at_source="exchange_registry",
                     content="contract",
                     entity_id="contractco",
                 )
@@ -158,10 +160,12 @@ class StorageContractTests(unittest.TestCase):
         # period end and admitted filings that were not yet public.
         self.assertEqual(stored.filing_date, filing_date)
         self.assertEqual(stored.published_at, filing_date)
+        self.assertEqual(stored.published_at_source, "exchange_registry")
 
         resolved = store.resolve_ready_chunks([chunk_id], as_of="9999-12-31")
         self.assertEqual([chunk.id for chunk in resolved], [chunk_id])
         self.assertEqual(resolved[0].filing_date, filing_date)
+        self.assertEqual(resolved[0].published_at_source, "exchange_registry")
         self.assertEqual(resolved[0].content, "contract")
 
         # A chunk is invisible before it was disclosed, not before its period

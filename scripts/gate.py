@@ -230,6 +230,10 @@ def run_gate() -> None:
             [sys.executable, "scripts/check_disclosure_lookahead.py", "--self-test"],
         ),
         (
+            "finance_rag_disclosure",
+            [sys.executable, "scripts/check_finance_rag_disclosure.py", "--self-test"],
+        ),
+        (
             "service_jobs_declared",
             [sys.executable, "scripts/check_service_job.py", "--verify-workflow"],
         ),

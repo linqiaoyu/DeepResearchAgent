@@ -17,6 +17,7 @@ class StoredChunk:
     bbox_index: tuple[TextBoundingBox, ...] = ()
     entity_id: str = ""
     published_at: str = ""
+    published_at_source: str = ""
 
 
 @dataclass(frozen=True)
@@ -35,6 +36,7 @@ class ResolvedChunk:
     entity_id: str = ""
     published_at: str = ""
     filing_date: str = ""
+    published_at_source: str = ""
 
 
 @dataclass(frozen=True)
@@ -94,6 +96,7 @@ class StorageProtocol(Protocol):
         effective_date: str,
         chunks: list[StoredChunk],
         published_at: str | None = None,
+        published_at_source: str = "",
     ) -> DocumentIngestResult: ...
 
     def rag_status(self) -> dict[str, int]: ...
