@@ -1,0 +1,16 @@
+{
+  "technology": "rag",
+  "status": "ingestion_contract_complete",
+  "round": 133,
+  "metrics": {
+    "indexed_chunk_provenance_rate": 1.0,
+    "repeat_ingest_added_chunks": 0,
+    "repeat_ingest_removed_chunks": 0,
+    "undated_visible_documents": 0,
+    "undated_withheld_documents": 1,
+    "unknown_vector_chunks_written": 0,
+    "stable_point_id_match": 1.0,
+    "index_version_mismatch_rejected_before_http": 1
+  },
+  "command": "PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python scripts/check_rag_ingestion.py --self-test"
+}

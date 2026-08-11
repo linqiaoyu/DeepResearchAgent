@@ -23,7 +23,9 @@ def _chunk(number: int) -> SimpleNamespace:
     return SimpleNamespace(
         id=f"chunk-{number}",
         document_version_id="document-version-1",
+        canonical_url="https://example.test/document",
         effective_date="2025-12-31",
+        published_at="2026-04-01",
         char_start=number * 10,
         char_end=number * 10 + 9,
         content=f"authoritative chunk {number}",

@@ -36,8 +36,11 @@ class IndexedChunk:
     char_start: int
     char_end: int
     vector: list[float]
+    source_url: str
+    published_at: str
+    published_at_source: str
+    index_version: str
     entity_id: str = ""
-    published_at: str = ""
 
 
 @dataclass(frozen=True)
@@ -140,10 +143,24 @@ class QdrantIndex:
     def upsert(
         self, *, chunks: list[IndexedChunk], model: str, chunker_version: str, index_version: str
     ) -> int:
-        if not chunks:
+        eligible = [
+            chunk
+            for chunk in chunks
+            if chunk.published_at and chunk.published_at_source
+        ]
+        if not eligible:
             return 0
-        dimensions = len(chunks[0].vector)
-        if dimensions < 1 or any(len(chunk.vector) != dimensions for chunk in chunks):
+        if any(chunk.index_version != index_version for chunk in eligible):
+            raise ValueError("IndexedChunk index_version does not match upsert configuration")
+        if any(
+            not chunk.document_version_id or not chunk.source_url
+            for chunk in eligible
+        ):
+            raise ValueError(
+                "IndexedChunk requires document_version_id and source_url"
+            )
+        dimensions = len(eligible[0].vector)
+        if dimensions < 1 or any(len(chunk.vector) != dimensions for chunk in eligible):
             raise ValueError("Qdrant batch contains inconsistent vector dimensions")
         self.ensure_collection(dimensions=dimensions, index_version=index_version)
         points = [
@@ -154,7 +171,9 @@ class QdrantIndex:
                     "chunk_id": chunk.chunk_id,
                     "document_version_id": chunk.document_version_id,
                     "effective_date": chunk.effective_date,
-                    "published_at": chunk.published_at or chunk.effective_date,
+                    "published_at": chunk.published_at,
+                    "published_at_source": chunk.published_at_source,
+                    "source_url": chunk.source_url,
                     "char_start": chunk.char_start,
                     "char_end": chunk.char_end,
                     "index_version": index_version,
@@ -162,7 +181,7 @@ class QdrantIndex:
                     "period_label": chunk.effective_date[:4],
                 },
             }
-            for chunk in chunks
+            for chunk in eligible
         ]
         response = self._request(
             "put",

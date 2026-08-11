@@ -306,6 +306,7 @@ DeepResearchAgent 是在 LangGraph 图运行时之上自建 Agent 合同、预�
 | 模型工具意图不得越过授权执行 | `scripts/check_tool_calling_loop.py`（多步观察、未知/未授权零执行、三类硬界与 recorded replay） |
 | 执行任务不得脱离计划或越过计划预算 | `scripts/check_planning_contract.py`（step 生命周期字段、依赖、预算、执行映射和字段消费实测） |
 | 重规划不得越过循环边界或为不可行动缺口继续搜索 | `scripts/check_replanning_loop.py`（iteration/budget/no-progress 三界、零无效搜索和 recorded route replay） |
+| RAG 入库与派生索引必须保留来源且禁止披露日回填 | `scripts/check_rag_ingestion.py`（provenance、幂等、undated withhold、稳定 point id 与 index-version fail-closed） |
 | 金融是唯一在建领域 | `scripts/check_domain_boundary.py` 的 `product_domains` 双向断言 |
 | 默认值不得手抄漂移 | `scripts/sync_agents_settings.py --check`（token）+ `scripts/check_doc_flag_claims.py`（正文陈述） |
 | 开着的能力必须可被证明 | `scripts/check_capability_observability.py` |

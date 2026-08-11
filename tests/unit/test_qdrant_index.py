@@ -21,6 +21,27 @@ class Response:
 
 
 class QdrantIndexTests(unittest.TestCase):
+    @staticmethod
+    def _chunk(
+        *,
+        chunk_id: str = "chunk",
+        document_version_id: str = "document-v1",
+        index_version: str = "idx-v1",
+        published_at: str = "2026-01-02",
+    ) -> IndexedChunk:
+        return IndexedChunk(
+            chunk_id=chunk_id,
+            document_version_id=document_version_id,
+            effective_date="2026-01-01",
+            char_start=0,
+            char_end=9,
+            vector=[0.1, 0.2],
+            source_url="https://example.test/document",
+            published_at=published_at,
+            published_at_source="test_fixture",
+            index_version=index_version,
+        )
+
     def test_request_budget_refuses_qdrant_before_http(self) -> None:
         context = RunToolContext.for_run(max_external_fetch_requests=0)
         index = QdrantIndex(
@@ -58,7 +79,7 @@ class QdrantIndexTests(unittest.TestCase):
 
     def test_upsert_creates_collection_and_never_sends_chunk_text(self) -> None:
         index = QdrantIndex(url="https://qdrant.test", api_key="test", collection="collection")
-        chunk = IndexedChunk("chunk", "document-v1", "2026-01-01", 0, 9, [0.1, 0.2])
+        chunk = self._chunk()
         with patch(
             "deepresearch_agent.rag.qdrant_index.httpx.get",
             return_value=Response(status_code=404),
@@ -76,7 +97,7 @@ class QdrantIndexTests(unittest.TestCase):
         self.assertEqual(put.call_args_list[3].kwargs["json"], {"field_name": "entity_id", "field_schema": "keyword"})
         self.assertEqual(put.call_args_list[4].kwargs["json"], {"field_name": "period_label", "field_schema": "keyword"})
         payload = put.call_args_list[5].kwargs["json"]["points"][0]["payload"]
-        self.assertEqual(set(payload), {"chunk_id", "document_version_id", "effective_date", "published_at", "char_start", "char_end", "index_version", "entity_id", "period_label"})
+        self.assertEqual(set(payload), {"chunk_id", "document_version_id", "effective_date", "published_at", "published_at_source", "source_url", "char_start", "char_end", "index_version", "entity_id", "period_label"})
         self.assertNotIn("text", payload)
         self.assertNotIn("content", payload)
 
@@ -90,7 +111,7 @@ class QdrantIndexTests(unittest.TestCase):
             ),
         ), self.assertRaisesRegex(ValueError, "dimensions"):
             index.upsert(
-                chunks=[IndexedChunk("chunk", "document-v1", "2026-01-01", 0, 9, [0.1, 0.2])],
+                chunks=[self._chunk()],
                 model="model",
                 chunker_version="v1",
                 index_version="idx-v1",
@@ -112,11 +133,46 @@ class QdrantIndexTests(unittest.TestCase):
             ),
         ), self.assertRaisesRegex(ValueError, "index_version"):
             index.upsert(
-                chunks=[IndexedChunk("chunk", "document-v1", "2026-01-01", 0, 9, [0.1, 0.2])],
+                chunks=[self._chunk(index_version="idx-new")],
                 model="model",
                 chunker_version="v1",
                 index_version="idx-new",
             )
+
+    def test_unknown_disclosure_is_withheld_before_any_http(self) -> None:
+        index = QdrantIndex(
+            url="https://qdrant.test",
+            api_key="test",
+            collection="collection",
+        )
+        with patch("deepresearch_agent.rag.qdrant_index.httpx.get") as get, patch(
+            "deepresearch_agent.rag.qdrant_index.httpx.put"
+        ) as put:
+            written = index.upsert(
+                chunks=[self._chunk(published_at="")],
+                model="model",
+                chunker_version="v1",
+                index_version="idx-v1",
+            )
+        self.assertEqual(written, 0)
+        get.assert_not_called()
+        put.assert_not_called()
+
+    def test_chunk_index_version_mismatch_fails_before_http(self) -> None:
+        index = QdrantIndex(
+            url="https://qdrant.test",
+            api_key="test",
+            collection="collection",
+        )
+        with patch("deepresearch_agent.rag.qdrant_index.httpx.get") as get:
+            with self.assertRaisesRegex(ValueError, "index_version"):
+                index.upsert(
+                    chunks=[self._chunk(index_version="idx-old")],
+                    model="model",
+                    chunker_version="v1",
+                    index_version="idx-new",
+                )
+        get.assert_not_called()
 
     def test_query_sends_only_filterable_payload_and_returns_chunk_ids(self) -> None:
         index = QdrantIndex(url="https://qdrant.test", api_key="test", collection="collection")

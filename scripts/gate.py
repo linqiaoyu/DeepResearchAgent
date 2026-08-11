@@ -138,6 +138,10 @@ def run_gate() -> None:
             [sys.executable, "scripts/check_replanning_loop.py", "--self-test"],
         ),
         (
+            "rag_ingestion",
+            [sys.executable, "scripts/check_rag_ingestion.py", "--self-test"],
+        ),
+        (
             "storage_schema_parity",
             [sys.executable, "scripts/check_storage_schema_parity.py", "--self-test"],
         ),

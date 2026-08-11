@@ -138,6 +138,10 @@ def rebuild(
                             char_start=chunk.char_start,
                             char_end=chunk.char_end,
                             vector=vector,
+                            source_url=chunk.canonical_url,
+                            published_at=chunk.published_at,
+                            published_at_source="authoritative_storage",
+                            index_version=index_version,
                             entity_id=getattr(chunk, "entity_id", ""),
                         )
                         for chunk, vector in zip(batch, vectors, strict=True)
