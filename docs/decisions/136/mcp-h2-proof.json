@@ -1,0 +1,17 @@
+{
+  "technology": "mcp",
+  "status": "h2_ready",
+  "round": 136,
+  "metrics": {
+    "successful_stdio_probes": 3,
+    "resource_warnings": 0,
+    "name_collision_rejection_rate": 1.0,
+    "untrusted_conservative_contract": 1,
+    "untrusted_paid_call_refused": 1,
+    "explicit_mcp_failure_degradations": 3,
+    "failure_kind_coverage": 3,
+    "local_capability_retention_rate": 1.0,
+    "mcp_capabilities_after_failures": 0
+  },
+  "command": "PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python scripts/check_mcp_safety.py --self-test"
+}

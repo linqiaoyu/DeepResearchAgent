@@ -63,13 +63,17 @@
       }
     },
     "mcp": {
-      "status": "wired",
+      "status": "h2_ready",
       "objective": "Discover and execute external stdio MCP tools through existing harness contracts.",
       "boundary": "No HTTP transport, marketplace, OAuth, or multi-tenant credential platform.",
       "criteria": [
         {"metric": "successful_stdio_probes", "operator": ">=", "target": 3, "measured_by": "scripts/check_harness_acceptance.py --technology mcp"},
         {"metric": "resource_warnings", "operator": "==", "target": 0, "measured_by": "scripts/check_harness_acceptance.py --technology mcp"}
-      ]
+      ],
+      "proof": {
+        "round": 136,
+        "artifact": "docs/decisions/136/mcp-h2-proof.json"
+      }
     },
     "skills": {
       "status": "wired",
