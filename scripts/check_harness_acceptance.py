@@ -251,7 +251,21 @@ def _self_test(registry: dict[str, Any], horizon: int) -> None:
     for label, broken in cases.items():
         if not evaluate(broken, horizon=horizon):
             raise SystemExit(f"harness_acceptance_self_test=FAIL accepted {label}")
-    if not evaluate(registry, horizon=TARGET_ROUND):
+    missed_deadline = {
+        **registry,
+        "technologies": {
+            **technologies,
+            sample: {
+                key: value
+                for key, value in {
+                    **technologies[sample],
+                    "status": "wired",
+                }.items()
+                if key != "proof"
+            },
+        },
+    }
+    if not evaluate(missed_deadline, horizon=TARGET_ROUND):
         raise SystemExit("harness_acceptance_self_test=FAIL accepted missed deadline")
     print(f"harness_acceptance_self_test=PASS cases={len(cases) + 1}")
 

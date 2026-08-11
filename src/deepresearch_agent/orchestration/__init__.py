@@ -48,6 +48,12 @@ from deepresearch_agent.orchestration.planning import (
     PlanUsage,
     make_parallel_execution_plan,
 )
+from deepresearch_agent.orchestration.composition_matrix import (
+    CombinationRun,
+    PAIRWISE_TECHNOLOGIES,
+    execute_pairwise_matrix,
+    pairwise_rows,
+)
 
 __all__ = [
     "ContractField",
@@ -86,6 +92,10 @@ __all__ = [
     "PlanStep",
     "PlanUsage",
     "make_parallel_execution_plan",
+    "CombinationRun",
+    "PAIRWISE_TECHNOLOGIES",
+    "execute_pairwise_matrix",
+    "pairwise_rows",
     "enforce_node_contract",
     "validate_contract_graph",
 ]

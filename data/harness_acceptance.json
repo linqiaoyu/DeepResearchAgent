@@ -3,12 +3,16 @@
   "required_status": "h2_ready",
   "technologies": {
     "orchestration": {
-      "status": "wired",
+      "status": "h2_ready",
       "objective": "Bound every production graph node with executable state and decision contracts.",
       "boundary": "LangGraph remains the sole graph runtime; domain policy is injected.",
       "criteria": [
         {"metric": "node_contract_coverage", "operator": "==", "target": 1.0, "measured_by": "scripts/check_harness_acceptance.py --technology orchestration"}
-      ]
+      ],
+      "proof": {
+        "round": 146,
+        "artifact": "docs/decisions/146/orchestration-h2-proof.json"
+      }
     },
     "tool_use": {
       "status": "h2_ready",

@@ -104,6 +104,10 @@ def run_gate() -> None:
             [sys.executable, "scripts/check_harness_acceptance.py", "--self-test"],
         ),
         (
+            "pairwise_composition",
+            [sys.executable, "scripts/check_pairwise_composition.py", "--self-test"],
+        ),
+        (
             "product_acceptance",
             [sys.executable, "scripts/check_product_acceptance.py", "--self-test"],
         ),
