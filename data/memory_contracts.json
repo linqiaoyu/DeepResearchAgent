@@ -14,7 +14,7 @@
     },
     "semantic": {
       "implementation": "SemanticMemory",
-      "lifecycles": {"in_memory": "cross_run"},
+      "lifecycles": {"in_memory": "cross_run", "durable": "persistent"},
       "scope_dimensions": ["namespace", "domain", "tenant_id"],
       "provenance_fields": ["as_of", "source_urls"]
     },

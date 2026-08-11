@@ -166,6 +166,10 @@ def run_gate() -> None:
             [sys.executable, "scripts/check_memory_lifecycle.py", "--self-test"],
         ),
         (
+            "memory_persistence",
+            [sys.executable, "scripts/check_memory_persistence.py", "--self-test"],
+        ),
+        (
             "storage_schema_parity",
             [sys.executable, "scripts/check_storage_schema_parity.py", "--self-test"],
         ),

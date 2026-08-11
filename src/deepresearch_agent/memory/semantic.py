@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+import hashlib
 from datetime import date
 
 from pydantic import Field
 
-from deepresearch_agent.memory.protocols import MemoryLifecycle, MemoryScope
+from deepresearch_agent.memory.protocols import (
+    MemoryLifecycle,
+    MemoryRecordStore,
+    MemoryScope,
+)
 from deepresearch_agent.schemas import StrictModel
+from deepresearch_agent.storage.protocol import MemoryRecord
 
 
 class SemanticFact(StrictModel):
@@ -47,12 +53,18 @@ class SemanticSeries(StrictModel):
 class SemanticMemory:
     """Exact four-key finance fact index with deterministic subset queries."""
 
-    lifecycle: MemoryLifecycle = "cross_run"
-
-    def __init__(self, scope: MemoryScope | None = None) -> None:
+    def __init__(
+        self,
+        scope: MemoryScope | None = None,
+        store: MemoryRecordStore | None = None,
+    ) -> None:
         self.scope = scope or MemoryScope(
             namespace="semantic",
             domain="finance",
+        )
+        self.store = store
+        self.lifecycle: MemoryLifecycle = (
+            "persistent" if store is not None else "cross_run"
         )
         self._facts: dict[
             tuple[str, str, str, str],
@@ -67,10 +79,39 @@ class SemanticMemory:
             "\n".join(sorted(record.source_urls)),
         )
         observations[observation_key] = record
+        if self.store is not None:
+            payload = record.model_dump_json()
+            self.store.write_memory_record(
+                MemoryRecord(
+                    namespace=self.scope.storage_namespace,
+                    scope_key="facts",
+                    record_id=hashlib.sha256(
+                        payload.encode("utf-8")
+                    ).hexdigest(),
+                    payload=payload,
+                )
+            )
 
     def query(self, query: SemanticQuery) -> list[SemanticSeries]:
+        facts = {
+            key: dict(indexed)
+            for key, indexed in self._facts.items()
+        }
+        if self.store is not None:
+            for row in self.store.list_memory_records(
+                self.scope.storage_namespace,
+                "facts",
+            ):
+                fact = SemanticFact.model_validate_json(row.payload)
+                facts.setdefault(fact.key, {})[
+                    (
+                        fact.as_of,
+                        str(fact.value),
+                        "\n".join(sorted(fact.source_urls)),
+                    )
+                ] = fact
         series: list[SemanticSeries] = []
-        for key, indexed in self._facts.items():
+        for key, indexed in facts.items():
             if not self._matches(key, query):
                 continue
             observations = sorted(

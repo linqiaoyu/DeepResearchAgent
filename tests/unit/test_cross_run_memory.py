@@ -172,8 +172,8 @@ class EngineRunsAccumulateMemoryTests(unittest.TestCase):
             f"the second run read no strategy back (scope keys seen: {types})",
         )
 
-    def test_procedural_memory_writes_nothing_without_reflection(self) -> None:
-        """R122 finding: the write is only reachable from the reflector node."""
+    def test_procedural_memory_writes_without_reflection(self) -> None:
+        """The memory flag owns writes; Reflection is an optional signal source."""
 
         with tempfile.TemporaryDirectory() as raw:
             tmp = Path(raw)
@@ -182,12 +182,7 @@ class EngineRunsAccumulateMemoryTests(unittest.TestCase):
             engine._checkpoint_conn.close()
             written = self._procedural_rows(tmp)
 
-        self.assertEqual(
-            written,
-            0,
-            "if this now writes, PROCEDURAL_MEMORY_ENABLED no longer depends on "
-            "REFLECTION_ENABLED and the round note should be updated",
-        )
+        self.assertGreater(written, 0)
 
     def test_dropping_the_store_leaves_the_second_run_blind(self) -> None:
         """The pre-R122 behaviour, restored deliberately."""

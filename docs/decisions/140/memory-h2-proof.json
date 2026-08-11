@@ -1,0 +1,18 @@
+{
+  "technology": "memory",
+  "status": "h2_ready",
+  "round": 140,
+  "metrics": {
+    "memory_kind_contract_coverage": 1.0,
+    "cross_process_persistent_kinds": 3,
+    "memory_protocol_method_coverage": 1.0,
+    "shared_contract_backends": 2,
+    "persistent_cross_process_rate": 1.0,
+    "namespace_domain_tenant_leaks": 0,
+    "procedural_writes_without_reflection": 3
+  },
+  "commands": [
+    "PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python scripts/check_memory_lifecycle.py --self-test",
+    "PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src .venv/bin/python scripts/check_memory_persistence.py --self-test"
+  ]
+}

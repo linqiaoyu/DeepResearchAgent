@@ -63,7 +63,11 @@ def _cross_process_counts(db_path: Path) -> dict[str, int]:
         "print(json.dumps({'episodic':len(EpisodicMemory(store=s).query("
         "EpisodicQuery(question_id=sys.argv[2]))),"
         "'procedural':len(ProceduralMemory(store=s).query("
-        "ProceduralQuery(question_type='narrative')).records)}))"
+        "ProceduralQuery(question_type='narrative')).records),"
+        "'semantic':len(__import__('deepresearch_agent.memory',"
+        "fromlist=['SemanticMemory']).SemanticMemory(store=s).query("
+        "__import__('deepresearch_agent.memory',fromlist=['SemanticQuery'])"
+        ".SemanticQuery(entity='ContractCo')))}))"
     )
     environment = {**os.environ, "PYTHONPATH": str(ROOT / "src")}
     completed = subprocess.run(
@@ -138,6 +142,19 @@ def measure() -> dict[str, int | float]:
         with DeepResearchEngine(settings=settings, store=store) as engine:
             engine.run(topic=TOPIC, depth_level=1)
         ProceduralMemory(store=store).write(_record())
+        SemanticMemory(store=store).write(
+            SemanticFact(
+                entity="ContractCo",
+                normalized_metric="revenue",
+                period="2025",
+                scope="annual",
+                value=1.0,
+                unit="CNY",
+                source_urls=["https://example.test/semantic"],
+                as_of=date(2026, 3, 20),
+                confidence=1.0,
+            )
+        )
         counts = _cross_process_counts(db_path)
 
         scoped_a = ProceduralMemory(
@@ -193,6 +210,7 @@ def measure() -> dict[str, int | float]:
     persistent_kinds = {
         "episodic": EpisodicMemory(store=SQLiteStore(db_path)).lifecycle,
         "procedural": ProceduralMemory(store=SQLiteStore(db_path)).lifecycle,
+        "semantic": SemanticMemory(store=SQLiteStore(db_path)).lifecycle,
     }
     persistent_count = sum(value == "persistent" for value in persistent_kinds.values())
     cross_process_count = sum(counts[name] >= 1 for name in persistent_kinds)
@@ -217,8 +235,8 @@ def validate(metrics: dict[str, int | float]) -> None:
         "truthful_lifecycle_coverage": 1.0,
         "scope_dimension_coverage": 1.0,
         "provenance_as_of_contract_coverage": 1.0,
-        "persistent_kinds": 2,
-        "cross_process_persistent_kinds": 2,
+        "persistent_kinds": 3,
+        "cross_process_persistent_kinds": 3,
         "persistent_cross_process_rate": 1.0,
         "namespace_domain_tenant_leaks": 0,
         "run_scope_rejections": 1,

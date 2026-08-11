@@ -240,7 +240,7 @@ class QualityNodes:
         self,
         state: ResearchState,
         signals,
-        recorder: TrajectoryRecorder,
+        recorder: TrajectoryRecorder | None,
     ) -> None:
         if not state.plan or not self.settings.procedural_memory_enabled:
             record_component_activity(
@@ -296,8 +296,9 @@ class QualityNodes:
                 "sub_question_id": record.sub_question_id,
                 "iteration": record.iteration,
             }
-            recorder.record_memory_write(
-                MemoryWriteTrace(
+            if recorder is not None:
+                recorder.record_memory_write(
+                    MemoryWriteTrace(
                     memory_type="procedural",
                     lifecycle=self.procedural_memory.lifecycle,
                     key=key,
@@ -311,14 +312,14 @@ class QualityNodes:
                         ),
                         "validation_status": record.validation_status,
                     },
+                    )
                 )
-            )
             written.append(key)
         record_agent_decision(
             state,
             AgentDecision(
                 decision_type="procedural_memory_write",
-                made_by="Reflector",
+                made_by="MemoryLifecycleController",
                 inputs={
                     "records": written,
                     "lifecycle": self.procedural_memory.lifecycle,

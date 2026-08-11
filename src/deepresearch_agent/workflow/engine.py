@@ -22,6 +22,7 @@ from deepresearch_agent.memory import (
     ContextWorkingMemory,
     EpisodicMemory,
     ProceduralMemory,
+    SemanticMemory,
 )
 from deepresearch_agent.observability import (
     JsonLogger,
@@ -174,6 +175,7 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
         rag_search: Any | None = None,
         episodic_memory: EpisodicMemory | None = None,
         procedural_memory: ProceduralMemory | None = None,
+        semantic_memory: SemanticMemory | None = None,
         disclosure_source: Any | None = None,
         grounded_fact_renderer: GroundedFactRenderer | None = None,
         domain_pack: DomainPack | None = None,
@@ -305,6 +307,7 @@ class DeepResearchEngine(ResearchNodes, RetryNodes, ResearchLoopNodes, DeliveryN
         # explicitly injected memory is left exactly as the caller built it.
         self.episodic_memory = episodic_memory or EpisodicMemory(store=self.store)
         self.procedural_memory = procedural_memory or ProceduralMemory(store=self.store)
+        self.semantic_memory = semantic_memory or SemanticMemory(store=self.store)
         self.research_as_of = self.settings.as_of or self.critic.today
         self._graph_lock = RLock()
         self.sufficiency_thresholds = SufficiencyThresholds(

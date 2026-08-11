@@ -89,13 +89,17 @@
       }
     },
     "memory": {
-      "status": "wired",
+      "status": "h2_ready",
       "objective": "Give working, episodic, semantic, and procedural memory truthful scope and lifecycle contracts.",
       "boundary": "Memory preserves provenance and as-of semantics and does not create a second business truth source.",
       "criteria": [
         {"metric": "memory_kind_contract_coverage", "operator": "==", "target": 1.0, "measured_by": "scripts/check_harness_acceptance.py --technology memory"},
         {"metric": "cross_process_persistent_kinds", "operator": "==", "target": 3, "measured_by": "scripts/check_harness_acceptance.py --technology memory"}
-      ]
+      ],
+      "proof": {
+        "round": 140,
+        "artifact": "docs/decisions/140/memory-h2-proof.json"
+      }
     },
     "reflection": {
       "status": "wired",

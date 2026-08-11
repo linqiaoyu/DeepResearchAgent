@@ -12,7 +12,9 @@ from deepresearch_agent.reporting import (
     append_prior_differences,
     append_research_process,
 )
+from deepresearch_agent.reflection import DeterministicReflectionSignals
 from deepresearch_agent.schemas import utc_now
+from deepresearch_agent.trajectory import active_trajectory_recorder
 from langgraph.graph import END
 
 ResearchGraphState = dict[str, Any]
@@ -33,6 +35,15 @@ class DeliveryNodes:
             state.metadata["stable_reader_evidence_refs"] = True
         self._sync_tool_degradation(state, run_scope=run_scope)
         state.evidence_store = self._sorted_evidence(state.evidence_store)
+        if (
+            self.settings.procedural_memory_enabled
+            and not self.settings.reflection_enabled
+        ):
+            self._write_procedural_memory(
+                state,
+                DeterministicReflectionSignals(),
+                active_trajectory_recorder(),
+            )
         report_context = self.reporter_context_builder.build(
             state,
             enabled=self.settings.context_packer_enabled,
