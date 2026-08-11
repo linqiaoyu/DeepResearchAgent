@@ -305,6 +305,7 @@ DeepResearchAgent 是在 LangGraph 图运行时之上自建 Agent 合同、预�
 | 默认值不得手抄漂移 | `scripts/sync_agents_settings.py --check`（token）+ `scripts/check_doc_flag_claims.py`（正文陈述） |
 | 开着的能力必须可被证明 | `scripts/check_capability_observability.py` |
 | 关着的产品能力必须到期决定 | `scripts/check_capability_graduation.py`（Settings 双向覆盖、量化判据、到期轮次、延期上限） |
+| Agent 技术必须先达到 Harness H2 | `scripts/check_harness_acceptance.py`（技术集合双向覆盖、冻结数字合同、R150 到期 proof） |
 | 产品完成度必须向同一数字靶收敛 | `scripts/check_product_acceptance.py`（30 题真实 cohort、全部 reader-visible 阈值、到期 proof） |
 | 读者可见产物不得自相矛盾 | `scripts/check_reader_visible_contract.py` |
 | 指令文件本身不得漂移 | `scripts/check_agent_guidance.py` |

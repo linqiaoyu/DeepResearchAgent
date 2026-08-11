@@ -716,3 +716,20 @@ claim that the current product already passes.
 At the target round it reads the published `run_golden_round.py` JSON itself,
 requires exactly 30 completed cases and three-layer live fidelity, and recomputes
 the metrics from case results. A handwritten proof summary is not accepted.
+
+# R126 phased Harness and product acceptance
+
+The approved delivery order is now machine-readable rather than implicit:
+Harness H2 first, then finance-product H3. `data/harness_acceptance.json` fixes
+twelve Agent-technology families and an R150 deadline. A family may be
+`absent`, `wired`, or `h2_ready`; only a published proof whose numeric metrics
+meet the frozen per-family contract may claim `h2_ready`. Existing production
+code is initially recorded as `wired`, not prematurely promoted.
+
+The finance product deadline moves once from R140 to R160 to make room for the
+separately falsifiable H2 work. The product cohort, three-layer live fidelity,
+reader-visible metrics, thresholds, and prohibition on best-of or cross-round
+splicing are unchanged. The nine default-off capability decision rounds are
+rescheduled between R151 and R158 so their finance defaults are decided after
+the H2 mechanism proof and before the R160 product proof; their graduation
+criteria are unchanged.

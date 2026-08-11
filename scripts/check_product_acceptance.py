@@ -24,7 +24,7 @@ TARGET_CONTRACT = {
     "orphaned_sub_questions": ("==", 0),
     "false_premise_failed": ("==", 0),
 }
-TARGET_ROUND = 140
+TARGET_ROUND = 160
 
 
 def last_published_round() -> int:

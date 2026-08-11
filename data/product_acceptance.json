@@ -12,7 +12,7 @@
     "round": 116,
     "evidence_reachable_rate": 0.27
   },
-  "target_round": 140,
+  "target_round": 160,
   "metrics": [
     {
       "name": "evidence_reachable_rate",

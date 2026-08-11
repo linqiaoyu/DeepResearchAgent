@@ -1,0 +1,113 @@
+{
+  "target_round": 150,
+  "required_status": "h2_ready",
+  "technologies": {
+    "orchestration": {
+      "status": "wired",
+      "objective": "Bound every production graph node with executable state and decision contracts.",
+      "boundary": "LangGraph remains the sole graph runtime; domain policy is injected.",
+      "criteria": [
+        {"metric": "node_contract_coverage", "operator": "==", "target": 1.0, "measured_by": "scripts/check_harness_acceptance.py --technology orchestration"}
+      ]
+    },
+    "tool_use": {
+      "status": "wired",
+      "objective": "Route external tools through bounded reliability and budget contracts.",
+      "boundary": "Provider implementations stay behind ToolSpec and LLMClient boundaries.",
+      "criteria": [
+        {"metric": "external_call_contract_coverage", "operator": "==", "target": 1.0, "measured_by": "scripts/check_harness_acceptance.py --technology tool_use"},
+        {"metric": "tool_error_kinds_exercised", "operator": "==", "target": 7, "measured_by": "scripts/check_harness_acceptance.py --technology tool_use"}
+      ]
+    },
+    "tool_calling": {
+      "status": "wired",
+      "objective": "Separate model tool intent from harness authorization and execution.",
+      "boundary": "The model may propose calls but cannot execute unregistered, paid, or side-effecting tools without authorization.",
+      "criteria": [
+        {"metric": "sequential_tool_observations", "operator": ">=", "target": 2, "measured_by": "scripts/check_harness_acceptance.py --technology tool_calling"},
+        {"metric": "unauthorized_tool_executions", "operator": "==", "target": 0, "measured_by": "scripts/check_harness_acceptance.py --technology tool_calling"}
+      ]
+    },
+    "planning_replanning": {
+      "status": "wired",
+      "objective": "Make plans, refinements, and loop exits bounded and auditable.",
+      "boundary": "The harness owns lifecycle and bounds; the finance DomainPack owns finance planning policy.",
+      "criteria": [
+        {"metric": "executed_task_plan_mapping_rate", "operator": "==", "target": 1.0, "measured_by": "scripts/check_harness_acceptance.py --technology planning_replanning"},
+        {"metric": "loop_bounds_exercised", "operator": "==", "target": 3, "measured_by": "scripts/check_harness_acceptance.py --technology planning_replanning"}
+      ]
+    },
+    "rag": {
+      "status": "wired",
+      "objective": "Provide provenance-safe ingestion and bounded lexical, dense, and rerank retrieval.",
+      "boundary": "Finance disclosure policy is injected; H2 does not claim reader-visible quality benefit.",
+      "criteria": [
+        {"metric": "indexed_chunk_provenance_rate", "operator": "==", "target": 1.0, "measured_by": "scripts/check_harness_acceptance.py --technology rag"},
+        {"metric": "undated_visible_documents", "operator": "==", "target": 0, "measured_by": "scripts/check_harness_acceptance.py --technology rag"}
+      ]
+    },
+    "mcp": {
+      "status": "wired",
+      "objective": "Discover and execute external stdio MCP tools through existing harness contracts.",
+      "boundary": "No HTTP transport, marketplace, OAuth, or multi-tenant credential platform.",
+      "criteria": [
+        {"metric": "successful_stdio_probes", "operator": ">=", "target": 3, "measured_by": "scripts/check_harness_acceptance.py --technology mcp"},
+        {"metric": "resource_warnings", "operator": "==", "target": 0, "measured_by": "scripts/check_harness_acceptance.py --technology mcp"}
+      ]
+    },
+    "skills": {
+      "status": "wired",
+      "objective": "Load selected skill metadata, resources, and capabilities without bypassing harness controls.",
+      "boundary": "Finance remains the only product skill/domain; additional packs are test fixtures only.",
+      "criteria": [
+        {"metric": "unselected_resource_reads", "operator": "==", "target": 0, "measured_by": "scripts/check_harness_acceptance.py --technology skills"},
+        {"metric": "observable_skill_states", "operator": "==", "target": 4, "measured_by": "scripts/check_harness_acceptance.py --technology skills"}
+      ]
+    },
+    "memory": {
+      "status": "wired",
+      "objective": "Give working, episodic, semantic, and procedural memory truthful scope and lifecycle contracts.",
+      "boundary": "Memory preserves provenance and as-of semantics and does not create a second business truth source.",
+      "criteria": [
+        {"metric": "memory_kind_contract_coverage", "operator": "==", "target": 1.0, "measured_by": "scripts/check_harness_acceptance.py --technology memory"},
+        {"metric": "cross_process_persistent_kinds", "operator": "==", "target": 3, "measured_by": "scripts/check_harness_acceptance.py --technology memory"}
+      ]
+    },
+    "reflection": {
+      "status": "wired",
+      "objective": "Separate deterministic signals, strategy proposals, validation, and adoption decisions.",
+      "boundary": "Reflection cannot mutate state directly and H2 does not claim LLM judgment quality.",
+      "criteria": [
+        {"metric": "unauthorized_reflection_adoptions", "operator": "==", "target": 0, "measured_by": "scripts/check_harness_acceptance.py --technology reflection"},
+        {"metric": "recorded_reasoner_replay_match", "operator": "==", "target": 1.0, "measured_by": "scripts/check_harness_acceptance.py --technology reflection"}
+      ]
+    },
+    "content_security": {
+      "status": "wired",
+      "objective": "Apply trust and injection handling consistently to web, RAG, MCP, and skill content.",
+      "boundary": "Security controls may reject untrusted instructions but may not weaken the golden truth contract.",
+      "criteria": [
+        {"metric": "guarded_ingress_kinds", "operator": "==", "target": 4, "measured_by": "scripts/check_harness_acceptance.py --technology content_security"},
+        {"metric": "registered_injection_successes", "operator": "==", "target": 0, "measured_by": "scripts/check_harness_acceptance.py --technology content_security"}
+      ]
+    },
+    "observability_replay": {
+      "status": "wired",
+      "objective": "Make capability activity, termination, cost, and replay evidence independently auditable.",
+      "boundary": "Only completed trajectories claim strict replay; other terminal states claim offline validation.",
+      "criteria": [
+        {"metric": "harness_technology_locator_coverage", "operator": "==", "target": 1.0, "measured_by": "scripts/check_harness_acceptance.py --technology observability_replay"},
+        {"metric": "completed_report_byte_match", "operator": "==", "target": 1.0, "measured_by": "scripts/check_harness_acceptance.py --technology observability_replay"}
+      ]
+    },
+    "storage_backends": {
+      "status": "wired",
+      "objective": "Keep storage protocols, schemas, and service-backed execution in parity.",
+      "boundary": "SQLite and Postgres share contracts; Qdrant remains the configured vector service.",
+      "criteria": [
+        {"metric": "storage_protocol_method_coverage", "operator": "==", "target": 1.0, "measured_by": "scripts/check_harness_acceptance.py --technology storage_backends"},
+        {"metric": "undeclared_schema_differences", "operator": "==", "target": 0, "measured_by": "scripts/check_harness_acceptance.py --technology storage_backends"}
+      ]
+    }
+  }
+}
