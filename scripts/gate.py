@@ -85,6 +85,24 @@ def run_gate() -> None:
     storage_path.parent.mkdir(parents=True, exist_ok=True)
     storage_path.unlink(missing_ok=True)
     commands = (
+        # R125: a check file outside every runner is documentation disguised as
+        # enforcement. Run this first so new orphan guards cannot accumulate.
+        (
+            "guard_wiring",
+            [sys.executable, "scripts/check_guard_wiring.py", "--self-test"],
+        ),
+        (
+            "workflow_module_size",
+            [sys.executable, "scripts/check_workflow_module_size.py"],
+        ),
+        (
+            "capability_graduation",
+            [sys.executable, "scripts/check_capability_graduation.py", "--self-test"],
+        ),
+        (
+            "product_acceptance",
+            [sys.executable, "scripts/check_product_acceptance.py", "--self-test"],
+        ),
         ("ruff", [sys.executable, "-m", "ruff", "check", "src", "tests", "scripts"]),
         # Scoped to the surfaces where two implementations must agree; the file
         # list in pyproject.toml is a ratchet that may only grow. Ruff cannot
@@ -162,7 +180,7 @@ def run_gate() -> None:
             "capability_observability",
             [sys.executable, "scripts/check_capability_observability.py", "--self-test"],
         ),
-        ("agent_guidance", [sys.executable, "scripts/check_agent_guidance.py"]),
+        ("agent_guidance", [sys.executable, "scripts/check_agent_guidance.py", "--self-test"]),
         ("prompt_drift", [sys.executable, "scripts/check_prompt_drift.py"]),
         (
             "reader_visible_contract",

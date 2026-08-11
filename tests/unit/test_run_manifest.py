@@ -129,7 +129,7 @@ class RunManifestTests(unittest.TestCase):
                 search_tool=FixtureSearchTool(),
             )
             with patch(
-                "deepresearch_agent.workflow.engine.write_run_manifest",
+                "deepresearch_agent.workflow.run_persistence.write_run_manifest",
                 side_effect=OSError("disk unavailable"),
             ):
                 state = engine.run(topic="AI Agent 财富管理研究", depth_level=1)

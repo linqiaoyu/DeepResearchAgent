@@ -1,0 +1,37 @@
+{
+  "cohort": {
+    "questions": 30,
+    "fidelity": {
+      "llm": "live",
+      "retrieval": "live",
+      "structured_data": "live"
+    },
+    "selection_rule": "one preregistered run; no best-of or cross-round splicing"
+  },
+  "baseline": {
+    "round": 116,
+    "evidence_reachable_rate": 0.27
+  },
+  "target_round": 140,
+  "metrics": [
+    {
+      "name": "evidence_reachable_rate",
+      "operator": ">=",
+      "target": 0.6,
+      "measured_by": "scripts/run_golden_round.py"
+    },
+    {
+      "name": "orphaned_sub_questions",
+      "operator": "==",
+      "target": 0,
+      "measured_by": "scripts/run_golden_round.py"
+    },
+    {
+      "name": "false_premise_failed",
+      "operator": "==",
+      "target": 0,
+      "measured_by": "scripts/run_golden_round.py"
+    }
+  ],
+  "proof": null
+}

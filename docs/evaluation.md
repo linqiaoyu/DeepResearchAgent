@@ -702,3 +702,17 @@ Q19, Q20, Q22 and Q28 and read by nothing. It is registered as deferred in
 `scripts/check_behavioral_criteria.py` fails closed on any behavioural key that
 is neither implemented with separating fixtures nor registered as deferred, and
 the deferred count is a ratchet.
+# R125 product acceptance contract
+
+Product completion is now a single-cohort claim, not the absence of a known
+regression. `data/product_acceptance.json` requires one preregistered 30-case run
+with live LLM, retrieval, and structured-data providers to satisfy all of these
+reader-visible thresholds at once: `evidence_reachable_rate >= 0.60`,
+`orphaned_sub_questions == 0`, and `false_premise_failed == 0`. The first target
+starts from R116's measured 0.27 baseline; it is a convergence target, not a
+claim that the current product already passes.
+
+`scripts/check_product_acceptance.py` refuses best-of or cross-round splicing.
+At the target round it reads the published `run_golden_round.py` JSON itself,
+requires exactly 30 completed cases and three-layer live fidelity, and recomputes
+the metrics from case results. A handwritten proof summary is not accepted.

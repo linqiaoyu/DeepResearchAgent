@@ -20,6 +20,10 @@ REQUIRED_AGENTS_TEXT = (
     "完整本地 CI 的唯一标准入口",
     "运行产物",
     "replay_trajectory()",
+    "在 LangGraph 图运行时之上自建 Agent 合同、预算与可观测层",
+    "scripts/check_capability_graduation.py",
+    "scripts/check_product_acceptance.py",
+    "scripts/check_guard_wiring.py",
 )
 FORBIDDEN_CLAUDE_TEXT = (
     ".venv/bin/python",
@@ -35,13 +39,52 @@ def _fail(message: str) -> None:
     raise SystemExit(1)
 
 
+def _agents_structure_failures(agents: str) -> list[str]:
+    failures: list[str] = []
+    numbered = [int(value) for value in re.findall(r"^## (\d+)\.", agents, re.MULTILINE)]
+    if numbered != list(range(1, 12)):
+        failures.append(
+            f"numbered sections must be exactly 1..11 in order, got {numbered}"
+        )
+    if "DeepResearchAgent 是自建 Agent Harness" in agents:
+        failures.append(
+            "AGENTS.md must not claim the graph runtime is self-built; LangGraph is the runtime"
+        )
+    if agents.count(BEGIN_MARKER) != 1:
+        failures.append("generated Settings begin marker must occur exactly once")
+    if agents.count(END_MARKER) != 1:
+        failures.append("generated Settings end marker must occur exactly once")
+    return failures
+
+
+def _self_test(agents: str) -> None:
+    cases = {
+        "swapped_sections": agents.replace("## 10. 规则的执行面", "## 12. 规则的执行面"),
+        "false_harness_claim": agents.replace(
+            "DeepResearchAgent 是在 LangGraph 图运行时之上自建 Agent 合同、预算与可观测层的 harness",
+            "DeepResearchAgent 是自建 Agent Harness",
+        ),
+    }
+    for label, broken in cases.items():
+        if not _agents_structure_failures(broken):
+            _fail(f"self-test accepted mutation: {label}")
+    print(f"agent_guidance_self_test=PASS cases={len(cases)}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Check shared AGENTS.md/CLAUDE.md guidance")
     parser.add_argument("--project-root", type=Path, default=PROJECT_ROOT)
+    parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
     project_root = args.project_root.resolve()
     agents = (project_root / "AGENTS.md").read_text(encoding="utf-8")
     claude = (project_root / "CLAUDE.md").read_text(encoding="utf-8")
+
+    failures = _agents_structure_failures(agents)
+    if failures:
+        _fail("; ".join(failures))
+    if args.self_test:
+        _self_test(agents)
 
     if "@AGENTS.md" not in claude:
         _fail("CLAUDE.md must import AGENTS.md with Claude Code @ syntax")

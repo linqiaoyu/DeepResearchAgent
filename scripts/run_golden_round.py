@@ -56,6 +56,16 @@ def golden_round_environment(args: Any) -> dict[str, str]:
     return environment
 
 
+def golden_round_fidelity(args: Any) -> dict[str, str]:
+    """The provider layers persisted beside every score this runner writes."""
+
+    return {
+        "llm": "live",
+        "retrieval": "live" if args.live else "replay",
+        "structured_data": "live" if args.live else "fixture",
+    }
+
+
 def main() -> None:
     args = _parse_args()
     _load_env(Path(args.env_path))
@@ -120,6 +130,7 @@ def main() -> None:
         "effective_question_ids": [str(item["id"]) for item in questions],
         "quarantined_question_ids": sorted(_quarantined_ids(question_payload)),
         "state_path_map": args.state_path_map or None,
+        "provider_fidelity": golden_round_fidelity(args),
     }
     results: list[dict[str, Any]] = []
     structured_failures = 0

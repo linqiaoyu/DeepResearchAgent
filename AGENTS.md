@@ -2,7 +2,8 @@
 
 ## 1. 项目边界与事实源
 
-DeepResearchAgent 是自建 Agent Harness；金融投研是首个被测系统（SUT），当前不得
+DeepResearchAgent 是在 LangGraph 图运行时之上自建 Agent 合同、预算与可观测层的 harness；
+金融投研是首个被测系统（SUT），当前不得
 宣称已经完成通用 domain-pack 抽取。代码行为以源码、`Settings`、`pyproject.toml`
 和 CI 为事实源；历史结论以 `docs/decisions/` 为事实源。本文件只保存跨轮规则，不
 手抄项目状态、依赖版本或历史路线。**依据：** 031 审计发现手抄默认值与依赖说明
@@ -26,6 +27,11 @@ DeepResearchAgent 是自建 Agent Harness；金融投研是首个被测系统（
 - 当前代码、配置或 provider 行为必须先读后判断；任务卡中的代码事实若与仓库不符，
   以仓库现实修正描述。**依据：** 028 因把猜测当合同且“冲突即停”，未修 disclosure
   断路，030 才完成三处修复。
+- **金融投研产品完成度只有一份机器可读定义：** `data/product_acceptance.json`。完成必须
+  由同一次 30 题、三层真实 provider 的运行同时达到全部 reader-visible 指标，不得把不同
+  轮次的最好值拼在一起，也不得用 fixture 分数替代。目标到期仍无合格 proof 时完整门禁失败；
+  修改指标、阈值、cohort 或到期轮次属于 evaluation 合同变更，必须同步
+  `docs/evaluation.md`。**执行面：** `scripts/check_product_acceptance.py --self-test`。
 
 ## 2. 范围、依赖与停止条件
 
@@ -67,7 +73,15 @@ DeepResearchAgent 是自建 Agent Harness；金融投研是首个被测系统（
   `PYTHONPATH=src` 错误停摆。
 - 更换编排框架或新增重型 Agent/RAG 依赖属于重大产品决策，须有 ADR、许可证审查、
   回归证据和报告置顶声明；任务已明确授权时不再二次请示。
-  **风险：** 破坏“自建 harness”产品主张并形成双框架与供应链债。
+  **风险：** 形成双编排框架与供应链债。
+- content-affecting 且默认关闭的能力不得无限期停在“已实现、未决定”。每项必须在
+  `data/capability_graduation.json` 登记量化毕业判据、测量命令和决策轮次；到期只有转正、
+  删除、带开箱 proof 的永久 opt-in，或消耗一次有理由且有上限的延期四种出口。
+  **执行面：** `scripts/check_capability_graduation.py --self-test`（双向覆盖 Settings 现状）。
+- 允许“决策轮”：当本轮不产生新的读者可见产品能力时，不新增守卫；唯一成果必须是一个
+  到期能力的 `graduated / removed / opt_in` 决定及其达到统计功效的证据。不能把普通审计、
+  文档整理或再次延期包装成决策轮。**执行面：仅靠评审**，并由能力毕业注册表的到期与延期
+  上限防止无限重复。
 
 ## 3. 环境、安装、自检与本地门禁
 
@@ -113,8 +127,12 @@ DeepResearchAgent 是自建 Agent Harness；金融投研是首个被测系统（
 - 当轮已明确授权 provider、次数和预算时，preregistration 是执行前置而不是第二次
   审批；真实 trajectory 沿用同一授权。未获得当轮成本授权不得付费调用。
   **依据：** 022/023/025 曾把预登记误作二次审批，真实轨迹连续未执行。
-- 付费实验必须预登记假设、测量、决策规则、单次与全轮熔断以及回滚条件；异常成本
-  触发熔断后停止该项并保留记录。**依据：** 019 建立了支出可追溯纪律。
+- 付费实验必须预登记假设、测量、决策规则、单次与全轮熔断、回滚条件，以及达到预定
+  统计功效所需的最小样本量和预计总成本。全轮熔断不得低于该决定性实验的预计总成本；
+  若预算买不起所需功效，实验不得启动，不能先跑一个必然无分辨力的 n=1 再报告
+  `within_noise`。异常成本触发熔断后停止该项并保留记录。**依据：** 019 建立了支出可追溯
+  纪律；109/118 证明低成本 n=1 不能区分代码效果与运行方差。**执行面：仅靠评审**：费用、
+  provider 方差和所需功效依实验而变，预登记与报告必须逐项展示样本量推导和预算覆盖。
 - 未获当轮明确授权，禁止 push、merge、force、amend、rebase、删分支以及其他不可逆
   外部写；不得批量删除或执行任务外网络写。本地全门禁不受 push/merge 授权影响。
   **风险：** 远端状态、历史或用户数据不可恢复。
@@ -207,6 +225,9 @@ DeepResearchAgent 是自建 Agent Harness；金融投研是首个被测系统（
 - 每轮达成的读者可见成果必须在同一轮内沉淀为常驻离线守卫并纳入
   `scripts/gate.py`；只写在当轮任务卡、不进门禁的成果视为未交付。
   **依据：** 084 使“关键发现”同时给出营收与毛利，085 将其回退且无任何守卫报警。
+- `scripts/**/check_*.py` 不是历史档案。每个守卫必须由 `scripts/gate.py`、CI job 或门禁会跑
+  的测试直接或传递执行；失去现行合同后必须在同一轮删除，不能按轮次永久堆积。引用了已删
+  守卫的 runner 同样失败。**执行面：** `scripts/check_guard_wiring.py --self-test`。
 - 读者可见产物的验收判据必须直接度量**读者拿到的东西**（版面构成、指标完整性、
   噪声行数、误报条数），不得以管道属性（引用闭合、召回比例、provider 真实性）
   代替。管道判据全绿不构成产物可用的证据。
@@ -267,7 +288,7 @@ DeepResearchAgent 是自建 Agent Harness；金融投研是首个被测系统（
 - 可使用 bounded 子审计并行，但必须由一个执行者对实现、验证和报告端到端负责，不以
   handoff 消解责任。**风险：** 多角色拆分后无人对交付闭环负责。
 
-## 11. 规则的执行面
+## 10. 规则的执行面
 
 本文件的每条规则要么由一条可运行的检查强制，要么明确标为“仅靠判断”。没有检查的
 规则会被违反很久而无人察觉，这不是假设：§7 的“真实运行”规则写了约 100 轮，而评测
@@ -283,9 +304,13 @@ DeepResearchAgent 是自建 Agent Harness；金融投研是首个被测系统（
 | 金融是唯一在建领域 | `scripts/check_domain_boundary.py` 的 `product_domains` 双向断言 |
 | 默认值不得手抄漂移 | `scripts/sync_agents_settings.py --check`（token）+ `scripts/check_doc_flag_claims.py`（正文陈述） |
 | 开着的能力必须可被证明 | `scripts/check_capability_observability.py` |
+| 关着的产品能力必须到期决定 | `scripts/check_capability_graduation.py`（Settings 双向覆盖、量化判据、到期轮次、延期上限） |
+| 产品完成度必须向同一数字靶收敛 | `scripts/check_product_acceptance.py`（30 题真实 cohort、全部 reader-visible 阈值、到期 proof） |
 | 读者可见产物不得自相矛盾 | `scripts/check_reader_visible_contract.py` |
 | 指令文件本身不得漂移 | `scripts/check_agent_guidance.py` |
 | 全量门禁是唯一交付入口 | `scripts/gate.py`，且 `tracked_files_unchanged` |
+| 守卫不得脱离门禁腐烂 | `scripts/check_guard_wiring.py`（gate / CI / tests 传递可达性与悬空引用双向检查） |
+| workflow 与 RAG 模块不得无界增长 | `scripts/check_workflow_module_size.py`（目录自动发现；engine 独立上限） |
 | 多后端 schema 不得漂移 | `scripts/check_storage_schema_parity.py`（未声明差异即失败） |
 | 协议实现必须全方法契约覆盖 | `tests/contract/test_storage_contract.py`（同一断言跑遍所有后端，覆盖 8/8 方法） |
 | 检索不得看到未披露的文件 | `scripts/check_disclosure_lookahead.py`（语料 provenance + 端到端 as-of 探针 + `undated_withheld`） |
@@ -300,10 +325,12 @@ DeepResearchAgent 是自建 Agent Harness；金融投研是首个被测系统（
 | 修复必须针对缺陷的类 | **仅靠判断**：需要执行者自己枚举同类成员并在报告中列出 |
 | 每轮必须发布决策记录 | **仅靠判断**：无机械检查。108 轮跑完却从未写 report，`docs/decisions/108/` 因此缺失两轮 |
 | 轮次范围、停止条件、成本授权 | **仅靠判断**：无机械检查，靠任务卡与报告评审 |
+| 决策轮必须真实结束一个到期能力 | **仅靠判断**：由评审核对 proof；毕业注册表机械限制到期与延期次数 |
+| 付费实验预算必须覆盖统计功效 | **仅靠判断**：成本与方差依 provider/任务而变，评审预登记的样本量推导与总预算 |
 | 比较必须先给噪声底 | **仅靠判断**：需要执行者自己算并报告 |
 | 不得伪造或猜测数据 | **仅靠判断**：部分由数值守卫覆盖，整体不可机械判定 |
 
-## 10. 由代码生成的默认开关
+## 11. 由代码生成的默认开关
 
 下表由 `scripts/sync_agents_settings.py` 从 `Settings` 与 manifest 分类生成，禁止手改；
 CI 和单元测试均校验。`Settings` 是默认值事实源。**依据：** 027 已将 dynamic

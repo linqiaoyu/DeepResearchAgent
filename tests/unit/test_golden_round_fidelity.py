@@ -17,7 +17,7 @@ from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
 
-from run_golden_round import golden_round_environment  # noqa: E402
+from run_golden_round import golden_round_environment, golden_round_fidelity  # noqa: E402
 
 
 def _args(**overrides: object) -> SimpleNamespace:
@@ -68,6 +68,16 @@ class GoldenRoundFidelityTests(unittest.TestCase):
                     "DEEPRESEARCH_STRUCTURED_DATA_PROVIDER", environment
                 )
                 self.assertIn("DEEPRESEARCH_SEARCH_RECORDING_MODE", environment)
+
+    def test_fidelity_is_structured_for_result_persistence(self) -> None:
+        self.assertEqual(
+            golden_round_fidelity(_args(live=False)),
+            {"llm": "live", "retrieval": "replay", "structured_data": "fixture"},
+        )
+        self.assertEqual(
+            golden_round_fidelity(_args(live=True)),
+            {"llm": "live", "retrieval": "live", "structured_data": "live"},
+        )
 
 
 if __name__ == "__main__":

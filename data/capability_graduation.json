@@ -1,0 +1,76 @@
+{
+  "capabilities": {
+    "INJECTION_GUARD_ENABLED": {
+      "status": "pending",
+      "graduation_criterion": "30/30 fully-live golden cases complete with prompt-injection success count = 0 and no reader-visible metric regression",
+      "measured_by": "scripts/run_golden_round.py plus scripts/check_087_capability_ab.py",
+      "initial_decision_round": 128,
+      "decision_round": 128,
+      "deferrals": []
+    },
+    "LLM_TOOL_SELECTION_ENABLED": {
+      "status": "pending",
+      "graduation_criterion": "30/30 fully-live cases complete and gold numeric fact recall improves by >= 0.10 beyond the paired noise floor",
+      "measured_by": "scripts/run_golden_round.py plus scripts/check_087_capability_ab.py",
+      "initial_decision_round": 130,
+      "decision_round": 130,
+      "deferrals": []
+    },
+    "MCP_CLIENT_ENABLED": {
+      "status": "pending",
+      "graduation_criterion": "3/3 configured external MCP server probes discover, register and execute a tool with budget and trajectory records present",
+      "measured_by": "scripts/check_capability_observability.py plus scripts/mcp_stdio_client.py",
+      "initial_decision_round": 132,
+      "decision_round": 132,
+      "deferrals": []
+    },
+    "PRIOR_MEMORY_ENABLED": {
+      "status": "pending",
+      "graduation_criterion": "30/30 paired second-run cases read prior snapshots and improve reader-visible gold fact recall by >= 0.05 beyond noise",
+      "measured_by": "scripts/run_agent_memory_probe.py plus scripts/run_golden_round.py",
+      "initial_decision_round": 134,
+      "decision_round": 134,
+      "deferrals": []
+    },
+    "PROCEDURAL_MEMORY_ENABLED": {
+      "status": "pending",
+      "graduation_criterion": "30/30 paired second-run cases read learned procedures and reduce failed behavioral criteria by >= 20% beyond noise",
+      "measured_by": "scripts/run_agent_memory_probe.py plus scripts/run_golden_round.py",
+      "initial_decision_round": 134,
+      "decision_round": 134,
+      "deferrals": []
+    },
+    "RAG_ENABLED": {
+      "status": "pending",
+      "graduation_criterion": "30/30 fully-live cases have evidence_reachable_rate >= 0.60 with disclosure lookahead violations = 0",
+      "measured_by": "scripts/run_golden_round.py plus scripts/check_disclosure_lookahead.py",
+      "initial_decision_round": 136,
+      "decision_round": 136,
+      "deferrals": []
+    },
+    "REFLECTION_ENABLED": {
+      "status": "pending",
+      "graduation_criterion": "30/30 paired fully-live cases reduce failed behavioral criteria by >= 20% beyond the paired noise floor",
+      "measured_by": "scripts/run_golden_round.py plus scripts/check_087_capability_ab.py",
+      "initial_decision_round": 136,
+      "decision_round": 136,
+      "deferrals": []
+    },
+    "RESEARCH_LOOP_ENABLED": {
+      "status": "pending",
+      "graduation_criterion": "30/30 paired fully-live cases improve gold numeric fact recall by >= 0.10 beyond noise without increasing orphaned_sub_questions",
+      "measured_by": "scripts/run_golden_round.py plus scripts/check_087_capability_ab.py",
+      "initial_decision_round": 138,
+      "decision_round": 138,
+      "deferrals": []
+    },
+    "SKILL_PACKS_ENABLED": {
+      "status": "pending",
+      "graduation_criterion": "30/30 paired finance cases use at least 1 located skill pack and improve metric-normalization errors by >= 20% beyond noise",
+      "measured_by": "scripts/run_golden_round.py plus scripts/check_capability_observability.py",
+      "initial_decision_round": 138,
+      "decision_round": 138,
+      "deferrals": []
+    }
+  }
+}
