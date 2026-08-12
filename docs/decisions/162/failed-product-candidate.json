@@ -1,0 +1,51 @@
+{
+  "schema_version": "post-fix-f14-failed-v1",
+  "round": 162,
+  "status": "product_acceptance_failed",
+  "preregistration": "docs/decisions/162/preregistration.json",
+  "source": {
+    "artifact": "artifacts/162/product-candidate.json",
+    "sha256": "d6b691d48c5e3c818108d2ba2fd690f87ddaff20fbf191968eff1949cb64e3b5"
+  },
+  "execution": {
+    "commit": "7fd6727",
+    "generation": "r162-post-fix-f14",
+    "coverage": "30/30",
+    "done": 11,
+    "errors": 19,
+    "error_question_ids": ["Q05", "Q07", "Q09", "Q12", "Q13", "Q14", "Q18", "Q19", "Q20", "Q21", "Q22", "Q23", "Q24", "Q25", "Q26", "Q27", "Q28", "Q29", "Q30"],
+    "provider_fidelity": {"llm": "live", "retrieval": "live", "structured_data": "live"},
+    "saved_states": false,
+    "rerun_or_best_of": false,
+    "cross_run_splicing": false
+  },
+  "failures": [
+    {
+      "class": "cross_case_external_request_budget_reuse",
+      "count": 19,
+      "detail": "each shard reused one 20-search provider budget_id across five independent ResearchState runs; later cases terminated budget_exceeded",
+      "route": "repair_runner_provider_lifecycle"
+    },
+    {
+      "class": "false_premise_assertion_scope_false_positive",
+      "question": "Q16",
+      "detail": "report explicitly says CATL remained first and was not overtaken, but a later revenue-decline clause on the same line matched the generic false-premise assertion regex",
+      "report": {
+        "artifact": "artifacts/162/shard4/Q16/report.md",
+        "sha256": "61cfe1bd29cacba0cd139ea17a6eb7103194358047c54c152dd1d3235f0cb31f"
+      },
+      "route": "repair_behavioral_clause_scope"
+    }
+  ],
+  "cost": {
+    "total_ledger_cost_cny": 3.32336636,
+    "round_fuse_cny": 48.0,
+    "plan_spend_after_round_cny": 36.24360226
+  },
+  "boundaries": {
+    "qualifies_as_product_proof": false,
+    "may_be_spliced": false,
+    "tavily_account_quota_exhausted": false,
+    "tavily_key_replaced": false
+  }
+}
