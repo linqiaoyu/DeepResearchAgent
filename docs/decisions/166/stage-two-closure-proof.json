@@ -1,0 +1,112 @@
+{
+  "schema_version": "stage-two-closure-v1",
+  "round": 166,
+  "task": "F15",
+  "status": "stage_two_complete",
+  "product_proof": {
+    "round": 165,
+    "path": "docs/decisions/165/product-proof.json",
+    "sha256": "c56e1eb462d7e2e8142efe3a5bcde9a100f40bff1fcf905e6d0877330d2392ba",
+    "questions_done": 30,
+    "provider_fidelity": {
+      "llm": "live",
+      "retrieval": "live",
+      "structured_data": "live"
+    },
+    "saved_states": false,
+    "metrics": {
+      "evidence_reachable_rate": 0.7523638000900495,
+      "orphaned_sub_questions": 0,
+      "false_premise_failed": 0
+    }
+  },
+  "verification": {
+    "complete_local_gate": {
+      "command": "PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/gate.py",
+      "exit_code": 0
+    },
+    "product_acceptance": {
+      "command": "PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/check_product_acceptance.py --self-test",
+      "negative_cases": 6,
+      "passed": true
+    },
+    "postgres_service": {
+      "image": "postgres:16",
+      "job": "postgres-storage",
+      "modules": 2,
+      "tests_run": 4,
+      "skipped": 0,
+      "passed": true
+    },
+    "qdrant_service": {
+      "image": "qdrant/qdrant:v1.12.4",
+      "job": "qdrant-vector-index",
+      "modules": 1,
+      "tests_run": 4,
+      "skipped": 0,
+      "passed": true
+    },
+    "tracked_files_unchanged": true,
+    "paid_provider_calls": 0
+  },
+  "finance_capabilities": {
+    "registry": "data/finance_default_capabilities.json",
+    "pending": 0,
+    "graduated": 0,
+    "removed": 0,
+    "opt_in": [
+      "INJECTION_GUARD_ENABLED",
+      "LLM_TOOL_SELECTION_ENABLED",
+      "MCP_CLIENT_ENABLED",
+      "PRIOR_MEMORY_ENABLED",
+      "PROCEDURAL_MEMORY_ENABLED",
+      "RAG_ENABLED",
+      "REFLECTION_ENABLED",
+      "RESEARCH_LOOP_ENABLED",
+      "SKILL_PACKS_ENABLED"
+    ],
+    "default_on": [
+      "BRANCH_BUDGET_ENABLED",
+      "CONFIG_FAIL_FAST_ENABLED",
+      "CONTEXT_PACKER_ENABLED",
+      "CRITIC_ENABLED",
+      "DECISION_WEAVING_ENABLED",
+      "DYNAMIC_CAPABILITY_ENABLED",
+      "EXTRACTOR_ENABLED",
+      "NUMERIC_CHECK_ENABLED",
+      "PROGRESSIVE_DELIVERY_ENABLED",
+      "RERANK_ENABLED",
+      "RERANK_FAIL_OPEN",
+      "RUN_MANIFEST_ENABLED",
+      "SEMANTIC_JUDGE_ENABLED",
+      "STRUCTURED_LOGGING_ENABLED",
+      "STRUCTURED_OUTPUT_ENABLED",
+      "TOOL_CONTRACT_ENABLED",
+      "TRAJECTORY_RECORD_ENABLED"
+    ]
+  },
+  "cost": {
+    "currency": "CNY",
+    "r165_product_acceptance": 13.37877388,
+    "plan_total": 52.29709726,
+    "plan_fuse": 300.0
+  },
+  "failed_experiments_preserved": [
+    "docs/decisions/160/failed-product-candidate.json",
+    "docs/decisions/162/failed-product-candidate.json",
+    "docs/decisions/164/failed-product-candidate.json"
+  ],
+  "unfinished_platform_scope": [
+    "general multi-domain Agent platform",
+    "a second product DomainPack",
+    "MCP HTTP/OAuth, marketplace and multi-tenant operation",
+    "finance-default graduation of the nine explicit opt-in Agent capabilities"
+  ],
+  "boundaries": {
+    "finance_sut_complete": true,
+    "mature_harness_h2_complete": true,
+    "general_agent_platform_complete": false,
+    "new_full_cohort_run_in_f15": false,
+    "remote_writes": false
+  }
+}
