@@ -136,7 +136,7 @@ def _execute_retry_fanout(engine: DeepResearchEngine, state: ResearchState) -> R
         search_quota=SearchQuota(engine.researcher.max_searches_per_run),
     )
     graph_state: dict[str, Any] = {"research_state": state.model_dump(mode="json")}
-    graph_state.update(engine._retry_prepare_node(graph_state))
+    graph_state.update(engine._retry_prepare_node(graph_state, run_scope=run_scope))
     retry_sources: dict[str, list[dict[str, Any]]] = {}
     retry_records: dict[str, dict[str, Any]] = {}
     for task in state.retry_queue:

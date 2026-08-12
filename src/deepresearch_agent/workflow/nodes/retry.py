@@ -14,11 +14,56 @@ ResearchGraphState = dict[str, Any]
 class RetryNodes:
     """Node methods that fan out, execute, and join retry tasks."""
 
-    def _retry_prepare_node(self, graph_state: ResearchGraphState) -> ResearchGraphState:
+    _RETRY_SEARCH_REQUEST_BOUND = 2
+
+    def _retry_prepare_node(
+        self,
+        graph_state: ResearchGraphState,
+        *,
+        run_scope: RunScope,
+    ) -> ResearchGraphState:
         state = self._state_from_graph_values(graph_state)
+        pending = [task for task in state.retry_queue if not task.completed]
+        budget = run_scope.tool_context.external_request_budget
+        if budget is None:
+            active = pending
+            deferred: list[RetryTask] = []
+            remaining: int | None = None
+        else:
+            snapshot = budget.snapshot()
+            remaining = max(
+                0,
+                int(snapshot["max_search_requests"])
+                - int(snapshot["search_requests"]),
+            )
+            capacity = remaining // self._RETRY_SEARCH_REQUEST_BOUND
+            active = pending[:capacity]
+            deferred = pending[capacity:]
+
+        if deferred:
+            for task in deferred:
+                task.completed = True
+                state.search_records.append(
+                    SearchRecord(
+                        query=f"[external_search_budget_deferred] {task.query}",
+                        source_ids=[],
+                    )
+                )
+            state.metadata.setdefault("retry_budget_scheduling_events", []).append(
+                {
+                    "candidate_task_ids": [task.id for task in pending],
+                    "scheduled_task_ids": [task.id for task in active],
+                    "deferred_task_ids": [task.id for task in deferred],
+                    "remaining_search_requests": remaining,
+                    "search_request_bound_per_task": (
+                        self._RETRY_SEARCH_REQUEST_BOUND
+                    ),
+                    "reason": "insufficient_run_search_budget",
+                }
+            )
         return {
             "research_state": self._dump_state(state),
-            "active_retry_task_ids": [task.id for task in state.retry_queue if not task.completed],
+            "active_retry_task_ids": [task.id for task in active],
         }
 
     def _send_retry_tasks(self, graph_state: ResearchGraphState) -> list[Send] | str:

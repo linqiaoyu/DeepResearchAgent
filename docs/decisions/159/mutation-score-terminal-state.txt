@@ -1,0 +1,29 @@
+$ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m unittest tests.unit.test_golden_round_fidelity.GoldenRoundFidelityTests.test_non_done_workflow_is_not_published_as_a_scored_case tests.unit.test_golden_round_fidelity.GoldenRoundFidelityTests.test_scoring_fails_closed_for_a_non_done_workflow
+EE
+======================================================================
+ERROR: test_non_done_workflow_is_not_published_as_a_scored_case (tests.unit.test_golden_round_fidelity.GoldenRoundFidelityTests.test_non_done_workflow_is_not_published_as_a_scored_case)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "tests/unit/test_golden_round_fidelity.py", line 154, in test_non_done_workflow_is_not_published_as_a_scored_case
+    result = _score_or_terminal_case(
+  File "scripts/run_golden_round.py", line 319, in _score_or_terminal_case
+    return _score_case(
+  File "scripts/run_golden_round.py", line 239, in _score_case
+    judge_client.score(
+AttributeError: 'object' object has no attribute 'score'
+
+======================================================================
+ERROR: test_scoring_fails_closed_for_a_non_done_workflow (tests.unit.test_golden_round_fidelity.GoldenRoundFidelityTests.test_scoring_fails_closed_for_a_non_done_workflow)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "tests/unit/test_golden_round_fidelity.py", line 173, in test_scoring_fails_closed_for_a_non_done_workflow
+    _score_case(
+  File "scripts/run_golden_round.py", line 239, in _score_case
+    judge_client.score(
+AttributeError: 'object' object has no attribute 'score'
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.001s
+
+FAILED (errors=2)
+exit_code=1

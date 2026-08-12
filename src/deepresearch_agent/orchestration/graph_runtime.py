@@ -32,6 +32,7 @@ _SCOPED_NODE_NAMES = frozenset(
         "research_join",
         "research_loop_decide",
         "research_refine",
+        "retry_prepare",
         "retry_one",
         "reporter",
     }

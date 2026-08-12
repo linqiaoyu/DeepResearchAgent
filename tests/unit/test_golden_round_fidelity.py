@@ -20,6 +20,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
 from run_golden_round import (  # noqa: E402
     _case_fidelity,
     _evidence_funnel,
+    _score_or_terminal_case,
+    _score_case,
     golden_round_environment,
     golden_round_fidelity,
     golden_round_judge_client,
@@ -139,6 +141,44 @@ class GoldenRoundFidelityTests(unittest.TestCase):
 
     def test_failed_case_still_has_a_zero_funnel(self) -> None:
         self.assertEqual(set(_evidence_funnel(None).values()), {0})
+
+    def test_non_done_workflow_is_not_published_as_a_scored_case(self) -> None:
+        state = ResearchState(topic="budget exhausted", status="budget_exceeded")
+        case = {
+            "id": "Q13",
+            "topic": state.topic,
+            "type": "numeric",
+            "difficulty": "hard",
+        }
+
+        result = _score_or_terminal_case(
+            round_id="R159",
+            index=13,
+            case=case,
+            state=state,
+            judge_client=object(),  # type: ignore[arg-type]
+            judge_samples=1,
+            started=0.0,
+        )
+
+        self.assertEqual(result["status"], "error")
+        self.assertEqual(result["workflow_status"], "budget_exceeded")
+        self.assertEqual(result["error_type"], "WorkflowTerminalState")
+        self.assertNotIn("judge", result)
+
+    def test_scoring_fails_closed_for_a_non_done_workflow(self) -> None:
+        state = ResearchState(topic="budget exhausted", status="budget_exceeded")
+
+        with self.assertRaisesRegex(ValueError, "requires workflow status=done"):
+            _score_case(
+                round_id="R159",
+                index=13,
+                case={"id": "Q13"},
+                state=state,
+                judge_client=object(),  # type: ignore[arg-type]
+                judge_samples=1,
+                started=0.0,
+            )
 
     def test_case_fidelity_uses_actual_provider_metadata(self) -> None:
         state = ResearchState(topic="fidelity")

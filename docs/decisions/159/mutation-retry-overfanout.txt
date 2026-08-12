@@ -1,0 +1,15 @@
+$ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m unittest tests.unit.test_retry_budget_scheduling.RetryBudgetSchedulingTests.test_retry_fanout_is_bounded_by_remaining_external_search_budget
+F
+======================================================================
+FAIL: test_retry_fanout_is_bounded_by_remaining_external_search_budget (tests.unit.test_retry_budget_scheduling.RetryBudgetSchedulingTests.test_retry_fanout_is_bounded_by_remaining_external_search_budget)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "tests/unit/test_retry_budget_scheduling.py", line 31, in test_retry_fanout_is_bounded_by_remaining_external_search_budget
+    self.assertEqual(len(update["active_retry_task_ids"]), 1)
+AssertionError: 3 != 1
+
+----------------------------------------------------------------------
+Ran 1 test in 0.046s
+
+FAILED (failures=1)
+exit_code=1

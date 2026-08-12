@@ -171,7 +171,7 @@ def main() -> None:
                 encoding="utf-8",
             )
             (case_dir / "report.md").write_text(state.final_report or "", encoding="utf-8")
-            result = _score_case(
+            result = _score_or_terminal_case(
                 round_id=args.round_id,
                 index=index,
                 case=case,
@@ -180,6 +180,8 @@ def main() -> None:
                 judge_samples=args.judge_samples,
                 started=started,
             )
+            if result["status"] != "done":
+                structured_failures += 1
         except Exception as exc:
             structured_failures += 1
             result = {
@@ -226,6 +228,11 @@ def _score_case(
     judge_samples: int,
     started: float,
 ) -> dict[str, Any]:
+    if state.status != "done":
+        raise ValueError(
+            "golden scoring requires workflow status=done; "
+            f"received {state.status}"
+        )
     evidence = [_slim_evidence(item.model_dump(mode="json")) for item in state.evidence_store]
     report = state.final_report or ""
     samples = [
@@ -289,6 +296,59 @@ def _score_case(
         "bad_case_categories": categories,
         "cost_cny": float(state.evaluation.cost_cny if state.evaluation else 0.0),
         "latency_seconds": round(time.perf_counter() - started, 3),
+    }
+
+
+def _score_or_terminal_case(
+    *,
+    round_id: str,
+    index: int,
+    case: dict[str, Any],
+    state: ResearchState,
+    judge_client: JudgeClient,
+    judge_samples: int,
+    started: float,
+) -> dict[str, Any]:
+    if state.status != "done":
+        return _terminal_case_result(
+            index=index,
+            case=case,
+            state=state,
+            started=started,
+        )
+    return _score_case(
+        round_id=round_id,
+        index=index,
+        case=case,
+        state=state,
+        judge_client=judge_client,
+        judge_samples=judge_samples,
+        started=started,
+    )
+
+
+def _terminal_case_result(
+    *,
+    index: int,
+    case: dict[str, Any],
+    state: ResearchState,
+    started: float,
+) -> dict[str, Any]:
+    """Persist workflow truth without spending judge budget on partial output."""
+
+    return {
+        "id": case["id"],
+        "order": index,
+        "status": "error",
+        "workflow_status": state.status,
+        "error_type": "WorkflowTerminalState",
+        "error": f"workflow ended with status={state.status}",
+        "research_id": state.research_id,
+        "topic": case["topic"],
+        "type": case["type"],
+        "difficulty": case["difficulty"],
+        "latency_seconds": round(time.perf_counter() - started, 3),
+        "evidence_funnel": _evidence_funnel(state),
     }
 
 
