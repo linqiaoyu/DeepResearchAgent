@@ -1,0 +1,62 @@
+{
+  "round": 160,
+  "task": "F14",
+  "registered_at_utc": "2026-08-12T00:07:08Z",
+  "purpose": "sole_planned_full_product_acceptance_candidate",
+  "hypothesis": "The R159 code and frozen finance default configuration will complete the immutable 30-question cohort once with three live provider layers and simultaneously meet all three reader-visible product thresholds.",
+  "comparison_claim": false,
+  "cohort": {
+    "questions": "data/golden_set/v1/questions.json",
+    "version": "v1.1",
+    "question_ids": ["Q01", "Q02", "Q03", "Q04", "Q05", "Q06", "Q07", "Q08", "Q09", "Q10", "Q11", "Q12", "Q13", "Q14", "Q15", "Q16", "Q17", "Q18", "Q19", "Q20", "Q21", "Q22", "Q23", "Q24", "Q25", "Q26", "Q27", "Q28", "Q29", "Q30"],
+    "as_of": "2026-07-12",
+    "judge_samples": 1,
+    "selection_rule": "every frozen question exactly once on commit a487a75; no saved states, rerun, best-of, supersession, silent exclusion, or cross-run splicing"
+  },
+  "execution": {
+    "commit": "a487a75",
+    "generation": "r160-f14",
+    "shards": [["Q01", "Q02", "Q03", "Q04", "Q05"], ["Q06", "Q07", "Q08", "Q09", "Q10"], ["Q11", "Q12", "Q13", "Q14", "Q15"], ["Q16", "Q17", "Q18", "Q19", "Q20"], ["Q21", "Q22", "Q23", "Q24", "Q25"], ["Q26", "Q27", "Q28", "Q29", "Q30"]],
+    "maximum_parallel_shards": 4,
+    "distinct_ledger_authority_per_shard": true,
+    "provider_fidelity": {
+      "llm": "live",
+      "retrieval": "live",
+      "structured_data": "live"
+    },
+    "run_budget_cny_per_case": 3.0,
+    "judge_budget_cny_per_case": 3.0,
+    "combined_budget_cny_per_shard": 8.0,
+    "case_reserve_cny": 0.8
+  },
+  "measurements": {
+    "product_metrics": ["evidence_reachable_rate", "orphaned_sub_questions", "false_premise_failed"],
+    "integrity": ["status_done", "provider_fidelity", "state_path_map", "exact_coverage", "duplicate_ids", "ledger_cost", "trajectory_and_state_locators"]
+  },
+  "decision_rules": {
+    "pass": "The one merged exact-once artifact has 30/30 status=done, three-layer live fidelity, no saved states, evidence_reachable_rate >= 0.60, orphaned_sub_questions == 0, and false_premise_failed == 0.",
+    "first_candidate_passes": "Publish this artifact as the product proof, run no second full cohort, and proceed directly to provider-free F15.",
+    "first_candidate_fails": "Preserve the complete failed experiment, classify one defect class, change code under conditional F13, and treat any later full cohort as a new independent candidate; never splice cases or metrics."
+  },
+  "power_and_noise": {
+    "sample_size": 30,
+    "rationale": "This is a census of the immutable acceptance cohort and a threshold decision, not an A/B capability-effect estimate; all 30 fixed cases are required.",
+    "judge_samples_rationale": "The three formal metrics are deterministic reader-delivery and behavioral measurements rather than LLM judge-score comparisons; one judge sample preserves the complete runner artifact without buying irrelevant repeated judge variance.",
+    "historical_cost_reference": "R149 cost CNY 13.70871656 for 28 successful cases and R158 cost CNY 4.61891248 for 8 canary cases.",
+    "budget_coverage": "Expected CNY 18; six CNY 8 shard fuses provide a CNY 48 round ceiling, which covers the census and remains inside the CNY 300 plan fuse."
+  },
+  "budget": {
+    "currency": "CNY",
+    "expected_total": 18.0,
+    "round_fuse": 48.0,
+    "plan_fuse": 300.0,
+    "plan_spend_before_round": 18.36053498
+  },
+  "stop_conditions": [
+    "sum of the six shard ledgers reaches CNY 48",
+    "any shard reaches its CNY 8 fuse",
+    "credentials or third-party response bodies would leave ignored artifacts",
+    "a configuration error would violate exact-once, live-fidelity, or shard-ledger isolation before paid execution"
+  ],
+  "rollback": "Preserve every terminal and partial artifact, stop dependent paid work, and do not rerun, replace, or supersede a failed case on unchanged code."
+}
