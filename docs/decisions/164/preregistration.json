@@ -1,0 +1,58 @@
+{
+  "round": 164,
+  "task": "post_R163_F14_candidate",
+  "registered_at_utc": "2026-08-12T04:15:00Z",
+  "purpose": "new_independent_product_acceptance_candidate_after_R162_failure_and_R163_code_change",
+  "hypothesis": "R163 aggregate budget degradation, relation-specific scoring, and Q08 primary-filing backfill will allow the immutable cohort to complete exactly once and satisfy all three product thresholds in one three-layer-live execution.",
+  "comparison_claim": false,
+  "cohort": {
+    "questions": "data/golden_set/v1/questions.json",
+    "version": "v1.1",
+    "question_ids": ["Q01", "Q02", "Q03", "Q04", "Q05", "Q06", "Q07", "Q08", "Q09", "Q10", "Q11", "Q12", "Q13", "Q14", "Q15", "Q16", "Q17", "Q18", "Q19", "Q20", "Q21", "Q22", "Q23", "Q24", "Q25", "Q26", "Q27", "Q28", "Q29", "Q30"],
+    "as_of": "2026-07-12",
+    "judge_samples": 1,
+    "selection_rule": "every frozen question exactly once on commit 0786757; no prior state, saved states, rerun, best-of, silent exclusion, or cross-candidate splicing"
+  },
+  "execution": {
+    "commit": "0786757",
+    "generation": "r164-post-r163-f14",
+    "shards": [["Q01", "Q02", "Q03", "Q04", "Q05"], ["Q06", "Q07", "Q08", "Q09", "Q10"], ["Q11", "Q12", "Q13", "Q14", "Q15"], ["Q16", "Q17", "Q18", "Q19", "Q20"], ["Q21", "Q22", "Q23", "Q24", "Q25"], ["Q26", "Q27", "Q28", "Q29", "Q30"]],
+    "maximum_parallel_shards": 4,
+    "distinct_ledger_authority_per_shard": true,
+    "provider_fidelity": {"llm": "live", "retrieval": "live", "structured_data": "live"},
+    "run_budget_cny_per_case": 3.0,
+    "judge_budget_cny_per_case": 3.0,
+    "combined_budget_cny_per_shard": 5.0,
+    "case_reserve_cny": 0.8
+  },
+  "measurements": {
+    "product_metrics": ["evidence_reachable_rate", "orphaned_sub_questions", "false_premise_failed"],
+    "integrity": ["status_done", "provider_fidelity", "state_path_map", "exact_coverage", "duplicate_ids", "ledger_cost", "trajectory_and_state_locators"]
+  },
+  "decision_rules": {
+    "pass": "The one merged exact-once artifact has 30/30 status=done, three-layer live fidelity, no saved states, evidence_reachable_rate >= 0.60, orphaned_sub_questions == 0, and false_premise_failed == 0.",
+    "candidate_passes": "Publish this artifact as the sole product proof and proceed to provider-free F15; do not execute another full cohort.",
+    "candidate_fails": "Preserve the complete failed experiment, classify defect classes, change code, and treat any later full cohort as another independent candidate; never splice cases or metrics."
+  },
+  "power_and_noise": {
+    "sample_size": 30,
+    "rationale": "This is a census of the immutable acceptance cohort and a threshold decision, not an A/B effect estimate.",
+    "judge_samples_rationale": "Formal metrics are deterministic reader-delivery and behavioral measurements; one judge sample avoids irrelevant repeated judge variance.",
+    "budget_coverage": "R160 cost CNY 14.55970092 and R162 cost CNY 3.32336636; CNY 25 covers the expected census while retaining ample room under the CNY 300 plan fuse."
+  },
+  "budget": {
+    "currency": "CNY",
+    "expected_total": 16.0,
+    "round_fuse": 25.0,
+    "plan_fuse": 300.0,
+    "plan_spend_before_round": 36.24360226
+  },
+  "tavily_key_policy": "Keep the configured key unless Tavily explicitly reports account quota exhaustion. Harness request-budget exhaustion, timeout, fetch degradation, or any other failure is not a switch trigger. Never persist either key in tracked or run artifacts.",
+  "stop_conditions": [
+    "sum of the six shard ledgers reaches CNY 25",
+    "any shard reaches its CNY 5 fuse",
+    "credentials or third-party response bodies would leave ignored artifacts",
+    "a configuration error would violate exact-once, live-fidelity, or shard-ledger isolation before paid execution"
+  ],
+  "rollback": "Preserve every terminal and partial artifact, stop dependent paid work, and do not rerun, replace, or supersede a failed case on unchanged code."
+}
