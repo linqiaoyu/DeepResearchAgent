@@ -20,6 +20,7 @@ from deepresearch_agent.metric_coverage import (
 )
 from deepresearch_agent.reporting import GroundedFactRenderer
 from deepresearch_agent.reporting.reader_reach import evidence_the_reader_can_follow
+from deepresearch_agent.premise import PremiseAssessment
 from deepresearch_agent.domains.protocols import NumericCitationPolicy, ReportingDomain
 from deepresearch_agent.domains.requirements import resolve_domain_capability
 from deepresearch_agent.schemas import (
@@ -282,6 +283,11 @@ class ReporterAgent:
             state,
             context_evidence=context_evidence,
         )
+        premise_assessment = self.domain_pack.assess_premise(
+            state.topic,
+            state.evidence_store,
+            state.report_evidence_selections,
+        )
         footnotes = build_footnote_maps(state.evidence_store)
         state.report_footnote_evidence = {
             number: evidence.id for number, evidence in footnotes.footnote_to_evidence.items()
@@ -324,15 +330,53 @@ class ReporterAgent:
             assembled = self._compact_reader_report(
                 report, state, footnotes.evidence_id_to_footnote
             )
+        final_report = self._enforce_premise_assessment(
+            assembled,
+            premise_assessment,
+            footnotes.evidence_id_to_footnote,
+        )
+        self.last_stats["premise_assessment"] = premise_assessment.prompt_payload()
         return prune_reference_list(
             remove_web_template_noise(
                 self._enforce_selected_evidence_coverage(
-                    assembled,
+                    final_report,
                     state,
                     footnotes.evidence_id_to_footnote,
                 )
             )
         )
+
+    def _enforce_premise_assessment(
+        self,
+        report: str,
+        assessment: PremiseAssessment,
+        ref_map: dict[str, int],
+    ) -> str:
+        """Make an evidence-backed contradiction reader-visible and non-contradictory."""
+
+        if assessment.status != "contradicted":
+            return report
+        kept = [
+            line
+            for line in report.splitlines()
+            if not self.domain_pack.line_adopts_contradicted_premise(line, assessment)
+        ]
+        for index, line in enumerate(kept[:-1]):
+            if line == "## 摘要" and not kept[index + 1].strip():
+                kept[index + 1] = "题目前提与所选证据矛盾，以下以前提核验结果为准。"
+        citations = render_citations(list(assessment.evidence_ids), ref_map)
+        correction = "；".join(assessment.correction_claims)
+        section = [
+            "## 前提核验",
+            f"- 题目前提不成立。证据显示：{correction} {citations}".rstrip(),
+            "",
+        ]
+        insertion = next(
+            (index for index, line in enumerate(kept) if line == "## 关键发现"),
+            len(kept),
+        )
+        kept[insertion:insertion] = section
+        return "\n".join(kept)
 
     def _select_report_evidence(
         self,
@@ -972,6 +1016,11 @@ class ReporterAgent:
                     "content": json.dumps(
                         {
                             "topic": state.topic,
+                            "premise_assessment": self.domain_pack.assess_premise(
+                                state.topic,
+                                state.evidence_store,
+                                state.report_evidence_selections,
+                            ).prompt_payload(),
                             "plan": state.plan.model_dump(mode="json") if state.plan else None,
                             "evidence_selection": [
                                 item.model_dump(mode="json")

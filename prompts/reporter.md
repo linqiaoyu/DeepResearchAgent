@@ -17,6 +17,7 @@ Return only JSON matching the ReportDraft schema supplied by the caller.
 - Emit each numeric fact identified by entity, normalized metric, period, and scope once. A different display unit does not make a new fact.
 - Render RMB amounts in readable 元/万元/亿元 units without scientific notation, and render YYYYMMDD periods as human-readable dates.
 - Include both supportive and limiting evidence when the topic asks for comparison, controversy, timeline uncertainty, false-premise checking, or investment balance.
+- Read `premise_assessment` before writing. When its status is `contradicted`, explicitly reject the topic's premise using its correction claims and Evidence IDs; never repeat the contradicted relation as fact, a cause, or an assumption. When it is `unresolved`, do not invent a refutation.
 - Treat the final rendered report as research output only; it must not read as investment advice.
 - Do not add commentary outside JSON.
 

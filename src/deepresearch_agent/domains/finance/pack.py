@@ -8,6 +8,8 @@ import re
 from typing import TYPE_CHECKING
 
 from deepresearch_agent.domains.protocols import RetrievalFilterValues
+from deepresearch_agent.premise import PremiseAssessment
+from deepresearch_agent.schemas import Evidence, ReportEvidenceSelection
 if TYPE_CHECKING:
     from deepresearch_agent.reporting import GroundedFactRenderer
 
@@ -36,6 +38,23 @@ def _issuer_aliases() -> dict[str, tuple[str, str]]:
 
 class FinanceDomainPack:
     name = "finance"
+
+    def assess_premise(
+        self,
+        topic: str,
+        evidence: list[Evidence],
+        selections: list[ReportEvidenceSelection],
+    ) -> PremiseAssessment:
+        from deepresearch_agent.domains.finance.premise import assess_premise
+
+        return assess_premise(topic, evidence, selections)
+
+    def line_adopts_contradicted_premise(
+        self, line: str, assessment: PremiseAssessment
+    ) -> bool:
+        from deepresearch_agent.domains.finance.premise import line_adopts_contradicted_premise
+
+        return line_adopts_contradicted_premise(line, assessment)
 
     def canonical_metric(self, value: str | None) -> str:
         return canonical_metric(value)

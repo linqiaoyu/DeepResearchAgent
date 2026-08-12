@@ -1,0 +1,3 @@
+bypass_assertion_filter
+premise_reporting_error: repaired R160 report must satisfy refute_premise
+exit=1

@@ -7,7 +7,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, Sequence
 
 if TYPE_CHECKING:
+    from deepresearch_agent.premise import PremiseAssessment
     from deepresearch_agent.reporting import GroundedFactRenderer
+    from deepresearch_agent.schemas import Evidence, ReportEvidenceSelection
 
 
 class TableExtractors(Protocol):
@@ -89,6 +91,15 @@ class MetricCoverageDomain(Protocol):
 
 
 class ReportingDomain(MetricCoverageDomain, Protocol):
+    def assess_premise(
+        self,
+        topic: str,
+        evidence: list[Evidence],
+        selections: list[ReportEvidenceSelection],
+    ) -> PremiseAssessment: ...
+    def line_adopts_contradicted_premise(
+        self, line: str, assessment: PremiseAssessment
+    ) -> bool: ...
     def metric_table_path(self) -> Path: ...
     def metric_claim_pattern(self) -> Any: ...
     def numeric_citation_policy(self) -> NumericCitationPolicy: ...

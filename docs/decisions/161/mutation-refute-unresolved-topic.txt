@@ -1,0 +1,3 @@
+refute_unresolved_topic
+premise_reporting_error: unresolved topics must not receive a fabricated refutation
+exit=1

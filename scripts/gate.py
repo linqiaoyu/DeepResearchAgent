@@ -288,6 +288,13 @@ def run_gate() -> None:
             "f14_failed_product_candidate",
             [sys.executable, "scripts/check_f14_failed_candidate.py", "--self-test"],
         ),
+        # R161: selected Evidence can directly contradict an asserted topic
+        # premise. The Reporter must receive and enforce that assessment rather
+        # than converting the premise into an unsupported causal conclusion.
+        (
+            "premise_reporting",
+            [sys.executable, "scripts/check_premise_reporting.py", "--self-test"],
+        ),
         # R116: the reporter model decides what to write from every packed
         # Evidence item, so a sub-question it passes over reaches the reader as
         # silence. 8 of 80 sub-questions on the R113 live set arrived that way.

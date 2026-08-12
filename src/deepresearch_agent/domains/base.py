@@ -23,6 +23,8 @@ from deepresearch_agent.decisions import record_agent_decision
 from deepresearch_agent.domains.protocols import NumericCitationPolicy, RetrievalFilterValues
 from deepresearch_agent.reporting.grounded_facts import GroundedFactBatch
 from deepresearch_agent.schemas import AgentDecision
+from deepresearch_agent.premise import PremiseAssessment, unresolved_premise
+from deepresearch_agent.schemas import Evidence, ReportEvidenceSelection
 
 
 @dataclass(frozen=True)
@@ -102,6 +104,21 @@ class BaseDomainPack:
     """
 
     name = "base"
+
+    def assess_premise(
+        self,
+        topic: str,
+        evidence: list[Evidence],
+        selections: list[ReportEvidenceSelection],
+    ) -> PremiseAssessment:
+        del topic, evidence, selections
+        return unresolved_premise()
+
+    def line_adopts_contradicted_premise(
+        self, line: str, assessment: PremiseAssessment
+    ) -> bool:
+        del line, assessment
+        return False
 
     def canonical_metric(self, value: str | None) -> str:
         return (value or "").strip()

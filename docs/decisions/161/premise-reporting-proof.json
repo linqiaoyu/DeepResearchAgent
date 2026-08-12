@@ -1,0 +1,38 @@
+{
+  "schema_version": "premise-reporting-v1",
+  "round": 161,
+  "task": "conditional_F13",
+  "status": "targeted_repair_passed",
+  "source_failure": {
+    "round": 160,
+    "question": "Q16",
+    "candidate_proof": "docs/decisions/160/failed-product-candidate.json",
+    "reduced_fixture": "tests/fixtures/behavioral/r160_live_q16_premise_input.json",
+    "fixture_provenance": "real R160 live state and report reduced without changing claims or Evidence IDs"
+  },
+  "contract": {
+    "assessment_source": "selected Evidence only",
+    "model_authority": "draft suggestion",
+    "harness_authority": "final reader-visible premise enforcement",
+    "domain_policy": "FinanceDomainPack",
+    "core_finance_imports": 0
+  },
+  "results": {
+    "r160_q16_before_refute_premise": false,
+    "r160_q16_after_refute_premise": true,
+    "q08_existing_behavioral_regressions_passed": true,
+    "unresolved_topic_unchanged": true,
+    "prompt_receives_assessment": true,
+    "output_filter_enforced": true,
+    "valid_selected_evidence_ids": true,
+    "mutation_failures": 2
+  },
+  "boundaries": {
+    "golden_truth_changed": false,
+    "product_threshold_changed": false,
+    "saved_state_product_proof": false,
+    "full_cohort_run": false,
+    "paid_provider_calls": false,
+    "product_acceptance_claim": false
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "provenance": "real R160 live run; reduced from artifacts/160/shard4/Q16/state.json and report.md",
+  "topic": "研究2024年宁德时代动力电池全球装机量市场份额被比亚迪反超的原因及其对行业格局的影响。",
+  "failing_report_excerpt": "# 报告\n\n## 摘要\n2024年，宁德时代全球动力电池装机量份额被比亚迪反超，主要源于比亚迪垂直整合带来的成本优势。\n\n## 详细分析\n- SNE Research数据显示宁德时代2024年全球动力电池装机量市占率为37.9%，连续8年全球第一 [^1]\n- 比亚迪2024年动力电池装车量达153.7GWh，市占率17.2%，位列全球第二。 [^2]",
+  "evidence": [
+    {
+      "id": "6955eb50-9769-51d5-bb85-99763d7feb6e",
+      "sub_question_id": "reasons",
+      "claim": "SNE Research数据显示宁德时代2024年全球动力电池装机量市占率为37.9%，连续8年全球第一",
+      "source_url": "https://example.invalid/r160-source-1",
+      "source_title": "R160 source 1"
+    },
+    {
+      "id": "60bcfed1-8d84-5b66-860f-dc3c1d96bc61",
+      "sub_question_id": "market_share",
+      "claim": "比亚迪2024年动力电池装车量达153.7GWh，市占率17.2%，位列全球第二。",
+      "source_url": "https://example.invalid/r160-source-2",
+      "source_title": "R160 source 2"
+    }
+  ]
+}
