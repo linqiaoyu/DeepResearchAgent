@@ -29,6 +29,10 @@ PROOF = ROOT / "docs/decisions/155/finance-report-hygiene-proof.json"
 SOURCE_REPORTS = ROOT / "artifacts/151/offline"
 SOURCE_STATES = ROOT / "artifacts/149"
 OUTPUT = ROOT / "artifacts/155/offline"
+# This is a tracked, real R149 report used only for the mutation floor.  The
+# full 28-report source set is intentionally an ignored run artifact, so a
+# clean CI checkout cannot use it for an offline self-test.
+REGRESSION_REPORT = ROOT / "tests/fixtures/behavioral/r149_live_q16_report.md"
 
 
 def _sha256(path: Path) -> str:
@@ -190,7 +194,7 @@ def _self_test(proof: dict[str, Any]) -> None:
     for name, mutation in mutations.items():
         if not evaluate(mutation):
             raise SystemExit(f"finance_report_hygiene_self_test=FAIL accepted {name}")
-    real = (SOURCE_REPORTS / "Q16-report.md").read_text(encoding="utf-8")
+    real = REGRESSION_REPORT.read_text(encoding="utf-8")
     if web_template_noise_count(real) < 1:
         raise SystemExit("finance_report_hygiene_self_test=FAIL Q16 no longer proves regression")
     if not errors_for("body [^9]\n\n## 参考来源\n[^1]: unused"):
