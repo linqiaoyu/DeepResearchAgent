@@ -1,0 +1,53 @@
+{
+  "round": 165,
+  "task": "post_quota_rollover_F14_candidate",
+  "registered_at_utc": "2026-08-12T04:43:00Z",
+  "purpose": "new independent acceptance candidate after confirmed Tavily account quota exhaustion and authorized key rollover",
+  "hypothesis": "With the same R163 code and a verified non-exhausted Tavily account, the immutable cohort will regain live retrieval evidence, finish 30/30, and meet all product thresholds in one execution.",
+  "comparison_claim": false,
+  "cohort": {
+    "questions": "data/golden_set/v1/questions.json",
+    "version": "v1.1",
+    "question_ids": ["Q01", "Q02", "Q03", "Q04", "Q05", "Q06", "Q07", "Q08", "Q09", "Q10", "Q11", "Q12", "Q13", "Q14", "Q15", "Q16", "Q17", "Q18", "Q19", "Q20", "Q21", "Q22", "Q23", "Q24", "Q25", "Q26", "Q27", "Q28", "Q29", "Q30"],
+    "as_of": "2026-07-12",
+    "judge_samples": 1,
+    "selection_rule": "every frozen question exactly once; no R164 or earlier state, saved states, rerun, best-of, silent exclusion, or cross-candidate splicing"
+  },
+  "execution": {
+    "code_commit": "0786757",
+    "preregistration_parent": "8fa511c",
+    "generation": "r165-post-quota-rollover-f14",
+    "shards": [["Q01", "Q02", "Q03", "Q04", "Q05"], ["Q06", "Q07", "Q08", "Q09", "Q10"], ["Q11", "Q12", "Q13", "Q14", "Q15"], ["Q16", "Q17", "Q18", "Q19", "Q20"], ["Q21", "Q22", "Q23", "Q24", "Q25"], ["Q26", "Q27", "Q28", "Q29", "Q30"]],
+    "maximum_parallel_shards": 4,
+    "provider_fidelity": {"llm": "live", "retrieval": "live", "structured_data": "live"},
+    "run_budget_cny_per_case": 3.0,
+    "judge_budget_cny_per_case": 3.0,
+    "combined_budget_cny_per_shard": 5.0,
+    "case_reserve_cny": 0.8
+  },
+  "decision_rules": {
+    "pass": "One merged exact-once artifact has 30/30 done, three live fidelity layers, no saved states, evidence_reachable_rate >= 0.60, orphaned_sub_questions == 0, and false_premise_failed == 0.",
+    "candidate_passes": "Publish the runner JSON as sole product proof and proceed to provider-free F15.",
+    "candidate_fails": "Preserve the experiment and return to conditional F13; never splice candidates."
+  },
+  "budget": {
+    "currency": "CNY",
+    "expected_total": 16.0,
+    "round_fuse": 25.0,
+    "plan_fuse": 300.0,
+    "plan_spend_before_round": 38.91832338
+  },
+  "provider_change": {
+    "reason": "R164 confirmed HTTP 432 quota exhaustion on the prior Tavily account",
+    "replacement_probe": "HTTP 200 with a non-empty search result",
+    "key_value_persisted": false,
+    "code_changed_since_R164": false
+  },
+  "stop_conditions": [
+    "sum of shard ledgers reaches CNY 25",
+    "any shard reaches CNY 5",
+    "credential material would enter tracked or run artifacts",
+    "exact-once or live-fidelity configuration is invalid before execution"
+  ],
+  "rollback": "Preserve all results and terminal states; no failed-case rerun or supersession on unchanged code."
+}
