@@ -21,10 +21,10 @@
   },
   "failures": [
     {
-      "class": "cross_case_external_request_budget_reuse",
+      "class": "parallel_branch_budget_refusal_unwinds_join",
       "count": 19,
-      "detail": "each shard reused one 20-search provider budget_id across five independent ResearchState runs; later cases terminated budget_exceeded",
-      "route": "repair_runner_provider_lifecycle"
+      "detail": "within each question, parallel research branches share the intended 20-search run budget; a branch with no local sources re-raised a refusal and unwound the graph, discarding sources already held by sibling branches",
+      "route": "repair_parallel_branch_degradation"
     },
     {
       "class": "false_premise_assertion_scope_false_positive",

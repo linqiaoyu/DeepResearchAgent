@@ -9,13 +9,12 @@ cannot be proof and no product metric is published from the successful subset.
 
 ## Newly exposed failure classes
 
-1. The golden runner creates a new `DeepResearchEngine` for every question, but
-   the Tavily provider's per-run `budget_id` default was captured from one
-   process-wide cached provider. Consequently each five-case shard shared one
-   20-search provider allowance across independent research runs. Once an early
-   case consumed it, later cases began with no usable web budget and correctly
-   terminated. The repair must align provider budget authority with each
-   `ResearchState` run while retaining the shard ledger for aggregate cost.
+1. Within each question, parallel research branches correctly share one
+   20-search run allowance. When the allowance refused a request, a branch with
+   no *branch-local* sources re-raised the exception. That unwound the whole
+   graph even when sibling branches already held evidence. The repair must make
+   the empty branch degrade explicitly and let `research_join` preserve the
+   aggregate work; the 20-search hard limit remains unchanged.
 2. Q16's delivered report explicitly says 宁德时代 remained first and was not
    overtaken. The behavioral evaluator nevertheless marked it as asserting the
    false premise because the same long summary line later discussed *revenue*

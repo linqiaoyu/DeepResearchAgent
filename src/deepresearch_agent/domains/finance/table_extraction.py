@@ -43,6 +43,10 @@ _MARGIN_ROW_RE = re.compile(
     r"(?P<change_unit>个百\s*分点|个百分点)"
 )
 _PERIOD_RE = re.compile(r"(?<!\d)((?:19|20)\d{2})(?!\d)")
+_ANNUAL_TOTAL_REVENUE_RE = re.compile(
+    rf"年度内公司实现营业总收入\s*(?P<value>{_NUMBER})\s*亿元[，,]\s*"
+    rf"同比(?P<direction>增长|下降)\s*(?P<yoy>{_RATE})%"
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -162,6 +166,17 @@ def authoritative_financial_backfills(
                 rejections,
             )
             if row is None:
+                if metric == "营业收入":
+                    narrative = _annual_total_revenue_evidence(
+                        research_id=research_id,
+                        sub_question=sub_question,
+                        source=source,
+                        entity=entity,
+                        pages=pages,
+                        periods=periods,
+                    )
+                    if narrative is not None:
+                        evidence.append(narrative)
                 continue
             period_values = _period_values(periods, row)
             for period in periods:
@@ -676,6 +691,71 @@ def _statement_evidence(
             unit=row.unit,
         ),
     )
+
+
+def _annual_total_revenue_evidence(
+    *,
+    research_id: str,
+    sub_question: SubQuestion,
+    source: Source,
+    entity: str,
+    pages: list[_PdfPage],
+    periods: list[str],
+) -> Evidence | None:
+    """Recover an explicit annual-performance sentence from a primary filing.
+
+    R162 Q08's live filing contained the exact total-revenue value and positive
+    year-on-year direction, but its visually laid-out statement table did not
+    parse and the LLM selected a later attribution sentence instead.  This
+    narrow finance-domain parser preserves the disclosed contradiction without
+    inferring a comparison or accepting secondary prose.
+    """
+
+    if not periods:
+        return None
+    period = max(periods)
+    for page in pages:
+        match = _ANNUAL_TOTAL_REVENUE_RE.search(page.body)
+        if match is None:
+            continue
+        value = match.group("value")
+        direction = match.group("direction")
+        yoy = match.group("yoy")
+        extract_text = match.group(0)
+        return Evidence(
+            id=str(
+                uuid5(
+                    NAMESPACE_URL,
+                    f"{research_id}:{sub_question.id}:{source.url}:营业收入:{period}",
+                )
+            ),
+            research_id=research_id,
+            sub_question_id=sub_question.id,
+            claim=(
+                f"{period}年营业总收入为{value}亿元，"
+                f"同比{direction}{_absolute_number(yoy)}%。"
+            ),
+            claim_type="data",
+            source_url=source.url,
+            source_title=source.title,
+            source_pub_date=source.published_at,
+            source_page=page.number,
+            bbox=_bbox_for_value(source, page.number, value),
+            extract_text=extract_text,
+            extract_offset_start=page.body_offset + match.start(),
+            confidence=0.99,
+            source_tier=source.source_tier,
+            content_truncated=source.content_truncated,
+            numeric_fields=NumericFields(
+                entity=entity,
+                metric_name="营业收入",
+                period=f"{period}年",
+                dimension="年度经营情况",
+                value=_decimal(value),
+                unit="亿元",
+            ),
+        )
+    return None
 
 
 def _margin_evidence(

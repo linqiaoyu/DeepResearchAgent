@@ -7,11 +7,10 @@ when the twenty-first was refused; the exception unwound the graph, so nothing
 those branches had collected reached `research_join`. Ten of the twelve gold
 facts the golden set never saw belong to those two questions.
 
-The gate on degrading rather than raising used to be `authority_returned` --
-whether a first-party disclosure had come back. Neither question had one, so
-both terminated. It is now whether anything was obtained at all, which keeps the
-one case where terminating is accurate: a budget that refuses the first request
-means the run could not begin.
+The gate on degrading rather than raising used to be branch-local
+`authority_returned`. It is now decided at the parallel join: an exhausted
+branch degrades when any sibling produced research output, while aggregate zero
+output keeps the established replayable run-level budget termination.
 """
 
 from __future__ import annotations
@@ -102,11 +101,36 @@ class FetchBudgetDegradationTests(unittest.TestCase):
             "the refusal must be recorded, not swallowed",
         )
 
-    def test_a_budget_that_refuses_the_first_request_still_terminates(self) -> None:
-        """Nothing was obtained, so terminating reports the run accurately."""
+    def test_a_budget_that_refuses_this_branch_preserves_parallel_join(self) -> None:
+        """Branch-local emptiness cannot prove the whole parallel run is empty."""
 
-        with self.assertRaises(ToolExecutionError):
-            self._research(_BudgetedProvider(fetch_allowance=0, search_allowance=0))
+        sources, records, _calls, exhausted, _decisions = self._research(
+            _BudgetedProvider(fetch_allowance=0, search_allowance=0)
+        )
+
+        self.assertEqual(sources, [])
+        self.assertTrue(exhausted)
+        self.assertTrue(any("external_search_budget_exceeded" in row.query for row in records))
+
+    def test_reintroducing_empty_branch_raise_fails_parallel_degradation(self) -> None:
+        """Mutation: the pre-R163 branch-local termination must be observable."""
+
+        original = ResearcherAgent.research_with_budget
+
+        def terminates_empty(self_: ResearcherAgent, *args: object, **kwargs: object) -> tuple:
+            result = original(self_, *args, **kwargs)  # type: ignore[arg-type]
+            if not result[0] and result[3]:
+                raise ToolExecutionError(
+                    ToolErrorKind.BUDGET_EXCEEDED, "empty branch unwound parallel join"
+                )
+            return result
+
+        try:
+            ResearcherAgent.research_with_budget = terminates_empty  # type: ignore[method-assign]
+            with self.assertRaises(ToolExecutionError):
+                self._research(_BudgetedProvider(fetch_allowance=0, search_allowance=0))
+        finally:
+            ResearcherAgent.research_with_budget = original  # type: ignore[method-assign]
 
     def test_restoring_the_authority_gate_loses_the_sources_again(self) -> None:
         """The deliberate wrong implementation this round removed.

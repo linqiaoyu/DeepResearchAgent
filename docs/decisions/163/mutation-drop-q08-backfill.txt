@@ -1,0 +1,5 @@
+test_live_q08_narrative_backfills_positive_revenue_direction
+mutation=delete the finance-domain annual total-revenue narrative backfill
+expected_failure=StopIteration: no typed revenue Evidence reaches Reporter
+guard=tests.unit.test_financial_table_extractor.FinancialTableExtractorTests
+result=mutation rejected

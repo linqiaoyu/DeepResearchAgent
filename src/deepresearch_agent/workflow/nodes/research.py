@@ -15,6 +15,7 @@ from deepresearch_agent.orchestration import (
 )
 from deepresearch_agent.schemas import AgentDecision, Evidence, SearchRecord, Source, SubQuestion
 from deepresearch_agent.tools import FIXED_CAPABILITY_SET
+from deepresearch_agent.tools.reliable_execution import ToolErrorKind, ToolExecutionError
 from langgraph.graph import END
 from langgraph.types import Send
 
@@ -397,6 +398,40 @@ class ResearchNodes:
                 source_by_url[source.url] = source
             if sub_question.id not in state.completed_tasks:
                 state.completed_tasks.append(sub_question.id)
+
+        external_budget_refused = any(
+            record.query.startswith("[external_")
+            and "_budget_exceeded]" in record.query
+            for batch in record_batches.values()
+            for item in batch
+            for record in [SearchRecord.model_validate(item)]
+        )
+        aggregate_research_output = any(source_batches.values()) or any(
+            structured_batches.values()
+        )
+        if external_budget_refused and not aggregate_research_output:
+            # A depleted sibling branch is a degradation only while the join
+            # has something to preserve. With no source or structured evidence
+            # anywhere, retain the established run-level budget terminal state
+            # and its replayable partial report.
+            rejected = (
+                run_scope.tool_context.external_request_budget.rejected_events[-1]
+                if run_scope.tool_context.external_request_budget is not None
+                and run_scope.tool_context.external_request_budget.rejected_events
+                else None
+            )
+            detail = (
+                "run-wide "
+                f"{rejected['lane']} {rejected['request_kind']} request budget "
+                f"exhausted for {rejected['tool']}: "
+                f"{rejected['consumed']}/{rejected['limit']}"
+                if rejected is not None
+                else "external request budget exhausted before any research output"
+            )
+            raise ToolExecutionError(
+                ToolErrorKind.BUDGET_EXCEEDED,
+                detail,
+            )
 
         raw_execution_plan = state.metadata.get("execution_plan")
         if not isinstance(raw_execution_plan, dict):

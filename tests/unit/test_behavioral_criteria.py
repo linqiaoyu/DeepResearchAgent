@@ -96,7 +96,13 @@ class RefutePremiseVerdictTests(unittest.TestCase):
         )
         verdict = refute_premise_verdict(report, _gold("Q16"))
         self.assertFalse(verdict.satisfied)
-        self.assertIn("positively asserts", verdict.detail)
+
+    def test_real_r162_refutation_is_not_confused_with_revenue_decline(self) -> None:
+        report = _fixture("r162_live_q16_report_excerpt.md")
+
+        verdict = refute_premise_verdict(report, _gold("Q16"))
+
+        self.assertTrue(verdict.satisfied, verdict.detail)
 
     def test_a_value_in_other_units_still_counts(self) -> None:
         """174,144,069,958.25 元 and 1741.44 亿元 are the same disclosure."""

@@ -1,0 +1,5 @@
+test_reintroducing_empty_branch_raise_fails_parallel_degradation
+mutation=restore branch-local raise when exhausted branch has no sources
+expected_failure=ToolExecutionError: empty branch unwound parallel join
+guard=tests.unit.test_budget_degradation.FetchBudgetDegradationTests
+result=mutation rejected

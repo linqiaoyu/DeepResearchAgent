@@ -304,10 +304,12 @@ class ResearcherAgent:
             except ToolExecutionError as exc:
                 if exc.kind != ToolErrorKind.BUDGET_EXCEEDED:
                     raise
-                if not seen:
-                    # Nothing was obtained before the budget refused: the run
-                    # could not begin, and terminating says so accurately.
-                    raise
+                # This method is one branch of a parallel research fan-out.
+                # ``seen`` is branch-local: another branch may already hold the
+                # evidence the join must preserve. Raising here unwinds the
+                # entire graph and discards that work. An empty branch is an
+                # explicit degradation; the joined run decides whether the
+                # aggregate evidence is sufficient.
                 branch_exhausted = True
                 records.append(
                     SearchRecord(

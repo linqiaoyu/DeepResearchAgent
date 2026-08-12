@@ -1,0 +1,32 @@
+{
+  "schema_version": "r163-failure-repair-v1",
+  "round": 163,
+  "task": "conditional_F13",
+  "status": "targeted_repairs_passed",
+  "source_failure": "docs/decisions/162/failed-product-candidate.json",
+  "contracts": {
+    "external_request_limit_changed": false,
+    "branch_exhaustion": "explicit degradation",
+    "aggregate_zero_output": "budget_exceeded with strict replay",
+    "premise_scoring": "relation-specific",
+    "q08_backfill": "verbatim eligible primary annual-report narrative only"
+  },
+  "results": {
+    "unit_tests_passed": 1232,
+    "registered_skips": 7,
+    "r162_q16_real_excerpt_accepted": true,
+    "r113_q16_positive_assertion_rejected": true,
+    "empty_branch_does_not_unwind_join": true,
+    "aggregate_zero_output_terminates": true,
+    "budget_terminal_strict_replay": true,
+    "r162_q08_positive_yoy_backfilled": true
+  },
+  "boundaries": {
+    "paid_provider_calls": false,
+    "full_cohort_run": false,
+    "saved_state_product_proof": false,
+    "golden_truth_changed": false,
+    "product_threshold_changed": false,
+    "product_acceptance_claim": false
+  }
+}

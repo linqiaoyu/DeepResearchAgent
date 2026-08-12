@@ -37,6 +37,13 @@
           "provenance": "real R149 live run, artifacts/149/shard4/work/Q16/report.md",
           "expected_satisfied": true,
           "note": "Explicitly and with a citation states that CATL remained first and BYD did not overtake; the report need not repeat all four SNE figures to perform the required behavior."
+        },
+        {
+          "question": "Q16",
+          "fixture": "tests/fixtures/behavioral/r162_live_q16_report_excerpt.md",
+          "provenance": "real R162 live run, artifacts/162/shard4/Q16/report.md, reduced to the exact relevant clauses without changing their wording",
+          "expected_satisfied": true,
+          "note": "Explicitly denies the overtake and gives the cited first/second rankings; later discussion of CATL revenue decline is a different relation and must not reverse the verdict."
         }
       ]
     },

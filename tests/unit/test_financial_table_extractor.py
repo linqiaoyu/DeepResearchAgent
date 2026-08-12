@@ -41,6 +41,50 @@ class _FailingExtractorLLM:
 
 
 class FinancialTableExtractorTests(unittest.TestCase):
+    def test_live_q08_narrative_backfills_positive_revenue_direction(self) -> None:
+        sub_question = SubQuestion(
+            id="rev_value",
+            question="确认2024年度营业总收入同比变动的方向与幅度",
+            search_queries=["贵州茅台 2024 营业总收入 下滑"],
+            structured_data_requests=[
+                StructuredDataRequest(
+                    capability="financial_indicators",
+                    company_name="贵州茅台",
+                    symbol="600519",
+                    periods=["20241231"],
+                    metrics=["营业总收入"],
+                )
+            ],
+        )
+        source = Source(
+            title="贵州茅台酒股份有限公司2024年年度报告",
+            url="fixture://r162/q08/annual-report",
+            source_type="disclosure_pdf",
+            source_tier="primary",
+            published_at=date(2025, 4, 2),
+            content=(
+                "[[PDF_PAGE=4]]\n贵州茅台酒股份有限公司 2024 年年度报告\n"
+                "[[PDF_PAGE=8]]\n五、报告期内主要经营情况\n"
+                "一是经营业绩稳健增长。年度内公司实现营业总收入 1,741.44 亿元，"
+                "同比增长 15.66%；归属于上市公司股东的净利润 862.28 亿元。"
+            ),
+        )
+
+        evidence = ExtractorAgent(
+            llm_client=_ExtractorLLM([]),  # type: ignore[arg-type]
+        ).extract("r162-q08", sub_question, [source])
+
+        revenue = next(
+            item
+            for item in evidence
+            if item.numeric_fields
+            and item.numeric_fields.metric_name == "营业收入"
+        )
+        self.assertEqual(revenue.source_page, 8)
+        self.assertEqual(revenue.numeric_fields.value, Decimal("1741.44"))
+        self.assertEqual(revenue.numeric_fields.unit, "亿元")
+        self.assertIn("同比增长15.66%", revenue.claim)
+
     def test_statement_table_index_backfills_without_text_row(self) -> None:
         sub_question = self._sub_question(metrics=["营业收入"])
         source = Source(

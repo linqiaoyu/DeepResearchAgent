@@ -82,6 +82,11 @@ _FALSE_PREMISE_ASSERTION_RE = re.compile(
     r"(?<!未)(?<!并未)(?<!没有)(?:被|已经|已).{0,8}反超"
     r"|(?:下滑|下降).{0,12}(?:原因|源于|由于)"
 )
+_OVERTAKE_ASSERTION_RE = re.compile(
+    r"(?<!未)(?<!并未)(?<!没有)(?:被|已经|已).{0,8}反超"
+    r"|反超.{0,12}(?:原因|源于|由于|驱动)"
+)
+_DECLINE_ASSERTION_RE = re.compile(r"(?:下滑|下降).{0,12}(?:原因|源于|由于)")
 _NON_ASSERTIVE_MARKERS = ("？", "?", "若", "是否", "假设", "前提")
 
 
@@ -168,11 +173,37 @@ def contradicting_facts(gold: dict[str, Any]) -> list[dict[str, Any]]:
     return facts
 
 
+def _assertion_pattern(facts: list[dict[str, Any]]) -> re.Pattern[str]:
+    terms = {
+        str(term)
+        for fact in facts
+        for term in fact.get("audit_contract", {}).get("scope_terms", [])
+    }
+    return _OVERTAKE_ASSERTION_RE if {"第一", "第二"} & terms else _DECLINE_ASSERTION_RE
+
+
+def asserts_relevant_false_premise(body: str, facts: list[dict[str, Any]]) -> bool:
+    """Detect only the relation contradicted by this case's frozen fact."""
+
+    pattern = _assertion_pattern(facts)
+    for line in body.splitlines():
+        if not line.strip() or line.strip().startswith("#"):
+            continue
+        for clause in re.split(r"[。；;]", line):
+            if any(marker in clause for marker in _NON_ASSERTIVE_MARKERS):
+                continue
+            if _EXPLICIT_REFUTATION_RE.search(clause) or "不存在" in clause:
+                continue
+            if pattern.search(clause):
+                return True
+    return False
+
+
 def explicit_cited_refutation(report: str, facts: list[dict[str, Any]]) -> str | None:
     """Return the cited line that explicitly rejects the premise, if any."""
 
     body = report_body(report)
-    if asserts_false_premise(body):
+    if asserts_relevant_false_premise(body, facts):
         return None
     scope_terms = {
         str(term)
@@ -220,7 +251,7 @@ def refute_premise_verdict(report: str, gold: dict[str, Any]) -> BehavioralVerdi
             detail="gold declares refute_premise but no must_include fact carries numeric_tokens",
         )
     body = report_body(report)
-    if asserts_false_premise(body):
+    if asserts_relevant_false_premise(body, facts):
         return BehavioralVerdict(
             criterion="refute_premise",
             satisfied=False,
