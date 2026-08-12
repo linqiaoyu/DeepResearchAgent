@@ -281,6 +281,13 @@ def run_gate() -> None:
             "behavioral_criteria_registered",
             [sys.executable, "scripts/check_behavioral_criteria.py"],
         ),
+        # R160: the first complete product candidate passed coverage and
+        # evidence delivery but adopted Q16's frozen false premise. Preserve
+        # that failure and prevent it from being relabelled as product proof.
+        (
+            "f14_failed_product_candidate",
+            [sys.executable, "scripts/check_f14_failed_candidate.py", "--self-test"],
+        ),
         # R116: the reporter model decides what to write from every packed
         # Evidence item, so a sub-question it passes over reaches the reader as
         # silence. 8 of 80 sub-questions on the R113 live set arrived that way.

@@ -1,0 +1,3 @@
+hide_q16_failure
+f14_failed_candidate_error: R160 must preserve one false-premise failure
+exit=1
