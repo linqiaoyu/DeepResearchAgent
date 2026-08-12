@@ -33,5 +33,8 @@
       "measured_by": "scripts/run_golden_round.py"
     }
   ],
-  "proof": null
+  "proof": {
+    "round": 165,
+    "result_path": "docs/decisions/165/product-proof.json"
+  }
 }
