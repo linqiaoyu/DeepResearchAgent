@@ -1,0 +1,47 @@
+{
+  "schema_version": "failed-product-candidate-v1",
+  "round": 164,
+  "status": "failed",
+  "preregistration": "docs/decisions/164/preregistration.json",
+  "candidate": {
+    "artifact": "artifacts/164/product-candidate.json",
+    "coverage": "30/30",
+    "status_done": 16,
+    "status_error": 14,
+    "provider_fidelity": {"llm": "live", "retrieval": "live", "structured_data": "live"},
+    "saved_states_used": false,
+    "generation": "r164-post-r163-f14",
+    "ledger_cost_cny": 2.67472112
+  },
+  "acceptance": {
+    "status_30_of_30_done": false,
+    "evidence_reachable_rate": "not_published_for_failed_candidate",
+    "orphaned_sub_questions": "not_published_for_failed_candidate",
+    "false_premise_failed": "not_published_for_failed_candidate",
+    "verdict": "FAIL"
+  },
+  "failures": [
+    {
+      "class": "tavily_account_quota_exhausted",
+      "count": 14,
+      "questions": ["Q05", "Q12", "Q17", "Q19", "Q20", "Q21", "Q23", "Q24", "Q25", "Q26", "Q27", "Q28", "Q29", "Q30"],
+      "detail": "All 148 Tavily requests during R164 recorded HTTPStatusError and zero results. A redacted direct probe of the configured key returned HTTP 432 with usage/limit/exceeded/plan semantics. The user-authorized replacement key returned HTTP 200 with a non-empty result and was installed only after this confirmation.",
+      "route": "new_independent_candidate_on_replacement_key"
+    },
+    {
+      "class": "q16_no_market_share_evidence",
+      "count": 1,
+      "questions": ["Q16"],
+      "detail": "The report correctly declined to validate the overtake premise, but with Tavily unavailable it had no first/second market-share Evidence and therefore could not meet the explicit refutation behavior.",
+      "route": "expected_to_be_retested_only_in_new_independent_candidate"
+    }
+  ],
+  "integrity": {
+    "exact_once_question_ids": true,
+    "rerun_failed_questions": false,
+    "best_of": false,
+    "cross_candidate_splice": false,
+    "silent_exclusion": false,
+    "tavily_key_value_persisted": false
+  }
+}
