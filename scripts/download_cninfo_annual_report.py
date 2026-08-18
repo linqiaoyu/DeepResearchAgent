@@ -17,7 +17,7 @@ class RecordingClient:
 
     def __init__(self) -> None:
         self.client = httpx.Client(headers={
-            "User-Agent": "Mozilla/5.0 (compatible; DeepResearchAgent/0.1)",
+            "User-Agent": "Mozilla/5.0 (compatible; DeepResearchHarness/0.1)",
             "Referer": "https://www.cninfo.com.cn/",
             "X-Requested-With": "XMLHttpRequest",
         })

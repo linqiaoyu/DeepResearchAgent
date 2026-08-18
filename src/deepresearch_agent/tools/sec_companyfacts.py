@@ -61,7 +61,7 @@ class SecCompanyFactsProvider:
     ) -> None:
         self._owns_client = client is None
         self.client = client or httpx.Client(
-            headers={"User-Agent": "DeepResearchAgent/0.1 contact@example.invalid"},
+            headers={"User-Agent": "DeepResearchHarness/0.1 contact@example.invalid"},
             timeout=timeout_seconds,
         )
         self.timeout_seconds = timeout_seconds

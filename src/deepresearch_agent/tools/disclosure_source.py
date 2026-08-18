@@ -163,7 +163,7 @@ class CninfoDisclosureSource:
     ) -> None:
         self._owns_client = client is None
         self.client = client or httpx.Client(headers={
-            "User-Agent": "Mozilla/5.0 (compatible; DeepResearchAgent/0.1)",
+            "User-Agent": "Mozilla/5.0 (compatible; DeepResearchHarness/0.1)",
             "Referer": "https://www.cninfo.com.cn/",
             "X-Requested-With": "XMLHttpRequest",
         })

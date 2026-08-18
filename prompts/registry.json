@@ -9,20 +9,20 @@
       "sha256": "fd7b56de2e65c335f966f85be911d1e9e31eb5375708291f8ae61d535ab8e882"
     },
     "extractor.md": {
-      "version": "1.2.0",
-      "sha256": "4561dd6945a7d9ec38d8c53a9839e84c2e58d3968e7035f5bb1d488f8a7a1661"
+      "version": "1.2.1",
+      "sha256": "b39eb4e9578efe15bf1bd2aa5ab2eaa2fed3c73d64b5ee85f9b48863a4d9a9d9"
     },
     "judge.md": {
-      "version": "1.0.0",
-      "sha256": "2e87f85cb54673ab6f84e0f0fc4b8c108441757e20ecd9ec4c3416df5d893533"
+      "version": "1.0.1",
+      "sha256": "47f8c1b521d9c38609ea3c21c53dbca2494fa5c7f951d268b2d2df6fd63ae74b"
     },
     "planner.md": {
-      "version": "1.1.0",
-      "sha256": "80132d46384c4cc142d8fa0a3a2187be56083e2788e80c037e982a34f9651193"
+      "version": "1.1.1",
+      "sha256": "a459342bdf6351312da200ae6c9ecea814b2a48ae83d053bf409534e25e0ed7c"
     },
     "reporter.md": {
-      "version": "1.3.0",
-      "sha256": "8221ae71026cfcc9a0c01914620f127eef34c3b868d03bf772afb7701ec3b82a"
+      "version": "1.3.1",
+      "sha256": "dc0eaa3470856a3ba1345d20c3fa1a84a444d5d41d261bf81a9d144618e46378"
     },
     "semantic_judge.md": {
       "version": "1.1.0",

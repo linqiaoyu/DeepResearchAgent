@@ -14,7 +14,7 @@ from urllib.request import Request, urlopen
 DEFAULT_TIMEOUT_SECONDS = 30
 DEFAULT_RETRIES = 2
 DEFAULT_REQUEST_BUDGET = 120
-USER_AGENT = "DeepResearchAgent-finance-v1/1.0 public-corpus-fetcher"
+USER_AGENT = "DeepResearchHarness-finance-v1/1.0 public-corpus-fetcher"
 BLOCKED_MARKERS = (b"captcha", b"access denied", b"verify you are human", b"unusual traffic")
 
 

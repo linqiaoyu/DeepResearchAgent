@@ -119,7 +119,7 @@ def create_app(
     if FastAPI is None:
         return None
     app = FastAPI(
-        title="DeepResearchAgent",
+        title="DeepResearchHarness",
         description="Multi-agent deep research with Evidence Store, Critic, checkpointing, and evaluation harness.",
         version="0.1.0",
         lifespan=lifespan,

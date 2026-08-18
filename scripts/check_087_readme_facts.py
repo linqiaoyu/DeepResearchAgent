@@ -17,7 +17,7 @@ from deepresearch_agent.workflow.contracts import workflow_contract_graph
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "_collab" / "087" / "ab" / "results.json"
 HEADINGS = (
-    "# DeepResearchAgent",
+    "# DeepResearchHarness",
     "## 你会拿到什么",
     "## 三分钟跑起来",
     "## 凭什么信它",

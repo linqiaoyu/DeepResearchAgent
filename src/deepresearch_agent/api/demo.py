@@ -419,7 +419,7 @@ class DemoService:
     def overview(self) -> dict[str, Any]:
         assets = self._assets()
         return {
-            "name": "DeepResearchAgent public demo",
+            "name": "DeepResearchHarness public demo",
             "layers": ["showcase", "golden_rerun", "owner_live"],
             "showcase_report_count": len(assets["reports"]),
             "as_of": assets["as_of"],

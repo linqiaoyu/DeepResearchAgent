@@ -162,7 +162,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
             "Run a zero-dependency stdio MCP handshake against the local "
-            "DeepResearchAgent server."
+            "DeepResearchHarness server."
         )
     )
     parser.add_argument("--runtime-root", type=Path, required=True)

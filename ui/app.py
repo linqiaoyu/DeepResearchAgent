@@ -58,7 +58,7 @@ def local_asset(path: str) -> Any:
     assets = json.loads((ROOT / "data" / "demo" / "g3_showcase.json").read_text(encoding="utf-8"))
     if path == "/demo":
         return {
-            "name": "DeepResearchAgent public demo",
+            "name": "DeepResearchHarness public demo",
             "layers": ["showcase", "golden_rerun", "owner_live"],
             "showcase_report_count": len(assets["reports"]),
             "as_of": assets["as_of"],
@@ -95,10 +95,10 @@ def local_asset(path: str) -> Any:
     return {}
 
 
-st.set_page_config(page_title="DeepResearchAgent Demo", layout="wide")
+st.set_page_config(page_title="DeepResearchHarness Demo", layout="wide")
 overview = api_get("/demo")
 
-st.title("DeepResearchAgent")
+st.title("DeepResearchHarness")
 st.caption("Finance deep-research demo with frozen Golden Set replay and owner-gated live search.")
 
 summary = overview.get("summary", {})

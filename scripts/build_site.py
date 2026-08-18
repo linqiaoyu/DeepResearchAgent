@@ -312,12 +312,12 @@ def _layout(title: str, content: str) -> str:
     prefix = "../" if title.startswith("报告 ") else ""
     return f"""<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#0b172a"><meta name="description" content="DeepResearchAgent 的可复核研究成果、评测证据与复现路径。">
-<meta property="og:image" content="https://deepresearch-agent.jacksonyu1109.workers.dev/assets/og.png"><meta property="og:image:alt" content="DeepResearchAgent：让每一个研究结论，都经得起回看。">
-<title>{html.escape(title)} · DeepResearchAgent</title><link rel="stylesheet" href="{prefix}assets/styles.css"></head>
+<meta name="theme-color" content="#0b172a"><meta name="description" content="DeepResearchHarness 的可复核研究成果、评测证据与复现路径。">
+<meta property="og:image" content="https://deepresearch-agent.jacksonyu1109.workers.dev/assets/og.png"><meta property="og:image:alt" content="DeepResearchHarness：让每一个研究结论，都经得起回看。">
+<title>{html.escape(title)} · DeepResearchHarness</title><link rel="stylesheet" href="{prefix}assets/styles.css"></head>
 <body><a class="skip-link" href="#content">跳至内容</a><header class="site-header"><a class="brand" href="{prefix}index.html"><span class="brand-mark">DR</span><span>DeepResearch<br><em>Agent</em></span></a><nav aria-label="主导航">
 <a href="{prefix}reports/index.html">成果报告</a><a href="{prefix}scenarios.html">工作流演示</a><a href="{prefix}methodology.html">评测方法</a><a href="{prefix}rag.html">RAG 证据</a><a href="{prefix}reproduce.html">复现路径</a>
-<a class="nav-github" href="https://github.com/linqiaoyu/DeepResearchAgent">GitHub ↗</a></nav></header><main id="content">{content}</main><footer><span>DeepResearchAgent</span><span>静态展示 · 冻结语料 · 可审计产物</span></footer></body></html>"""
+<a class="nav-github" href="https://github.com/linqiaoyu/DeepResearchHarness">GitHub ↗</a></nav></header><main id="content">{content}</main><footer><span>DeepResearchHarness</span><span>静态展示 · 冻结语料 · 可审计产物</span></footer></body></html>"""
 
 
 def _home_page(
@@ -333,7 +333,7 @@ def _home_page(
     return _layout(
         "首页",
         f"""<section class="hero hero-home"><div class="hero-copy"><p class="eyebrow">RESEARCH, WITH RECEIPTS</p><h1>让每一个研究结论，都经得起回看。</h1>
-<p class="hero-lede">DeepResearchAgent 将研究、引文、数值审计与评测发布连接成一条可复核的交付链路。Round 087 的最终验证覆盖中文 NIO 与英文 PDD 两份报告；证据仅适用于金融 SUT，不宣称已经完成通用领域实现。</p>
+<p class="hero-lede">DeepResearchHarness 将研究、引文、数值审计与评测发布连接成一条可复核的交付链路。Round 087 的最终验证覆盖中文 NIO 与英文 PDD 两份报告；证据仅适用于金融 SUT，不宣称已经完成通用领域实现。</p>
 <div class="hero-actions"><a class="button button-primary" href="reports/index.html">浏览精选报告 <span>→</span></a><a class="button button-quiet" href="methodology.html">查看评测证据</a></div>
 <p class="boundary-note"><span></span> 冻结 {live['corpus']['documents']} 文档 SEC 20-F 语料 · 公开页不发起实时调用</p></div>
 <aside class="proof-panel" aria-label="发布核验摘要"><div class="proof-top"><span>ROUND 087 · FINAL LIVE VALIDATION</span><b>VERIFIED</b></div><div class="score-orbit"><strong>{len(live['reports'])}</strong><span>final reports</span></div><div class="proof-lines"><p><i></i><span>NIO 中文 · 读者可见行</span><b>{nio['reader_visible_lines']}</b></p><p><i></i><span>PDD 英文 · 读者可见行</span><b>{pdd['reader_visible_lines']}</b></p><p><i></i><span>引用闭合 / 结构化 manifest</span><b>PASS</b></p></div><div class="proof-caption">{live['provider']} · {live['corpus']['documents']} 文档冻结语料</div></aside></section>

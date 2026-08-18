@@ -687,7 +687,7 @@ def _trace_stdio(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="DeepResearchAgent MCP server over line-delimited stdio."
+        description="DeepResearchHarness MCP server over line-delimited stdio."
     )
     parser.add_argument(
         "--runtime-root",

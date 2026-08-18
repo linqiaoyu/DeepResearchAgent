@@ -1,6 +1,6 @@
 # Agent 如何通盘权衡
 
-DeepResearchAgent 不把预算、历史结论、Critic 缺口和工具能力当成互不相干的局部变量。
+DeepResearchHarness 不把预算、历史结论、Critic 缺口和工具能力当成互不相干的局部变量。
 开启 `DECISION_WEAVING_ENABLED` 后，编排层在每个关键边界构造同一个只读
 `DecisionContext`，再由预算分配、循环停止、跨期分类和检索重规划读取。上下文包含：
 

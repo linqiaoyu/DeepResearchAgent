@@ -41,7 +41,7 @@ _ISO_DATE = re.compile(r"20\d{2}-\d{2}-\d{2}")
 
 #: SEC asks automated clients to identify themselves and to stay under 10
 #: requests per second. One request per issuer with a pause is far below that.
-_USER_AGENT = "DeepResearchAgent/1.0 (research corpus builder; contact via repository)"
+_USER_AGENT = "DeepResearchHarness/1.0 (research corpus builder; contact via repository)"
 _MIN_REQUEST_INTERVAL_SECONDS = 0.2
 
 

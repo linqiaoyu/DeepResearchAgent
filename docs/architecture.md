@@ -1,6 +1,6 @@
 # Architecture
 
-DeepResearchAgent is organized as a deterministic long-horizon research workflow with explicit quality gates and source-backed evidence.
+DeepResearchHarness is organized as a deterministic long-horizon research workflow with explicit quality gates and source-backed evidence.
 
 ## 编排控制面
 

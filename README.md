@@ -1,10 +1,10 @@
-# DeepResearchAgent
+# DeepResearchHarness
 
 ## 让每一个研究结论，都经得起回看。
 
 面向投研分析师的可审计深度研究 Agent：把一个研究问题变成带逐条证据、可比较快照和审计包的报告。
 
-[![CI](https://github.com/linqiaoyu/DeepResearchAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/linqiaoyu/DeepResearchAgent/actions/workflows/ci.yml)
+[![CI](https://github.com/linqiaoyu/DeepResearchHarness/actions/workflows/ci.yml/badge.svg)](https://github.com/linqiaoyu/DeepResearchHarness/actions/workflows/ci.yml)
 ![Tests](https://img.shields.io/badge/tests-CI%20verified-brightgreen)
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-blue)
@@ -16,9 +16,9 @@
 [决策记录](docs/decisions/README.md) ·
 [生产边界](docs/production_readiness.md)
 
-分析师经常要在分散网页、财务口径、历史结论和引用之间来回核对；普通聊天式回答很难说明“这句话来自哪里”和“这次与上次相比什么变了”。DeepResearchAgent 把这些结果整理成一套可保存、可追溯、可复查的研究资产。当前首个场景是金融投研，默认使用本地 fixture，零 API key 即可运行；Round 087 的两份最终 live 包则在冻结的 60 文档 SEC 20-F 语料上验证了中文 NIO 与英文 PDD 报告。金融策略已通过显式 `DomainPack` 注入，但 finance 仍是唯一真实领域实现，不能据此宣称框架已经通用化；边界见 [architecture.md](docs/architecture.md)。
+分析师经常要在分散网页、财务口径、历史结论和引用之间来回核对；普通聊天式回答很难说明“这句话来自哪里”和“这次与上次相比什么变了”。DeepResearchHarness 把这些结果整理成一套可保存、可追溯、可复查的研究资产。当前首个场景是金融投研，默认使用本地 fixture，零 API key 即可运行；Round 087 的两份最终 live 包则在冻结的 60 文档 SEC 20-F 语料上验证了中文 NIO 与英文 PDD 报告。金融策略已通过显式 `DomainPack` 注入，但 finance 仍是唯一真实领域实现，不能据此宣称框架已经通用化；边界见 [architecture.md](docs/architecture.md)。
 
-![DeepResearchAgent 静态演示站与研究产物](docs/assets/readme/site_overview.png)
+![DeepResearchHarness 静态演示站与研究产物](docs/assets/readme/site_overview.png)
 
 ## 快速开始
 
@@ -27,8 +27,8 @@
 ### 1. 安装
 
 ```bash
-git clone https://github.com/linqiaoyu/DeepResearchAgent.git
-cd DeepResearchAgent
+git clone https://github.com/linqiaoyu/DeepResearchHarness.git
+cd DeepResearchHarness
 python3.12 -m venv .venv
 PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pip install -e ".[dev]"
 PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/doctor.py

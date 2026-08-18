@@ -116,7 +116,7 @@ class DeepResearchHandler(BaseHTTPRequestHandler):
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>DeepResearchAgent</title>
+  <title>DeepResearchHarness</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; background: #f7f8fa; color: #20242a; }
     main { max-width: 960px; margin: 0 auto; padding: 32px 20px; }
@@ -128,7 +128,7 @@ class DeepResearchHandler(BaseHTTPRequestHandler):
 </head>
 <body>
   <main>
-    <h1>DeepResearchAgent</h1>
+    <h1>DeepResearchHarness</h1>
     <form action="/run" method="get">
       <input name="topic" value="AI Agent 在财富管理行业的落地机会研究" />
       <button type="submit">Run</button>
@@ -150,7 +150,7 @@ GET /research/{id}/report</pre>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>DeepResearchAgent Report</title>
+  <title>DeepResearchHarness Report</title>
   <style>
     body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; background: #f7f8fa; color: #20242a; }}
     main {{ max-width: 1040px; margin: 0 auto; padding: 28px 20px; }}
@@ -175,7 +175,7 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8765)
     args = parser.parse_args()
     server = ThreadingHTTPServer((args.host, args.port), DeepResearchHandler)
-    print(f"Serving DeepResearchAgent fallback UI at http://{args.host}:{args.port}")
+    print(f"Serving DeepResearchHarness fallback UI at http://{args.host}:{args.port}")
     server.serve_forever()
 
 

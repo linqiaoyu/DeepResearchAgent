@@ -45,7 +45,7 @@ def render() -> str:
     )
     graph = workflow_contract_graph()
     node_count = len({node for edge in graph.edges for node in edge})
-    return f'''# DeepResearchAgent
+    return f'''# DeepResearchHarness
 
 把投研结论带回可核对的来源，而不是交付一段无法复查的文字。
 

@@ -2,7 +2,7 @@
 
 ## 范围与协议
 
-DeepResearchAgent 的 MCP 边界使用 UTF-8、行分隔的 stdio JSON-RPC 2.0，
+DeepResearchHarness 的 MCP 边界使用 UTF-8、行分隔的 stdio JSON-RPC 2.0，
 目标协议版本为 `2025-06-18`。实现位于
 `src/deepresearch_agent/mcp/server.py` 与
 `src/deepresearch_agent/mcp/client.py`，没有引入 MCP SDK 或新的项目依赖。

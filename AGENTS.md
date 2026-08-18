@@ -2,7 +2,7 @@
 
 ## 1. 项目边界与事实源
 
-DeepResearchAgent 是在 LangGraph 图运行时之上自建 Agent 合同、预算与可观测层的 harness；
+DeepResearchHarness 是在 LangGraph 图运行时之上自建 Agent 合同、预算与可观测层的 harness；
 金融投研是首个被测系统（SUT），当前不得
 宣称已经完成通用 domain-pack 抽取。代码行为以源码、`Settings`、`pyproject.toml`
 和 CI 为事实源；历史结论以 `docs/decisions/` 为事实源。本文件只保存跨轮规则，不

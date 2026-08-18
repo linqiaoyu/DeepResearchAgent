@@ -1,2 +1,1 @@
-"""FastAPI entrypoints for DeepResearchAgent."""
-
+"""FastAPI entrypoints for DeepResearchHarness."""

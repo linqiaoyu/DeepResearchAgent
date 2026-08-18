@@ -46,7 +46,7 @@ def _agents_structure_failures(agents: str) -> list[str]:
         failures.append(
             f"numbered sections must be exactly 1..11 in order, got {numbered}"
         )
-    if "DeepResearchAgent 是自建 Agent Harness" in agents:
+    if "DeepResearchHarness 是自建 Agent Harness" in agents:
         failures.append(
             "AGENTS.md must not claim the graph runtime is self-built; LangGraph is the runtime"
         )
@@ -61,8 +61,8 @@ def _self_test(agents: str) -> None:
     cases = {
         "swapped_sections": agents.replace("## 10. 规则的执行面", "## 12. 规则的执行面"),
         "false_harness_claim": agents.replace(
-            "DeepResearchAgent 是在 LangGraph 图运行时之上自建 Agent 合同、预算与可观测层的 harness",
-            "DeepResearchAgent 是自建 Agent Harness",
+            "DeepResearchHarness 是在 LangGraph 图运行时之上自建 Agent 合同、预算与可观测层的 harness",
+            "DeepResearchHarness 是自建 Agent Harness",
         ),
     }
     for label, broken in cases.items():
